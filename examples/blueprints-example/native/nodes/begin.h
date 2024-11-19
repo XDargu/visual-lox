@@ -134,7 +134,7 @@ static NodePtr BuildPrintNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<PrintNode>(IDGenerator.GetNextId(), "Print");
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Content", PinType::String);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Content", PinType::Any);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
     // TODO: These values will be garbage collected! We will need to mark them somewhow

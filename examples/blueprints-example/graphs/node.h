@@ -37,7 +37,7 @@ inline ImColor GetIconColor(PinType type)
         case PinType::String:   return ImColor(124, 21, 153);
         case PinType::Object:   return ImColor(51, 150, 215);
         case PinType::Function: return ImColor(218, 0, 183);
-        case PinType::Any:      return ImColor(255, 48, 48);
+        case PinType::Any:      return ImColor(200, 200, 200);
     }
 };
 
@@ -52,7 +52,7 @@ inline ax::Drawing::IconType GetPinIcon(PinType type)
         case PinType::String:   return ax::Drawing::IconType::Circle;
         case PinType::Object:   return ax::Drawing::IconType::Circle;
         case PinType::Function: return ax::Drawing::IconType::Circle;
-        case PinType::Any:      return ax::Drawing::IconType::Square;
+        case PinType::Any:      return ax::Drawing::IconType::Circle;
         default:                return ax::Drawing::IconType::Circle;
     }
 }

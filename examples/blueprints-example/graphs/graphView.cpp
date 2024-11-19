@@ -47,6 +47,19 @@ void GraphView::DrawPinIcon(const Pin& pin, bool connected, int alpha)
     ImColor color = GetIconColor(pin.Type);
     color.Value.w = alpha / 255.0f;
 
+    // Just a test
+    if (pin.Type == PinType::Any && connected)
+    {
+        // Figure out to which type is it connected
+        if (pin.Kind == PinKind::Input)
+        {
+            if (const Pin* input = GraphUtils::FindConnectedOutput(*m_pGraph, pin))
+            {
+                color = GetIconColor(input->Type);
+            }
+        }
+    }
+
     ax::Widgets::Icon(ImVec2(static_cast<float>(m_PinIconSize), static_cast<float>(m_PinIconSize)), iconType, connected, color, ImColor(32, 32, 32, alpha));
 }
 
@@ -401,7 +414,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                             showLabel("x Cannot connect to self", ImColor(45, 32, 32, 180));
                             ed::RejectNewItem(ImColor(255, 0, 0), 1.0f);
                         }
-                        else if (endPin->Type != startPin->Type)
+                        else if (endPin->Type != startPin->Type && endPin->Type != PinType::Any && startPin->Type != PinType::Any)
                         {
                             showLabel("x Incompatible Pin Type", ImColor(45, 32, 32, 180));
                             ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);

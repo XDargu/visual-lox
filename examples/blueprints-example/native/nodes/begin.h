@@ -79,15 +79,7 @@ struct BranchNode : public Node
 
     void CompileInputs(Compiler& compiler, const Graph& graph) const
     {
-        if (graph.IsPinLinked(Inputs[1].ID))
-        {
-            //compiler.emitByte(OpByte(OpCode::OP_POP));
-        }
-        else
-        {
-            bool input = asBoolean(InputValues[1]);
-            compiler.emitConstant(Value(input));
-        }
+        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
     }
 };
 

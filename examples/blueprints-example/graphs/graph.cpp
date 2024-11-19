@@ -163,14 +163,14 @@ NodePtr Graph::AddNode(const NodePtr& node)
      return true;
  }
 
- int GraphUtils::FindNodeInputIdx(const Pin& input)
+ int GraphUtils::FindNodeInputIdx(const Node* node, ed::PinId pinId)
  {
-     if (!input.Node)
+     if (!node)
          return -1;
 
-     for (int i = 0; i < input.Node->Inputs.size(); ++i)
+     for (int i = 0; i < node->Inputs.size(); ++i)
      {
-         if (input.Node->Inputs[i].ID == input.ID)
+         if (node->Inputs[i].ID == pinId)
          {
              return i;
          }
@@ -179,20 +179,40 @@ NodePtr Graph::AddNode(const NodePtr& node)
      return -1;
  }
 
- int GraphUtils::FindNodeOutputIdx(const Pin& output)
+ int GraphUtils::FindNodeOutputIdx(const Node* node, ed::PinId pinId)
  {
-     if (!output.Node)
+     if (!node)
          return -1;
 
-     for (int i = 0; i < output.Node->Outputs.size(); ++i)
+     for (int i = 0; i < node->Outputs.size(); ++i)
      {
-         if (output.Node->Outputs[i].ID == output.ID)
+         if (node->Outputs[i].ID == pinId)
          {
              return i;
          }
      }
 
      return -1;
+ }
+
+ int GraphUtils::FindNodeInputIdx(const NodePtr& node, ed::PinId pinId)
+ {
+     return FindNodeInputIdx(node.get(), pinId);
+ }
+
+ int GraphUtils::FindNodeOutputIdx(const NodePtr& node, ed::PinId pinId)
+ {
+     return FindNodeOutputIdx(node.get(), pinId);
+ }
+
+ int GraphUtils::FindNodeInputIdx(const Pin& input)
+ {
+     return FindNodeInputIdx(input.Node, input.ID);
+ }
+
+ int GraphUtils::FindNodeOutputIdx(const Pin& output)
+ {
+     return FindNodeOutputIdx(output.Node, output.ID);
  }
 
  std::vector<const Pin*> GraphUtils::FindConnectedInputs(const Graph& graph, const Pin& outputPin)

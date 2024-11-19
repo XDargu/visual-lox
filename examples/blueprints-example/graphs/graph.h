@@ -66,6 +66,12 @@ namespace GraphUtils
     bool IsNodeImplicit(const Node* node);
     bool IsNodeImplicit(const NodePtr& node);
 
+    int FindNodeInputIdx(const Node* node, ed::PinId pinId);
+    int FindNodeOutputIdx(const Node* node, ed::PinId pinId);
+
+    int FindNodeInputIdx(const NodePtr& node, ed::PinId pinId);
+    int FindNodeOutputIdx(const NodePtr& node, ed::PinId pinId);
+
     int FindNodeInputIdx(const Pin& input);
     int FindNodeOutputIdx(const Pin& output);
 

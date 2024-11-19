@@ -81,7 +81,7 @@ NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str());
 
-    if (HasFlag(flags, NativeFunctionFlags::Implicit))
+    if (HasFlag(flags, NodeFlags::Implicit))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -120,7 +120,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(0.0);
         },
-        NativeFunctionFlags::Implicit
+        NodeFlags::Implicit
     );
 
     RegisterNativeFunc("FileExists",
@@ -136,7 +136,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(false);
         },
-        NativeFunctionFlags::Implicit
+        NodeFlags::Implicit
     );
 
     RegisterNativeFunc("Clock",
@@ -146,7 +146,7 @@ void NodeRegistry::RegisterDefinitions()
         {
             return Value((double)clock() / CLOCKS_PER_SEC);
         },
-        NativeFunctionFlags::Implicit
+        NodeFlags::Implicit
     );
 
     RegisterNativeFunc("Interpret",
@@ -167,11 +167,11 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value();
         },
-        NativeFunctionFlags::Implicit
+        NodeFlags::Implicit
     );
 }
 
-void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NativeFunctionFlags flags)
+void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)
 {
     NativeFunctionDef nativeFunc;
     nativeFunc.name = name;

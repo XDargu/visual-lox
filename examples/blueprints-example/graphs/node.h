@@ -13,6 +13,23 @@
 
 namespace ed = ax::NodeEditor;
 
+enum class NodeFlags
+{
+    Implicit = 1 << 0,
+    DynamicInputs = 1 << 1,
+};
+
+// TODO: Move to some macro?
+constexpr inline NodeFlags operator~ (NodeFlags a) { return (NodeFlags)~(int)a; }
+constexpr inline NodeFlags operator| (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a | (int)b); }
+constexpr inline NodeFlags operator& (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a & (int)b); }
+constexpr inline NodeFlags operator^ (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a ^ (int)b); }
+constexpr inline NodeFlags& operator|= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a |= (int)b); }
+constexpr inline NodeFlags& operator&= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a &= (int)b); }
+constexpr inline NodeFlags& operator^= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a ^= (int)b); }
+
+constexpr inline bool HasFlag(NodeFlags a, NodeFlags b) { return (int)(a & b) != 0; }
+
 enum class PinType
 {
     Flow,
@@ -109,6 +126,7 @@ enum class CompilationStage
 
 class Compiler;
 struct Graph;
+struct IDGenerator;
 
 struct Node
 {
@@ -120,6 +138,7 @@ struct Node
     NodeType         Type = NodeType::Blueprint;
     NodeCategory     Category = NodeCategory::Begin;
     ImVec2           Size;
+    NodeFlags        Flags = NodeFlags(0);
 
     std::vector<Value> InputValues;
 
@@ -132,6 +151,12 @@ struct Node
     }
 
     virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
+
+    // Dynamic node operations
+    virtual void AddInput(IDGenerator& IDGenerator) {};
+    virtual void RemoveInput(ed::PinId pinId) {};
+    virtual bool CanRemoveInput(ed::PinId pinId) const { return false; };
+    virtual bool CanAddInput() const { return false; };
 };
 
 using NodePtr = std::shared_ptr<Node>;

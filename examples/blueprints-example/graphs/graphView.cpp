@@ -249,6 +249,15 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 ++idx;
             }
 
+            if (HasFlag(node->Flags, NodeFlags::DynamicInputs) && node->CanAddInput())
+            {
+                if (ImGui::Button("Add Pin"))
+                {
+                    node->AddInput(*m_pIDGenerator);
+                    BuildNode(node);
+                }
+            }
+
             if (isSimple)
             {
                 builder.Middle();
@@ -545,6 +554,17 @@ void GraphView::DrawContextMenu()
         else
             ImGui::Text("Unknown pin: %p", contextPinId.AsPointer());
 
+        if (HasFlag(pin->Node->Flags, NodeFlags::DynamicInputs) && pin->Kind == PinKind::Input)
+        {
+            if (pin->Node->CanRemoveInput(pin->ID))
+            {
+                if (ImGui::MenuItem("Remove Pin"))
+                {
+                    pin->Node->RemoveInput(pin->ID);
+                }
+            }
+        }
+
         ImGui::EndPopup();
     }
 
@@ -591,6 +611,8 @@ void GraphView::DrawContextMenu()
             node = SpawnNode(AddNumbers(*m_pIDGenerator));
         if (ImGui::MenuItem("ReadFile"))
             node = SpawnNode(CreateReadFileNode(*m_pIDGenerator));
+        if (ImGui::MenuItem("Append"))
+            node = SpawnNode(CreateAppendNode(*m_pIDGenerator));
 
         for (auto& def : m_pNodeRegistry->definitions)
         {

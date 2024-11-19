@@ -614,6 +614,10 @@ struct Example:
             std::ostringstream strCout;
             std::cout.rdbuf(strCout.rdbuf());
 
+            // Redirect cerr.
+            std::streambuf* oldCerrStreamBuf = std::cerr.rdbuf();
+            std::cerr.rdbuf(strCout.rdbuf());
+
             VM& vm = VM::getInstance();
 
             
@@ -671,10 +675,16 @@ struct Example:
 
                 const InterpretResult vmResult = vm.run(0);
                 vm.pop();
+
+                if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
+                    std::cout <<  "Compilation Error";
+                else if (vmResult == InterpretResult::INTERPRET_RUNTIME_ERROR)
+                    std::cout << "Runtime Error";
             }
 
             // Restore old cout.
             std::cout.rdbuf(oldCoutStreamBuf);
+            std::cerr.rdbuf(oldCerrStreamBuf);
 
             result = strCout.str();
         }

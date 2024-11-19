@@ -114,8 +114,7 @@ static NodePtr BuildForInNode(IDGenerator& IDGenerator)
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "End", PinType::Flow);
 
     node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(false));
-    node->InputValues.emplace_back(Value());
+    node->InputValues.emplace_back(Value(newList()));
 
     return node;
 }

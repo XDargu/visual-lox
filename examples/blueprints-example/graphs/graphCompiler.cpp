@@ -14,8 +14,10 @@ void GraphCompiler::CompileGraph(Compiler& compiler, Graph& graph, NodePtr start
     std::vector<NodePtr> processedNodes;
     startNode->Compile(compiler, graph, CompilationStage::BeginSequence, 0);
     CompileRecursive(compiler, graph, startNode, -1, outputIdx, processedNodes);
-    startNode->Compile(compiler, graph, CompilationStage::BeginSequence, 0);
+    startNode->Compile(compiler, graph, CompilationStage::EndSequence, 0);
 }
+
+std::list<std::string> GraphCompiler::tempVarStorage;
 
 void GraphCompiler::CompileBackwardsRecursive(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx, std::vector<NodePtr>& processedNodes)
 {
@@ -107,8 +109,8 @@ void GraphCompiler::CompileInput(Compiler& compiler, const Graph& graph, const P
         if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, input))
         {
             const std::string outputName = tempVarPrefix + std::to_string(pOutput->ID.Get());
-            const Token outputToken(TokenType::VAR, outputName.c_str(), outputName.length(), 0);
-            compiler.namedVariable(outputToken, false);
+            const Token outputToken = StoreTempVariable(outputName);
+            compiler.emitVariable(outputToken, false);
         }
     }
     else
@@ -119,9 +121,19 @@ void GraphCompiler::CompileInput(Compiler& compiler, const Graph& graph, const P
 
 void GraphCompiler::CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output)
 {
-    const std::string outputName = "__lv__" + std::to_string(output.ID.Get());
-    const Token outputToken(TokenType::VAR, outputName.c_str(), outputName.length(), 0);
+    const std::string outputName = tempVarPrefix + std::to_string(output.ID.Get());
+    const Token outputToken = StoreTempVariable(outputName);
 
-    const uint32_t constant = compiler.identifierConstant(outputToken);
-    compiler.defineVariable(constant);
+    compiler.addLocal(outputToken, true);
+    compiler.emitVariable(outputToken, true, true);
+
+    // Swap the local variable for this to use globals instead. Much nicer for debugging!
+    //const uint32_t constant = compiler.identifierConstant(outputToken);
+    //compiler.defineVariable(constant);
+}
+
+Token GraphCompiler::StoreTempVariable(const std::string& name)
+{
+    tempVarStorage.push_back(name);
+    return Token(TokenType::VAR, tempVarStorage.back().c_str(), name.length(), 0);
 }

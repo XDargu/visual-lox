@@ -5,6 +5,9 @@
 #include "nodeRegistry.h"
 
 #include "../native/nodes/begin.h"
+#include "../native/nodes/branch.h"
+#include "../native/nodes/print.h"
+#include "../native/nodes/for-in.h"
 
 #include <Compiler.h>
 
@@ -576,6 +579,8 @@ void GraphView::DrawContextMenu()
         NodePtr node = nullptr;
         if (ImGui::MenuItem("Branch"))
             node = SpawnNode(BuildBranchNode(*m_pIDGenerator));
+        if (ImGui::MenuItem("For In"))
+            node = SpawnNode(BuildForInNode(*m_pIDGenerator));
         if (ImGui::MenuItem("Print"))
             node = SpawnNode(BuildPrintNode(*m_pIDGenerator));
         if (ImGui::MenuItem("GetBoolVar"))

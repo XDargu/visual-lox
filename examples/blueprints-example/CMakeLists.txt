@@ -21,4 +21,10 @@ add_example_executable(blueprints-example
     graphs/idgeneration.h
     native/nodes/begin.h
     native/nodes/begin.cpp
+    native/nodes/branch.h
+    native/nodes/branch.cpp
+    native/nodes/for-in.h
+    native/nodes/for-in.cpp
+    native/nodes/print.h
+    native/nodes/print.cpp
 )

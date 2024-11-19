@@ -3,7 +3,11 @@
 
 #include "node.h"
 
+#include <Scanner.h>
+
 #include <vector>
+#include <list>
+#include <string>
 
 class Compiler;
 class VM;
@@ -19,7 +23,9 @@ struct GraphCompiler
     static void RegisterNatives(VM& vm);
 
     static constexpr const char* tempVarPrefix = "__lv__";
+    static std::list<std::string> tempVarStorage; // List so pointers are preserved, we should improve this
 
     static void CompileInput(Compiler& compiler, const Graph& graph, const Pin& input, const Value& value);
     static void CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output);
+    static Token StoreTempVariable(const std::string& name);
 };

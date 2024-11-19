@@ -640,8 +640,13 @@ struct Example:
             NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
             if (begin)
             {
+                compiler.beginScope();
+
                 GraphCompiler graphCompiler;
+                graphCompiler.tempVarStorage.clear(); // TODO: Improve
                 graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
+
+                compiler.endScope();
             }
 
 
@@ -674,8 +679,14 @@ struct Example:
             result = strCout.str();
         }
 
-        ImGui::Text(result.c_str());
+        // Print compiler output
+        std::stringstream test(result);
+        std::string segment;
 
+        while (std::getline(test, segment, '\n'))
+        {
+            ImGui::Text(segment.c_str());
+        }
 
         {
             ImGui::GetWindowDrawList()->AddRectFilled(

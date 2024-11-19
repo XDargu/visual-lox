@@ -17,6 +17,7 @@
 #include <map>
 
 class NodeRegistry;
+struct Value;
 
 static inline ImRect ImGui_GetItemRect()
 {
@@ -43,6 +44,8 @@ struct GraphView
     float GetTouchProgress(ed::NodeId id);
     void UpdateTouch();
 
+    void DrawTypeInput(const PinType pinType, Value& value);
+    void DrawPinInput(const Pin& input, int inputIdx);
     void DrawPinIcon(const Pin& pin, bool connected, int alpha);;
 
     void BuildNode(const NodePtr& node);

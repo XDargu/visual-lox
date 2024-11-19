@@ -44,6 +44,67 @@ void GraphView::UpdateTouch()
     }
 }
 
+void GraphView::DrawTypeInput(const PinType pinType, Value& inputValue)
+{
+    if (pinType == PinType::Bool)
+    {
+        bool& value = inputValue.as.boolean;
+        ImGui::Checkbox("", &value);
+        ImGui::Spring(0);
+    }
+    else if (pinType == PinType::String)
+    {
+        ObjString* a = asString(inputValue);
+
+        ImGui::PushItemWidth(100.0f);
+        std::string temp = a->chars;
+        if (ImGui::InputText("##edit", &temp))
+        {
+            inputValue = Value(copyString(temp.c_str(), temp.size()));
+        }
+        ImGui::PopItemWidth();
+        ImGui::Spring(0);
+    }
+    else if (pinType == PinType::Float)
+    {
+        double& value = inputValue.as.number;
+
+        ImGui::PushItemWidth(100.0f);
+        ImGui::InputDouble("##edit", &value);
+        ImGui::PopItemWidth();
+        ImGui::Spring(0);
+    }
+}
+
+void GraphView::DrawPinInput(const Pin& input, int inputIdx)
+{
+    const NodePtr& node = input.Node;
+    Value& inputValue = node->InputValues[inputIdx];
+    
+    if (input.Type == PinType::Bool || input.Type == PinType::String || input.Type == PinType::Float)
+    {
+        DrawTypeInput(input.Type, inputValue);
+    }
+    else if (input.Type == PinType::Any)
+    {
+        PinType currentType = PinType::Any;
+        if (isBoolean(inputValue))
+        {
+            currentType = PinType::Bool;
+        }
+        else if (isNumber(inputValue))
+        {
+            currentType = PinType::Float;
+        }
+        else if (isString(inputValue))
+        {
+            currentType = PinType::String;
+        }
+
+        DrawTypeInput(currentType, inputValue);
+    }
+}
+
 void GraphView::DrawPinIcon(const Pin& pin, bool connected, int alpha)
 {
     const ax::Drawing::IconType iconType = GetPinIcon(pin.Type);
@@ -205,45 +266,10 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     ImGui::TextUnformatted(input.Name.c_str());
                     ImGui::Spring(0);
                 }
-                if (input.Type == PinType::Bool)
-                {
-                    if (!m_pGraph->IsPinLinked(input.ID))
-                    {
-                        bool& value = node->InputValues[idx].as.boolean;
-                        ImGui::Checkbox("", &value);
-                        ImGui::Spring(0);
-                    }
-                }
-                else if (input.Type == PinType::String)
-                {
-                    if (!m_pGraph->IsPinLinked(input.ID))
-                    {
-                        ObjString* a = asString(node->InputValues[idx]);
 
-                        ImGui::PushItemWidth(100.0f);
-                        std::string temp = a->chars;
-                        if (ImGui::InputText("##edit", &temp))
-                        {
-                            node->InputValues[idx] = Value(copyString(temp.c_str(), temp.size()));
-                        }
-                        ImGui::PopItemWidth();
-                        ImGui::Spring(0);
+                if (!m_pGraph->IsPinLinked(input.ID))
+                    DrawPinInput(input, idx);
 
-                    }
-                }
-                else if (input.Type == PinType::Float)
-                {
-                    if (!m_pGraph->IsPinLinked(input.ID))
-                    {
-                        double& value = node->InputValues[idx].as.number;
-
-                        ImGui::PushItemWidth(100.0f);
-                        ImGui::InputDouble("##edit", &value);
-                        ImGui::PopItemWidth();
-                        ImGui::Spring(0);
-
-                    }
-                }
                 ImGui::PopStyleVar();
                 builder.EndInput();
                 ++idx;
@@ -546,6 +572,33 @@ void GraphView::DrawContextMenu()
         }
         else
             ImGui::Text("Unknown pin: %p", contextPinId.AsPointer());
+
+        if (pin->Type == PinType::Any)
+        {
+            const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
+            Value& inputValue = pin->Node->InputValues[inputIdx];
+
+            static int currentIdx = 0;
+
+            if (isBoolean(inputValue))
+                currentIdx = 0;
+            else if (isNumber(inputValue))
+                currentIdx = 1;
+            else if (isString(inputValue))
+                currentIdx = 2;
+
+            ImGui::PushItemWidth(80.0f);
+            if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
+            {
+                if (currentIdx == 0)
+                    inputValue = Value(false);
+                else if (currentIdx == 1)
+                    inputValue = Value(0.0);
+                else if (currentIdx == 2)
+                    inputValue = Value(copyString("", 0));
+            }
+            ImGui::PopItemWidth();
+        }
 
         if (HasFlag(pin->Node->Flags, NodeFlags::DynamicInputs) && pin->Kind == PinKind::Input)
         {

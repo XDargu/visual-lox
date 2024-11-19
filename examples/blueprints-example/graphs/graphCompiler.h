@@ -21,5 +21,5 @@ struct GraphCompiler
     static constexpr const char* tempVarPrefix = "__lv__";
 
     static void CompileInput(Compiler& compiler, const Graph& graph, const Pin& input, const Value& value);
-    static void CompileOutput(Compiler& compiler, const Pin& output);
+    static void CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output);
 };

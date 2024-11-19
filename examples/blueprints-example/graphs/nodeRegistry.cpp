@@ -54,7 +54,7 @@ struct NativeFunctionNode : public Node
 
         // Set the output variable
         const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
-        GraphCompiler::CompileOutput(compiler, Outputs[dataOutputIdx]);
+        GraphCompiler::CompileOutput(compiler, graph, Outputs[dataOutputIdx]);
     }
 };
 

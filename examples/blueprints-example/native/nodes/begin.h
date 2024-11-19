@@ -227,7 +227,7 @@ struct CreateStringNode : public Node
             ObjString* input = asString(InputValues[0]);
             compiler.emitConstant(Value(input));
 
-            GraphCompiler::CompileOutput(compiler, Outputs[0]);
+            GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
         }
         break;
         }
@@ -278,7 +278,7 @@ struct AddNode : public Node
         GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
         compiler.emitByte(OpByte(OpCode::OP_ADD));
 
-        GraphCompiler::CompileOutput(compiler, Outputs[0]);
+        GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
     }
 };
 
@@ -331,7 +331,7 @@ struct ReadFileNode : public Node
         int argCount = 1;
         compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
 
-        GraphCompiler::CompileOutput(compiler, Outputs[1]);
+        GraphCompiler::CompileOutput(compiler, graph, Outputs[1]);
     }
 };
 

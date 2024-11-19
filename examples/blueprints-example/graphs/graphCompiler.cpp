@@ -117,7 +117,7 @@ void GraphCompiler::CompileInput(Compiler& compiler, const Graph& graph, const P
     }
 }
 
-void GraphCompiler::CompileOutput(Compiler& compiler, const Pin& output)
+void GraphCompiler::CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output)
 {
     const std::string outputName = "__lv__" + std::to_string(output.ID.Get());
     const Token outputToken(TokenType::VAR, outputName.c_str(), outputName.length(), 0);

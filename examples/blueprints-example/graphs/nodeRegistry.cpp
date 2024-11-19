@@ -123,8 +123,8 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("FileExists",
-        { { "Value", Value(copyString("", 0))}},
-        { { "Result", Value(false) } },
+        { { "File", Value(copyString("", 0))}},
+        { { "Exists", Value(false) } },
         [](int argCount, Value* args, VM* vm)
         {
             if (isString(args[0]))

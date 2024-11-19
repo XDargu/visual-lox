@@ -139,53 +139,7 @@ static NodePtr BuildPrintNode(IDGenerator& IDGenerator)
 
     // TODO: These values will be garbage collected! We will need to mark them somewhow
     node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(copyString("Example", 7)));
-    return node;
-}
-
-struct PrintNumberNode : public Node
-{
-    PrintNumberNode(int id, const char* name)
-        : Node(id, name, ImColor(255, 128, 128))
-    {
-        Category = NodeCategory::Function;
-    }
-
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
-    {
-        switch (stage)
-        {
-            case CompilationStage::BeginInput:
-            {
-                if (!GraphUtils::IsNodeImplicit(this))
-                    CompileInputs(compiler, graph);
-            }
-            break;
-            case CompilationStage::PullOutput:
-            {
-                if (GraphUtils::IsNodeImplicit(this))
-                    CompileInputs(compiler, graph);
-            }
-            break;
-        }
-    }
-
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
-    {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
-        compiler.emitByte(OpByte(OpCode::OP_PRINT));
-    }
-};
-
-static NodePtr BuildPrintNumberNode(IDGenerator& IDGenerator)
-{
-    NodePtr node = std::make_shared<PrintNumberNode>(IDGenerator.GetNextId(), "Print");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Content", PinType::Float);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(0.0));
+    node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }
 
@@ -199,14 +153,29 @@ struct GetBoolVariableNode : public Node
 
     virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
+        switch (stage)
+        {
+        case CompilationStage::PullOutput:
+        {
+            ObjString* input = asString(InputValues[0]);
+            
+            const Token outputToken(TokenType::VAR, input->chars.c_str(), input->chars.length(), 0);
+            compiler.namedVariable(outputToken, false);
 
+            GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
+        }
+        break;
+        }
     }
 };
 
 static NodePtr GetBoolVariable(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<GetBoolVariableNode>(IDGenerator.GetNextId(), "Check");
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Variable", PinType::String);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Bool);
+
+    node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }
 
@@ -240,7 +209,7 @@ static NodePtr CreateString(IDGenerator& IDGenerator)
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::String);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::String);
 
-    node->InputValues.emplace_back(Value(copyString("Example", 7)));
+    node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }
 
@@ -344,6 +313,6 @@ static NodePtr CreateReadFileNode(IDGenerator& IDGenerator)
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Result", PinType::String);
 
     node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(copyString("File", 4)));
+    node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }

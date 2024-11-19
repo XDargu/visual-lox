@@ -578,8 +578,6 @@ void GraphView::DrawContextMenu()
             node = SpawnNode(BuildBranchNode(*m_pIDGenerator));
         if (ImGui::MenuItem("Print"))
             node = SpawnNode(BuildPrintNode(*m_pIDGenerator));
-        if (ImGui::MenuItem("PrintNumber"))
-            node = SpawnNode(BuildPrintNumberNode(*m_pIDGenerator));
         if (ImGui::MenuItem("GetBoolVar"))
             node = SpawnNode(GetBoolVariable(*m_pIDGenerator));
         if (ImGui::MenuItem("CreateString"))

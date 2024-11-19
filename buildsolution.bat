@@ -1,1 +1,1 @@
-cmake examples -B build -G "Visual Studio 17 2022"
+cmake examples -B build -G "Visual Studio 17 2022" --fresh

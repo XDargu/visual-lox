@@ -20,6 +20,9 @@ struct BranchNode : public Node
         Category = NodeCategory::Branch;
     }
 
+    static constexpr int TruePort = 0;
+    static constexpr int FalsePort = 1;
+
     // TODO: Come up with a better way of doing this!
     mutable size_t thenJump = 0;
     mutable size_t elseJump = 0;
@@ -35,16 +38,32 @@ struct BranchNode : public Node
             break;
             case CompilationStage::BeginOutput:
             {
-                if (portIdx == 0) // TRUE
+                if (portIdx == TruePort)
                 {
                     thenJump = compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
                     compiler.emitByte(OpByte(OpCode::OP_POP));
+
+                    compiler.beginScope();
                 }
-                else if (portIdx == 1) // FALSe
+                else if (portIdx == FalsePort)
                 {
                     elseJump = compiler.emitJump(OpByte(OpCode::OP_JUMP));
                     compiler.patchJump(thenJump);
                     compiler.emitByte(OpByte(OpCode::OP_POP));
+
+                    compiler.beginScope();
+                }
+            }
+            break;
+            case CompilationStage::EndOutput:
+            {
+                if (portIdx == TruePort)
+                {
+                    compiler.endScope();
+                }
+                else if (portIdx == FalsePort)
+                {
+                    compiler.endScope();
                 }
             }
             break;

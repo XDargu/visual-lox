@@ -97,10 +97,28 @@ bool Graph::IsPinLinked(ed::PinId id) const
 
 bool Graph::CanCreateLink(const Pin* a, const Pin* b) const
 {
-    if (!a || !b || a == b || a->Kind == b->Kind || a->Type != b->Type || a->Node == b->Node)
+    if (!a || !b || a == b || a->Kind == b->Kind || a->Type != b->Type || a->Node == b->Node || a->Type == PinType::Any || b->Type == PinType::Any)
         return false;
 
     return true;
+}
+
+std::string Graph::LinkCreationFailedReason(const Pin& startPin, const Pin& endPin) const
+{
+    if (endPin.Kind == startPin.Kind)
+    {
+        return "Incompatible Pin Kind";
+    }
+    else if (endPin.Node == startPin.Node)
+    {
+        return "Cannot connect to self";
+    }
+    else if (endPin.Type != startPin.Type && endPin.Type != PinType::Any && startPin.Type != PinType::Any)
+    {
+        return "Incompatible Pin Type";
+    }
+
+    return "Unknown";
 }
 
 void Graph::DeleteNode(ed::NodeId id)

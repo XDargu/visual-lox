@@ -412,26 +412,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
                     if (startPin && endPin)
                     {
-                        if (endPin == startPin)
-                        {
-                            ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
-                        }
-                        else if (endPin->Kind == startPin->Kind)
-                        {
-                            showLabel("x Incompatible Pin Kind", ImColor(45, 32, 32, 180));
-                            ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
-                        }
-                        else if (endPin->Node == startPin->Node)
-                        {
-                            showLabel("x Cannot connect to self", ImColor(45, 32, 32, 180));
-                            ed::RejectNewItem(ImColor(255, 0, 0), 1.0f);
-                        }
-                        else if (endPin->Type != startPin->Type && endPin->Type != PinType::Any && startPin->Type != PinType::Any)
-                        {
-                            showLabel("x Incompatible Pin Type", ImColor(45, 32, 32, 180));
-                            ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
-                        }
-                        else
+                        if (m_pGraph->CanCreateLink(startPin, endPin))
                         {
                             showLabel("+ Create Link", ImColor(32, 45, 32, 180));
                             if (ed::AcceptNewItem(ImColor(128, 255, 128), 4.0f))
@@ -441,6 +422,18 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                                 m_pGraph->AddLink(link);
                             }
                         }
+                        else if (endPin == startPin)
+                        {
+                            // No message while hovering over the source pin
+                            ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+                        }
+                        else
+                        {
+                            const std::string reason =m_pGraph->LinkCreationFailedReason(*startPin, *endPin);
+                            showLabel(("x " + reason).c_str(), ImColor(45, 32, 32, 180));
+                            ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+                        }
+                        
                     }
                 }
 

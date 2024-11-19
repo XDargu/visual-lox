@@ -43,6 +43,7 @@ struct Graph
 
     bool IsPinLinked(ed::PinId id) const;
     bool CanCreateLink(const Pin* a, const Pin* b) const;
+    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin) const;
 
     void DeleteNode(ed::NodeId id);
     void DeleteLink(ed::LinkId id);

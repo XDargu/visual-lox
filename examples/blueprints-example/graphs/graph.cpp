@@ -97,8 +97,17 @@ bool Graph::IsPinLinked(ed::PinId id) const
 
 bool Graph::CanCreateLink(const Pin* a, const Pin* b) const
 {
-    if (!a || !b || a == b || a->Kind == b->Kind || a->Type != b->Type || a->Node == b->Node || a->Type == PinType::Any || b->Type == PinType::Any)
+    if (!a || !b || a == b || a->Kind == b->Kind || a->Node == b->Node)
         return false;
+
+    // Type check
+    if (a->Type != b->Type)
+    {
+        const bool isAny = (a->Type == PinType::Any || b->Type == PinType::Any);
+        const bool isFlow = (a->Type == PinType::Flow || b->Type == PinType::Flow);
+
+        return isAny && !isFlow;
+    }
 
     return true;
 }

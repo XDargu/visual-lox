@@ -62,6 +62,7 @@ PinType TypeOfValue(const Value& value)
 {
     switch (value.type)
     {
+    case ValueType::NIL: return PinType::Any;
     case ValueType::BOOL: return PinType::Bool;
     case ValueType::NUMBER: return PinType::Float;
     case ValueType::OBJ:
@@ -134,6 +135,37 @@ void NodeRegistry::RegisterDefinitions()
             }
 
             return Value(false);
+        },
+        NativeFunctionFlags::Implicit
+    );
+
+    RegisterNativeFunc("Clock",
+        { },
+        { { "Time", Value(0.0) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            return Value((double)clock() / CLOCKS_PER_SEC);
+        },
+        NativeFunctionFlags::Implicit
+    );
+
+    RegisterNativeFunc("Interpret",
+        { { "Name", Value(copyString("", 0))}},
+        { { "Value", Value() } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (isString(args[0]))
+            {
+                ObjString* code = asString(args[0]);
+                const InterpretResult result = VM::getInstance().interpret(code->chars.c_str());
+
+                if (result == InterpretResult::INTERPRET_OK)
+                {
+                    return VM::getInstance().pop();;
+                }
+            }
+
+            return Value();
         },
         NativeFunctionFlags::Implicit
     );

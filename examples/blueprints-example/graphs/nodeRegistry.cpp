@@ -6,6 +6,7 @@
 #include "graphCompiler.h"
 
 #include <string>
+#include <filesystem>
 
 struct NativeFunctionNode : public Node
 {
@@ -79,7 +80,7 @@ NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str());
 
-    if (!isImplicit)
+    if (HasFlag(flags, NativeFunctionFlags::Implicit))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -105,26 +106,50 @@ void NodeRegistry::RegisterDefinitions()
 {
     definitions.clear();
 
-    // TODO: Move somewhere else
-    NativeFunctionDef square;
-    square.name = "Square";
-
-    square.inputs.push_back({ "Value", Value(0.0) });
-    square.outputs.push_back({ "Result", Value(0.0) });
-    square.isImplicit = false;
-
-    square.function = [](int argCount, Value* args, VM* vm)
-    {
-        if (isNumber(args[0]))
+    RegisterNativeFunc("Square",
+        { { "Value", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        [](int argCount, Value* args, VM* vm)
         {
-            double number = asNumber(args[0]);
-            return Value(number * number);
-        }
+            if (isNumber(args[0]))
+            {
+                double number = asNumber(args[0]);
+                return Value(number * number);
+            }
 
-        return Value(0.0);
-    };
+            return Value(0.0);
+        },
+        NativeFunctionFlags::Implicit
+    );
 
-    definitions.push_back(square);
+    RegisterNativeFunc("FileExists",
+        { { "Value", Value(copyString("", 0))}},
+        { { "Result", Value(false) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (isString(args[0]))
+            {
+                ObjString* fileName = asString(args[0]);
+                return Value(std::filesystem::exists(fileName->chars));
+            }
+
+            return Value(false);
+        },
+        NativeFunctionFlags::Implicit
+    );
+}
+
+void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NativeFunctionFlags flags)
+{
+    NativeFunctionDef nativeFunc;
+    nativeFunc.name = name;
+
+    nativeFunc.inputs = inputs;
+    nativeFunc.outputs = outputs;
+    nativeFunc.flags = flags;
+    nativeFunc.function = fun;
+
+    definitions.push_back(nativeFunc);
 }
 
 void NodeRegistry::RegisterNatives(VM& vm)

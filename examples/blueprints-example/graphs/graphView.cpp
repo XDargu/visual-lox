@@ -9,6 +9,7 @@
 #include <Compiler.h>
 
 #include <misc/imgui_stdlib.h>
+#include <imgui_node_editor_internal.h>
 
 // Graph View
 int GraphView::GetNextId()

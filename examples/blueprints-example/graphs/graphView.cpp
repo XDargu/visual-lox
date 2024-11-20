@@ -660,6 +660,7 @@ void GraphView::DrawContextMenu()
         struct Data
         {
             std::string name;
+            std::string fullName;
             std::function<NodePtr(IDGenerator&)> creationFun;
             std::map<std::string, Data> children;
             int depth;
@@ -681,10 +682,12 @@ void GraphView::DrawContextMenu()
 
                 child.name = token;
                 child.depth = depth;
+                child.fullName = child.name;
 
                 if (token == tokens.back())
                 {
                     // Last element!
+                    child.fullName = def->name;
                     child.creationFun = [=](IDGenerator& idGenerator) { return def->MakeNode(idGenerator); };
                 }
 
@@ -745,7 +748,7 @@ void GraphView::DrawContextMenu()
             }
 
             bool isSelected = false;
-            if (ImGui::Selectable(top->name.c_str(), &isSelected))
+            if (ImGui::Selectable((top->name + "##" + top->fullName).c_str(), &isSelected))
             {
                 node = SpawnNode(top->creationFun(*m_pIDGenerator));
             }

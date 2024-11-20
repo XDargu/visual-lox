@@ -130,8 +130,7 @@ struct NativeFunctionNode : public Node
 
 NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
-    const std::string nodeName = Utils::split(name, "::").back();
-    NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), nodeName.c_str(), shared_from_this());
+    NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this());
 
     if (!HasFlag(flags, NodeFlags::Implicit))
     {
@@ -258,6 +257,20 @@ void NodeRegistry::RegisterDefinitions()
         &writeFile,
         NodeFlags::None
     );
+
+    RegisterNativeFunc("List::Contains",
+        { { "List", Value(newList()) }, { "Value", Value() } },
+        { { "Result", Value(false) } },
+        &contains,
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("String::Contains",
+        { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
+        { { "Result", Value(false) } },
+        & contains,
+        NodeFlags::None
+    );
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)
@@ -291,8 +304,7 @@ void NodeRegistry::RegisterNatives(VM& vm)
 {
     for (NativeFunctionDefPtr& def : nativeDefinitions)
     {
-        const std::string nodeName = Utils::split(def->name, "::").back();
-        vm.defineNative(nodeName.c_str(), def->inputs.size(), def->function);
+        vm.defineNative(def->name.c_str(), def->inputs.size(), def->function);
     }
 }
 

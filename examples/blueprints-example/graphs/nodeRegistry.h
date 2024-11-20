@@ -9,6 +9,19 @@
 
 #include <memory>
 
+using NodeCreationFun = NodePtr(*)(IDGenerator& IDGenerator);
+
+struct CompiledNodeDef : public std::enable_shared_from_this<CompiledNodeDef>
+{
+    NodePtr MakeNode(IDGenerator& IDGenerator);
+    
+    std::string name;
+    NodeCreationFun nodeCreationFunc;
+};
+
+using CompiledNodeDefPtr = std::shared_ptr< CompiledNodeDef>;
+
+
 struct NativeFunctionDef : public std::enable_shared_from_this<NativeFunctionDef>
 {
     struct Input
@@ -47,6 +60,8 @@ public:
     void RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags);
     void RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, NativeFunctionDef::DynamicInputProps&& dynamicProps);
     void RegisterNatives(VM& vm);
+    void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc);
 
-    std::vector<NativeFunctionDefPtr> definitions;
+    std::vector<NativeFunctionDefPtr> nativeDefinitions;
+    std::vector<CompiledNodeDefPtr> compiledDefinitions;
 };

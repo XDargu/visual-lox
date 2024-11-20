@@ -9,6 +9,12 @@
 #include "graphs/graphView.h"
 #include "graphs/graphCompiler.h"
 
+#include "native/nodes/begin.h"
+#include "native/nodes/branch.h"
+#include "native/nodes/print.h"
+#include "native/nodes/for-in.h"
+#include "native/nodes/math.h"
+
 #include "graphs/nodeRegistry.h"
 
 #include <imgui_node_editor.h>
@@ -126,7 +132,7 @@ struct Example:
                 }
             }
 
-            for (NativeFunctionDefPtr& def : m_NodeRegistry.definitions)
+            for (NativeFunctionDefPtr& def : m_NodeRegistry.nativeDefinitions)
             {
                 for (auto& input : def->inputs)
                 {
@@ -139,6 +145,13 @@ struct Example:
                 }
             }
         });
+        
+        m_NodeRegistry.RegisterCompiledNode("Branch", &BuildBranchNode);
+        m_NodeRegistry.RegisterCompiledNode("For In", &BuildForInNode);
+        m_NodeRegistry.RegisterCompiledNode("Print", &BuildPrintNode);
+        m_NodeRegistry.RegisterCompiledNode("Append", &CreateAppendNode);
+        m_NodeRegistry.RegisterCompiledNode("CreateString", &CreateString);
+        m_NodeRegistry.RegisterCompiledNode("Add", &CreateAddNode);
 
         m_NodeRegistry.RegisterDefinitions();
 

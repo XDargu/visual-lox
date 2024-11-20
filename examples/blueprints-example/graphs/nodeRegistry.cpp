@@ -182,7 +182,7 @@ NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 
 void NodeRegistry::RegisterDefinitions()
 {
-    definitions.clear();
+    nativeDefinitions.clear();
 
     RegisterNativeFunc("Square",
         { { "Value", Value(0.0) } },
@@ -290,7 +290,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFuncti
     nativeFunc->flags = flags;
     nativeFunc->function = fun;
 
-    definitions.push_back(nativeFunc);
+    nativeDefinitions.push_back(nativeFunc);
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, NativeFunctionDef::DynamicInputProps&& dynamicProps)
@@ -304,13 +304,27 @@ void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFuncti
     nativeFunc->function = fun;
     nativeFunc->dynamicInputProps = dynamicProps;
 
-    definitions.push_back(nativeFunc);
+    nativeDefinitions.push_back(nativeFunc);
 }
 
 void NodeRegistry::RegisterNatives(VM& vm)
 {
-    for (NativeFunctionDefPtr& def : definitions)
+    for (NativeFunctionDefPtr& def : nativeDefinitions)
     {
         vm.defineNative(def->name.c_str(), def->inputs.size(), def->function);
     }
+}
+
+void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc)
+{
+    CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
+    compiledNodeDef->nodeCreationFunc = creationFunc;
+    compiledNodeDef->name = name;
+
+    compiledDefinitions.push_back(compiledNodeDef);
+}
+
+NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
+{
+    return nodeCreationFunc(IDGenerator);
 }

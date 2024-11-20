@@ -5,9 +5,6 @@
 #include "nodeRegistry.h"
 
 #include "../native/nodes/begin.h"
-#include "../native/nodes/branch.h"
-#include "../native/nodes/print.h"
-#include "../native/nodes/for-in.h"
 
 #include <Compiler.h>
 
@@ -650,22 +647,16 @@ void GraphView::DrawContextMenu()
         //drawList->AddCircleFilled(ImGui::GetMousePosOnOpeningCurrentPopup(), 10.0f, 0xFFFF00FF);
 
         NodePtr node = nullptr;
-        if (ImGui::MenuItem("Branch"))
-            node = SpawnNode(BuildBranchNode(*m_pIDGenerator));
-        if (ImGui::MenuItem("For In"))
-            node = SpawnNode(BuildForInNode(*m_pIDGenerator));
-        if (ImGui::MenuItem("Print"))
-            node = SpawnNode(BuildPrintNode(*m_pIDGenerator));
-        if (ImGui::MenuItem("GetBoolVar"))
-            node = SpawnNode(GetBoolVariable(*m_pIDGenerator));
-        if (ImGui::MenuItem("CreateString"))
-            node = SpawnNode(CreateString(*m_pIDGenerator));
-        if (ImGui::MenuItem("Add"))
-            node = SpawnNode(AddNumbers(*m_pIDGenerator));
-        if (ImGui::MenuItem("Append"))
-            node = SpawnNode(CreateAppendNode(*m_pIDGenerator));
+        
+        for (auto& def : m_pNodeRegistry->compiledDefinitions)
+        {
+            if (ImGui::MenuItem(def->name.c_str()))
+            {
+                node = SpawnNode(def->MakeNode(*m_pIDGenerator));
+            }
+        }
 
-        for (auto& def : m_pNodeRegistry->definitions)
+        for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
             if (ImGui::MenuItem(def->name.c_str()))
             {

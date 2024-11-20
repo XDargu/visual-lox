@@ -160,6 +160,7 @@ struct Example:
         m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode);
         m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode);
+        m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode);
 
         m_NodeRegistry.RegisterDefinitions();
 

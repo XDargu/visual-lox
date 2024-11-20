@@ -9,18 +9,24 @@
 #include <Compiler.h>
 #include <Vm.h>
 
-void GraphCompiler::CompileGraph(Compiler& compiler, Graph& graph, NodePtr startNode, int outputIdx)
+std::vector<NodePtr> GraphCompiler::CompileGraph(Compiler& compiler, Graph& graph, NodePtr startNode, int outputIdx)
 {
     std::vector<NodePtr> processedNodes;
     startNode->Compile(compiler, graph, CompilationStage::BeginSequence, 0);
     CompileRecursive(compiler, graph, startNode, -1, outputIdx, processedNodes);
     startNode->Compile(compiler, graph, CompilationStage::EndSequence, 0);
+    return processedNodes;
 }
 
 std::list<std::string> GraphCompiler::tempVarStorage;
 
 void GraphCompiler::CompileBackwardsRecursive(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx, std::vector<NodePtr>& processedNodes)
 {
+    if (std::find(processedNodes.begin(), processedNodes.end(), startNode) == processedNodes.end())
+    {
+        processedNodes.push_back(startNode);
+    }
+
     for (int i = 0; i < startNode->Inputs.size(); ++i)
     {
         const Pin& inputPin = startNode->Inputs[i];

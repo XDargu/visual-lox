@@ -408,21 +408,13 @@ struct Example:
 
                 GraphCompiler graphCompiler;
                 graphCompiler.tempVarStorage.clear(); // TODO: Improve
-                graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
+                std::vector<NodePtr> processedNodes = graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
+
+                // TODO: Do in a different way!
+                m_graphView.processedNodes = processedNodes;
 
                 compiler.endScope();
             }
-
-
-            // Test for printing
-            /*
-            // Load named variable (native func)
-            compiler.namedVariable(Token(TokenType::STRING, "readFile", 8, 10), false);
-            // Load parameter
-            compiler.emitConstant(Value(copyString("test.txt", 8)));
-            int argCount = 1;
-            compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
-            compiler.emitByte(OpByte(OpCode::OP_PRINT));*/
 
             ObjFunction* function = compiler.endCompiler();
             if (function != nullptr)

@@ -238,6 +238,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             const bool isSimple = node->Type == NodeType::Simple;
 
+            const bool isDisconnected = std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end();
+
+            const float alpha = ImGui::GetStyle().Alpha;
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
+
             builder.Begin(node->ID);
             if (!isSimple)
             {
@@ -333,6 +338,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             }
 
             builder.End();
+
+            ImGui::PopStyleVar();
         }
 
         // Comment nodes

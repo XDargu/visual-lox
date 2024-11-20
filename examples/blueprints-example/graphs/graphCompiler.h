@@ -16,7 +16,7 @@ struct Value;
 
 struct GraphCompiler
 {
-    void CompileGraph(Compiler& compiler, Graph& graph, NodePtr startNode, int outputIdx);
+    std::vector<NodePtr> CompileGraph(Compiler& compiler, Graph& graph, NodePtr startNode, int outputIdx);
     void CompileBackwardsRecursive(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx, std::vector<NodePtr>& processedNodes);
     void CompileRecursive(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx, std::vector<NodePtr>& processedNodes);
 

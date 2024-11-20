@@ -79,7 +79,7 @@ struct GraphView
     Pin* newLinkPin = nullptr;
 
     // TODO: Move somewhere else
-
+    std::vector<NodePtr> processedNodes;
     
     // ID genration
     NodeRegistry* m_pNodeRegistry = nullptr;

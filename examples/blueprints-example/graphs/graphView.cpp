@@ -5,11 +5,25 @@
 #include "nodeRegistry.h"
 
 #include "../native/nodes/begin.h"
+#include "../utilities/utils.h"
 
 #include <Compiler.h>
 
 #include <misc/imgui_stdlib.h>
 #include <imgui_node_editor_internal.h>
+
+#include <string_view>
+#include <stack>
+
+namespace Utils
+{
+    bool FilterString(std::string_view target, std::string_view filter)
+    {
+        if (filter.empty()) return true;
+
+        return target.find(filter) != std::string::npos;
+    }
+}
 
 // Graph View
 int GraphView::GetNextId()
@@ -522,6 +536,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
 void GraphView::DrawContextMenu()
 {
+    bool addNodePopupOpened = false;
+
     auto openPopupPosition = ImGui::GetMousePos();
     ed::Suspend();
     if (ed::ShowNodeContextMenu(&contextNodeId))
@@ -532,6 +548,7 @@ void GraphView::DrawContextMenu()
         ImGui::OpenPopup("Link Context Menu");
     else if (ed::ShowBackgroundContextMenu())
     {
+        addNodePopupOpened = true;
         ImGui::OpenPopup("Create New Node");
         newNodeLinkPin = nullptr;
     }
@@ -640,29 +657,178 @@ void GraphView::DrawContextMenu()
 
     if (ImGui::BeginPopup("Create New Node"))
     {
+        struct Data
+        {
+            std::string name;
+            std::function<NodePtr(IDGenerator&)> creationFun;
+            std::map<std::string, Data> children;
+            int depth;
+        };
+
+        Data root;
+        root.name = "Nodes";
+        root.depth = 0;
+
+        for (auto& def : m_pNodeRegistry->nativeDefinitions)
+        {
+            Data* current = &root;
+            int depth = 1;
+            const std::vector<std::string> tokens = Utils::split(def->name, "::");
+
+            for (const std::string& token : tokens)
+            {
+                Data& child = current->children[token];
+
+                child.name = token;
+                child.depth = depth;
+
+                if (token == tokens.back())
+                {
+                    // Last element!
+                    child.creationFun = [=](IDGenerator& idGenerator) { return def->MakeNode(idGenerator); };
+                }
+
+                current = &child;
+                depth++;
+            }
+        }
+
+        for (auto& def : m_pNodeRegistry->compiledDefinitions)
+        {
+            Data* current = &root;
+            int depth = 1;
+            const std::vector<std::string> tokens = Utils::split(def->name, "::");
+
+            for (const std::string& token : tokens)
+            {
+                Data& child = current->children[token];
+
+                child.name = token;
+                child.depth = depth;
+
+                if (token == tokens.back())
+                {
+                    // Last element!
+                    child.creationFun = def->nodeCreationFunc;
+                }
+
+                current = &child;
+                depth++;
+            }
+        }
+
+        NodePtr node = nullptr;
+        auto newNodePostion = openPopupPosition;
+
+        std::stack<const Data*> stack;
+        stack.push(&root);
+
+        int currentDepth = 0;
+
+        while (!stack.empty())
+        {
+            const Data* top = stack.top();
+            stack.pop();
+
+            if (top->depth > currentDepth)
+            {
+                const int depthDiff = top->depth - currentDepth;
+                for (int i = 0; i < depthDiff; ++i)
+                    ImGui::Indent();
+            }
+
+            if (top->depth < currentDepth)
+            {
+                const int depthDiff = currentDepth - top->depth;
+                for (int i = 0; i < depthDiff; ++i)
+                    ImGui::Unindent();
+            }
+
+            bool isSelected = false;
+            if (ImGui::Selectable(top->name.c_str(), &isSelected))
+            {
+                node = SpawnNode(top->creationFun(*m_pIDGenerator));
+            }
+
+            currentDepth = top->depth;
+
+            for (const auto& [name, child] : top->children)
+            {
+                stack.push(&child);
+            }
+        }
+
+        /*static std::string searchFilter = "";
+        static int selectedNodeIdx = 0;
+
+        if (addNodePopupOpened)
+            searchFilter = "";
+
+        bool searchChanged = false;
+
+        if (ImGui::InputText("##search", &searchFilter))
+        {
+            searchChanged = true;
+        }
+
+        if (addNodePopupOpened)
+            ImGui::SetKeyboardFocusHere(0);
+
         auto newNodePostion = openPopupPosition;
         //ImGui::SetCursorScreenPos(ImGui::GetMousePosOnOpeningCurrentPopup());
 
         //auto drawList = ImGui::GetWindowDrawList();
         //drawList->AddCircleFilled(ImGui::GetMousePosOnOpeningCurrentPopup(), 10.0f, 0xFFFF00FF);
 
+        const int total = m_pNodeRegistry->compiledDefinitions.size() + m_pNodeRegistry->nativeDefinitions.size();
+
+        if (ImGui::IsKeyDown(ImGuiKey_UpArrow))
+        {
+            selectedNodeIdx--;
+            if (selectedNodeIdx < 0) selectedNodeIdx = 0;
+        }
+        else if (ImGui::IsKeyDown(ImGuiKey_DownArrow))
+        {
+            selectedNodeIdx++;
+            if (selectedNodeIdx >= total) selectedNodeIdx = total - 1;
+        }
+
         NodePtr node = nullptr;
+
+        int idx = 0;
+
+        const bool isEnterDown = ImGui::IsKeyDown(ImGuiKey_Enter);
         
         for (auto& def : m_pNodeRegistry->compiledDefinitions)
         {
-            if (ImGui::MenuItem(def->name.c_str()))
+            if (Utils::FilterString(def->name, searchFilter))
             {
-                node = SpawnNode(def->MakeNode(*m_pIDGenerator));
+                if (searchChanged)
+                {
+                    selectedNodeIdx = idx;
+                    searchChanged = false;
+                }
+
+                bool isSelected = selectedNodeIdx == idx;
+                if (ImGui::Selectable(def->name.c_str(), &isSelected) || (isSelected && isEnterDown))
+                {
+                    node = SpawnNode(def->MakeNode(*m_pIDGenerator));
+                }
             }
+
+            ++idx;
         }
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
-            if (ImGui::MenuItem(def->name.c_str()))
+            if (Utils::FilterString(def->name, searchFilter))
             {
-                node = SpawnNode(def->MakeNode(*m_pIDGenerator));
+                if (ImGui::MenuItem(def->name.c_str()))
+                {
+                    node = SpawnNode(def->MakeNode(*m_pIDGenerator));
+                }
             }
-        }
+        }*/
 
         if (node)
         {

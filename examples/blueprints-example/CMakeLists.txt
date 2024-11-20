@@ -6,6 +6,8 @@ add_example_executable(blueprints-example
     utilities/builders.cpp
     utilities/drawing.cpp
     utilities/widgets.cpp
+    utilities/utils.h
+    utilities/utils.cpp
     graphs/node.h
     graphs/node.cpp
     graphs/link.h

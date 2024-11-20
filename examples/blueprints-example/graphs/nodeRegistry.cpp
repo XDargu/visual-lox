@@ -4,34 +4,13 @@
 
 #include "graph.h"
 #include "graphCompiler.h"
+#include "../utilities/utils.h"
 
 #include <Natives.h>
 
 #include <string>
 #include <string_view>
 #include <filesystem>
-
-// TODO: Move somewhere else
-namespace Utils
-{
-    std::vector<std::string> split(const std::string& s, const std::string& delimiter)
-    {
-        if (delimiter.empty()) return { s };
-
-        std::vector<std::string> tokens;
-        size_t pos = 0;
-        std::string_view leftover(s);
-
-        while ((pos = leftover.find(delimiter)) != std::string::npos)
-        {
-            tokens.push_back(std::string(leftover.substr(0, pos)));
-            leftover = leftover.substr(pos + delimiter.length());
-        }
-        tokens.push_back(std::string(leftover));
-
-        return tokens;
-    }
-}
 
 // TODO: Move somewhere else
 PinType TypeOfValue(const Value& value)
@@ -151,7 +130,8 @@ struct NativeFunctionNode : public Node
 
 NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
-    NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this());
+    const std::string nodeName = Utils::split(name, "::").back();
+    NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), nodeName.c_str(), shared_from_this());
 
     if (!HasFlag(flags, NodeFlags::Implicit))
     {
@@ -184,7 +164,7 @@ void NodeRegistry::RegisterDefinitions()
 {
     nativeDefinitions.clear();
 
-    RegisterNativeFunc("Square",
+    RegisterNativeFunc("Math::Square",
         { { "Value", Value(0.0) } },
         { { "Result", Value(0.0) } },
         [](int argCount, Value* args, VM* vm)
@@ -200,7 +180,7 @@ void NodeRegistry::RegisterDefinitions()
         NodeFlags::Implicit
     );
 
-    RegisterNativeFunc("FileExists",
+    RegisterNativeFunc("File::FileExists",
         { { "File", Value(copyString("", 0))}},
         { { "Exists", Value(false) } },
         [](int argCount, Value* args, VM* vm)
@@ -216,7 +196,7 @@ void NodeRegistry::RegisterDefinitions()
         NodeFlags::Implicit
     );
 
-    RegisterNativeFunc("Split",
+    RegisterNativeFunc("String::Split",
         { { "String", Value(copyString("", 0)) }, { "Separator", Value(copyString("", 0))} },
         { { "List", Value(newList()) } },
         [](int argCount, Value* args, VM* vm)
@@ -246,14 +226,14 @@ void NodeRegistry::RegisterDefinitions()
         NodeFlags::Implicit
     );
 
-    RegisterNativeFunc("Clock",
+    RegisterNativeFunc("System::Clock",
         { },
         { { "Time", Value(0.0) } },
         &clock,
         NodeFlags::Implicit
     );
 
-    RegisterNativeFunc("MakeList",
+    RegisterNativeFunc("List::MakeList",
         { { "List", Value(newList()) } },
         [] (int argCount, Value* args, VM* vm)
         {
@@ -265,14 +245,14 @@ void NodeRegistry::RegisterDefinitions()
         }
     );
 
-    RegisterNativeFunc("ReadFile",
+    RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
         &readFile,
         NodeFlags::Implicit
     );
 
-    RegisterNativeFunc("WriteFile",
+    RegisterNativeFunc("File::WriteFile",
         { { "File", Value(copyString("", 0)) }, { "Content", Value(copyString("", 0)) } },
         { },
         &writeFile,

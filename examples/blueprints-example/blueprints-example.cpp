@@ -146,18 +146,18 @@ struct Example:
             }
         });
         
-        m_NodeRegistry.RegisterCompiledNode("Branch", &BuildBranchNode);
-        m_NodeRegistry.RegisterCompiledNode("For In", &BuildForInNode);
-        m_NodeRegistry.RegisterCompiledNode("Print", &BuildPrintNode);
-        m_NodeRegistry.RegisterCompiledNode("Append", &CreateAppendNode);
-        m_NodeRegistry.RegisterCompiledNode("CreateString", &CreateString);
-        m_NodeRegistry.RegisterCompiledNode("Add", &CreateAddNode);
-        m_NodeRegistry.RegisterCompiledNode("Subtract", &CreateSubtractNode);
-        m_NodeRegistry.RegisterCompiledNode("Multiply", &CreateMultiplyNode);
-        m_NodeRegistry.RegisterCompiledNode("Divide", &CreateDivideNode);
-        m_NodeRegistry.RegisterCompiledNode("Greater Than", &CreateGreaterNode);
-        m_NodeRegistry.RegisterCompiledNode("Less Than", &CreateLessNode);
-        m_NodeRegistry.RegisterCompiledNode("Modulo", &CreateModuloNode);
+        m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode);
+        m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode);
+        m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode);
+        m_NodeRegistry.RegisterCompiledNode("String::Append", &CreateAppendNode);
+        m_NodeRegistry.RegisterCompiledNode("String::CreateString", &CreateString);
+        m_NodeRegistry.RegisterCompiledNode("Math::Add", &CreateAddNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Divide", &CreateDivideNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode);
 
         m_NodeRegistry.RegisterDefinitions();
 

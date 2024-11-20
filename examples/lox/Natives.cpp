@@ -341,7 +341,7 @@ Value reduce(int argCount, Value* args, VM* vm)
 
 void registerNatives(VM* vm)
 {
-    vm->defineNative("clock", 1, &clock);
+    /*vm->defineNative("clock", 1, &clock);
     vm->defineNative("sizeOf", 1, &sizeOf);
 
     // Types
@@ -365,5 +365,5 @@ void registerNatives(VM* vm)
     vm->defineNative("findIf", 2, &findIf);
     vm->defineNative("map", 2, &map);
     vm->defineNative("filter", 2, &filter);
-    vm->defineNative("reduce", 2, &reduce);
+    vm->defineNative("reduce", 2, &reduce);*/
 }

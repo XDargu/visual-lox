@@ -153,60 +153,6 @@ static NodePtr AddNumbers(IDGenerator& IDGenerator)
     return node;
 }
 
-struct ReadFileNode : public Node
-{
-    ReadFileNode(int id, const char* name)
-        : Node(id, name, ImColor(255, 128, 128))
-    {
-        Category = NodeCategory::Function;
-    }
-
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
-    {
-        switch (stage)
-        {
-        case CompilationStage::BeginInput:
-        {
-            if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
-        }
-        break;
-        case CompilationStage::PullOutput:
-        {
-            if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
-        }
-        break;
-        }
-    }
-
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
-    {
-        // Load named variable (native func)
-        compiler.namedVariable(Token(TokenType::STRING, "readFile", 8, 10), false);
-
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
-        
-        int argCount = 1;
-        compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
-
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[1]);
-    }
-};
-
-static NodePtr CreateReadFileNode(IDGenerator& IDGenerator)
-{
-    NodePtr node = std::make_shared<ReadFileNode>(IDGenerator.GetNextId(), "ReadFile");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "File", PinType::String);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Result", PinType::String);
-
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(copyString("", 0)));
-    return node;
-}
-
 struct AppendNode : public Node
 {
     AppendNode(int id, const char* name)

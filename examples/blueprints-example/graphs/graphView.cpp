@@ -662,8 +662,6 @@ void GraphView::DrawContextMenu()
             node = SpawnNode(CreateString(*m_pIDGenerator));
         if (ImGui::MenuItem("Add"))
             node = SpawnNode(AddNumbers(*m_pIDGenerator));
-        if (ImGui::MenuItem("ReadFile"))
-            node = SpawnNode(CreateReadFileNode(*m_pIDGenerator));
         if (ImGui::MenuItem("Append"))
             node = SpawnNode(CreateAppendNode(*m_pIDGenerator));
 

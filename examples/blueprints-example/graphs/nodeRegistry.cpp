@@ -5,6 +5,8 @@
 #include "graph.h"
 #include "graphCompiler.h"
 
+#include <Natives.h>
+
 #include <string>
 #include <string_view>
 #include <filesystem>
@@ -108,9 +110,12 @@ struct NativeFunctionNode : public Node
 
         compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
 
-        // Set the output variable
-        const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[dataOutputIdx]);
+        if (pFunctionDef->outputs.size() > 0)
+        {
+            // Set the output variable
+            const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
+            GraphCompiler::CompileOutput(compiler, graph, Outputs[dataOutputIdx]);
+        }
     }
 
     virtual void AddInput(IDGenerator& IDGenerator) override
@@ -148,7 +153,7 @@ NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this());
 
-    if (HasFlag(flags, NodeFlags::Implicit))
+    if (!HasFlag(flags, NodeFlags::Implicit))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -224,11 +229,14 @@ void NodeRegistry::RegisterDefinitions()
                 std::vector<std::string> split = Utils::split(data->chars, separator->chars);
 
                 ObjList* list = newList();
+                vm->push(Value(list));
 
                 for (std::string& s : split)
                 {
                     list->append(Value(copyString(s.c_str(), s.length())));
                 }
+
+                vm->pop();
 
                 return Value(list);
             }
@@ -241,10 +249,7 @@ void NodeRegistry::RegisterDefinitions()
     RegisterNativeFunc("Clock",
         { },
         { { "Time", Value(0.0) } },
-        [](int argCount, Value* args, VM* vm)
-    {
-        return Value((double)clock() / CLOCKS_PER_SEC);
-    },
+        &clock,
         NodeFlags::Implicit
     );
 
@@ -258,6 +263,20 @@ void NodeRegistry::RegisterDefinitions()
         {
             1, 16, PinType::Any, Value(0.0)
         }
+    );
+
+    RegisterNativeFunc("ReadFile",
+        { { "File", Value(copyString("", 0)) } },
+        { { "Content", Value(copyString("", 0)) } },
+        &readFile,
+        NodeFlags::Implicit
+    );
+
+    RegisterNativeFunc("WriteFile",
+        { { "File", Value(copyString("", 0)) }, { "Content", Value(copyString("", 0)) } },
+        { },
+        &writeFile,
+        NodeFlags::None
     );
 }
 

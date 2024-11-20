@@ -37,9 +37,11 @@ enum class PinType
     Int,
     Float,
     String,
+    List,
     Object,
     Function,
-    Any
+    Any,
+    Error
 };
 
 inline ImColor GetIconColor(PinType type)
@@ -52,9 +54,11 @@ inline ImColor GetIconColor(PinType type)
         case PinType::Int:      return ImColor(68, 201, 156);
         case PinType::Float:    return ImColor(147, 226, 74);
         case PinType::String:   return ImColor(124, 21, 153);
+        case PinType::List:     return ImColor(51, 150, 215);
         case PinType::Object:   return ImColor(51, 150, 215);
         case PinType::Function: return ImColor(218, 0, 183);
         case PinType::Any:      return ImColor(200, 200, 200);
+        case PinType::Error:    return ImColor(0, 0, 0);
     }
 };
 
@@ -67,9 +71,11 @@ inline ax::Drawing::IconType GetPinIcon(PinType type)
         case PinType::Int:      return ax::Drawing::IconType::Circle;
         case PinType::Float:    return ax::Drawing::IconType::Circle;
         case PinType::String:   return ax::Drawing::IconType::Circle;
+        case PinType::List:     return ax::Drawing::IconType::Square;
         case PinType::Object:   return ax::Drawing::IconType::Circle;
         case PinType::Function: return ax::Drawing::IconType::Circle;
         case PinType::Any:      return ax::Drawing::IconType::Circle;
+        case PinType::Error:    return ax::Drawing::IconType::Circle;
         default:                return ax::Drawing::IconType::Circle;
     }
 }

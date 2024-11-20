@@ -662,9 +662,9 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pNodeRegistry->definitions)
         {
-            if (ImGui::MenuItem(def.name.c_str()))
+            if (ImGui::MenuItem(def->name.c_str()))
             {
-                node = SpawnNode(def.MakeNode(*m_pIDGenerator));
+                node = SpawnNode(def->MakeNode(*m_pIDGenerator));
             }
         }
 

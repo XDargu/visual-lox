@@ -16,6 +16,7 @@
 
 #include <Compiler.h>
 #include <Vm.h>
+#include <Debug.h>
 
 #include <string>
 #include <vector>
@@ -58,6 +59,47 @@ static bool Splitter(bool split_vertically, float thickness, float* size1, float
     return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
 }
 
+namespace Utils
+{
+    void DrawEachLine(const std::string& text)
+    {
+        std::stringstream stream(text);
+        std::string segment;
+
+        while (std::getline(stream, segment, '\n'))
+        {
+            ImGui::Text(segment.c_str());
+        }
+    }
+
+    struct CaptureStdout
+    {
+        CaptureStdout()
+        {
+            // Redirect cout.
+            oldCoutStreamBuf = std::cout.rdbuf();
+            std::cout.rdbuf(strCout.rdbuf());
+
+            // Redirect cerr.
+            oldCerrStreamBuf = std::cerr.rdbuf();
+            std::cerr.rdbuf(strCout.rdbuf());
+        }
+
+        std::string Restore()
+        {
+            // Restore old cout.
+            std::cout.rdbuf(oldCoutStreamBuf);
+            std::cerr.rdbuf(oldCerrStreamBuf);
+
+            return strCout.str();
+        }
+        
+        std::streambuf* oldCoutStreamBuf;
+        std::streambuf* oldCerrStreamBuf;
+        std::ostringstream strCout;
+    };
+}
+
 struct Example:
     public Application
 {
@@ -81,6 +123,19 @@ struct Example:
                 for (Value& value : node->InputValues)
                 {
                     vm.markValue(value);
+                }
+            }
+
+            for (NativeFunctionDefPtr& def : m_NodeRegistry.definitions)
+            {
+                for (auto& input : def->inputs)
+                {
+                    vm.markValue(input.value);
+                }
+
+                for (auto& input : def->outputs)
+                {
+                    vm.markValue(input.value);
                 }
             }
         });
@@ -367,56 +422,60 @@ struct Example:
             ++changeCount;
 
         static std::string result = "<output>";
-        if (ImGui::Button("Compile"))
+        static std::string runResult = "";
+
+        
+
+        VM& vm = VM::getInstance();
+
+
+
+        std::cout << std::endl;
+
+
+        // Register natives if needed
+        // TODO: Move somewhere else
+        static bool isRegistered = false;
+        if (!isRegistered)
         {
-            // Redirect cout.
-            std::streambuf* oldCoutStreamBuf = std::cout.rdbuf();
-            std::ostringstream strCout;
-            std::cout.rdbuf(strCout.rdbuf());
+            const InterpretResult vmResult = vm.interpret("");
+            vm.resetStack();
 
-            // Redirect cerr.
-            std::streambuf* oldCerrStreamBuf = std::cerr.rdbuf();
-            std::cerr.rdbuf(strCout.rdbuf());
+            m_NodeRegistry.RegisterNatives(vm);
+            isRegistered = true;
+        }
 
-            VM& vm = VM::getInstance();
+        Utils::CaptureStdout captureCompilation;
+        
+        // Compile code
+        Compiler& compiler = vm.getCompiler();
+        compiler.beginCompile();
 
-            
+        // Compile everything here!
+        NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        if (begin)
+        {
+            compiler.beginScope();
 
-            std::cout << std::endl;
+            GraphCompiler graphCompiler;
+            graphCompiler.tempVarStorage.clear(); // TODO: Improve
+            std::vector<NodePtr> processedNodes = graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
 
+            // TODO: Do in a different way!
+            m_graphView.processedNodes = processedNodes;
 
-            // Register natives if needed
-            // TODO: Move somewhere else
-            static bool isRegistered = false;
-            if (!isRegistered)
-            {
-                m_NodeRegistry.RegisterNatives(vm);
-                isRegistered = true;
-            }
+            compiler.endScope();
+        }
 
-            const InterpretResult vmResult = vm.interpret("var a = Square(5); print a;");
-            vm.pop();
+        ObjFunction* function = compiler.endCompiler();
 
-            Compiler& compiler = vm.getCompiler();
-            compiler.beginCompile();
+        // Print debug code
+        disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
 
-            // Compile everything here!
-            NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-            if (begin)
-            {
-                compiler.beginScope();
-
-                GraphCompiler graphCompiler;
-                graphCompiler.tempVarStorage.clear(); // TODO: Improve
-                std::vector<NodePtr> processedNodes = graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
-
-                // TODO: Do in a different way!
-                m_graphView.processedNodes = processedNodes;
-
-                compiler.endScope();
-            }
-
-            ObjFunction* function = compiler.endCompiler();
+        result = captureCompilation.Restore();
+        
+        if (ImGui::Button("Run"))
+        {
             if (function != nullptr)
             {
                 vm.push(Value(function));
@@ -425,30 +484,24 @@ struct Example:
                 vm.push(Value(closure));
                 vm.callValue(Value(closure), 0);
 
+                Utils::CaptureStdout captureExecution;
+                
                 const InterpretResult vmResult = vm.run(0);
                 vm.pop();
 
                 if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
-                    std::cout <<  "Compilation Error";
+                    std::cout << "Compilation Error";
                 else if (vmResult == InterpretResult::INTERPRET_RUNTIME_ERROR)
                     std::cout << "Runtime Error";
+
+                runResult = "Execution output:\n" + captureExecution.Restore();
             }
-
-            // Restore old cout.
-            std::cout.rdbuf(oldCoutStreamBuf);
-            std::cerr.rdbuf(oldCerrStreamBuf);
-
-            result = strCout.str();
         }
 
-        // Print compiler output
-        std::stringstream test(result);
-        std::string segment;
-
-        while (std::getline(test, segment, '\n'))
-        {
-            ImGui::Text(segment.c_str());
-        }
+        
+        Utils::DrawEachLine(result);
+        Utils::DrawEachLine(runResult);
+        
 
         {
             ImGui::GetWindowDrawList()->AddRectFilled(

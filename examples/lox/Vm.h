@@ -95,9 +95,9 @@ public:
 
     Compiler& getCompiler() { return compiler; }
 
+    void resetStack();
 private:
 
-    void resetStack();
     void runtimeError(const char* format, ...);
     bool validateBinaryOperator();
     void concatenate();

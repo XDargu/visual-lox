@@ -11,6 +11,7 @@
 
 std::vector<NodePtr> GraphCompiler::CompileGraph(Compiler& compiler, Graph& graph, NodePtr startNode, int outputIdx)
 {
+    tempVarStorage.clear();
     std::vector<NodePtr> processedNodes;
     startNode->Compile(compiler, graph, CompilationStage::BeginSequence, 0);
     CompileRecursive(compiler, graph, startNode, -1, outputIdx, processedNodes);

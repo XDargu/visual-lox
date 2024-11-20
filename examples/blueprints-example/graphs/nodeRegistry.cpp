@@ -259,7 +259,7 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("List::Contains",
-        { { "List", Value(newList()) }, { "Value", Value() } },
+        { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
         NodeFlags::None
@@ -269,6 +269,20 @@ void NodeRegistry::RegisterDefinitions()
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
         & contains,
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("List::IndexOf",
+        { { "List", Value(newList()) }, { "Value", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        &indexOf,
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("String::IndexOf",
+        { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
+        { { "Result", Value(0.0) } },
+        &indexOf,
         NodeFlags::None
     );
 }

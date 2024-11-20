@@ -6,7 +6,30 @@
 #include "graphCompiler.h"
 
 #include <string>
+#include <string_view>
 #include <filesystem>
+
+// TODO: Move somewhere else
+namespace Utils
+{
+    std::vector<std::string> split(const std::string& s, const std::string& delimiter)
+    {
+        if (delimiter.empty()) return { s };
+
+        std::vector<std::string> tokens;
+        size_t pos = 0;
+        std::string_view leftover(s);
+
+        while ((pos = leftover.find(delimiter)) != std::string::npos)
+        {
+            tokens.push_back(std::string(leftover.substr(0, pos)));
+            leftover = leftover.substr(pos + delimiter.length());
+        }
+        tokens.push_back(std::string(leftover));
+
+        return tokens;
+    }
+}
 
 // TODO: Move somewhere else
 PinType TypeOfValue(const Value& value)
@@ -188,13 +211,40 @@ void NodeRegistry::RegisterDefinitions()
         NodeFlags::Implicit
     );
 
+    RegisterNativeFunc("Split",
+        { { "String", Value(copyString("", 0)) }, { "Separator", Value(copyString("", 0))} },
+        { { "List", Value(newList()) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (isString(args[0]) && isString(args[1]))
+            {
+                ObjString* data = asString(args[0]);
+                ObjString* separator = asString(args[1]);
+
+                std::vector<std::string> split = Utils::split(data->chars, separator->chars);
+
+                ObjList* list = newList();
+
+                for (std::string& s : split)
+                {
+                    list->append(Value(copyString(s.c_str(), s.length())));
+                }
+
+                return Value(list);
+            }
+
+            return Value(newList());
+        },
+        NodeFlags::Implicit
+    );
+
     RegisterNativeFunc("Clock",
         { },
         { { "Time", Value(0.0) } },
         [](int argCount, Value* args, VM* vm)
-        {
-            return Value((double)clock() / CLOCKS_PER_SEC);
-        },
+    {
+        return Value((double)clock() / CLOCKS_PER_SEC);
+    },
         NodeFlags::Implicit
     );
 

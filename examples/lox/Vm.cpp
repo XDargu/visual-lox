@@ -890,6 +890,7 @@ InterpretResult VM::run(int depth)
                         if (idx >= 0 && idx < str->length)
                         {
                             str->chars[idx] = character->chars[0];
+                            push(Value(copyString(character->chars.c_str(), 1)));
                         }
                         else
                         {

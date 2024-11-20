@@ -152,6 +152,12 @@ struct Example:
         m_NodeRegistry.RegisterCompiledNode("Append", &CreateAppendNode);
         m_NodeRegistry.RegisterCompiledNode("CreateString", &CreateString);
         m_NodeRegistry.RegisterCompiledNode("Add", &CreateAddNode);
+        m_NodeRegistry.RegisterCompiledNode("Subtract", &CreateSubtractNode);
+        m_NodeRegistry.RegisterCompiledNode("Multiply", &CreateMultiplyNode);
+        m_NodeRegistry.RegisterCompiledNode("Divide", &CreateDivideNode);
+        m_NodeRegistry.RegisterCompiledNode("Greater Than", &CreateGreaterNode);
+        m_NodeRegistry.RegisterCompiledNode("Less Than", &CreateLessNode);
+        m_NodeRegistry.RegisterCompiledNode("Modulo", &CreateModuloNode);
 
         m_NodeRegistry.RegisterDefinitions();
 

@@ -14,6 +14,7 @@
 #include "native/nodes/print.h"
 #include "native/nodes/for-in.h"
 #include "native/nodes/math.h"
+#include "native/nodes/list.h"
 
 #include "graphs/nodeRegistry.h"
 
@@ -158,6 +159,7 @@ struct Example:
         m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode);
+        m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode);
 
         m_NodeRegistry.RegisterDefinitions();
 
@@ -568,10 +570,10 @@ struct Example:
                     {
                         ImGui::Text(entry->key->chars.c_str());
 
-                        /*ImGui::SameLine();
+                        ImGui::SameLine();
 
                         ObjString* pString = valueAsString(entry->value);
-                        ImGui::Text(pString->chars.c_str());*/
+                        ImGui::Text(pString->chars.c_str());
                     }
                 }
             }

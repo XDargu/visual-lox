@@ -237,7 +237,7 @@ void NodeRegistry::RegisterDefinitions()
         { { "List", Value(newList()) } },
         [] (int argCount, Value* args, VM* vm)
         {
-            return args[0]; // Result is already a list!
+            return Value(args[0]); // Result is already a list!
         },
         NodeFlags::Implicit | NodeFlags::DynamicInputs,
         {
@@ -291,7 +291,8 @@ void NodeRegistry::RegisterNatives(VM& vm)
 {
     for (NativeFunctionDefPtr& def : nativeDefinitions)
     {
-        vm.defineNative(def->name.c_str(), def->inputs.size(), def->function);
+        const std::string nodeName = Utils::split(def->name, "::").back();
+        vm.defineNative(nodeName.c_str(), def->inputs.size(), def->function);
     }
 }
 

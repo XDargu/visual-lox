@@ -31,4 +31,6 @@ add_example_executable(blueprints-example
     native/nodes/print.cpp
     native/nodes/math.h
     native/nodes/math.cpp
+    native/nodes/list.h
+    native/nodes/list.cpp
 )

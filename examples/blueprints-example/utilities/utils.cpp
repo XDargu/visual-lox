@@ -32,4 +32,17 @@ namespace Utils
 
         return lower;
     }
+
+    std::string to_upper(const std::string_view s)
+    {
+        std::string upper;
+        upper.reserve(s.length());
+
+        for (char c : s)
+        {
+            upper += std::toupper(c);
+        }
+
+        return upper;
+    }
 }

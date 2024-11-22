@@ -285,6 +285,40 @@ void NodeRegistry::RegisterDefinitions()
         &indexOf,
         NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
+
+    RegisterNativeFunc("String::ToLower",
+        { { "Text", Value(copyString("", 0)) } },
+        { { "Lowercase", Value(copyString("", 0)) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value(takeString("", 0));
+
+            ObjString* text = asString(args[0]);
+
+            std::string result = Utils::to_lower(text->chars);
+
+            return Value(takeString(result.c_str(), result.length())); // Result is already a list!
+        },
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("String::ToUpper",
+        { { "Text", Value(copyString("", 0)) } },
+        { { "Uppercase", Value(copyString("", 0)) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value(takeString("", 0));
+
+            ObjString* text = asString(args[0]);
+
+            std::string result = Utils::to_upper(text->chars);
+
+            return Value(takeString(result.c_str(), result.length())); // Result is already a list!
+        },
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)

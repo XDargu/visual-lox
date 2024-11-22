@@ -145,6 +145,11 @@ struct Example:
                     vm.markValue(input.value);
                 }
             }
+
+            for (Value& value : m_constFoldingValues)
+            {
+                vm.markValue(value);
+            }
         });
         
         m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode);
@@ -257,6 +262,47 @@ struct Example:
         ImGui::PopItemWidth();
 
         ImGui::End();
+    }
+
+    InterpretResult CompileConstFolding(VM& vm, const NodePtr& constNode)
+    {
+        std::cout << std::endl << "Compiling node: " << constNode->Name << std::endl;
+        // Compile code
+        Compiler& compiler = vm.getCompiler();
+        compiler.beginCompile();
+
+        const Token resultToken(TokenType::VAR, "__res", 5, 0);
+
+        compiler.beginScope();
+
+        GraphCompiler graphCompiler;
+
+        std::vector<NodePtr> processedNodes = graphCompiler.CompileSingle(compiler, *m_graphView.m_pGraph, constNode, -1, 0);
+
+        // Store result in a global
+        const uint32_t constant = compiler.identifierConstant(resultToken);
+        compiler.emitOpWithValue(OpCode::OP_DEFINE_GLOBAL, OpCode::OP_DEFINE_GLOBAL_LONG, constant);
+
+        compiler.endScope();
+
+        compiler.emitVariable(resultToken, false);
+
+        // We return that value directly
+        compiler.emitByte(OpByte(OpCode::OP_RETURN));
+        ObjFunction* function = compiler.current->function;
+
+        if (function != nullptr)
+        {
+            vm.push(Value(function));
+            ObjClosure* closure = newClosure(function);
+            vm.pop();
+            vm.push(Value(closure));
+            vm.callValue(Value(closure), 0);
+
+            return vm.run(0);
+        }
+
+        return InterpretResult::INTERPRET_COMPILE_ERROR;
     }
 
     void ShowLeftPane(float paneWidth)
@@ -454,22 +500,42 @@ struct Example:
 
         std::cout << std::endl;
 
+        
 
         // Register natives if needed
         // TODO: Move somewhere else
         static bool isRegistered = false;
         if (!isRegistered)
         {
-            const InterpretResult vmResult = vm.interpret("");
-            vm.resetStack();
-
             m_NodeRegistry.RegisterNatives(vm);
             isRegistered = true;
         }
 
+        // Test: const folding
+        {
+            m_constFoldingValues.clear();
+            m_constFoldingIDs.clear();
+
+            for (const NodePtr& node : m_graphView.m_pGraph->GetNodes())
+            {
+                if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
+                {
+                    if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
+                    {
+                        m_constFoldingValues.push_back(vm.peek(-1));
+                        m_constFoldingIDs.push_back(node->ID);
+                    }
+                }
+            }
+        }
+
         Utils::CaptureStdout captureCompilation;
-        
+
+        //const InterpretResult vmResult = vm.interpret("return 2;");
+        //vm.resetStack();
+
         // Compile code
+        std::cout << std::endl << "Compiling graph: " << std::endl;
         Compiler& compiler = vm.getCompiler();
         compiler.beginCompile();
 
@@ -480,6 +546,9 @@ struct Example:
             compiler.beginScope();
 
             GraphCompiler graphCompiler;
+            graphCompiler.m_constFoldingValues = m_constFoldingValues;
+            graphCompiler.m_constFoldingIDs = m_constFoldingIDs;
+
             graphCompiler.tempVarStorage.clear(); // TODO: Improve
             std::vector<NodePtr> processedNodes = graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
 
@@ -573,10 +642,36 @@ struct Example:
 
                         ImGui::SameLine();
 
-                        ObjString* pString = valueAsString(entry->value);
-                        ImGui::Text(pString->chars.c_str());
+                        ImGui::Text(valueAsStr(entry->value).c_str());
                     }
                 }
+            }
+
+            ImGui::Unindent();
+        }
+
+        {
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                ImGui::GetCursorScreenPos(),
+                ImGui::GetCursorScreenPos() + ImVec2(paneWidth, ImGui::GetTextLineHeight()),
+                ImColor(ImGui::GetStyle().Colors[ImGuiCol_HeaderActive]), ImGui::GetTextLineHeight() * 0.25f);
+            ImGui::Spacing(); ImGui::SameLine();
+            ImGui::TextUnformatted("Folded nodes");
+            ImGui::Indent();
+
+            VM& vm = VM::getInstance();
+            size_t entries = m_constFoldingIDs.size();
+
+            for (size_t i = 0; i < entries; ++i)
+            {
+                const Value& value = m_constFoldingValues[i];
+                const ed::NodeId& nodeId = m_constFoldingIDs[i];
+
+                ImGui::Text("%p", nodeId.AsPointer());
+
+                ImGui::SameLine();
+
+                ImGui::Text(valueAsStr(value).c_str());
             }
 
             ImGui::Unindent();
@@ -670,6 +765,10 @@ struct Example:
     
     IDGenerator          m_IDGenerator;
     NodeRegistry         m_NodeRegistry;
+
+    // TODO: Move somewhere else!
+    std::vector<Value>   m_constFoldingValues;
+    std::vector<ed::NodeId>   m_constFoldingIDs;
 };
 
 int Main(int argc, char** argv)

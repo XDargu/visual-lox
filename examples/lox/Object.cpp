@@ -249,7 +249,7 @@ std::string objectAsStr(const Value& value)
         const std::vector<Value>& items = asList(value)->items;
         for (auto current = items.begin(); current != items.end();)
         {
-            list += objectAsStr(*current);
+            list += valueAsStr(*current);
 
             if (++current != items.end())
                 list += ",";

@@ -314,3 +314,26 @@ NodePtr Graph::AddNode(const NodePtr& node)
 
      return links;
  }
+
+ bool GraphUtils::IsNodeConstFoldable(const Graph& graph, const NodePtr& node)
+ {
+     if (!HasFlag(node->Flags, NodeFlags::CanConstFold))
+         return false;
+
+     if (node->Category != NodeCategory::Function)
+         return false;
+
+     for (const Pin& input : node->Inputs)
+     {
+         if (input.Type != PinType::Flow)
+         {
+             if (const Pin* output = FindConnectedOutput(graph, input))
+             {
+                 if (!IsNodeConstFoldable(graph, output->Node))
+                     return false;
+             }
+         }
+     }
+
+     return true;
+ }

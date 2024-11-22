@@ -18,6 +18,7 @@ enum class NodeFlags
     None = 0,
     Implicit = 1 << 0,
     DynamicInputs = 1 << 1,
+    CanConstFold = 1 << 2,
 };
 
 // TODO: Move to some macro?

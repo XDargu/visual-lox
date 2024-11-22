@@ -18,6 +18,7 @@ struct ListGetByIndex : public Node
         : Node(id, name, ImColor(255, 128, 128))
     {
         Category = NodeCategory::Function;
+        Flags |= NodeFlags::CanConstFold;
     }
 
     virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override

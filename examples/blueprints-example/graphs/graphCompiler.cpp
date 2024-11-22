@@ -34,17 +34,27 @@ void GraphCompiler::CompileBackwardsRecursive(Compiler& compiler, Graph& graph, 
 
         if (inputPin.Type != PinType::Flow)
         {
-            const std::vector<const Pin*> outputs = GraphUtils::FindConnectedOutputs(graph, inputPin);
-
-            for (const Pin* pOutput : outputs)
+            if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, inputPin))
             {
                 NodePtr prevNode = pOutput->Node;
                 if (prevNode && GraphUtils::IsNodeImplicit(prevNode))
                 {
-                    const int nodeOutputIdx = GraphUtils::FindNodeOutputIdx(*pOutput);
-                    CompileBackwardsRecursive(compiler, graph, prevNode, -1, nodeOutputIdx, processedNodes);
+                    const auto foldIt = std::find(m_constFoldingIDs.begin(), m_constFoldingIDs.end(), prevNode->ID);
+                    const bool shouldFold = foldIt != m_constFoldingIDs.end();
 
-                    prevNode->Compile(compiler, graph, CompilationStage::PullOutput, nodeOutputIdx);
+                    if (shouldFold)
+                    {
+                        const size_t index = std::distance(m_constFoldingIDs.begin(), foldIt);
+                        compiler.emitConstant(m_constFoldingValues[index]);
+                        CompileOutput(compiler, graph, prevNode->Outputs[0]);
+                    }
+                    else
+                    {
+                        const int nodeOutputIdx = GraphUtils::FindNodeOutputIdx(*pOutput);
+                        CompileBackwardsRecursive(compiler, graph, prevNode, -1, nodeOutputIdx, processedNodes);
+
+                        prevNode->Compile(compiler, graph, CompilationStage::PullOutput, nodeOutputIdx);
+                    }
                 }
             }
         }
@@ -53,11 +63,24 @@ void GraphCompiler::CompileBackwardsRecursive(Compiler& compiler, Graph& graph, 
 
 void GraphCompiler::CompileRecursive(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx, std::vector<NodePtr>& processedNodes)
 {
-    startNode->Compile(compiler, graph, CompilationStage::BeginNode, -1);
-    startNode->Compile(compiler, graph, CompilationStage::BeforeInput, inputIdx);
-    CompileBackwardsRecursive(compiler, graph, startNode, inputIdx, outputIdx, processedNodes);
+    const auto foldIt = std::find(m_constFoldingIDs.begin(), m_constFoldingIDs.end(), startNode->ID);
+    const bool shouldFold = foldIt != m_constFoldingIDs.end();
 
-    startNode->Compile(compiler, graph, CompilationStage::BeginInput, inputIdx);
+    if (shouldFold)
+    {
+        const size_t index = std::distance(m_constFoldingIDs.begin(), foldIt);
+        compiler.emitConstant(m_constFoldingValues[index]);
+        const int outputIdx = GraphUtils::IsNodeImplicit(startNode) ? 0 : 1;
+        CompileOutput(compiler, graph, startNode->Outputs[outputIdx]);
+    }
+    else
+    {
+        startNode->Compile(compiler, graph, CompilationStage::BeginNode, -1);
+        startNode->Compile(compiler, graph, CompilationStage::BeforeInput, inputIdx);
+        CompileBackwardsRecursive(compiler, graph, startNode, inputIdx, outputIdx, processedNodes);
+
+        startNode->Compile(compiler, graph, CompilationStage::BeginInput, inputIdx);
+    }
 
     if (std::find(processedNodes.begin(), processedNodes.end(), startNode) == processedNodes.end())
     {
@@ -101,7 +124,53 @@ void GraphCompiler::CompileRecursive(Compiler& compiler, Graph& graph, NodePtr s
             }
         }
     }
-    startNode->Compile(compiler, graph, CompilationStage::EndInput, inputIdx);
+
+    if (!shouldFold)
+        startNode->Compile(compiler, graph, CompilationStage::EndInput, inputIdx);
+}
+
+std::vector<NodePtr> GraphCompiler::CompileSingle(Compiler& compiler, Graph& graph, NodePtr startNode, int inputIdx, int outputIdx)
+{
+    std::vector<NodePtr> processedNodes;
+    tempVarStorage.clear();
+
+    if (GraphUtils::IsNodeImplicit(startNode))
+    {
+        CompileBackwardsRecursive(compiler, graph, startNode, -1, outputIdx, processedNodes);
+        startNode->Compile(compiler, graph, CompilationStage::PullOutput, outputIdx);
+    }
+    else
+    {
+        startNode->Compile(compiler, graph, CompilationStage::BeginNode, -1);
+        startNode->Compile(compiler, graph, CompilationStage::BeforeInput, inputIdx);
+        CompileBackwardsRecursive(compiler, graph, startNode, inputIdx, outputIdx, processedNodes);
+
+        startNode->Compile(compiler, graph, CompilationStage::BeginInput, inputIdx);
+
+        if (std::find(processedNodes.begin(), processedNodes.end(), startNode) == processedNodes.end())
+        {
+            processedNodes.push_back(startNode);
+        }
+
+        if (outputIdx != -1)
+        {
+            startNode->Compile(compiler, graph, CompilationStage::BeginOutput, outputIdx);
+
+            const Pin& currentOutput = startNode->Outputs[outputIdx];
+            const std::vector<const Pin*> inputPins = GraphUtils::FindConnectedInputs(graph, currentOutput);
+
+            for (const Pin* pNextInput : inputPins)
+            {
+                const int nodeInputIdx = GraphUtils::FindNodeInputIdx(*pNextInput);
+                CompileRecursive(compiler, graph, pNextInput->Node, nodeInputIdx, -1, processedNodes);
+            }
+
+            startNode->Compile(compiler, graph, CompilationStage::EndOutput, outputIdx);
+        }
+        startNode->Compile(compiler, graph, CompilationStage::EndInput, inputIdx);
+    }
+
+    return processedNodes;
 }
 
 void GraphCompiler::RegisterNatives(VM& vm)

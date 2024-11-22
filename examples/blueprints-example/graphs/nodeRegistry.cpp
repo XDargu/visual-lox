@@ -176,7 +176,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(0.0);
         },
-        NodeFlags::Implicit
+        NodeFlags::Implicit | NodeFlags::CanConstFold
     );
 
     RegisterNativeFunc("File::FileExists",
@@ -222,7 +222,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(newList());
         },
-        NodeFlags::Implicit
+        NodeFlags::Implicit | NodeFlags::CanConstFold
     );
 
     RegisterNativeFunc("System::Clock",
@@ -238,7 +238,7 @@ void NodeRegistry::RegisterDefinitions()
         {
             return Value(args[0]); // Result is already a list!
         },
-        NodeFlags::Implicit | NodeFlags::DynamicInputs,
+        NodeFlags::Implicit | NodeFlags::DynamicInputs | NodeFlags::CanConstFold,
         {
             1, 16, PinType::Any, Value(0.0)
         }
@@ -262,28 +262,28 @@ void NodeRegistry::RegisterDefinitions()
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
-        NodeFlags::None
+        NodeFlags::CanConstFold | NodeFlags::Implicit
     );
 
     RegisterNativeFunc("String::Contains",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
         & contains,
-        NodeFlags::None
+        NodeFlags::CanConstFold | NodeFlags::Implicit
     );
 
     RegisterNativeFunc("List::IndexOf",
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::None
+        NodeFlags::CanConstFold | NodeFlags::Implicit
     );
 
     RegisterNativeFunc("String::IndexOf",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::None
+        NodeFlags::CanConstFold | NodeFlags::Implicit
     );
 }
 

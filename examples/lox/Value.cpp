@@ -30,6 +30,19 @@ ObjString* valueAsString(const Value& value)
     return takeString("<Unknown>", 9);
 }
 
+std::string valueAsStr(const Value& value)
+{
+    switch (value.type)
+    {
+    case ValueType::BOOL: return (asBoolean(value) ? "true" : "false");
+    case ValueType::NIL: return "nil";
+    case ValueType::NUMBER: return std::to_string(asNumber(value));
+    case ValueType::OBJ: return objectAsStr(value); break;
+    }
+
+    return "<Unknown>";
+}
+
 size_t sizeOf(const Value& value)
 {
     switch (value.type)

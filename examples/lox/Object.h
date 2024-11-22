@@ -296,5 +296,6 @@ size_t sizeOfObject(const Value& value);
 
 ObjString* objectAsString(const Value& value);
 ObjString* concatenate(ObjString* a, ObjString* b);
+std::string objectAsStr(const Value& value);
 
 #endif

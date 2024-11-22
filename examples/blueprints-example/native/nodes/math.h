@@ -19,6 +19,7 @@ struct BinaryOpNode : public Node
         : Node(id, name, ImColor(230, 230, 0))
     {
         Category = NodeCategory::Function;
+        Flags |= NodeFlags::CanConstFold;
     }
 
     virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override

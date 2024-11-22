@@ -83,4 +83,6 @@ namespace GraphUtils
 
     std::vector<const Link*> CollectInputLinks(const Graph& graph, const Pin& inputPin);
     std::vector<const Link*> CollectOutputLinks(const Graph& graph, const Pin& outputPin);
+
+    bool IsNodeConstFoldable(const Graph& graph, const NodePtr& node);
 }

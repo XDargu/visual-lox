@@ -110,6 +110,7 @@ struct AppendNode : public Node
     {
         Category = NodeCategory::Function;
         Flags |= NodeFlags::DynamicInputs;
+        Flags |= NodeFlags::CanConstFold;
     }
 
     virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override

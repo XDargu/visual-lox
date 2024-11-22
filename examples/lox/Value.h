@@ -83,6 +83,7 @@ struct ValueArray
 
 void printValue(const Value& value);
 ObjString* valueAsString(const Value& value);
+std::string valueAsStr(const Value& value);
 size_t sizeOf(const Value& value);
 
 #endif

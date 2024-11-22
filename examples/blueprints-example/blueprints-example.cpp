@@ -277,7 +277,11 @@ struct Example:
 
         GraphCompiler graphCompiler;
 
-        std::vector<NodePtr> processedNodes = graphCompiler.CompileSingle(compiler, *m_graphView.m_pGraph, constNode, -1, 0);
+        auto callback = [](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+        {
+            node->Compile(compiler, graph, stage, portIdx);
+        };
+        graphCompiler.CompileSingle(compiler, *m_graphView.m_pGraph, constNode, -1, 0, callback);
 
         // Store result in a global
         const uint32_t constant = compiler.identifierConstant(resultToken);
@@ -511,24 +515,6 @@ struct Example:
             isRegistered = true;
         }
 
-        // Test: const folding
-        {
-            m_constFoldingValues.clear();
-            m_constFoldingIDs.clear();
-
-            for (const NodePtr& node : m_graphView.m_pGraph->GetNodes())
-            {
-                if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
-                {
-                    if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
-                    {
-                        m_constFoldingValues.push_back(vm.peek(-1));
-                        m_constFoldingIDs.push_back(node->ID);
-                    }
-                }
-            }
-        }
-
         Utils::CaptureStdout captureCompilation;
 
         //const InterpretResult vmResult = vm.interpret("return 2;");
@@ -537,31 +523,63 @@ struct Example:
         // Compile code
         std::cout << std::endl << "Compiling graph: " << std::endl;
         Compiler& compiler = vm.getCompiler();
-        compiler.beginCompile();
+        ObjFunction* function = nullptr;
 
         // Compile everything here!
         NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
         if (begin)
         {
+            GraphCompiler graphCompiler;
+
+            std::vector<NodePtr> processedNodes;
+            // First pass to gather processed nodes and cost folding
+            graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+            {
+                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                {
+                    processedNodes.push_back(node);
+                }
+            });
+
+            // Test: const folding
+            {
+                m_constFoldingValues.clear();
+                m_constFoldingIDs.clear();
+
+                for (const NodePtr& node : processedNodes)
+                {
+                    if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
+                    {
+                        if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
+                        {
+                            m_constFoldingValues.push_back(vm.peek(-1));
+                            m_constFoldingIDs.push_back(node->ID);
+                        }
+                    }
+                }
+            }
+
+            compiler.beginCompile();
             compiler.beginScope();
 
-            GraphCompiler graphCompiler;
             graphCompiler.m_constFoldingValues = m_constFoldingValues;
             graphCompiler.m_constFoldingIDs = m_constFoldingIDs;
 
             graphCompiler.tempVarStorage.clear(); // TODO: Improve
-            std::vector<NodePtr> processedNodes = graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0);
+            graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0, [](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+            {
+                node->Compile(compiler, graph, stage, portIdx);
+            });
 
             // TODO: Do in a different way!
             m_graphView.processedNodes = processedNodes;
 
             compiler.endScope();
+            function = compiler.endCompiler();
+
+            // Print debug code
+            disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
         }
-
-        ObjFunction* function = compiler.endCompiler();
-
-        // Print debug code
-        disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
 
         result = captureCompilation.Restore();
         

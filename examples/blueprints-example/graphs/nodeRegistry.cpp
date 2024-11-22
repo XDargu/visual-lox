@@ -248,7 +248,7 @@ void NodeRegistry::RegisterDefinitions()
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
         &readFile,
-        NodeFlags::ReadOnly
+        NodeFlags::None
     );
 
     RegisterNativeFunc("File::WriteFile",

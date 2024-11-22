@@ -28,7 +28,7 @@ struct ForInNode : public Node
     {
         switch (stage)
         {
-        case CompilationStage::BeginInput:
+        case CompilationStage::BeginInputs:
         {
             compiler.beginScope();
 

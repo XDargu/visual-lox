@@ -24,7 +24,7 @@ struct PrintNode : public Node
     {
         switch (stage)
         {
-        case CompilationStage::BeginInput:
+        case CompilationStage::BeginInputs:
         {
             if (!GraphUtils::IsNodeImplicit(this))
                 CompileInputs(compiler, graph);

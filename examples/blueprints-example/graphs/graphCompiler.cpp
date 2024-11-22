@@ -46,7 +46,7 @@ void GraphCompiler::CompileBackwardsRecursive(Compiler& compiler, Graph& graph, 
                         const int nodeOutputIdx = GraphUtils::FindNodeOutputIdx(*pOutput);
                         CompileBackwardsRecursive(compiler, graph, prevNode, -1, nodeOutputIdx, callback);
 
-                        callback(prevNode, compiler, graph, CompilationStage::PullOutput, nodeOutputIdx);
+                        callback(prevNode, compiler, graph, CompilationStage::PullOutput, -1);
                     }
                 }
             }
@@ -72,11 +72,12 @@ void GraphCompiler::CompileRecursive(Compiler& compiler, Graph& graph, const Nod
         callback(startNode, compiler, graph, CompilationStage::BeforeInput, inputIdx);
         CompileBackwardsRecursive(compiler, graph, startNode, inputIdx, outputIdx, callback);
 
-        callback(startNode, compiler, graph, CompilationStage::BeginInput, inputIdx);
+        callback(startNode, compiler, graph, CompilationStage::BeginInputs, inputIdx);
     }
 
     if (outputIdx != -1)
     {
+        // Compile one specific output. We assume it's a flow output.
         callback(startNode, compiler, graph, CompilationStage::BeginOutput, outputIdx);
 
         const Pin& currentOutput = startNode->Outputs[outputIdx];
@@ -92,6 +93,7 @@ void GraphCompiler::CompileRecursive(Compiler& compiler, Graph& graph, const Nod
     }
     else
     {
+        // Compile all outputs
         for (int i = 0; i < startNode->Outputs.size(); ++i)
         {
             const Pin& outputPin = startNode->Outputs[i];
@@ -114,7 +116,7 @@ void GraphCompiler::CompileRecursive(Compiler& compiler, Graph& graph, const Nod
     }
 
     if (!shouldFold)
-        callback(startNode, compiler, graph, CompilationStage::EndInput, inputIdx);
+        callback(startNode, compiler, graph, CompilationStage::EndInputs, inputIdx);
 }
 
 void GraphCompiler::CompileSingle(Compiler& compiler, Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
@@ -128,28 +130,7 @@ void GraphCompiler::CompileSingle(Compiler& compiler, Graph& graph, const NodePt
     }
     else
     {
-        callback(startNode, compiler, graph, CompilationStage::BeginNode, -1);
-        callback(startNode, compiler, graph, CompilationStage::BeforeInput, inputIdx);
-        CompileBackwardsRecursive(compiler, graph, startNode, inputIdx, outputIdx, callback);
-
-        callback(startNode, compiler, graph, CompilationStage::BeginInput, inputIdx);
-
-        if (outputIdx != -1)
-        {
-            callback(startNode, compiler, graph, CompilationStage::BeginOutput, outputIdx);
-
-            const Pin& currentOutput = startNode->Outputs[outputIdx];
-            const std::vector<const Pin*> inputPins = GraphUtils::FindConnectedInputs(graph, currentOutput);
-
-            for (const Pin* pNextInput : inputPins)
-            {
-                const int nodeInputIdx = GraphUtils::FindNodeInputIdx(*pNextInput);
-                CompileRecursive(compiler, graph, pNextInput->Node, nodeInputIdx, -1, callback);
-            }
-
-            callback(startNode, compiler, graph, CompilationStage::EndOutput, outputIdx);
-        }
-        callback(startNode, compiler, graph, CompilationStage::EndInput, inputIdx);
+        CompileRecursive(compiler, graph, startNode, inputIdx, -1, callback);
     }
 }
 

@@ -25,7 +25,7 @@ struct ListGetByIndex : public Node
     {
         switch (stage)
         {
-        case CompilationStage::BeginInput:
+        case CompilationStage::BeginInputs:
         {
             CompileInputs(compiler, graph);
         }
@@ -72,7 +72,7 @@ struct ListSetByIndex : public Node
     {
         switch (stage)
         {
-        case CompilationStage::BeginInput:
+        case CompilationStage::BeginInputs:
         {
             CompileInputs(compiler, graph);
         }

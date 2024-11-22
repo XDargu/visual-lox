@@ -31,7 +31,7 @@ struct BranchNode : public Node
     {
         switch (stage)
         {
-            case CompilationStage::BeginInput:
+            case CompilationStage::BeginInputs:
             {
                 CompileInputs(compiler, graph);
             }
@@ -67,7 +67,7 @@ struct BranchNode : public Node
                 }
             }
             break;
-            case CompilationStage::EndInput:
+            case CompilationStage::EndInputs:
             {
                 compiler.patchJump(elseJump);
             }

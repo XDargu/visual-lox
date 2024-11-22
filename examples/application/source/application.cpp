@@ -50,7 +50,7 @@ bool Application::Create(int width /*= -1*/, int height /*= -1*/)
     m_IniFilename = m_Name + ".ini";
 
     ImGuiIO& io = ImGui::GetIO();
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
     io.IniFilename = m_IniFilename.c_str();
     io.LogFilename = nullptr;
 

@@ -655,8 +655,19 @@ void GraphView::DrawContextMenu()
         ImGui::EndPopup();
     }
 
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 0), ImGui::GetWindowSize() * 0.5f);
     if (ImGui::BeginPopup("Create New Node"))
     {
+        bool searchChanged = false;
+
+        static std::string searchFilter = "";
+        static std::string searchFilterLower = "";
+        if (ImGui::InputText("##search", &searchFilter))
+        {
+            searchChanged = true;
+            searchFilterLower = Utils::to_lower(searchFilter);
+        }
+
         struct Data
         {
             std::string name;
@@ -668,10 +679,14 @@ void GraphView::DrawContextMenu()
 
         Data root;
         root.name = "Nodes";
+        root.fullName = "Nodes";
         root.depth = 0;
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
+            if (!Utils::FilterString(Utils::to_lower(def->name), searchFilterLower))
+                continue;
+
             Data* current = &root;
             int depth = 1;
             const std::vector<std::string> tokens = Utils::split(def->name, "::");
@@ -682,7 +697,7 @@ void GraphView::DrawContextMenu()
 
                 child.name = token;
                 child.depth = depth;
-                child.fullName = child.name;
+                child.fullName = token;
 
                 if (token == tokens.back())
                 {
@@ -698,6 +713,9 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pNodeRegistry->compiledDefinitions)
         {
+            if (!Utils::FilterString(Utils::to_lower(def->name), searchFilterLower))
+                continue;
+
             Data* current = &root;
             int depth = 1;
             const std::vector<std::string> tokens = Utils::split(def->name, "::");
@@ -708,11 +726,13 @@ void GraphView::DrawContextMenu()
 
                 child.name = token;
                 child.depth = depth;
+                child.fullName = token;
 
                 if (token == tokens.back())
                 {
                     // Last element!
                     child.creationFun = def->nodeCreationFunc;
+                    child.fullName = def->name;
                 }
 
                 current = &child;
@@ -748,9 +768,10 @@ void GraphView::DrawContextMenu()
             }
 
             bool isSelected = false;
-            if (ImGui::Selectable((top->name + "##" + top->fullName).c_str(), &isSelected))
+            if (ImGui::Selectable((top->fullName + "##" + top->fullName).c_str(), &isSelected))
             {
-                node = SpawnNode(top->creationFun(*m_pIDGenerator));
+                if (top->children.empty())
+                    node = SpawnNode(top->creationFun(*m_pIDGenerator));
             }
 
             currentDepth = top->depth;

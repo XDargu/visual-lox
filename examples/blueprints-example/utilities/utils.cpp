@@ -19,4 +19,17 @@ namespace Utils
 
         return tokens;
     }
+
+    std::string to_lower(const std::string_view s)
+    {
+        std::string lower;
+        lower.reserve(s.length());
+
+        for (char c : s)
+        {
+            lower += std::tolower(c);
+        }
+
+        return lower;
+    }
 }

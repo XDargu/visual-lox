@@ -277,11 +277,11 @@ struct Example:
 
         GraphCompiler graphCompiler;
 
-        auto callback = [](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+        auto callback = [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
         {
             node->Compile(compiler, graph, stage, portIdx);
         };
-        graphCompiler.CompileSingle(compiler, *m_graphView.m_pGraph, constNode, -1, 0, callback);
+        graphCompiler.CompileSingle(*m_graphView.m_pGraph, constNode, -1, 0, callback);
 
         // Store result in a global
         const uint32_t constant = compiler.identifierConstant(resultToken);
@@ -533,7 +533,7 @@ struct Example:
 
             std::vector<NodePtr> processedNodes;
             // First pass to gather processed nodes and cost folding
-            graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+            graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
             {
                 if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
                 {
@@ -566,9 +566,18 @@ struct Example:
             graphCompiler.m_constFoldingIDs = m_constFoldingIDs;
 
             graphCompiler.tempVarStorage.clear(); // TODO: Improve
-            graphCompiler.CompileGraph(compiler, *m_graphView.m_pGraph, begin, 0, [](const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)
+            graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
             {
-                node->Compile(compiler, graph, stage, portIdx);
+                if (stage == CompilationStage::ConstFoldedInputs)
+                {
+                    compiler.emitConstant(m_constFoldingValues[portIdx]);
+                    const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
+                    GraphCompiler::CompileOutput(compiler, graph, node->Outputs[outputIdx]);
+                }
+                else
+                {
+                    node->Compile(compiler, graph, stage, portIdx);
+                }
             });
 
             // TODO: Do in a different way!

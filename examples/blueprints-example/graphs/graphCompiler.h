@@ -17,12 +17,12 @@ struct Value;
 
 struct GraphCompiler
 {
-    using Callback = std::function<void(const NodePtr& node, Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx)>;
+    using Callback = std::function<void(const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)>;
 
-    void CompileGraph(Compiler& compiler, Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
-    void CompileBackwardsRecursive(Compiler& compiler, Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
-    void CompileRecursive(Compiler& compiler, Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
-    void CompileSingle(Compiler& compiler, Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileGraph(Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
+    void CompileBackwardsRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileSingle(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
 
     static void RegisterNatives(VM& vm);
 

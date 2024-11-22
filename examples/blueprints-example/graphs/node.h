@@ -129,7 +129,10 @@ enum class CompilationStage
     PullOutput,
     BeginOutput,
     EndOutput,
-    BeginNode
+    BeginNode,
+
+    // Special cases
+    ConstFoldedInputs,
 };
 
 class Compiler;

@@ -132,7 +132,7 @@ NodePtr NativeFunctionDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<NativeFunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this());
 
-    if (!HasFlag(flags, NodeFlags::Implicit))
+    if (!HasFlag(flags, NodeFlags::ReadOnly))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -176,7 +176,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(0.0);
         },
-        NodeFlags::Implicit | NodeFlags::CanConstFold
+        NodeFlags::ReadOnly | NodeFlags::CanConstFold
     );
 
     RegisterNativeFunc("File::FileExists",
@@ -192,7 +192,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(false);
         },
-        NodeFlags::Implicit
+        NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("String::Split",
@@ -222,14 +222,14 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(newList());
         },
-        NodeFlags::Implicit | NodeFlags::CanConstFold
+        NodeFlags::ReadOnly | NodeFlags::CanConstFold
     );
 
     RegisterNativeFunc("System::Clock",
         { },
         { { "Time", Value(0.0) } },
         &clock,
-        NodeFlags::Implicit
+        NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("List::MakeList",
@@ -238,7 +238,7 @@ void NodeRegistry::RegisterDefinitions()
         {
             return Value(args[0]); // Result is already a list!
         },
-        NodeFlags::Implicit | NodeFlags::DynamicInputs | NodeFlags::CanConstFold,
+        NodeFlags::ReadOnly | NodeFlags::DynamicInputs | NodeFlags::CanConstFold,
         {
             1, 16, PinType::Any, Value(0.0)
         }
@@ -248,7 +248,7 @@ void NodeRegistry::RegisterDefinitions()
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
         &readFile,
-        NodeFlags::Implicit
+        NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("File::WriteFile",
@@ -262,28 +262,28 @@ void NodeRegistry::RegisterDefinitions()
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
-        NodeFlags::CanConstFold | NodeFlags::Implicit
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("String::Contains",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
         & contains,
-        NodeFlags::CanConstFold | NodeFlags::Implicit
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("List::IndexOf",
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::CanConstFold | NodeFlags::Implicit
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
 
     RegisterNativeFunc("String::IndexOf",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::CanConstFold | NodeFlags::Implicit
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
 }
 

@@ -634,15 +634,9 @@ struct Example:
         static std::string runResult = "";
 
         ImGui::Checkbox("Const Folding Enabled", &m_isConstFoldingEnabled);
-
+        ImGui::Checkbox("Real time compilation Enabled", &m_isRealTimeCompilationEnabled);
 
         VM& vm = VM::getInstance();
-
-
-
-        std::cout << std::endl;
-
-
 
         // Register natives if needed
         // TODO: Move somewhere else
@@ -653,137 +647,141 @@ struct Example:
             isRegistered = true;
         }
 
-
-        Utils::CaptureStdout captureCompilation;
-
         Compiler& compiler = vm.getCompiler();
 
-        // Traverse graph to see which nodes are processed, in order to display them enabled in the graph view
-        m_graphView.processedNodes = GatherProcessedNodes(*m_graphView.m_pGraph, compiler);
+        const bool pressedCompile = ImGui::Button("Compile") || m_isRealTimeCompilationEnabled;
+        const bool pressedRun = ImGui::Button("Run");
 
-        // Gather const folding options
-        GatherConstFoldableNodes(compiler, vm);
-
-
-        // Test to see how text instructions compile
-        //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2();");
-        vm.resetStack();
-
-        // Compile code
-        std::cout << std::endl << "Compiling script: " << std::endl;
-        ObjFunction* function = nullptr;
-
-        // Compile everything here!
-        NodePtr begin = m_script.main.Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-        if (begin)
+        if (pressedCompile || pressedRun)
         {
-            GraphCompiler graphCompiler(compiler);
+            Utils::CaptureStdout captureCompilation;
 
-            compiler.beginCompile();
+            // Gather const folding options
+            GatherConstFoldableNodes(compiler, vm);
 
-            // Compile script variables (globals)
-            /*for (const ScriptProperty& scriptProperty : m_script.variables)
+
+            // Test to see how text instructions compile
+            //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2();");
+            vm.resetStack();
+
+            // Compile code
+            std::cout << std::endl << "Compiling script: " << std::endl;
+            static ObjFunction* function = nullptr;
+
+            // Compile everything here!
+            NodePtr begin = m_script.main.Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+            if (begin)
             {
-                compiler.emitConstant(scriptProperty.defaultValue);
-                const Token outputToken(TokenType::VAR, scriptProperty.Name.c_str(), scriptProperty.Name.length(), 0);
-                const uint32_t constant = compiler.identifierConstant(outputToken);
-                compiler.defineVariable(constant);
-            }*/
+                GraphCompiler graphCompiler(compiler);
 
-            // Compile script functions (globals)
-            for (const ScriptFunction& scriptFunction : m_script.functions)
-            {
-                // TODO: I had to pretty much rewrite the compiler logic for parsing text, since it's completely mixed with
-                // the scanner/token logic
-                // I should separate it better
+                compiler.beginCompile();
 
-                // A bit of a hack
-                // TODO: Perhaps expose this better
-                Token funcToken(TokenType::IDENTIFIER, scriptFunction.Name.c_str(), scriptFunction.Name.length(), 0);
-                const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
-                compiler.markInitialized();
-
-                CompilerScope compilerScope(FunctionType::FUNCTION, compiler.current, &funcToken);
-                compiler.current = &compilerScope;
-
-                compiler.beginScope();
-
-                for (auto& input : scriptFunction.Inputs)
+                // Compile script variables (globals)
+                for (const ScriptProperty& scriptProperty : m_script.variables)
                 {
-                    const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
-
-                    compiler.current->function->arity++;
-                    if (compiler.current->function->arity > 255)
-                    {
-                        compiler.errorAtCurrent("Can't have more than 255 parameters.");
-                    }
-
-                    const uint32_t constant = compiler.parseVariableDirectly(false, inputToken);
+                    compiler.emitConstant(scriptProperty.defaultValue);
+                    const Token outputToken(TokenType::VAR, scriptProperty.Name.c_str(), scriptProperty.Name.length(), 0);
+                    const uint32_t constant = compiler.identifierConstant(outputToken);
                     compiler.defineVariable(constant);
                 }
 
-                // Compile function here
-                //
-
-                //compiler.beginScope();
-                CompileGraph(scriptFunction.Graph, compiler);
-                //compiler.endScope();
-
-                ObjFunction* function = compiler.endCompiler();
-                const uint32_t constant = compiler.makeConstant(Value(function));
-                compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
-
-                for (int i = 0; i < function->upvalueCount; i++)
+                // Compile script functions (globals)
+                for (const ScriptFunction& scriptFunction : m_script.functions)
                 {
-                    compiler.emitByte(compilerScope.upvalues[i].isLocal ? 1 : 0);
-                    compiler.emitByte(compilerScope.upvalues[i].index);
+                    // TODO: I had to pretty much rewrite the compiler logic for parsing text, since it's completely mixed with
+                    // the scanner/token logic
+                    // I should separate it better
+
+                    // A bit of a hack
+                    // TODO: Perhaps expose this better
+                    Token funcToken(TokenType::IDENTIFIER, scriptFunction.Name.c_str(), scriptFunction.Name.length(), 0);
+                    const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
+                    compiler.markInitialized();
+
+                    CompilerScope compilerScope(FunctionType::FUNCTION, compiler.current, &funcToken);
+                    compiler.current = &compilerScope;
+
+                    compiler.beginScope();
+
+                    for (auto& input : scriptFunction.Inputs)
+                    {
+                        const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
+
+                        compiler.current->function->arity++;
+                        if (compiler.current->function->arity > 255)
+                        {
+                            compiler.errorAtCurrent("Can't have more than 255 parameters.");
+                        }
+
+                        const uint32_t constant = compiler.parseVariableDirectly(false, inputToken);
+                        compiler.defineVariable(constant);
+                    }
+
+                    // Compile function here
+                    //
+
+                    //compiler.beginScope();
+                    CompileGraph(scriptFunction.Graph, compiler);
+                    //compiler.endScope();
+
+                    ObjFunction* function = compiler.endCompiler();
+                    const uint32_t constant = compiler.makeConstant(Value(function));
+                    compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
+
+                    for (int i = 0; i < function->upvalueCount; i++)
+                    {
+                        compiler.emitByte(compilerScope.upvalues[i].isLocal ? 1 : 0);
+                        compiler.emitByte(compilerScope.upvalues[i].index);
+                    }
+
+                    // Original func compilation
+                    //compiler.funDeclaration();
+
+                    // Define function itself
+                    compiler.defineVariable(global);
                 }
 
-                // Original func compilation
-                //compiler.funDeclaration();
 
-                // Define function itself
-                compiler.defineVariable(global);
+                compiler.beginScope();
+                CompileGraph(m_script.main.Graph, compiler);
+                compiler.endScope();
+
+                function = compiler.endCompiler();
+
+                // Print debug code
+                disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
             }
 
+            result = captureCompilation.Restore();
 
-            compiler.beginScope();
-            CompileGraph(m_script.main.Graph, compiler);
-            compiler.endScope();
-            
-            function = compiler.endCompiler();
-
-            // Print debug code
-            disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
-        }
-
-        result = captureCompilation.Restore();
-
-        if (ImGui::Button("Run"))
-        {
-            if (function != nullptr)
+            if (pressedRun)
             {
-                vm.push(Value(function));
-                ObjClosure* closure = newClosure(function);
-                vm.pop();
-                vm.push(Value(closure));
-                vm.callValue(Value(closure), 0);
-
-                Utils::CaptureStdout captureExecution;
-
-                const InterpretResult vmResult = vm.run(0);
-
-                if (vmResult == InterpretResult::INTERPRET_OK)
+                if (function != nullptr)
+                {
+                    vm.push(Value(function));
+                    ObjClosure* closure = newClosure(function);
                     vm.pop();
+                    vm.push(Value(closure));
+                    vm.callValue(Value(closure), 0);
 
-                if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
-                    std::cout << "Compilation Error";
-                else if (vmResult == InterpretResult::INTERPRET_RUNTIME_ERROR)
-                    std::cout << "Runtime Error";
+                    Utils::CaptureStdout captureExecution;
 
-                runResult = "Execution output:\n" + captureExecution.Restore();
+                    const InterpretResult vmResult = vm.run(0);
+
+                    if (vmResult == InterpretResult::INTERPRET_OK)
+                        vm.pop();
+
+                    if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
+                        std::cout << "Compilation Error";
+                    else if (vmResult == InterpretResult::INTERPRET_RUNTIME_ERROR)
+                        std::cout << "Runtime Error";
+
+                    runResult = "Execution output:\n" + captureExecution.Restore();
+                }
             }
         }
+
+        
 
         /*ImGui::Text("Ctrl %s", ImGui::GetIO().KeyCtrl ? "true" : "false");
         ImGui::Text("Alt %s", ImGui::GetIO().KeyAlt ? "true" : "false");
@@ -1081,6 +1079,12 @@ struct Example:
     {
         m_graphView.OnFrame(deltaTime);
 
+        VM& vm = VM::getInstance();
+        Compiler& compiler = vm.getCompiler();
+
+        // Traverse graph to see which nodes are processed, in order to display them enabled in the graph view
+        m_graphView.processedNodes = GatherProcessedNodes(*m_graphView.m_pGraph, compiler);
+
         auto& io = ImGui::GetIO();
 
         ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
@@ -1166,6 +1170,7 @@ struct Example:
 
     // TODO: Move somewhere else!
     bool m_isConstFoldingEnabled = true;
+    bool m_isRealTimeCompilationEnabled = true;
     std::vector<Value>   m_constFoldingValues;
     std::vector<ed::NodeId>   m_constFoldingIDs;
 };

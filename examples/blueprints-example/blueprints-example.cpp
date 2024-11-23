@@ -477,6 +477,7 @@ struct Example:
         static std::string result = "<output>";
         static std::string runResult = "";
 
+        ImGui::Checkbox("Const Folding Enabled", &m_isConstFoldingEnabled);
 
 
         VM& vm = VM::getInstance();
@@ -523,10 +524,11 @@ struct Example:
             });
 
             // Test: const folding
-            {
-                m_constFoldingValues.clear();
-                m_constFoldingIDs.clear();
+            m_constFoldingValues.clear();
+            m_constFoldingIDs.clear();
 
+            if (m_isConstFoldingEnabled)
+            {
                 for (const NodePtr& node : processedNodes)
                 {
                     if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
@@ -801,7 +803,7 @@ struct Example:
                 ImGui::EndTabItem();
             }
 
-            if (ImGui::BeginTabItem("Debug"))
+            if (ImGui::BeginTabItem("Compiler"))
             {
                 ShowDebugPanel(paneWidth);
                 ImGui::EndTabItem();
@@ -901,6 +903,7 @@ struct Example:
     NodeRegistry         m_NodeRegistry;
 
     // TODO: Move somewhere else!
+    bool m_isConstFoldingEnabled = true;
     std::vector<Value>   m_constFoldingValues;
     std::vector<ed::NodeId>   m_constFoldingIDs;
 };

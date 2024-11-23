@@ -1,5 +1,7 @@
 # pragma once
 
+#include "property.h"
+
 #include <Value.h>
 
 #include <string>
@@ -20,4 +22,6 @@ struct ScriptFunction
 
     std::vector<Input> Inputs;
     std::vector<Input> Outputs;
+
+    std::vector<ScriptProperty> variables;
 };

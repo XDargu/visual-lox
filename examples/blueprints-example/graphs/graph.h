@@ -41,6 +41,16 @@ struct Graph
         return nullptr;
     }
 
+    template<class Func>
+    const NodePtr FindNodeIf(Func func) const
+    {
+        for (auto& node : m_Nodes)
+            if (func(node))
+                return node;
+
+        return nullptr;
+    }
+
     bool IsPinLinked(ed::PinId id) const;
     bool CanCreateLink(const Pin* a, const Pin* b) const;
     std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin) const;

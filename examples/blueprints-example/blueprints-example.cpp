@@ -127,17 +127,37 @@ struct Example:
         m_SaveIcon         = LoadTexture("data/ic_save_white_24dp.png");
         m_RestoreIcon      = LoadTexture("data/ic_restore_white_24dp.png");
 
-        VM& vm = VM::getInstance();
-        vm.setExternalMarkingFunc([&]()
+        auto markFunction = [&](ScriptFunction& scriptFunction)
         {
-            for (NodePtr& node : m_graphView.m_pGraph->GetNodes())
+            VM& vm = VM::getInstance();
+
+            for (auto& input : scriptFunction.Inputs)
+            {
+                vm.markValue(input.value);
+            }
+
+            for (auto& output : scriptFunction.Outputs)
+            {
+                vm.markValue(output.value);
+            }
+
+            for (ScriptProperty& scriptProperty : scriptFunction.variables)
+            {
+                vm.markValue(scriptProperty.defaultValue);
+            }
+
+            for (NodePtr& node : scriptFunction.Graph.GetNodes())
             {
                 for (Value& value : node->InputValues)
                 {
                     vm.markValue(value);
                 }
             }
+        };
 
+        VM& vm = VM::getInstance();
+        vm.setExternalMarkingFunc([&]()
+        {
             for (NativeFunctionDefPtr& def : m_NodeRegistry.nativeDefinitions)
             {
                 for (auto& input : def->inputs)
@@ -156,19 +176,13 @@ struct Example:
                 vm.markValue(value);
             }
 
+            markFunction(m_script.main);
+
             for (ScriptClass& scriptClass : m_script.classes)
             {
                 for (ScriptFunction& scriptFunction : scriptClass.methods)
                 {
-                    for (auto& input : scriptFunction.Inputs)
-                    {
-                        vm.markValue(input.value);
-                    }
-
-                    for (auto& output : scriptFunction.Outputs)
-                    {
-                        vm.markValue(output.value);
-                    }
+                    markFunction(scriptFunction);
                 }
 
                 for (ScriptProperty& scriptProperty : scriptClass.properties)
@@ -179,15 +193,7 @@ struct Example:
 
             for (ScriptFunction& scriptFunction : m_script.functions)
             {
-                for (auto& input : scriptFunction.Inputs)
-                {
-                    vm.markValue(input.value);
-                }
-
-                for (auto& output : scriptFunction.Outputs)
-                {
-                    vm.markValue(output.value);
-                }
+                markFunction(scriptFunction);
             }
 
             for (ScriptProperty& scriptProperty : m_script.variables)
@@ -216,6 +222,19 @@ struct Example:
         // Add test script variables
         m_script.variables.push_back({ "MyVar", Value(takeString("Hello World", 11)) });
         m_script.variables.push_back({ "Amount", Value(11.0) });
+
+        // Add begin to main function
+        NodePtr beginMain = BuildBeginNode(m_IDGenerator);
+        m_graphView.BuildNode(beginMain);
+        m_script.main.Graph.AddNode(beginMain);
+
+        // Add test script functions
+        ScriptFunction foo;
+        foo.Name = "Foo";
+        NodePtr beginFoo = BuildBeginNode(m_IDGenerator);
+        m_graphView.BuildNode(beginFoo);
+        foo.Graph.AddNode(beginFoo);
+        m_script.functions.push_back(foo);
 
         //auto& io = ImGui::GetIO();
     }
@@ -518,6 +537,97 @@ struct Example:
             ++changeCount;
     }
 
+    std::vector<NodePtr> GatherProcessedNodes(Graph& graph, Compiler& compiler)
+    {
+        std::vector<NodePtr> processedNodes;
+
+        NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        if (begin)
+        {
+            GraphCompiler graphCompiler(compiler);
+
+            graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
+            {
+                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                {
+                    processedNodes.push_back(node);
+                }
+            });
+        }
+
+        return processedNodes;
+    }
+
+    void GatherConstFoldableNodes(Compiler& compiler, VM& vm)
+    {
+        // We should do this for each graph
+        // Do only with main for now
+
+        m_constFoldingValues.clear();
+        m_constFoldingIDs.clear();
+        
+        Graph& graph = m_script.main.Graph;
+
+        NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        if (begin)
+        {
+            GraphCompiler graphCompiler(compiler);
+
+            std::vector<NodePtr> processedNodes;
+            // First pass to gather processed nodes and cost folding
+            graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
+            {
+                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                {
+                    processedNodes.push_back(node);
+                }
+            });
+
+            if (m_isConstFoldingEnabled)
+            {
+                for (const NodePtr& node : processedNodes)
+                {
+                    if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
+                    {
+                        if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
+                        {
+                            m_constFoldingValues.push_back(vm.peek(-1));
+                            m_constFoldingIDs.push_back(node->ID);
+                        }
+                        vm.resetStack();
+                    }
+                }
+            }
+        }
+    }
+
+    void CompileGraph(const Graph& graph, Compiler& compiler)
+    {
+        const NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+
+        if (begin)
+        {
+            GraphCompiler graphCompiler(compiler);
+
+            graphCompiler.context.constFoldingValues = m_constFoldingValues;
+            graphCompiler.context.constFoldingIDs = m_constFoldingIDs;
+
+            graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
+            {
+                if (stage == CompilationStage::ConstFoldedInputs)
+                {
+                    compiler.emitConstant(m_constFoldingValues[portIdx]);
+                    const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
+                    GraphCompiler::CompileOutput(graphCompiler.context, graph, node->Outputs[outputIdx]);
+                }
+                else
+                {
+                    node->Compile(graphCompiler.context, graph, stage, portIdx);
+                }
+            });
+        }
+    }
+
     void ShowCompilerInfo(float paneWidth)
     {
         static std::string result = "<output>";
@@ -543,85 +653,104 @@ struct Example:
             isRegistered = true;
         }
 
+
         Utils::CaptureStdout captureCompilation;
 
-        const InterpretResult vmResult = vm.interpret("var a = 2; print a;");
+        Compiler& compiler = vm.getCompiler();
+
+        // Traverse graph to see which nodes are processed, in order to display them enabled in the graph view
+        m_graphView.processedNodes = GatherProcessedNodes(*m_graphView.m_pGraph, compiler);
+
+        // Gather const folding options
+        GatherConstFoldableNodes(compiler, vm);
+
+
+        // Test to see how text instructions compile
+        //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2();");
         vm.resetStack();
 
         // Compile code
-        std::cout << std::endl << "Compiling graph: " << std::endl;
-        Compiler& compiler = vm.getCompiler();
+        std::cout << std::endl << "Compiling script: " << std::endl;
         ObjFunction* function = nullptr;
 
         // Compile everything here!
-        NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        NodePtr begin = m_script.main.Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
         if (begin)
         {
             GraphCompiler graphCompiler(compiler);
 
-            std::vector<NodePtr> processedNodes;
-            // First pass to gather processed nodes and cost folding
-            graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
-            {
-                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
-                {
-                    processedNodes.push_back(node);
-                }
-            });
-
-            // Test: const folding
-            m_constFoldingValues.clear();
-            m_constFoldingIDs.clear();
-
-            if (m_isConstFoldingEnabled)
-            {
-                for (const NodePtr& node : processedNodes)
-                {
-                    if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
-                    {
-                        if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
-                        {
-                            m_constFoldingValues.push_back(vm.peek(-1));
-                            m_constFoldingIDs.push_back(node->ID);
-                        }
-                    }
-                }
-            }
-
             compiler.beginCompile();
 
             // Compile script variables (globals)
-            for (const ScriptProperty& scriptProperty : m_script.variables)
+            /*for (const ScriptProperty& scriptProperty : m_script.variables)
             {
                 compiler.emitConstant(scriptProperty.defaultValue);
                 const Token outputToken(TokenType::VAR, scriptProperty.Name.c_str(), scriptProperty.Name.length(), 0);
                 const uint32_t constant = compiler.identifierConstant(outputToken);
                 compiler.defineVariable(constant);
+            }*/
+
+            // Compile script functions (globals)
+            for (const ScriptFunction& scriptFunction : m_script.functions)
+            {
+                // TODO: I had to pretty much rewrite the compiler logic for parsing text, since it's completely mixed with
+                // the scanner/token logic
+                // I should separate it better
+
+                // A bit of a hack
+                // TODO: Perhaps expose this better
+                Token funcToken(TokenType::IDENTIFIER, scriptFunction.Name.c_str(), scriptFunction.Name.length(), 0);
+                const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
+                compiler.markInitialized();
+
+                CompilerScope compilerScope(FunctionType::FUNCTION, compiler.current, &funcToken);
+                compiler.current = &compilerScope;
+
+                compiler.beginScope();
+
+                for (auto& input : scriptFunction.Inputs)
+                {
+                    const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
+
+                    compiler.current->function->arity++;
+                    if (compiler.current->function->arity > 255)
+                    {
+                        compiler.errorAtCurrent("Can't have more than 255 parameters.");
+                    }
+
+                    const uint32_t constant = compiler.parseVariableDirectly(false, inputToken);
+                    compiler.defineVariable(constant);
+                }
+
+                // Compile function here
+                //
+
+                //compiler.beginScope();
+                CompileGraph(scriptFunction.Graph, compiler);
+                //compiler.endScope();
+
+                ObjFunction* function = compiler.endCompiler();
+                const uint32_t constant = compiler.makeConstant(Value(function));
+                compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
+
+                for (int i = 0; i < function->upvalueCount; i++)
+                {
+                    compiler.emitByte(compilerScope.upvalues[i].isLocal ? 1 : 0);
+                    compiler.emitByte(compilerScope.upvalues[i].index);
+                }
+
+                // Original func compilation
+                //compiler.funDeclaration();
+
+                // Define function itself
+                compiler.defineVariable(global);
             }
 
+
             compiler.beginScope();
-
-            graphCompiler.context.constFoldingValues = m_constFoldingValues;
-            graphCompiler.context.constFoldingIDs = m_constFoldingIDs;
-
-            graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
-            {
-                if (stage == CompilationStage::ConstFoldedInputs)
-                {
-                    compiler.emitConstant(m_constFoldingValues[portIdx]);
-                    const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
-                    GraphCompiler::CompileOutput(graphCompiler.context, graph, node->Outputs[outputIdx]);
-                }
-                else
-                {
-                    node->Compile(graphCompiler.context, graph, stage, portIdx);
-                }
-            });
-
-            // TODO: Do in a different way!
-            m_graphView.processedNodes = processedNodes;
-
+            CompileGraph(m_script.main.Graph, compiler);
             compiler.endScope();
+            
             function = compiler.endCompiler();
 
             // Print debug code
@@ -794,6 +923,68 @@ struct Example:
         }
     }
 
+    struct TreeNode {
+        std::string label;                  // Label of the node
+        std::vector<TreeNode> children;     // List of child nodes
+        bool isOpen = false;                // Tracks if the node is expanded
+    };
+
+    void RenderTreeNode(TreeNode& node, int& selectedItem, int& currentId)
+    {
+        int nodeId = currentId++; // Unique ID for each node
+
+        // Render expand/collapse button
+        ImGui::PushID(nodeId); // Ensure unique ID for the arrow button
+        if (node.children.empty())
+        {
+            ImGui::Dummy(ImVec2(16, 0)); // Empty space for alignment
+        }
+        else if (ImGui::ArrowButton("##toggle", node.isOpen ? ImGuiDir_Down : ImGuiDir_Right))
+        {
+            node.isOpen = !node.isOpen; // Toggle node open/close
+        }
+        ImGui::PopID();
+
+        // Render the selectable label
+        ImGui::SameLine();
+        if (ImGui::Selectable(node.label.c_str(), selectedItem == nodeId))
+        {
+            selectedItem = nodeId; // Mark this node as selected
+        }
+
+        // Render children if node is expanded
+        if (node.isOpen && !node.children.empty())
+        {
+            ImGui::Indent(); // Indent for child nodes
+            for (auto& child : node.children)
+            {
+                RenderTreeNode(child, selectedItem, currentId);
+            }
+            ImGui::Unindent(); // Unindent after finishing children
+        }
+    }
+
+    void ShowExampleTreeView()
+    {
+        static TreeNode rootNode = {
+            "Root",
+            {
+                {"Child 1", {{"Grandchild 1"}, {"Grandchild 2"}}, false},
+                {"Child 2", {}, false},
+                {"Child 3", {{"Grandchild 3"}, {"Grandchild 4"}}, false}
+            },
+            false
+        };
+
+        static int selectedItem = -1; // Tracks the selected item
+        static int currentId = 0;    // Unique ID tracker for nodes
+
+        ImGui::Begin("Tree View Example");
+        currentId = 0; // Reset ID tracker each frame
+        RenderTreeNode(rootNode, selectedItem, currentId);
+        ImGui::End();
+    }
+
     void ShowLeftPane(float paneWidth)
     {
         auto& io = ImGui::GetIO();
@@ -812,6 +1003,8 @@ struct Example:
             {
                 int restoreIconWidth = GetTextureWidth(m_RestoreIcon);
                 int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
+
+                ShowExampleTreeView();
 
                 if (ImGui::TreeNodeEx("Script", ImGuiTreeNodeFlags_DefaultOpen)) {
 
@@ -838,10 +1031,17 @@ struct Example:
 
                     for (ScriptFunction& scriptFunction : m_script.functions)
                     {
-                        if (ImGui::TreeNode(scriptFunction.Name.c_str()))
+                        if (ImGui::Button(scriptFunction.Name.c_str()))
                         {
-                            ImGui::TreePop();
+                            m_graphView.SetGraph(&scriptFunction.Graph);
                         }
+                        /*if (ImGui::TreeNode(scriptFunction.Name.c_str()))
+                        {
+                            // Set graph
+                            m_graphView.SetGraph(&scriptFunction.Graph);
+
+                            ImGui::TreePop();
+                        }*/
                     }
 
                     for (ScriptProperty& scriptProperty : m_script.variables)
@@ -853,7 +1053,10 @@ struct Example:
                         ImGui::PopID();
                     }
 
-                    ImGui::Text(m_script.main.Name.c_str());
+                    if (ImGui::Button(m_script.main.Name.c_str()))
+                    {
+                        m_graphView.SetGraph(&m_script.main.Graph);
+                    }
 
                     ImGui::TreePop();
                 }

@@ -11,7 +11,7 @@
 
 std::list<std::string> CompilerContext::tempVarStorage;
 
-void GraphCompiler::CompileGraph(Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback)
+void GraphCompiler::CompileGraph(const Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback)
 {
     context.tempVarStorage.clear();
     callback(startNode, graph, CompilationStage::BeginSequence, 0);
@@ -19,7 +19,7 @@ void GraphCompiler::CompileGraph(Graph& graph, const NodePtr& startNode, int out
     callback(startNode, graph, CompilationStage::EndSequence, 0);
 }
 
-void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
+void GraphCompiler::CompileBackwardsRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
     for (int i = 0; i < startNode->Inputs.size(); ++i)
     {
@@ -51,7 +51,7 @@ void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& start
     }
 }
 
-void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
+void GraphCompiler::CompileRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
     const int constFoldIdx = context.FindConstFoldedIdx(startNode);
     if (constFoldIdx >= 0)
@@ -111,7 +111,7 @@ void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int
         callback(startNode, graph, CompilationStage::EndInputs, inputIdx);
 }
 
-void GraphCompiler::CompileSingle(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
+void GraphCompiler::CompileSingle(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
     context.tempVarStorage.clear();
     if (GraphUtils::IsNodeImplicit(startNode))

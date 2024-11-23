@@ -8,6 +8,7 @@
 #include "../utilities/utils.h"
 
 #include "../native/nodes/variable.h"
+#include "../native/nodes/function.h"
 
 #include "../script/script.h"
 
@@ -167,7 +168,16 @@ void GraphView::SetGraph(Graph* pTargetGraph)
     m_Editor = ed::CreateEditor(&config);
     ed::SetCurrentEditor(m_Editor);
 
-    SpawnNode(BuildBeginNode(*m_pIDGenerator));
+    // TODO: This should not be done in the graphView
+    /*NodePtr begin = m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+    if (begin)
+    {
+        // TODO: Update begin inputs
+    }
+    else
+    {
+        SpawnNode(BuildBeginNode(*m_pIDGenerator));
+    }*/
 
     ed::NavigateToContent();
 }
@@ -781,6 +791,43 @@ void GraphView::DrawContextMenu()
                         child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                         {
                             return BuildSetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                        };
+                    }
+
+                    current = &child;
+                    depth++;
+                }
+            }
+        }
+
+        for (auto& def : m_pScript->functions)
+        {
+            // Call
+            {
+                const std::string fullFuncName = "Functions::" + def.Name;
+
+                if (!Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
+                    continue;
+
+                Data* current = &root;
+                int depth = 1;
+                const std::vector<std::string> tokens = Utils::split(fullFuncName, "::");
+
+                for (const std::string& token : tokens)
+                {
+                    Data& child = current->children[token];
+
+                    child.name = token;
+                    child.depth = depth;
+                    child.fullName = token;
+
+                    if (token == tokens.back())
+                    {
+                        // Last element!
+                        child.fullName = fullFuncName;
+                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        {
+                            return BuildCallFunctionNode(IDGenerator, child.name.c_str());
                         };
                     }
 

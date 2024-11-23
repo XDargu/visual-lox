@@ -203,7 +203,9 @@ public:
     bool isGlobalConst(uint8_t index);
     void addLocal(const Token& name, bool isConstant);
     void declareVariable(bool isConstant);
+    void declareVariableDirectly(bool isConstant, const Token& name);
     uint32_t parseVariable(const char* errorMessage, bool isConstant);
+    uint32_t parseVariableDirectly(bool isConstant, const Token& name);
     void markInitialized();
     void defineVariable(uint32_t global);
     uint8_t argumentList();

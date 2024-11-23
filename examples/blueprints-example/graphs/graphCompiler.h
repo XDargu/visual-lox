@@ -56,10 +56,10 @@ struct GraphCompiler
 
     using Callback = std::function<void(const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)>;
 
-    void CompileGraph(Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
-    void CompileBackwardsRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
-    void CompileRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
-    void CompileSingle(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileGraph(const Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
+    void CompileBackwardsRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileSingle(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
 
     static void RegisterNatives(VM& vm);
 

@@ -756,6 +756,27 @@ void Compiler::declareVariable(bool isConstant)
     addLocal(name, isConstant);
 }
 
+void Compiler::declareVariableDirectly(bool isConstant, const Token& name)
+{
+    if (current->scopeDepth == 0) return;
+
+    for (int i = current->localCount - 1; i >= 0; i--)
+    {
+        const Local& local = current->locals[i];
+        if (local.depth != -1 && local.depth < current->scopeDepth)
+        {
+            break;
+        }
+
+        if (identifiersEqual(name, local.name))
+        {
+            error("Already a variable with this name in this scope.");
+        }
+    }
+
+    addLocal(name, isConstant);
+}
+
  uint32_t Compiler::parseVariable(const char* errorMessage, bool isConstant)
 {
     consume(TokenType::IDENTIFIER, errorMessage);
@@ -771,6 +792,20 @@ void Compiler::declareVariable(bool isConstant)
 
     return constant;
 }
+
+ uint32_t Compiler::parseVariableDirectly(bool isConstant, const Token& name)
+ {
+     declareVariableDirectly(isConstant, name);
+     if (current->scopeDepth > 0) return 0;
+
+     const uint32_t constant = identifierConstant(name);
+     if (isConstant)
+     {
+         constGlobals.insert(constant);
+     }
+
+     return constant;
+ }
 
  void Compiler::markInitialized()
  {

@@ -117,7 +117,8 @@ enum class NodeCategory
 {
     Begin,
     Function,
-    Branch
+    Branch,
+    Variable
 };
 
 enum class CompilationStage

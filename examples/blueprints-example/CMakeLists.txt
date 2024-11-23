@@ -33,6 +33,8 @@ add_example_executable(blueprints-example
     native/nodes/math.cpp
     native/nodes/list.h
     native/nodes/list.cpp
+    native/nodes/variable.h
+    native/nodes/variable.cpp
     script/script.h
     script/script.cpp
     script/class.h

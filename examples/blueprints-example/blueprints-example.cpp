@@ -118,6 +118,7 @@ struct Example:
     {
         m_graphView.setIDGenerator(m_IDGenerator);
         m_graphView.setNodeRegistry(m_NodeRegistry);
+        m_graphView.SetScript(&m_script);
         m_graphView.SetGraph(&m_script.main.Graph);
 
         m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
@@ -152,6 +153,45 @@ struct Example:
             {
                 vm.markValue(value);
             }
+
+            for (ScriptClass& scriptClass : m_script.classes)
+            {
+                for (ScriptFunction& scriptFunction : scriptClass.methods)
+                {
+                    for (auto& input : scriptFunction.Inputs)
+                    {
+                        vm.markValue(input.value);
+                    }
+
+                    for (auto& output : scriptFunction.Outputs)
+                    {
+                        vm.markValue(output.value);
+                    }
+                }
+
+                for (ScriptProperty& scriptProperty : scriptClass.properties)
+                {
+                    vm.markValue(scriptProperty.defaultValue);
+                }
+            }
+
+            for (ScriptFunction& scriptFunction : m_script.functions)
+            {
+                for (auto& input : scriptFunction.Inputs)
+                {
+                    vm.markValue(input.value);
+                }
+
+                for (auto& output : scriptFunction.Outputs)
+                {
+                    vm.markValue(output.value);
+                }
+            }
+
+            for (ScriptProperty& scriptProperty : m_script.variables)
+            {
+                vm.markValue(scriptProperty.defaultValue);
+            }
         });
         
         m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode);
@@ -170,6 +210,10 @@ struct Example:
         m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode);
 
         m_NodeRegistry.RegisterDefinitions();
+
+        // Add test script variables
+        m_script.variables.push_back({ "Variables::MyVar", Value(takeString("Hello World", 11)) });
+        m_script.variables.push_back({ "Variables::Amount", Value(11.0) });
 
         //auto& io = ImGui::GetIO();
     }
@@ -499,8 +543,8 @@ struct Example:
 
         Utils::CaptureStdout captureCompilation;
 
-        //const InterpretResult vmResult = vm.interpret("return 2;");
-        //vm.resetStack();
+        const InterpretResult vmResult = vm.interpret("var a = 2; print a;");
+        vm.resetStack();
 
         // Compile code
         std::cout << std::endl << "Compiling graph: " << std::endl;
@@ -543,12 +587,21 @@ struct Example:
             }
 
             compiler.beginCompile();
+
+            // Compile script variables (globals)
+            for (const ScriptProperty& scriptProperty : m_script.variables)
+            {
+                compiler.emitConstant(scriptProperty.defaultValue);
+                const Token outputToken(TokenType::VAR, scriptProperty.Name.c_str(), scriptProperty.Name.length(), 0);
+                const uint32_t constant = compiler.identifierConstant(outputToken);
+                compiler.defineVariable(constant);
+            }
+
             compiler.beginScope();
 
             graphCompiler.context.constFoldingValues = m_constFoldingValues;
             graphCompiler.context.constFoldingIDs = m_constFoldingIDs;
 
-            //graphCompiler.tempVarStorage.clear(); // TODO: Improve
             graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
             {
                 if (stage == CompilationStage::ConstFoldedInputs)
@@ -791,7 +844,11 @@ struct Example:
 
                     for (ScriptProperty& scriptProperty : m_script.variables)
                     {
+                        ImGui::PushID(scriptProperty.Name.c_str());
                         ImGui::Text(scriptProperty.Name.c_str());
+                        ImGui::SameLine();
+                        GraphViewUtils::DrawTypeInput(PinType::Any, scriptProperty.defaultValue);
+                        ImGui::PopID();
                     }
 
                     ImGui::Text(m_script.main.Name.c_str());

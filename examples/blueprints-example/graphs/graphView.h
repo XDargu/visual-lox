@@ -18,6 +18,7 @@
 
 class NodeRegistry;
 struct Value;
+struct Script;
 
 static inline ImRect ImGui_GetItemRect()
 {
@@ -44,7 +45,6 @@ struct GraphView
     float GetTouchProgress(ed::NodeId id);
     void UpdateTouch();
 
-    void DrawTypeInput(const PinType pinType, Value& value);
     void DrawPinInput(const Pin& input, int inputIdx);
     void DrawPinIcon(const Pin& pin, bool connected, int alpha);;
 
@@ -54,6 +54,7 @@ struct GraphView
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
     void SetGraph(Graph* pTargetGraph);
+    void SetScript(Script* pTargetScript);
 
     void Destroy();
 
@@ -63,7 +64,8 @@ struct GraphView
     void DrawContextMenu();
 
     ed::EditorContext* m_Editor = nullptr;
-    Graph* m_pGraph;
+    Graph* m_pGraph = nullptr;
+    Script* m_pScript = nullptr;
 
     // Touch control
     std::map<ed::NodeId, float, NodeIdLess> m_NodeTouchTime;
@@ -84,4 +86,10 @@ struct GraphView
     // ID genration
     NodeRegistry* m_pNodeRegistry = nullptr;
     IDGenerator* m_pIDGenerator = nullptr;
+};
+
+struct GraphViewUtils
+{
+    static void DrawTypeInputImpl(const PinType pinType, Value& inputValue);
+    static void DrawTypeInput(const PinType pinType, Value& inputValue);
 };

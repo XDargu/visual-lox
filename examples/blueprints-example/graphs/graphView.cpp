@@ -7,6 +7,10 @@
 #include "../native/nodes/begin.h"
 #include "../utilities/utils.h"
 
+#include "../native/nodes/variable.h"
+
+#include "../script/script.h"
+
 #include <Compiler.h>
 
 #include <misc/imgui_stdlib.h>
@@ -55,65 +59,13 @@ void GraphView::UpdateTouch()
     }
 }
 
-void GraphView::DrawTypeInput(const PinType pinType, Value& inputValue)
-{
-    if (pinType == PinType::Bool)
-    {
-        bool& value = inputValue.as.boolean;
-        ImGui::Checkbox("", &value);
-        ImGui::Spring(0);
-    }
-    else if (pinType == PinType::String)
-    {
-        ObjString* a = asString(inputValue);
-
-        ImGui::PushItemWidth(100.0f);
-        std::string temp = a->chars;
-        if (ImGui::InputText("##edit", &temp))
-        {
-            inputValue = Value(copyString(temp.c_str(), temp.size()));
-        }
-        ImGui::PopItemWidth();
-        ImGui::Spring(0);
-    }
-    else if (pinType == PinType::Float)
-    {
-        double& value = inputValue.as.number;
-
-        ImGui::PushItemWidth(100.0f);
-        ImGui::InputDouble("##edit", &value);
-        ImGui::PopItemWidth();
-        ImGui::Spring(0);
-    }
-}
-
 void GraphView::DrawPinInput(const Pin& input, int inputIdx)
 {
     const NodePtr& node = input.Node;
     Value& inputValue = node->InputValues[inputIdx];
     
-    if (input.Type == PinType::Bool || input.Type == PinType::String || input.Type == PinType::Float)
-    {
-        DrawTypeInput(input.Type, inputValue);
-    }
-    else if (input.Type == PinType::Any)
-    {
-        PinType currentType = PinType::Any;
-        if (isBoolean(inputValue))
-        {
-            currentType = PinType::Bool;
-        }
-        else if (isNumber(inputValue))
-        {
-            currentType = PinType::Float;
-        }
-        else if (isString(inputValue))
-        {
-            currentType = PinType::String;
-        }
-
-        DrawTypeInput(currentType, inputValue);
-    }
+    GraphViewUtils::DrawTypeInput(input.Type, inputValue);
+    ImGui::Spring(0);
 }
 
 void GraphView::DrawPinIcon(const Pin& pin, bool connected, int alpha)
@@ -213,6 +165,11 @@ void GraphView::SetGraph(Graph* pTargetGraph)
     SpawnNode(BuildBeginNode(*m_pIDGenerator));
 
     ed::NavigateToContent();
+}
+
+void GraphView::SetScript(Script* pTargetScript)
+{
+    m_pScript = pTargetScript;
 }
 
 void GraphView::Destroy()
@@ -750,6 +707,38 @@ void GraphView::DrawContextMenu()
             }
         }
 
+        for (auto& def : m_pScript->variables)
+        {
+            if (!Utils::FilterString(Utils::to_lower(def.Name), searchFilterLower))
+                continue;
+
+            Data* current = &root;
+            int depth = 1;
+            const std::vector<std::string> tokens = Utils::split(def.Name, "::");
+
+            for (const std::string& token : tokens)
+            {
+                Data& child = current->children[token];
+
+                child.name = token;
+                child.depth = depth;
+                child.fullName = token;
+
+                if (token == tokens.back())
+                {
+                    // Last element!
+                    child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                    {
+                        return BuildGetVariableNode(IDGenerator, def.Name.c_str(), PinType::Any);
+                    };
+                    child.fullName = def.Name;
+                }
+
+                current = &child;
+                depth++;
+            }
+        }
+
         NodePtr node = nullptr;
         auto newNodePostion = openPopupPosition;
 
@@ -902,4 +891,59 @@ void GraphView::DrawContextMenu()
     }
     ImGui::PopStyleVar();
     ed::Resume();
+}
+
+/* static */ void GraphViewUtils::DrawTypeInputImpl(const PinType pinType, Value& inputValue)
+{
+    if (pinType == PinType::Bool)
+    {
+        bool& value = inputValue.as.boolean;
+        ImGui::Checkbox("", &value);
+    }
+    else if (pinType == PinType::String)
+    {
+        ObjString* a = asString(inputValue);
+
+        ImGui::PushItemWidth(100.0f);
+        std::string temp = a->chars;
+        if (ImGui::InputText("##edit", &temp))
+        {
+            inputValue = Value(copyString(temp.c_str(), temp.size()));
+        }
+        ImGui::PopItemWidth();
+    }
+    else if (pinType == PinType::Float)
+    {
+        double& value = inputValue.as.number;
+
+        ImGui::PushItemWidth(100.0f);
+        ImGui::InputDouble("##edit", &value);
+        ImGui::PopItemWidth();
+    }
+}
+
+/* static */  void GraphViewUtils::DrawTypeInput(const PinType pinType, Value& inputValue)
+{
+    if (pinType == PinType::Bool || pinType == PinType::String || pinType == PinType::Float)
+    {
+        DrawTypeInputImpl(pinType, inputValue);
+    }
+    else if (pinType == PinType::Any)
+    {
+        PinType currentType = PinType::Any;
+        if (isBoolean(inputValue))
+        {
+            currentType = PinType::Bool;
+        }
+        else if (isNumber(inputValue))
+        {
+            currentType = PinType::Float;
+        }
+        else if (isString(inputValue))
+        {
+            currentType = PinType::String;
+        }
+
+        DrawTypeInputImpl(currentType, inputValue);
+    }
 }

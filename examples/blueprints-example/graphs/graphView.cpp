@@ -201,10 +201,10 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         // Simple nodes
         for (const NodePtr& node : m_pGraph->GetNodes())
         {
-            if (node->Type != NodeType::Blueprint && node->Type != NodeType::Simple)
+            if (node->Type != NodeType::Blueprint && node->Type != NodeType::SimpleGet)
                 continue;
 
-            const bool isSimple = node->Type == NodeType::Simple;
+            const bool isSimpleGet = node->Type == NodeType::SimpleGet;
 
             const bool isDisconnected = std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end();
 
@@ -212,7 +212,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
 
             builder.Begin(node->ID);
-            if (!isSimple)
+            if (!isSimpleGet)
             {
                 builder.Header(node->Color);
                 ImGui::Spring(0);
@@ -257,7 +257,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 }
             }
 
-            if (isSimple)
+            if (isSimpleGet)
             {
                 builder.Middle();
 

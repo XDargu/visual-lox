@@ -19,6 +19,7 @@ struct GetVariableNode : public Node
         , VariableName(variableName)
     {
         Category = NodeCategory::Variable;
+        Type = NodeType::SimpleGet;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
@@ -55,8 +56,8 @@ struct GetVariableNode : public Node
 
 static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
 {
-    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), variableName, variableName);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", type);
+    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "Get", variableName);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), variableName, type);
 
     return node;
 }
@@ -104,9 +105,9 @@ struct SetVariableNode : public Node
 
 static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
 {
-    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), variableName, variableName);
+    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", variableName);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", type);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), variableName, type);
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 

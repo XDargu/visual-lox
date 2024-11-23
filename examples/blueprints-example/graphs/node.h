@@ -92,7 +92,7 @@ enum class PinKind
 enum class NodeType
 {
     Blueprint,
-    Simple,
+    SimpleGet,
     Comment,
 };
 

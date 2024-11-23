@@ -33,4 +33,12 @@ add_example_executable(blueprints-example
     native/nodes/math.cpp
     native/nodes/list.h
     native/nodes/list.cpp
+    script/script.h
+    script/script.cpp
+    script/class.h
+    script/class.cpp
+    script/property.h
+    script/property.cpp
+    script/function.h
+    script/function.cpp
 )

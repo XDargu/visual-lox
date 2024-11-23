@@ -9,6 +9,8 @@
 #include "graphs/graphView.h"
 #include "graphs/graphCompiler.h"
 
+#include "script/script.h"
+
 #include "native/nodes/begin.h"
 #include "native/nodes/branch.h"
 #include "native/nodes/print.h"
@@ -116,7 +118,7 @@ struct Example:
     {
         m_graphView.setIDGenerator(m_IDGenerator);
         m_graphView.setNodeRegistry(m_NodeRegistry);
-        m_graphView.SetGraph(&m_testGraph);
+        m_graphView.SetGraph(&m_script.main.Graph);
 
         m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
         m_SaveIcon         = LoadTexture("data/ic_save_white_24dp.png");
@@ -309,33 +311,9 @@ struct Example:
         return InterpretResult::INTERPRET_COMPILE_ERROR;
     }
 
-    void ShowLeftPane(float paneWidth)
+    void ShowNodeSelection(float paneWidth)
     {
         auto& io = ImGui::GetIO();
-
-        ImGui::BeginChild("Selection", ImVec2(paneWidth, 0));
-
-        paneWidth = ImGui::GetContentRegionAvail().x;
-
-        static bool showStyleEditor = false;
-        ImGui::BeginHorizontal("Style Editor", ImVec2(paneWidth, 0));
-        ImGui::Spring(0.0f, 0.0f);
-        if (ImGui::Button("Zoom to Content"))
-            ed::NavigateToContent();
-        ImGui::Spring(0.0f);
-        if (ImGui::Button("Show Flow"))
-        {
-            for (auto& link : m_graphView.m_pGraph->GetLinks())
-                ed::Flow(link.ID);
-        }
-        ImGui::Spring();
-        if (ImGui::Button("Edit Style"))
-            showStyleEditor = true;
-        ImGui::EndHorizontal();
-        ImGui::Checkbox("Show Ordinals", &m_ShowOrdinals);
-
-        if (showStyleEditor)
-            ShowStyleEditor(&showStyleEditor);
 
         std::vector<ed::NodeId> selectedNodes;
         std::vector<ed::LinkId> selectedLinks;
@@ -348,9 +326,9 @@ struct Example:
         selectedNodes.resize(nodeCount);
         selectedLinks.resize(linkCount);
 
-        int saveIconWidth     = GetTextureWidth(m_SaveIcon);
-        int saveIconHeight    = GetTextureWidth(m_SaveIcon);
-        int restoreIconWidth  = GetTextureWidth(m_RestoreIcon);
+        int saveIconWidth = GetTextureWidth(m_SaveIcon);
+        int saveIconHeight = GetTextureWidth(m_SaveIcon);
+        int restoreIconWidth = GetTextureWidth(m_RestoreIcon);
         int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
 
         ImGui::GetWindowDrawList()->AddRectFilled(
@@ -492,11 +470,14 @@ struct Example:
 
         if (ed::HasSelectionChanged())
             ++changeCount;
+    }
 
+    void ShowCompilerInfo(float paneWidth)
+    {
         static std::string result = "<output>";
         static std::string runResult = "";
 
-        
+
 
         VM& vm = VM::getInstance();
 
@@ -504,7 +485,7 @@ struct Example:
 
         std::cout << std::endl;
 
-        
+
 
         // Register natives if needed
         // TODO: Move somewhere else
@@ -591,7 +572,7 @@ struct Example:
         }
 
         result = captureCompilation.Restore();
-        
+
         if (ImGui::Button("Run"))
         {
             if (function != nullptr)
@@ -603,9 +584,11 @@ struct Example:
                 vm.callValue(Value(closure), 0);
 
                 Utils::CaptureStdout captureExecution;
-                
+
                 const InterpretResult vmResult = vm.run(0);
-                vm.pop();
+
+                if (vmResult == InterpretResult::INTERPRET_OK)
+                    vm.pop();
 
                 if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
                     std::cout << "Compilation Error";
@@ -616,10 +599,19 @@ struct Example:
             }
         }
 
-        
+        /*ImGui::Text("Ctrl %s", ImGui::GetIO().KeyCtrl ? "true" : "false");
+        ImGui::Text("Alt %s", ImGui::GetIO().KeyAlt ? "true" : "false");
+        ImGui::Text("Shift %s", ImGui::GetIO().KeyShift ? "true" : "false");
+
+        for (int i = ImGuiKey_None; i < ImGuiKey_COUNT; ++i)
+        {
+            ImGui::Text("%d %s", i, ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? "true" : "false");
+        }*/
+
+
         Utils::DrawEachLine(result);
         Utils::DrawEachLine(runResult);
-        
+
 
         {
             ImGui::GetWindowDrawList()->AddRectFilled(
@@ -703,6 +695,120 @@ struct Example:
 
             ImGui::Unindent();
         }
+    }
+
+    void ShowDebugPanel(float paneWidth)
+    {
+        static bool showStyleEditor = false;
+        ImGui::BeginHorizontal("Style Editor", ImVec2(paneWidth, 0));
+        ImGui::Spring(0.0f, 0.0f);
+        if (ImGui::Button("Zoom to Content"))
+            ed::NavigateToContent();
+        ImGui::Spring(0.0f);
+        if (ImGui::Button("Show Flow"))
+        {
+            for (auto& link : m_graphView.m_pGraph->GetLinks())
+                ed::Flow(link.ID);
+        }
+        ImGui::Spring();
+        if (ImGui::Button("Edit Style"))
+            showStyleEditor = true;
+        ImGui::EndHorizontal();
+        ImGui::Checkbox("Show Ordinals", &m_ShowOrdinals);
+
+        if (showStyleEditor)
+            ShowStyleEditor(&showStyleEditor);
+
+        ShowNodeSelection(paneWidth);
+        ShowCompilerInfo(paneWidth);
+    }
+
+    void ContextMenu()
+    {
+        if (ImGui::BeginPopupContextItem("SelectablePopup")) {
+            // Menu options
+            if (ImGui::MenuItem("Edit")) {
+                // Handle Edit option
+            }
+            if (ImGui::MenuItem("Delete")) {
+                // Handle Delete option
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    void ShowLeftPane(float paneWidth)
+    {
+        auto& io = ImGui::GetIO();
+
+        ImGui::BeginChild("Selection", ImVec2(paneWidth, 0));
+
+        paneWidth = ImGui::GetContentRegionAvail().x;
+
+        if (ImGui::Button("Delete Item")) {
+            ImGui::OpenPopup("Confirm Delete");
+        }
+
+        if (ImGui::BeginTabBar("Tabs"))
+        {
+            if (ImGui::BeginTabItem("Script"))
+            {
+                int restoreIconWidth = GetTextureWidth(m_RestoreIcon);
+                int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
+
+                if (ImGui::TreeNodeEx("Script", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+                    for (ScriptClass& scriptClass : m_script.classes)
+                    {
+                        if (ImGui::TreeNode(scriptClass.Name.c_str()))
+                        {
+                            for (ScriptFunction& scriptFunction : scriptClass.methods)
+                            {
+                                if (ImGui::TreeNode(scriptFunction.Name.c_str()))
+                                {
+                                    ImGui::TreePop();
+                                }
+                            }
+
+                            for (ScriptProperty& scriptProperty : scriptClass.properties)
+                            {
+                                ImGui::Text(scriptProperty.Name.c_str());
+                            }
+
+                            ImGui::TreePop();
+                        }
+                    }
+
+                    for (ScriptFunction& scriptFunction : m_script.functions)
+                    {
+                        if (ImGui::TreeNode(scriptFunction.Name.c_str()))
+                        {
+                            ImGui::TreePop();
+                        }
+                    }
+
+                    for (ScriptProperty& scriptProperty : m_script.variables)
+                    {
+                        ImGui::Text(scriptProperty.Name.c_str());
+                    }
+
+                    ImGui::Text(m_script.main.Name.c_str());
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::Text("This is the content of Tab 3.");
+                ImGui::EndTabItem();
+            }
+
+            if (ImGui::BeginTabItem("Debug"))
+            {
+                ShowDebugPanel(paneWidth);
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }
 
         ImGui::EndChild();
     }
@@ -732,6 +838,7 @@ struct Example:
         Splitter(true, 4.0f, &leftPaneWidth, &rightPaneWidth, 50.0f, 50.0f);
 
         ShowLeftPane(leftPaneWidth - 4.0f);
+        
 
         ImGui::SameLine(0.0f, 12.0f);
 
@@ -782,7 +889,7 @@ struct Example:
         //ImGui::ShowMetricsWindow();
     }
 
-    Graph                m_testGraph;
+    Script               m_script;
     GraphView            m_graphView;
 
     ImTextureID          m_HeaderBackground = nullptr;

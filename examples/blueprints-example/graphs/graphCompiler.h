@@ -34,6 +34,18 @@ struct CompilerContext
         tempVarStorage.push_back(name);
         return Token(TokenType::VAR, tempVarStorage.back().c_str(), name.length(), 0);
     }
+
+    int FindConstFoldedIdx(const NodePtr& node)
+    {
+        const auto foldIt = std::find(constFoldingIDs.begin(), constFoldingIDs.end(), node->ID);
+        if (foldIt != constFoldingIDs.end())
+        {
+            const size_t index = std::distance(constFoldingIDs.begin(), foldIt);
+            return index;
+        }
+
+        return -1;
+    }
 };
 
 struct GraphCompiler

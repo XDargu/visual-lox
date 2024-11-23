@@ -32,13 +32,10 @@ void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& start
                 NodePtr prevNode = pOutput->Node;
                 if (prevNode && GraphUtils::IsNodeImplicit(prevNode))
                 {
-                    const auto foldIt = std::find(context.constFoldingIDs.begin(), context.constFoldingIDs.end(), prevNode->ID);
-                    const bool shouldFold = foldIt != context.constFoldingIDs.end();
-
-                    if (shouldFold)
+                    const int constFoldIdx = context.FindConstFoldedIdx(prevNode);
+                    if (constFoldIdx >= 0)
                     {
-                        const size_t index = std::distance(context.constFoldingIDs.begin(), foldIt);
-                        callback(prevNode, graph, CompilationStage::ConstFoldedInputs, index);
+                        callback(prevNode, graph, CompilationStage::ConstFoldedInputs, constFoldIdx);
                     }
                     else
                     {
@@ -56,13 +53,10 @@ void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& start
 
 void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
-    const auto foldIt = std::find(context.constFoldingIDs.begin(), context.constFoldingIDs.end(), startNode->ID);
-    const bool shouldFold = foldIt != context.constFoldingIDs.end();
-
-    if (shouldFold)
+    const int constFoldIdx = context.FindConstFoldedIdx(startNode);
+    if (constFoldIdx >= 0)
     {
-        const size_t index = std::distance(context.constFoldingIDs.begin(), foldIt);
-        callback(startNode, graph, CompilationStage::ConstFoldedInputs, index);
+        callback(startNode, graph, CompilationStage::ConstFoldedInputs, constFoldIdx);
     }
     else
     {
@@ -113,7 +107,7 @@ void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int
         }
     }
 
-    if (!shouldFold)
+    if (constFoldIdx < 0)
         callback(startNode, graph, CompilationStage::EndInputs, inputIdx);
 }
 

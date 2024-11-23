@@ -93,6 +93,7 @@ enum class NodeType
 {
     Blueprint,
     SimpleGet,
+    SimpleLargeBody,
     Comment,
 };
 

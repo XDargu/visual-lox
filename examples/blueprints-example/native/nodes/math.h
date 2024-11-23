@@ -20,7 +20,7 @@ struct BinaryOpNode : public Node
     {
         Category = NodeCategory::Function;
         Flags |= NodeFlags::CanConstFold;
-        Type = NodeType::SimpleGet;
+        Type = NodeType::SimpleLargeBody;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override

@@ -206,10 +206,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         // Simple nodes
         for (const NodePtr& node : m_pGraph->GetNodes())
         {
-            if (node->Type != NodeType::Blueprint && node->Type != NodeType::SimpleGet)
+            if (node->Type != NodeType::Blueprint && node->Type != NodeType::SimpleGet && node->Type != NodeType::SimpleLargeBody)
                 continue;
 
             const bool isSimpleGet = node->Type == NodeType::SimpleGet;
+            const bool isSimpleLarge = node->Type == NodeType::SimpleLargeBody;
 
             const bool isDisconnected = std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end();
 
@@ -217,7 +218,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
 
             builder.Begin(node->ID);
-            if (!isSimpleGet)
+            if (!(isSimpleGet || isSimpleLarge))
             {
                 builder.Header(node->Color);
                 ImGui::Spring(0);
@@ -262,15 +263,19 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 }
             }
 
-            if (isSimpleGet)
+            if (isSimpleGet || isSimpleLarge)
             {
                 builder.Middle();
 
-                ImGui::PushFont(m_largeNodeFont);
+                if (isSimpleLarge)
+                    ImGui::PushFont(m_largeNodeFont);
+
                 ImGui::Spring(1, 0);
                 ImGui::TextUnformatted(node->Name.c_str());
                 ImGui::Spring(1, 0);
-                ImGui::PopFont();
+
+                if (isSimpleLarge)
+                    ImGui::PopFont();
             }
 
             for (const Pin& output : node->Outputs)

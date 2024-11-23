@@ -56,7 +56,7 @@ struct GetVariableNode : public Node
 
 static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
 {
-    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "Get", variableName);
+    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", variableName);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), variableName, type);
 
     return node;

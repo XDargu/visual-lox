@@ -60,3 +60,58 @@ static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const char* variab
 
     return node;
 }
+
+struct SetVariableNode : public Node
+{
+    SetVariableNode(int id, const char* name, const char* variableName)
+        : Node(id, name, ImColor(255, 128, 128))
+        , VariableName(variableName)
+    {
+        Category = NodeCategory::Variable;
+    }
+
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
+    {
+        switch (stage)
+        {
+        case CompilationStage::BeginInputs:
+        {
+            if (!GraphUtils::IsNodeImplicit(this))
+                CompileInputs(compilerCtx, graph);
+        }
+        break;
+        case CompilationStage::PullOutput:
+        {
+            if (GraphUtils::IsNodeImplicit(this))
+                CompileInputs(compilerCtx, graph);
+        }
+        break;
+        }
+    }
+
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
+    {
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+
+        Token varToken(TokenType::VAR, VariableName.c_str(), VariableName.length(), 0);
+        compiler.emitVariable(varToken, true);
+    }
+
+    std::string VariableName;
+};
+
+static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
+{
+    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), variableName, variableName);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", type);
+
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+
+    node->InputValues.push_back(Value());
+    node->InputValues.push_back(Value());
+
+    return node;
+}

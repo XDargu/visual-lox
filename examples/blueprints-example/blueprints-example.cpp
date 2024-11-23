@@ -212,8 +212,8 @@ struct Example:
         m_NodeRegistry.RegisterDefinitions();
 
         // Add test script variables
-        m_script.variables.push_back({ "Variables::MyVar", Value(takeString("Hello World", 11)) });
-        m_script.variables.push_back({ "Variables::Amount", Value(11.0) });
+        m_script.variables.push_back({ "MyVar", Value(takeString("Hello World", 11)) });
+        m_script.variables.push_back({ "Amount", Value(11.0) });
 
         //auto& io = ImGui::GetIO();
     }

@@ -709,33 +709,72 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pScript->variables)
         {
-            if (!Utils::FilterString(Utils::to_lower(def.Name), searchFilterLower))
-                continue;
-
-            Data* current = &root;
-            int depth = 1;
-            const std::vector<std::string> tokens = Utils::split(def.Name, "::");
-
-            for (const std::string& token : tokens)
+            // Get
             {
-                Data& child = current->children[token];
+                const std::string getVar = "Variables::Get::" + def.Name;
 
-                child.name = token;
-                child.depth = depth;
-                child.fullName = token;
+                if (!Utils::FilterString(Utils::to_lower(getVar), searchFilterLower))
+                    continue;
 
-                if (token == tokens.back())
+                Data* current = &root;
+                int depth = 1;
+                const std::vector<std::string> tokens = Utils::split(getVar, "::");
+
+                for (const std::string& token : tokens)
                 {
-                    // Last element!
-                    child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                    {
-                        return BuildGetVariableNode(IDGenerator, def.Name.c_str(), PinType::Any);
-                    };
-                    child.fullName = def.Name;
-                }
+                    Data& child = current->children[token];
 
-                current = &child;
-                depth++;
+                    child.name = token;
+                    child.depth = depth;
+                    child.fullName = token;
+
+                    if (token == tokens.back())
+                    {
+                        // Last element!
+                        child.fullName = getVar;
+                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        {
+                            return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                        };
+                    }
+
+                    current = &child;
+                    depth++;
+                }
+            }
+
+            // Set
+            {
+                const std::string setVar = "Variables::Set::" + def.Name;
+
+                if (!Utils::FilterString(Utils::to_lower(setVar), searchFilterLower))
+                    continue;
+
+                Data* current = &root;
+                int depth = 1;
+                const std::vector<std::string> tokens = Utils::split(setVar, "::");
+
+                for (const std::string& token : tokens)
+                {
+                    Data& child = current->children[token];
+
+                    child.name = token;
+                    child.depth = depth;
+                    child.fullName = token;
+
+                    if (token == tokens.back())
+                    {
+                        // Last element!
+                        child.fullName = setVar;
+                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        {
+                            return BuildSetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                        };
+                    }
+
+                    current = &child;
+                    depth++;
+                }
             }
         }
 

@@ -277,11 +277,11 @@ struct Example:
 
         compiler.beginScope();
 
-        GraphCompiler graphCompiler;
+        GraphCompiler graphCompiler(compiler);
 
         auto callback = [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
         {
-            node->Compile(compiler, graph, stage, portIdx);
+            node->Compile(graphCompiler.context, graph, stage, portIdx);
         };
         graphCompiler.CompileSingle(*m_graphView.m_pGraph, constNode, -1, 0, callback);
 
@@ -511,7 +511,7 @@ struct Example:
         NodePtr begin = m_graphView.m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
         if (begin)
         {
-            GraphCompiler graphCompiler;
+            GraphCompiler graphCompiler(compiler);
 
             std::vector<NodePtr> processedNodes;
             // First pass to gather processed nodes and cost folding
@@ -545,21 +545,21 @@ struct Example:
             compiler.beginCompile();
             compiler.beginScope();
 
-            graphCompiler.m_constFoldingValues = m_constFoldingValues;
-            graphCompiler.m_constFoldingIDs = m_constFoldingIDs;
+            graphCompiler.context.constFoldingValues = m_constFoldingValues;
+            graphCompiler.context.constFoldingIDs = m_constFoldingIDs;
 
-            graphCompiler.tempVarStorage.clear(); // TODO: Improve
+            //graphCompiler.tempVarStorage.clear(); // TODO: Improve
             graphCompiler.CompileGraph(*m_graphView.m_pGraph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
             {
                 if (stage == CompilationStage::ConstFoldedInputs)
                 {
                     compiler.emitConstant(m_constFoldingValues[portIdx]);
                     const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
-                    GraphCompiler::CompileOutput(compiler, graph, node->Outputs[outputIdx]);
+                    GraphCompiler::CompileOutput(graphCompiler.context, graph, node->Outputs[outputIdx]);
                 }
                 else
                 {
-                    node->Compile(compiler, graph, stage, portIdx);
+                    node->Compile(graphCompiler.context, graph, stage, portIdx);
                 }
             });
 

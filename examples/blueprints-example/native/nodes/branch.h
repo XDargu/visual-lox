@@ -27,13 +27,15 @@ struct BranchNode : public Node
     mutable size_t thenJump = 0;
     mutable size_t elseJump = 0;
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
+        Compiler& compiler = compilerCtx.compiler;
+
         switch (stage)
         {
             case CompilationStage::BeginInputs:
             {
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
             }
             break;
             case CompilationStage::BeginOutput:
@@ -75,9 +77,9 @@ struct BranchNode : public Node
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
     }
 };
 

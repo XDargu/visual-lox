@@ -9,15 +9,15 @@
 #include <Compiler.h>
 #include <Vm.h>
 
+std::list<std::string> CompilerContext::tempVarStorage;
+
 void GraphCompiler::CompileGraph(Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback)
 {
-    tempVarStorage.clear();
+    context.tempVarStorage.clear();
     callback(startNode, graph, CompilationStage::BeginSequence, 0);
     CompileRecursive(graph, startNode, -1, outputIdx, callback);
     callback(startNode, graph, CompilationStage::EndSequence, 0);
 }
-
-std::list<std::string> GraphCompiler::tempVarStorage;
 
 void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
@@ -32,16 +32,17 @@ void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& start
                 NodePtr prevNode = pOutput->Node;
                 if (prevNode && GraphUtils::IsNodeImplicit(prevNode))
                 {
-                    const auto foldIt = std::find(m_constFoldingIDs.begin(), m_constFoldingIDs.end(), prevNode->ID);
-                    const bool shouldFold = foldIt != m_constFoldingIDs.end();
+                    const auto foldIt = std::find(context.constFoldingIDs.begin(), context.constFoldingIDs.end(), prevNode->ID);
+                    const bool shouldFold = foldIt != context.constFoldingIDs.end();
 
                     if (shouldFold)
                     {
-                        const size_t index = std::distance(m_constFoldingIDs.begin(), foldIt);
+                        const size_t index = std::distance(context.constFoldingIDs.begin(), foldIt);
                         callback(prevNode, graph, CompilationStage::ConstFoldedInputs, index);
                     }
                     else
                     {
+                        callback(prevNode, graph, CompilationStage::BeforeInput, -1);
                         const int nodeOutputIdx = GraphUtils::FindNodeOutputIdx(*pOutput);
                         CompileBackwardsRecursive(graph, prevNode, -1, nodeOutputIdx, callback);
 
@@ -55,12 +56,12 @@ void GraphCompiler::CompileBackwardsRecursive(Graph& graph, const NodePtr& start
 
 void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
-    const auto foldIt = std::find(m_constFoldingIDs.begin(), m_constFoldingIDs.end(), startNode->ID);
-    const bool shouldFold = foldIt != m_constFoldingIDs.end();
+    const auto foldIt = std::find(context.constFoldingIDs.begin(), context.constFoldingIDs.end(), startNode->ID);
+    const bool shouldFold = foldIt != context.constFoldingIDs.end();
 
     if (shouldFold)
     {
-        const size_t index = std::distance(m_constFoldingIDs.begin(), foldIt);
+        const size_t index = std::distance(context.constFoldingIDs.begin(), foldIt);
         callback(startNode, graph, CompilationStage::ConstFoldedInputs, index);
     }
     else
@@ -118,8 +119,7 @@ void GraphCompiler::CompileRecursive(Graph& graph, const NodePtr& startNode, int
 
 void GraphCompiler::CompileSingle(Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback)
 {
-    tempVarStorage.clear();
-
+    context.tempVarStorage.clear();
     if (GraphUtils::IsNodeImplicit(startNode))
     {
         CompileBackwardsRecursive(graph, startNode, -1, outputIdx, callback);
@@ -136,14 +136,16 @@ void GraphCompiler::RegisterNatives(VM& vm)
     
 }
 
-void GraphCompiler::CompileInput(Compiler& compiler, const Graph& graph, const Pin& input, const Value& value)
+void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& graph, const Pin& input, const Value& value)
 {
+    Compiler& compiler = compilerCtx.compiler;
+
     if (graph.IsPinLinked(input.ID))
     {
         if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, input))
         {
-            const std::string outputName = tempVarPrefix + std::to_string(pOutput->ID.Get());
-            const Token outputToken = StoreTempVariable(outputName);
+            const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
+            const Token outputToken = compilerCtx.StoreTempVariable(outputName);
             compiler.emitVariable(outputToken, false);
         }
     }
@@ -153,10 +155,12 @@ void GraphCompiler::CompileInput(Compiler& compiler, const Graph& graph, const P
     }
 }
 
-void GraphCompiler::CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output)
+void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output)
 {
-    const std::string outputName = tempVarPrefix + std::to_string(output.ID.Get());
-    const Token outputToken = StoreTempVariable(outputName);
+    Compiler& compiler = compilerCtx.compiler;
+
+    const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(output.ID.Get());
+    const Token outputToken = compilerCtx.StoreTempVariable(outputName);
 
     compiler.addLocal(outputToken, true);
     compiler.emitVariable(outputToken, true, true);
@@ -164,10 +168,4 @@ void GraphCompiler::CompileOutput(Compiler& compiler, const Graph& graph, const 
     // Swap the local variable for this to use globals instead. Much nicer for debugging!
     //const uint32_t constant = compiler.identifierConstant(outputToken);
     //compiler.defineVariable(constant);
-}
-
-Token GraphCompiler::StoreTempVariable(const std::string& name)
-{
-    tempVarStorage.push_back(name);
-    return Token(TokenType::VAR, tempVarStorage.back().c_str(), name.length(), 0);
 }

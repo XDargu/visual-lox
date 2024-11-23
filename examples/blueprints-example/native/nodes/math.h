@@ -22,32 +22,34 @@ struct BinaryOpNode : public Node
         Flags |= NodeFlags::CanConstFold;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
             if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         case CompilationStage::PullOutput:
         {
             if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[0], InputValues[0]);
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
         compiler.emitByte(OpByte(OP_CODE));
 
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
+        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
     }
 };
 

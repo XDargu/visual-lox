@@ -20,7 +20,7 @@ struct BeginNode : public Node
         Category = NodeCategory::Begin;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         // Nothing
     }
@@ -41,8 +41,10 @@ struct GetBoolVariableNode : public Node
         Category = NodeCategory::Function;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
+        Compiler& compiler = compilerCtx.compiler;
+
         switch (stage)
         {
         case CompilationStage::PullOutput:
@@ -52,7 +54,7 @@ struct GetBoolVariableNode : public Node
             const Token outputToken(TokenType::VAR, input->chars.c_str(), input->chars.length(), 0);
             compiler.namedVariable(outputToken, false);
 
-            GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
+            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
         }
         break;
         }
@@ -77,8 +79,10 @@ struct CreateStringNode : public Node
         Category = NodeCategory::Function;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
+        Compiler& compiler = compilerCtx.compiler;
+
         switch (stage)
         {
         case CompilationStage::PullOutput:
@@ -86,7 +90,7 @@ struct CreateStringNode : public Node
             ObjString* input = asString(InputValues[0]);
             compiler.emitConstant(Value(input));
 
-            GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
+            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
         }
         break;
         }
@@ -113,36 +117,38 @@ struct AppendNode : public Node
         Flags |= NodeFlags::CanConstFold;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
             if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         case CompilationStage::PullOutput:
         {
             if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[0], InputValues[0]);
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
 
         for (int i = 1; i < Inputs.size(); ++i)
         {
-            GraphCompiler::CompileInput(compiler, graph, Inputs[i], InputValues[i]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
             compiler.emitByte(OpByte(OpCode::OP_ADD));
         }
 
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[0]);
+        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
     }
 
     virtual void AddInput(IDGenerator& IDGenerator) override

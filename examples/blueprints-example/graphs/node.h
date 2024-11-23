@@ -12,6 +12,7 @@
 
 
 namespace ed = ax::NodeEditor;
+struct CompilerContext;
 
 enum class NodeFlags
 {
@@ -161,7 +162,7 @@ struct Node
     {
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
 
     // Dynamic node operations
     virtual void AddInput(IDGenerator& IDGenerator) {};

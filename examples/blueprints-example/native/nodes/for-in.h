@@ -24,8 +24,9 @@ struct ForInNode : public Node
     mutable size_t loopStart = 0;
     mutable size_t exitJump = 0;
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
+        Compiler& compiler = compilerCtx.compiler;
         switch (stage)
         {
         case CompilationStage::BeginInputs:
@@ -45,7 +46,7 @@ struct ForInNode : public Node
             compiler.addLocal(rangeToken, false);
             
             // Get actual value
-            GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
 
             compiler.emitVariable(rangeToken, true); // Set the range value
         }
@@ -76,7 +77,7 @@ struct ForInNode : public Node
                 // Set the local variable value before running the statement
                 compiler.emitByte(OpByte(OpCode::OP_INDEX_SUBSCR));
 
-                GraphCompiler::CompileOutput(compiler, graph, Outputs[1]); // Set the output value
+                GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[1]); // Set the output value
             }
             else if (portIdx == 2) // End
             {

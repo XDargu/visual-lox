@@ -21,25 +21,27 @@ struct ListGetByIndex : public Node
         Flags |= NodeFlags::CanConstFold;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
-            CompileInputs(compiler, graph);
+            CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
-        GraphCompiler::CompileInput(compiler, graph, Inputs[2], InputValues[2]);
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[2], InputValues[2]);
         compiler.emitByte(OpByte(OpCode::OP_INDEX_SUBSCR));
 
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[1]);
+        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[1]);
     }
 };
 
@@ -68,26 +70,28 @@ struct ListSetByIndex : public Node
         Category = NodeCategory::Function;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
-            CompileInputs(compiler, graph);
+            CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
-        GraphCompiler::CompileInput(compiler, graph, Inputs[2], InputValues[2]);
-        GraphCompiler::CompileInput(compiler, graph, Inputs[3], InputValues[3]);
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[2], InputValues[2]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[3], InputValues[3]);
         compiler.emitByte(OpByte(OpCode::OP_STORE_SUBSCR));
 
-        GraphCompiler::CompileOutput(compiler, graph, Outputs[1]);
+        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[1]);
     }
 };
 

@@ -15,8 +15,33 @@ class VM;
 struct Graph;
 struct Value;
 
+struct CompilerContext
+{
+    CompilerContext(Compiler& compiler)
+        : compiler(compiler)
+    {}
+
+    constexpr static const char* tempVarPrefix = "__lv__";
+    static std::list<std::string> tempVarStorage; // List so pointers are preserved, we should improve this
+
+    std::vector<Value>        constFoldingValues;
+    std::vector<ed::NodeId>   constFoldingIDs;
+
+    Compiler& compiler;
+
+    Token StoreTempVariable(const std::string& name)
+    {
+        tempVarStorage.push_back(name);
+        return Token(TokenType::VAR, tempVarStorage.back().c_str(), name.length(), 0);
+    }
+};
+
 struct GraphCompiler
 {
+    GraphCompiler(Compiler& compiler)
+        : context(compiler)
+    {}
+
     using Callback = std::function<void(const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)>;
 
     void CompileGraph(Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
@@ -26,13 +51,8 @@ struct GraphCompiler
 
     static void RegisterNatives(VM& vm);
 
-    static constexpr const char* tempVarPrefix = "__lv__";
-    static std::list<std::string> tempVarStorage; // List so pointers are preserved, we should improve this
+    CompilerContext context;
 
-    std::vector<Value>        m_constFoldingValues;
-    std::vector<ed::NodeId>   m_constFoldingIDs;
-
-    static void CompileInput(Compiler& compiler, const Graph& graph, const Pin& input, const Value& value);
-    static void CompileOutput(Compiler& compiler, const Graph& graph, const Pin& output);
-    static Token StoreTempVariable(const std::string& name);
+    static void CompileInput(CompilerContext& compilerCtx, const Graph& graph, const Pin& input, const Value& value);
+    static void CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output);
 };

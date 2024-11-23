@@ -20,28 +20,30 @@ struct PrintNode : public Node
         Category = NodeCategory::Function;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
             if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         case CompilationStage::PullOutput:
         {
             if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compiler, graph, Inputs[1], InputValues[1]);
+        Compiler& compiler = compilerCtx.compiler;
+
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
         compiler.emitByte(OpByte(OpCode::OP_PRINT));
     }
 };

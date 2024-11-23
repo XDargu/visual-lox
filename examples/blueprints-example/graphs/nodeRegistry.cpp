@@ -42,27 +42,29 @@ struct NativeFunctionNode : public Node
         Category = NodeCategory::Function;
     }
 
-    virtual void Compile(Compiler& compiler, const Graph& graph, CompilationStage stage, int portIdx) const override
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         switch (stage)
         {
         case CompilationStage::BeginInputs:
         {
             if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         case CompilationStage::PullOutput:
         {
             if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compiler, graph);
+                CompileInputs(compilerCtx, graph);
         }
         break;
         }
     }
 
-    void CompileInputs(Compiler& compiler, const Graph& graph) const
+    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
+        Compiler& compiler = compilerCtx.compiler;
+
         // Load named variable (native func)
         compiler.namedVariable(Token(TokenType::STRING, Name.c_str(), Name.length(), 10), false);
 
@@ -72,7 +74,7 @@ struct NativeFunctionNode : public Node
         {
             if (Inputs[i].Type != PinType::Flow)
             {
-                GraphCompiler::CompileInput(compiler, graph, Inputs[i], InputValues[i]);
+                GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
                 argCount++;
             }
         }
@@ -93,7 +95,7 @@ struct NativeFunctionNode : public Node
         {
             // Set the output variable
             const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
-            GraphCompiler::CompileOutput(compiler, graph, Outputs[dataOutputIdx]);
+            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[dataOutputIdx]);
         }
     }
 

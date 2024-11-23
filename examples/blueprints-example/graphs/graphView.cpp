@@ -536,16 +536,25 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
 void GraphView::DrawContextMenu()
 {
-    bool addNodePopupOpened = false;
+    static bool addNodePopupOpened = false;
+    static ImVec2 openPopupPosition;
 
-    auto openPopupPosition = ImGui::GetMousePos();
+    if (!addNodePopupOpened)
+        openPopupPosition = ImGui::GetMousePos();
+
     ed::Suspend();
     if (ed::ShowNodeContextMenu(&contextNodeId))
+    {
         ImGui::OpenPopup("Node Context Menu");
+    }
     else if (ed::ShowPinContextMenu(&contextPinId))
+    {
         ImGui::OpenPopup("Pin Context Menu");
+    }
     else if (ed::ShowLinkContextMenu(&contextLinkId))
+    {
         ImGui::OpenPopup("Link Context Menu");
+    }
     else if (ed::ShowBackgroundContextMenu())
     {
         addNodePopupOpened = true;
@@ -658,6 +667,7 @@ void GraphView::DrawContextMenu()
     ImGui::SetNextWindowSizeConstraints(ImVec2(300, 0), ImGui::GetWindowSize() * 0.5f);
     if (ImGui::BeginPopup("Create New Node"))
     {
+        addNodePopupOpened = true;
         bool searchChanged = false;
 
         static std::string searchFilter = "";
@@ -886,7 +896,10 @@ void GraphView::DrawContextMenu()
         ImGui::EndPopup();
     }
     else
+    {
         createNewNode = false;
+        addNodePopupOpened = false;
+    }
     ImGui::PopStyleVar();
     ed::Resume();
 }

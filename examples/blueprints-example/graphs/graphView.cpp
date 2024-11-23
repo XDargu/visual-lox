@@ -35,6 +35,11 @@ int GraphView::GetNextId()
     return m_pIDGenerator->GetNextId();
 }
 
+void GraphView::Init(ImFont* largeNodeFont)
+{
+    m_largeNodeFont = largeNodeFont;
+}
+
 void GraphView::TouchNode(ed::NodeId id)
 {
     m_NodeTouchTime[id] = m_TouchTime;
@@ -261,9 +266,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             {
                 builder.Middle();
 
+                ImGui::PushFont(m_largeNodeFont);
                 ImGui::Spring(1, 0);
                 ImGui::TextUnformatted(node->Name.c_str());
                 ImGui::Spring(1, 0);
+                ImGui::PopFont();
             }
 
             for (const Pin& output : node->Outputs)
@@ -932,6 +939,23 @@ void GraphView::DrawContextMenu()
     ed::Resume();
 }
 
+static void ForceMinWidth(const char* text, float minWidth, float padding = 20.0f)
+{
+    const float contentWidth = ImGui::CalcTextSize(text).x + padding;
+    const float widthToUse = contentWidth > minWidth ? contentWidth : minWidth;
+
+    ImGui::SetNextItemWidth(widthToUse);
+}
+
+static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
+{
+    // Get the size of the text based on the content of the input
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "%.15g", value);
+
+    ForceMinWidth(buffer, minWidth);
+}
+
 /* static */ void GraphViewUtils::DrawTypeInputImpl(const PinType pinType, Value& inputValue)
 {
     if (pinType == PinType::Bool)
@@ -943,21 +967,20 @@ void GraphView::DrawContextMenu()
     {
         ObjString* a = asString(inputValue);
 
-        ImGui::PushItemWidth(100.0f);
         std::string temp = a->chars;
+
+        ForceMinWidth(temp.c_str(), 30.0f);
         if (ImGui::InputText("##edit", &temp))
         {
             inputValue = Value(copyString(temp.c_str(), temp.size()));
         }
-        ImGui::PopItemWidth();
     }
     else if (pinType == PinType::Float)
     {
         double& value = inputValue.as.number;
 
-        ImGui::PushItemWidth(100.0f);
-        ImGui::InputDouble("##edit", &value);
-        ImGui::PopItemWidth();
+        ForceMinWidth(value, 30.0f);
+        ImGui::InputDouble("##edit", &value, 0, 0, "%.15g");
     }
 }
 

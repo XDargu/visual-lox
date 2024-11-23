@@ -25,6 +25,7 @@ struct Application
 
     ImFont* DefaultFont() const;
     ImFont* HeaderFont() const;
+    ImFont* LargeNodeFont() const;
 
     ImTextureID LoadTexture(const char* path);
     ImTextureID CreateTexture(const void* data, int width, int height);
@@ -52,6 +53,7 @@ private:
     ImGuiContext*               m_Context = nullptr;
     ImFont*                     m_DefaultFont = nullptr;
     ImFont*                     m_HeaderFont = nullptr;
+    ImFont*                     m_LargeNodeFont = nullptr;
 };
 
 int Main(int argc, char** argv);

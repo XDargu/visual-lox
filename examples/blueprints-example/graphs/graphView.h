@@ -41,6 +41,8 @@ struct GraphView
 {
     int GetNextId();
 
+    void Init(ImFont* largeNodeFont);
+
     void TouchNode(ed::NodeId id);
     float GetTouchProgress(ed::NodeId id);
     void UpdateTouch();
@@ -66,6 +68,9 @@ struct GraphView
     ed::EditorContext* m_Editor = nullptr;
     Graph* m_pGraph = nullptr;
     Script* m_pScript = nullptr;
+
+    // Drawing
+    ImFont* m_largeNodeFont = nullptr;
 
     // Touch control
     std::map<ed::NodeId, float, NodeIdLess> m_NodeTouchTime;

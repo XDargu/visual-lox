@@ -20,6 +20,7 @@ struct BinaryOpNode : public Node
     {
         Category = NodeCategory::Function;
         Flags |= NodeFlags::CanConstFold;
+        Type = NodeType::SimpleGet;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
@@ -74,10 +75,10 @@ using GreaterNode = BinaryOpNode<OpCode::OP_GREATER>;
 using LessNode = BinaryOpNode<OpCode::OP_LESS>;
 using ModuloNode = BinaryOpNode<OpCode::OP_MODULO>;
 
-static NodePtr CreateAddNode(IDGenerator& IDGenerator) { return CreateBinaryNode<AddNode>(IDGenerator, "Add", "A", "B", "Result"); }
-static NodePtr CreateSubtractNode(IDGenerator& IDGenerator) { return CreateBinaryNode<SubtractNode>(IDGenerator, "Subtract", "A", "B", "Result"); }
-static NodePtr CreateMultiplyNode(IDGenerator& IDGenerator) { return CreateBinaryNode<MultiplyNode>(IDGenerator, "Multiply", "A", "B", "Result"); }
-static NodePtr CreateDivideNode(IDGenerator& IDGenerator) { return CreateBinaryNode<DivideNode>(IDGenerator, "Divide", "A", "B", "Result"); }
-static NodePtr CreateGreaterNode(IDGenerator& IDGenerator) { return CreateBinaryNode<GreaterNode>(IDGenerator, "Greater Than", "A", "B", "Result", PinType::Bool); }
-static NodePtr CreateLessNode(IDGenerator& IDGenerator) { return CreateBinaryNode<LessNode>(IDGenerator, "Less Than", "A", "B", "Result", PinType::Bool); }
-static NodePtr CreateModuloNode(IDGenerator& IDGenerator) { return CreateBinaryNode<ModuloNode>(IDGenerator, "Modulo", "Dividend", "Modulus", "Remainder"); }
+static NodePtr CreateAddNode(IDGenerator& IDGenerator) { return CreateBinaryNode<AddNode>(IDGenerator, "+", "", "", ""); }
+static NodePtr CreateSubtractNode(IDGenerator& IDGenerator) { return CreateBinaryNode<SubtractNode>(IDGenerator, "-", "", "", ""); }
+static NodePtr CreateMultiplyNode(IDGenerator& IDGenerator) { return CreateBinaryNode<MultiplyNode>(IDGenerator, "x", "", "", ""); }
+static NodePtr CreateDivideNode(IDGenerator& IDGenerator) { return CreateBinaryNode<DivideNode>(IDGenerator, "/", "", "", ""); }
+static NodePtr CreateGreaterNode(IDGenerator& IDGenerator) { return CreateBinaryNode<GreaterNode>(IDGenerator, ">", "", "", "", PinType::Bool); }
+static NodePtr CreateLessNode(IDGenerator& IDGenerator) { return CreateBinaryNode<LessNode>(IDGenerator, "<", "", "", "", PinType::Bool); }
+static NodePtr CreateModuloNode(IDGenerator& IDGenerator) { return CreateBinaryNode<ModuloNode>(IDGenerator, "Mod", "Dividend", "Modulus", "Remainder"); }

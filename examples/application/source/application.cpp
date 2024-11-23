@@ -99,7 +99,8 @@ void Application::RecreateFontAtlas()
     config.PixelSnapH = false;
 
     m_DefaultFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 18.0f, &config);
-    m_HeaderFont  = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf",  20.0f, &config);
+    m_HeaderFont = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf", 20.0f, &config);
+    m_LargeNodeFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf",  48.0f, &config);
 
     io.Fonts->Build();
 }
@@ -197,6 +198,12 @@ ImFont* Application::HeaderFont() const
 {
     return m_HeaderFont;
 }
+
+ImFont* Application::LargeNodeFont() const
+{
+    return m_LargeNodeFont;
+}
+
 
 ImTextureID Application::LoadTexture(const char* path)
 {

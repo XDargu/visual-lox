@@ -117,6 +117,8 @@ struct Example:
     void OnStart() override
     {
         m_graphView.setIDGenerator(m_IDGenerator);
+        m_graphView.Init(LargeNodeFont());
+
         m_graphView.setNodeRegistry(m_NodeRegistry);
         m_graphView.SetScript(&m_script);
         m_graphView.SetGraph(&m_script.main.Graph);

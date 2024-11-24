@@ -16,7 +16,7 @@
 
 int Main(int argc, char** argv)
 {
-    Example exampe("VisualLox", argc, argv);
+    Editor::Example exampe("VisualLox", argc, argv);
 
     if (exampe.Create())
         return exampe.Run();

@@ -20,6 +20,8 @@
 
 #include "graphs/nodeRegistry.h"
 
+#include "utilities/treeview.h"
+
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
 
@@ -43,59 +45,8 @@ using ax::Widgets::IconType;
 
 static ed::EditorContext* m_Editor = nullptr;
 
-static bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
+namespace Editor
 {
-    using namespace ImGui;
-    ImGuiContext& g = *GImGui;
-    ImGuiWindow* window = g.CurrentWindow;
-    ImGuiID id = window->GetID("##Splitter");
-    ImRect bb;
-    bb.Min = window->DC.CursorPos + (split_vertically ? ImVec2(*size1, 0.0f) : ImVec2(0.0f, *size1));
-    bb.Max = bb.Min + CalcItemSize(split_vertically ? ImVec2(thickness, splitter_long_axis_size) : ImVec2(splitter_long_axis_size, thickness), 0.0f, 0.0f);
-    return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
-}
-
-namespace Utils
-{
-    static void DrawEachLine(const std::string& text)
-    {
-        std::stringstream stream(text);
-        std::string segment;
-
-        while (std::getline(stream, segment, '\n'))
-        {
-            ImGui::Text(segment.c_str());
-        }
-    }
-
-    struct CaptureStdout
-    {
-        CaptureStdout()
-        {
-            // Redirect cout.
-            oldCoutStreamBuf = std::cout.rdbuf();
-            std::cout.rdbuf(strCout.rdbuf());
-
-            // Redirect cerr.
-            oldCerrStreamBuf = std::cerr.rdbuf();
-            std::cerr.rdbuf(strCout.rdbuf());
-        }
-
-        std::string Restore()
-        {
-            // Restore old cout.
-            std::cout.rdbuf(oldCoutStreamBuf);
-            std::cerr.rdbuf(oldCerrStreamBuf);
-
-            return strCout.str();
-        }
-
-        std::streambuf* oldCoutStreamBuf;
-        std::streambuf* oldCerrStreamBuf;
-        std::ostringstream strCout;
-    };
-}
-
 
 struct Example :
     public Application
@@ -121,18 +72,11 @@ struct Example :
 
     void ContextMenu();
 
-    struct TreeNode {
-        std::string label;                  // Label of the node
-        std::vector<TreeNode> children;     // List of child nodes
-        bool isOpen = false;                // Tracks if the node is expanded
-    };
-
-    void RenderTreeNode(TreeNode& node, int& selectedItem, int& currentId);
-    void ShowExampleTreeView();
-
     void ShowLeftPane(float paneWidth);
 
     void OnFrame(float deltaTime) override;
+
+    void AddFunction();
 
     Script               m_script;
     GraphView            m_graphView;
@@ -142,8 +86,17 @@ struct Example :
     ImTextureID          m_RestoreIcon = nullptr;
     bool                 m_ShowOrdinals = false;
 
+    // Icons for types of functions
+    ImTextureID          m_ScriptIcon = nullptr;
+    ImTextureID          m_ClassIcon = nullptr;
+    ImTextureID          m_FunctionIcon = nullptr;
+    ImTextureID          m_VariableIcon = nullptr;
+
     IDGenerator          m_IDGenerator;
     NodeRegistry         m_NodeRegistry;
+
+    // Script treeview
+    TreeNode             m_scriptTreeView;
 
     // TODO: Move somewhere else!
     bool m_isConstFoldingEnabled = true;
@@ -151,3 +104,5 @@ struct Example :
     std::vector<Value>   m_constFoldingValues;
     std::vector<ed::NodeId>   m_constFoldingIDs;
 };
+
+}

@@ -1,5 +1,62 @@
 #include "editor.h"
 
+
+namespace Editor
+{
+
+static bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
+{
+    using namespace ImGui;
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    ImGuiID id = window->GetID("##Splitter");
+    ImRect bb;
+    bb.Min = window->DC.CursorPos + (split_vertically ? ImVec2(*size1, 0.0f) : ImVec2(0.0f, *size1));
+    bb.Max = bb.Min + CalcItemSize(split_vertically ? ImVec2(thickness, splitter_long_axis_size) : ImVec2(splitter_long_axis_size, thickness), 0.0f, 0.0f);
+    return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
+}
+
+namespace Utils
+{
+    static void DrawEachLine(const std::string& text)
+    {
+        std::stringstream stream(text);
+        std::string segment;
+
+        while (std::getline(stream, segment, '\n'))
+        {
+            ImGui::Text(segment.c_str());
+        }
+    }
+
+    struct CaptureStdout
+    {
+        CaptureStdout()
+        {
+            // Redirect cout.
+            oldCoutStreamBuf = std::cout.rdbuf();
+            std::cout.rdbuf(strCout.rdbuf());
+
+            // Redirect cerr.
+            oldCerrStreamBuf = std::cerr.rdbuf();
+            std::cerr.rdbuf(strCout.rdbuf());
+        }
+
+        std::string Restore()
+        {
+            // Restore old cout.
+            std::cout.rdbuf(oldCoutStreamBuf);
+            std::cerr.rdbuf(oldCerrStreamBuf);
+
+            return strCout.str();
+        }
+
+        std::streambuf* oldCoutStreamBuf;
+        std::streambuf* oldCerrStreamBuf;
+        std::ostringstream strCout;
+    };
+}
+
 void Example::OnStart()
 {
     m_graphView.setIDGenerator(m_IDGenerator);
@@ -11,6 +68,11 @@ void Example::OnStart()
     m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
     m_SaveIcon = LoadTexture("data/ic_save_white_24dp.png");
     m_RestoreIcon = LoadTexture("data/ic_restore_white_24dp.png");
+
+    m_ScriptIcon = LoadTexture("data/ic_script.png");
+    m_ClassIcon = LoadTexture("data/ic_class.png");
+    m_FunctionIcon = LoadTexture("data/ic_function.png");
+    m_VariableIcon = LoadTexture("data/ic_variable.png");
 
     auto markFunction = [&](ScriptFunction& scriptFunction)
     {
@@ -105,17 +167,25 @@ void Example::OnStart()
 
     m_NodeRegistry.RegisterDefinitions();
 
-    // Add test script variables
-    m_script.variables.push_back({ "MyVar", Value(takeString("Hello World", 11)) });
-    m_script.variables.push_back({ "Amount", Value(11.0) });
+    // Start tree view
+    m_scriptTreeView.label = "Script";
+    m_scriptTreeView.isOpen = true;
+    m_scriptTreeView.icon = m_ScriptIcon;
 
     // Add begin to main function
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
     m_graphView.BuildNode(beginMain);
     m_script.main.Graph.AddNode(beginMain);
 
+    // Add main function to tree view
+    TreeNode mainNode;
+    mainNode.label = "Main";
+    mainNode.icon = m_FunctionIcon;
+    mainNode.onclick = [&]() { ChangeGraph(m_script.main); };
+    m_scriptTreeView.children.push_back(mainNode);
+
     // Add test script functions
-    ScriptFunction foo;
+    /*ScriptFunction foo;
     foo.functionDef->inputs.push_back({ "Value", Value() });
     foo.functionDef->inputs.push_back({ "Other", Value() });
     foo.functionDef->outputs.push_back({ "Result", Value() });
@@ -125,7 +195,54 @@ void Example::OnStart()
     m_graphView.BuildNode(beginFoo);
     foo.Graph.AddNode(beginFoo);
 
-    m_script.functions.push_back(foo);
+    m_script.functions.push_back(foo);*/
+
+    // Test variables
+    auto AddVariable = [&](const char* name, Value defaultValue)
+    {
+        TreeNode varNode;
+        varNode.label = name;
+        varNode.icon = m_VariableIcon;
+        m_scriptTreeView.children.push_back(varNode);
+
+        m_script.variables.push_back({ name, defaultValue });
+    };
+
+    AddVariable("MyVar", Value(takeString("Hello World", 11)));
+    AddVariable("Amount", Value(11.0));
+
+    // Test functions
+    auto AddFunction = [this](const char* name)
+    {
+        std::string namestr = name;
+        TreeNode funcNode;
+        funcNode.icon = m_FunctionIcon;
+        funcNode.label = name;
+        funcNode.onclick = [&, namestr]()
+        {
+            for (auto& func : m_script.functions)
+            {
+                if (func.functionDef->name == namestr)
+                {
+                    ChangeGraph(func);
+                    return;
+                }
+            }
+
+        };
+        m_scriptTreeView.children.push_back(funcNode);
+
+        ScriptFunction foo;
+        foo.functionDef->name = "Foo";
+
+        NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
+        m_graphView.BuildNode(beginFoo);
+        foo.Graph.AddNode(beginFoo);
+
+        m_script.functions.push_back(foo);
+    };
+
+    AddFunction("Foo");
 }
 
 void Example::OnStop()
@@ -142,6 +259,12 @@ void Example::OnStop()
     releaseTexture(m_RestoreIcon);
     releaseTexture(m_SaveIcon);
     releaseTexture(m_HeaderBackground);
+
+    releaseTexture(m_ScriptIcon);
+    releaseTexture(m_ClassIcon);
+    releaseTexture(m_FunctionIcon);
+    releaseTexture(m_VariableIcon);
+
 }
 
 void Example::ChangeGraph(ScriptFunction& scriptFunction)
@@ -840,62 +963,6 @@ void Example::ContextMenu()
     }
 }
 
-void Example::RenderTreeNode(TreeNode& node, int& selectedItem, int& currentId)
-{
-    int nodeId = currentId++; // Unique ID for each node
-
-    // Render expand/collapse button
-    ImGui::PushID(nodeId); // Ensure unique ID for the arrow button
-    if (node.children.empty())
-    {
-        ImGui::Dummy(ImVec2(16, 0)); // Empty space for alignment
-    }
-    else if (ImGui::ArrowButton("##toggle", node.isOpen ? ImGuiDir_Down : ImGuiDir_Right))
-    {
-        node.isOpen = !node.isOpen; // Toggle node open/close
-    }
-    ImGui::PopID();
-
-    // Render the selectable label
-    ImGui::SameLine();
-    if (ImGui::Selectable(node.label.c_str(), selectedItem == nodeId))
-    {
-        selectedItem = nodeId; // Mark this node as selected
-    }
-
-    // Render children if node is expanded
-    if (node.isOpen && !node.children.empty())
-    {
-        ImGui::Indent(); // Indent for child nodes
-        for (auto& child : node.children)
-        {
-            RenderTreeNode(child, selectedItem, currentId);
-        }
-        ImGui::Unindent(); // Unindent after finishing children
-    }
-}
-
-void Example::ShowExampleTreeView()
-{
-    static TreeNode rootNode = {
-        "Root",
-        {
-            { "Child 1",{ { "Grandchild 1" },{ "Grandchild 2" } }, false },
-        { "Child 2",{}, false },
-        { "Child 3",{ { "Grandchild 3" },{ "Grandchild 4" } }, false }
-    },
-        false
-    };
-
-    static int selectedItem = -1; // Tracks the selected item
-    static int currentId = 0;    // Unique ID tracker for nodes
-
-    ImGui::Begin("Tree View Example");
-    currentId = 0; // Reset ID tracker each frame
-    RenderTreeNode(rootNode, selectedItem, currentId);
-    ImGui::End();
-}
-
 void Example::ShowLeftPane(float paneWidth)
 {
     auto& io = ImGui::GetIO();
@@ -915,64 +982,10 @@ void Example::ShowLeftPane(float paneWidth)
             int restoreIconWidth = GetTextureWidth(m_RestoreIcon);
             int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
 
-            ShowExampleTreeView();
-
-            if (ImGui::TreeNodeEx("Script", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-                for (ScriptClass& scriptClass : m_script.classes)
-                {
-                    if (ImGui::TreeNode(scriptClass.Name.c_str()))
-                    {
-                        for (ScriptFunction& scriptFunction : scriptClass.methods)
-                        {
-                            if (ImGui::TreeNode(scriptFunction.functionDef->name.c_str()))
-                            {
-                                ImGui::TreePop();
-                            }
-                        }
-
-                        for (ScriptProperty& scriptProperty : scriptClass.properties)
-                        {
-                            ImGui::Text(scriptProperty.Name.c_str());
-                        }
-
-                        ImGui::TreePop();
-                    }
-                }
-
-                for (ScriptFunction& scriptFunction : m_script.functions)
-                {
-                    if (ImGui::Button(scriptFunction.functionDef->name.c_str()))
-                    {
-                        ChangeGraph(scriptFunction);
-                    }
-                    /*if (ImGui::TreeNode(scriptFunction.Name.c_str()))
-                    {
-                    // Set graph
-                    m_graphView.SetGraph(&scriptFunction.Graph);
-
-                    ImGui::TreePop();
-                    }*/
-                }
-
-                for (ScriptProperty& scriptProperty : m_script.variables)
-                {
-                    ImGui::PushID(scriptProperty.Name.c_str());
-                    ImGui::Text(scriptProperty.Name.c_str());
-                    ImGui::SameLine();
-                    GraphViewUtils::DrawTypeInput(PinType::Any, scriptProperty.defaultValue);
-                    ImGui::PopID();
-                }
-
-                if (ImGui::Button(m_script.main.functionDef->name.c_str()))
-                {
-                    ChangeGraph(m_script.main);
-                }
-
-                ImGui::TreePop();
-            }
-
-            ImGui::Text("This is the content of Tab 3.");
+            // Update tree view data
+            static int selectedItem = 0;
+            RenderTreeNode(m_scriptTreeView, selectedItem);
+           
             ImGui::EndTabItem();
         }
 
@@ -1068,4 +1081,6 @@ void Example::OnFrame(float deltaTime)
 
     //ImGui::ShowTestWindow();
     //ImGui::ShowMetricsWindow();
+}
+
 }

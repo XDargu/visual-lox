@@ -2,6 +2,7 @@
 
 #include "property.h"
 #include "../shared/functionShared.h"
+#include "../graphs/graph.h"
 
 #include <Value.h>
 

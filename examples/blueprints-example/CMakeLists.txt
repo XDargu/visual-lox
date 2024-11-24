@@ -10,6 +10,8 @@ add_example_executable(blueprints-example
     utilities/widgets.cpp
     utilities/utils.h
     utilities/utils.cpp
+    utilities/treeview.h
+    utilities/treeview.cpp
     graphs/node.h
     graphs/node.cpp
     graphs/link.h

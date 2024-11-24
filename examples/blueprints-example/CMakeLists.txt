@@ -1,5 +1,7 @@
 add_example_executable(blueprints-example
     blueprints-example.cpp
+    editor.h
+    editor.cpp
     utilities/builders.h
     utilities/drawing.h
     utilities/widgets.h

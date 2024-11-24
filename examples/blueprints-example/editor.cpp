@@ -470,40 +470,50 @@ std::vector<NodePtr> Example::GatherProcessedNodes(Graph& graph, Compiler& compi
 void Example::GatherConstFoldableNodes(Compiler& compiler, VM& vm)
 {
     // We should do this for each graph
-    // Do only with main for now
+    // Do only with main and script functions for now
 
     m_constFoldingValues.clear();
     m_constFoldingIDs.clear();
 
-    Graph& graph = m_script.main.Graph;
+    std::vector<Graph*> candidates;
 
-    NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-    if (begin)
+    candidates.push_back(&m_script.main.Graph);
+
+    for (ScriptFunction& scriptFunction : m_script.functions)
     {
-        GraphCompiler graphCompiler(compiler);
+        candidates.push_back(&scriptFunction.Graph);
+    }
 
-        std::vector<NodePtr> processedNodes;
-        // First pass to gather processed nodes and cost folding
-        graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
+    for (Graph* graph : candidates)
+    {
+        NodePtr begin = graph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        if (begin)
         {
-            if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
-            {
-                processedNodes.push_back(node);
-            }
-        });
+            GraphCompiler graphCompiler(compiler);
 
-        if (m_isConstFoldingEnabled)
-        {
-            for (const NodePtr& node : processedNodes)
+            std::vector<NodePtr> processedNodes;
+            // First pass to gather processed nodes and cost folding
+            graphCompiler.CompileGraph(*graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
             {
-                if (GraphUtils::IsNodeConstFoldable(*m_graphView.m_pGraph, node))
+                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
                 {
-                    if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
+                    processedNodes.push_back(node);
+                }
+            });
+
+            if (m_isConstFoldingEnabled)
+            {
+                for (const NodePtr& node : processedNodes)
+                {
+                    if (GraphUtils::IsNodeConstFoldable(*graph, node))
                     {
-                        m_constFoldingValues.push_back(vm.peek(-1));
-                        m_constFoldingIDs.push_back(node->ID);
+                        if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
+                        {
+                            m_constFoldingValues.push_back(vm.peek(-1));
+                            m_constFoldingIDs.push_back(node->ID);
+                        }
+                        vm.resetStack();
                     }
-                    vm.resetStack();
                 }
             }
         }

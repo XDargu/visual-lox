@@ -827,7 +827,7 @@ void GraphView::DrawContextMenu()
                         child.fullName = fullFuncName;
                         child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                         {
-                            return BuildCallFunctionNode(IDGenerator, child.name.c_str());
+                            return def.functionDef->MakeNode(IDGenerator);
                         };
                     }
 

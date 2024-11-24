@@ -22,28 +22,6 @@ struct BeginNode : public Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
-        Compiler& compiler = compilerCtx.compiler;
-
-        switch (stage)
-        {
-        case CompilationStage::BeginInputs:
-        {
-            // Compile all data outputs
-            for (int i = 1; i < Outputs.size(); ++i)
-            {
-                //GraphCompiler::CompileInput(compilerCtx, graph, Outputs[0], Value());
-
-                
-
-                GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[i]);
-
-                const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(Outputs[i].ID.Get());
-                const Token outputToken = compilerCtx.StoreTempVariable(outputName);
-                compiler.emitVariable(outputToken, false);
-            }
-        }
-        break;
-        }
     }
 };
 

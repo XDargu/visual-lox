@@ -138,9 +138,19 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
     {
         if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, input))
         {
-            const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
-            const Token outputToken = compilerCtx.StoreTempVariable(outputName);
-            compiler.emitVariable(outputToken, false);
+            if (pOutput->Node->Category == NodeCategory::Begin)
+            {
+                // Inputs from the begin node are already locals, we can access them with the input name
+                
+                const Token outputToken = compilerCtx.StoreTempVariable(pOutput->Name);
+                compiler.emitVariable(outputToken, false);
+            }
+            else
+            {
+                const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
+                const Token outputToken = compilerCtx.StoreTempVariable(outputName);
+                compiler.emitVariable(outputToken, false);
+            }
         }
     }
     else

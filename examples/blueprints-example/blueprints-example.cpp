@@ -230,8 +230,13 @@ struct Example:
 
         // Add test script functions
         ScriptFunction foo;
+        foo.Inputs.push_back({ "Value", Value() });
         foo.Name = "Foo";
+
+
         NodePtr beginFoo = BuildBeginNode(m_IDGenerator);
+        beginFoo->Outputs.emplace_back(m_IDGenerator.GetNextId(), "Value", PinType::Any);
+
         m_graphView.BuildNode(beginFoo);
         foo.Graph.AddNode(beginFoo);
         m_script.functions.push_back(foo);

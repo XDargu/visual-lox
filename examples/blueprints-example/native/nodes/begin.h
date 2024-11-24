@@ -22,7 +22,20 @@ struct BeginNode : public Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
-        // Nothing
+        Compiler& compiler = compilerCtx.compiler;
+
+        switch (stage)
+        {
+        case CompilationStage::BeginInputs:
+        {
+            // Compile all data outputs
+            for (int i = 1; i < Outputs.size(); ++i)
+            {
+                GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[i]);
+            }
+        }
+        break;
+        }
     }
 };
 

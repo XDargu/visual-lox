@@ -91,7 +91,11 @@ static NodePtr BuildCallFunctionNode(IDGenerator& IDGenerator, const char* funct
     NodePtr node = std::make_shared<CallFunctionNode>(IDGenerator.GetNextId(), functionName, functionName);
 
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Any);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+
+    node->InputValues.emplace_back(Value());
+    node->InputValues.emplace_back(Value());
 
     return node;
 }

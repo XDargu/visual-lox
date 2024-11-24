@@ -118,10 +118,9 @@ struct Example:
     {
         m_graphView.setIDGenerator(m_IDGenerator);
         m_graphView.Init(LargeNodeFont());
-
         m_graphView.setNodeRegistry(m_NodeRegistry);
-        m_graphView.SetScript(&m_script);
-        m_graphView.SetGraph(&m_script.main.Graph);
+        
+        m_graphView.SetGraph(&m_script, &m_script.main, &m_script.main.Graph);
 
         m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
         m_SaveIcon         = LoadTexture("data/ic_save_white_24dp.png");
@@ -225,26 +224,22 @@ struct Example:
         m_script.variables.push_back({ "Amount", Value(11.0) });
 
         // Add begin to main function
-        NodePtr beginMain = BuildBeginNode(m_IDGenerator);
+        NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
         m_graphView.BuildNode(beginMain);
         m_script.main.Graph.AddNode(beginMain);
 
         // Add test script functions
         ScriptFunction foo;
         foo.functionDef->inputs.push_back({ "Value", Value() });
+        foo.functionDef->inputs.push_back({ "Other", Value() });
+        foo.functionDef->outputs.push_back({ "Result", Value() });
         foo.functionDef->name = "Foo";
 
-        foo.functionDef->outputs.push_back({ "Ret", Value(2.0) });
-
-
-        NodePtr beginFoo = BuildBeginNode(m_IDGenerator);
-        beginFoo->Outputs.emplace_back(m_IDGenerator.GetNextId(), "Value", PinType::Any);
-
+        NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
         m_graphView.BuildNode(beginFoo);
         foo.Graph.AddNode(beginFoo);
-        m_script.functions.push_back(foo);
 
-        //auto& io = ImGui::GetIO();
+        m_script.functions.push_back(foo);
     }
 
     void OnStop() override
@@ -263,7 +258,7 @@ struct Example:
         releaseTexture(m_HeaderBackground);
     }
 
-    void ChangeGraph(Graph& graph)
+    void ChangeGraph(ScriptFunction& scriptFunction)
     {
         // Save current graph
         for (auto& node : m_graphView.m_pGraph->GetNodes())
@@ -271,10 +266,10 @@ struct Example:
             node->SavedState = node->State;
         }
 
-        m_graphView.SetGraph(&graph);
+        m_graphView.SetGraph(&m_script, &scriptFunction, &scriptFunction.Graph);
 
         // Load new graph
-        for (auto& node : graph.GetNodes())
+        for (auto& node : scriptFunction.Graph.GetNodes())
         {
             node->State = node->SavedState;
             ed::RestoreNodeState(node->ID);
@@ -689,7 +684,7 @@ struct Example:
 
 
             // Test to see how text instructions compile
-            //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2();");
+            const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2(); print 5;");
             vm.resetStack();
 
             // Compile code
@@ -1059,7 +1054,7 @@ struct Example:
                     {
                         if (ImGui::Button(scriptFunction.functionDef->name.c_str()))
                         {
-                            ChangeGraph(scriptFunction.Graph);
+                            ChangeGraph(scriptFunction);
                         }
                         /*if (ImGui::TreeNode(scriptFunction.Name.c_str()))
                         {
@@ -1081,7 +1076,7 @@ struct Example:
 
                     if (ImGui::Button(m_script.main.functionDef->name.c_str()))
                     {
-                        ChangeGraph(m_script.main.Graph);
+                        ChangeGraph(m_script.main);
                     }
 
                     ImGui::TreePop();

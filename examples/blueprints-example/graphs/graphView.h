@@ -11,6 +11,8 @@
 #include "../utilities/widgets.h"
 #include "../utilities/drawing.h"
 
+#include "../script/function.h"
+
 #include <imgui_internal.h>
 #include <imgui_node_editor.h>
 
@@ -55,8 +57,7 @@ struct GraphView
 
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
-    void SetGraph(Graph* pTargetGraph);
-    void SetScript(Script* pTargetScript);
+    void SetGraph(Script* pTargetScript, ScriptFunction* pScriptFunction, Graph* pTargetGraph);
 
     void Destroy();
 
@@ -67,6 +68,7 @@ struct GraphView
 
     ed::EditorContext* m_Editor = nullptr;
     Graph* m_pGraph = nullptr;
+    ScriptFunction* m_pScriptFunction = nullptr;
     Script* m_pScript = nullptr;
 
     // Drawing

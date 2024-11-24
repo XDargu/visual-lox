@@ -6,6 +6,7 @@
 #include "../../graphs/idgeneration.h"
 
 #include "../../graphs/graphCompiler.h"
+#include "../../script/function.h"
 
 #include <Compiler.h>
 #include <Vm.h>
@@ -25,10 +26,17 @@ struct BeginNode : public Node
     }
 };
 
-static NodePtr BuildBeginNode(IDGenerator& IDGenerator)
+static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunction& function)
 {
     NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin");
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+
+    for (int i = 0; i < function.functionDef->inputs.size(); ++i)
+    {
+        const BasicFunctionDef::Input& input = function.functionDef->inputs[i];
+        node->Outputs.emplace_back(IDGenerator.GetNextId(),input.name.c_str(), TypeOfValue(input.value));
+    }
+
     return node;
 }
 
@@ -217,13 +225,19 @@ struct ReturnNode : public Node
     }
 };
 
-static NodePtr BuildReturnNode(IDGenerator& IDGenerator)
+static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& function)
 {
     NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return");
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Ret", PinType::Any);
     node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(2.0));
+
+    for (int i = 0; i < function.functionDef->outputs.size(); ++i)
+    {
+        const BasicFunctionDef::Input& output = function.functionDef->outputs[i];
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+        node->InputValues.emplace_back(output.value);
+    }
+
     return node;
 }

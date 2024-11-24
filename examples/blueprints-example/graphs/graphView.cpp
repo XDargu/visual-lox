@@ -127,9 +127,11 @@ void GraphView::setNodeRegistry(NodeRegistry& nodeRegistry)
     m_pNodeRegistry = &nodeRegistry;
 }
 
-void GraphView::SetGraph(Graph* pTargetGraph)
+void GraphView::SetGraph(Script* pTargetScript, ScriptFunction* pScriptFunction, Graph* pTargetGraph)
 {
     m_pGraph = pTargetGraph;
+    m_pScript = pTargetScript;
+    m_pScriptFunction = pScriptFunction;
 
     ed::Config config;
 
@@ -178,11 +180,6 @@ void GraphView::SetGraph(Graph* pTargetGraph)
     }
 
     ed::NavigateToContent();
-}
-
-void GraphView::SetScript(Script* pTargetScript)
-{
-    m_pScript = pTargetScript;
 }
 
 void GraphView::Destroy()
@@ -860,7 +857,7 @@ void GraphView::DrawContextMenu()
                             child.fullName = fullFuncName;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildReturnNode(IDGenerator);
+                                return BuildReturnNode(IDGenerator, *m_pScriptFunction);
                             };
                         }
 

@@ -168,16 +168,14 @@ void GraphView::SetGraph(Graph* pTargetGraph)
     m_Editor = ed::CreateEditor(&config);
     ed::SetCurrentEditor(m_Editor);
 
-    // TODO: This should not be done in the graphView
-    /*NodePtr begin = m_pGraph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-    if (begin)
+    // We should add the nodes here in a better wya
+    // TODO: Improve this. This calls IMGUI!
+    // I might need to manually expose this
+    for (auto& node : m_pGraph->GetNodes())
     {
-        // TODO: Update begin inputs
+        ed::BeginNode(node->ID);
+        ed::EndNode();
     }
-    else
-    {
-        SpawnNode(BuildBeginNode(*m_pIDGenerator));
-    }*/
 
     ed::NavigateToContent();
 }

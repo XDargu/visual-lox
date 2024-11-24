@@ -263,6 +263,26 @@ struct Example:
         releaseTexture(m_HeaderBackground);
     }
 
+    void ChangeGraph(Graph& graph)
+    {
+        // Save current graph
+        for (auto& node : m_graphView.m_pGraph->GetNodes())
+        {
+            node->SavedState = node->State;
+        }
+
+        m_graphView.SetGraph(&graph);
+
+        // Load new graph
+        for (auto& node : graph.GetNodes())
+        {
+            node->State = node->SavedState;
+            ed::RestoreNodeState(node->ID);
+            node->SavedState.clear();
+        }
+
+    }
+
     void ShowStyleEditor(bool* show = nullptr)
     {
         if (!ImGui::Begin("Style", show))
@@ -1039,7 +1059,7 @@ struct Example:
                     {
                         if (ImGui::Button(scriptFunction.functionDef->name.c_str()))
                         {
-                            m_graphView.SetGraph(&scriptFunction.Graph);
+                            ChangeGraph(scriptFunction.Graph);
                         }
                         /*if (ImGui::TreeNode(scriptFunction.Name.c_str()))
                         {
@@ -1061,7 +1081,7 @@ struct Example:
 
                     if (ImGui::Button(m_script.main.functionDef->name.c_str()))
                     {
-                        m_graphView.SetGraph(&m_script.main.Graph);
+                        ChangeGraph(m_script.main.Graph);
                     }
 
                     ImGui::TreePop();

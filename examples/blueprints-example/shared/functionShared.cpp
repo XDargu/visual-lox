@@ -76,6 +76,10 @@ struct FunctionNode : public Node
             const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
             GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[dataOutputIdx]);
         }
+        else
+        {
+            compiler.emitByte(OpByte(OpCode::OP_POP));
+        }
     }
 
     virtual void AddInput(IDGenerator& IDGenerator) override

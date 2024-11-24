@@ -673,12 +673,12 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
-            if (!Utils::FilterString(Utils::to_lower(def->name), searchFilterLower))
+            if (!Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower))
                 continue;
 
             Data* current = &root;
             int depth = 1;
-            const std::vector<std::string> tokens = Utils::split(def->name, "::");
+            const std::vector<std::string> tokens = Utils::split(def.functionDef->name, "::");
 
             for (const std::string& token : tokens)
             {
@@ -691,8 +691,8 @@ void GraphView::DrawContextMenu()
                 if (token == tokens.back())
                 {
                     // Last element!
-                    child.fullName = def->name;
-                    child.creationFun = [=](IDGenerator& idGenerator) { return def->MakeNode(idGenerator); };
+                    child.fullName = def.functionDef->name;
+                    child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator); };
                 }
 
                 current = &child;

@@ -20,6 +20,8 @@ add_example_executable(blueprints-example
     graphs/graphCompiler.cpp
     graphs/nodeRegistry.h
     graphs/nodeRegistry.cpp
+    shared/functionShared.h
+    shared/functionShared.cpp
     graphs/idgeneration.h
     native/nodes/begin.h
     native/nodes/begin.cpp

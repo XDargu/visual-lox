@@ -3,6 +3,7 @@
 
 #include "node.h"
 #include "idgeneration.h"
+#include "../shared/functionShared.h"
 
 #include <Object.h>
 #include <Vm.h>
@@ -21,47 +22,22 @@ struct CompiledNodeDef : public std::enable_shared_from_this<CompiledNodeDef>
 
 using CompiledNodeDefPtr = std::shared_ptr< CompiledNodeDef>;
 
-
-struct NativeFunctionDef : public std::enable_shared_from_this<NativeFunctionDef>
+struct NativeFunctionDef
 {
-    struct Input
-    {
-        std::string name;
-        Value value;
-    };
-
-    struct DynamicInputProps
-    {
-        int minInputs = 1;
-        int maxInputs = 16;
-        PinType type = PinType::Any;
-        Value defaultValue;
-    };
-
-    std::vector<Input> inputs;
-    std::vector<Input> outputs;
-
-    NodeFlags flags;
-
-    DynamicInputProps dynamicInputProps;
-
-    std::string name;
-    NativeFn function;
-
-    NodePtr MakeNode(IDGenerator& IDGenerator);
+    BasicFunctionDefPtr functionDef;
+    NativeFn nativeFun;
 };
-
-using NativeFunctionDefPtr = std::shared_ptr< NativeFunctionDef>;
 
 class NodeRegistry
 {
 public:
     void RegisterDefinitions();
-    void RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& inputs, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags);
-    void RegisterNativeFunc(const char* name, std::vector<NativeFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, NativeFunctionDef::DynamicInputProps&& dynamicProps);
+    void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags);
+    void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps);
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc);
 
-    std::vector<NativeFunctionDefPtr> nativeDefinitions;
+    std::vector<NativeFunctionDef> nativeDefinitions;
+    std::vector<BasicFunctionDefPtr> scriptDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
 };

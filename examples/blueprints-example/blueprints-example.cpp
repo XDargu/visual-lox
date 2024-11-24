@@ -158,14 +158,14 @@ struct Example:
         VM& vm = VM::getInstance();
         vm.setExternalMarkingFunc([&]()
         {
-            for (NativeFunctionDefPtr& def : m_NodeRegistry.nativeDefinitions)
+            for (NativeFunctionDef& def : m_NodeRegistry.nativeDefinitions)
             {
-                for (auto& input : def->inputs)
+                for (auto& input : def.functionDef->inputs)
                 {
                     vm.markValue(input.value);
                 }
 
-                for (auto& input : def->outputs)
+                for (auto& input : def.functionDef->outputs)
                 {
                     vm.markValue(input.value);
                 }

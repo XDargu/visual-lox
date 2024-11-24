@@ -233,6 +233,8 @@ struct Example:
         foo.functionDef->inputs.push_back({ "Value", Value() });
         foo.functionDef->name = "Foo";
 
+        foo.functionDef->outputs.push_back({ "Ret", Value(2.0) });
+
 
         NodePtr beginFoo = BuildBeginNode(m_IDGenerator);
         beginFoo->Outputs.emplace_back(m_IDGenerator.GetNextId(), "Value", PinType::Any);

@@ -204,3 +204,40 @@ static NodePtr CreateAppendNode(IDGenerator& IDGenerator)
     node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }
+
+
+
+struct ReturnNode : public Node
+{
+    ReturnNode(int id, const char* name)
+        : Node(id, name, ImColor(255, 255, 255))
+    {
+        Category = NodeCategory::Begin;
+    }
+
+    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
+    {
+        Compiler& compiler = compilerCtx.compiler;
+
+        switch (stage)
+        {
+        case CompilationStage::BeginInputs:
+        {
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            compiler.emitByte(OpByte(OpCode::OP_RETURN));
+        }
+        break;
+        }
+    }
+};
+
+static NodePtr BuildReturnNode(IDGenerator& IDGenerator)
+{
+    NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return");
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Ret", PinType::Any);
+    node->InputValues.emplace_back(Value());
+    node->InputValues.emplace_back(Value(2.0));
+    return node;
+}

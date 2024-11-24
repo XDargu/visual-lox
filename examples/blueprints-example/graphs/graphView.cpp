@@ -837,6 +837,42 @@ void GraphView::DrawContextMenu()
             }
         }
 
+        // TODO: Only show return if we can return!
+        {
+            {
+                const std::string fullFuncName = "Flow::Return";
+
+                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
+                {
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(fullFuncName, "::");
+
+                    for (const std::string& token : tokens)
+                    {
+                        Data& child = current->children[token];
+
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = fullFuncName;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                return BuildReturnNode(IDGenerator);
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
+                }
+            }
+        }
+
         NodePtr node = nullptr;
         auto newNodePostion = openPopupPosition;
 

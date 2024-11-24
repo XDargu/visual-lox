@@ -118,7 +118,7 @@ enum class NodeCategory
 {
     Begin,
     Function,
-    Branch,
+    Flow,
     Variable
 };
 

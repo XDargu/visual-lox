@@ -17,7 +17,7 @@ struct ForInNode : public Node
     ForInNode(int id, const char* name)
         : Node(id, name, ImColor(255, 255, 255))
     {
-        Category = NodeCategory::Branch;
+        Category = NodeCategory::Flow;
     }
 
     // TODO: Come up with a better way of doing this!

@@ -17,7 +17,7 @@ struct BranchNode : public Node
     BranchNode(int id, const char* name)
         : Node(id, name, ImColor(255, 255, 255))
     {
-        Category = NodeCategory::Branch;
+        Category = NodeCategory::Flow;
     }
 
     static constexpr int TruePort = 0;

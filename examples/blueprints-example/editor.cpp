@@ -167,18 +167,24 @@ void Example::OnStart()
 
     m_NodeRegistry.RegisterDefinitions();
 
+    // Script ID
+    m_script.Id = m_IDGenerator.GetNextId();
+
     // Start tree view
     m_scriptTreeView.label = "Script";
     m_scriptTreeView.isOpen = true;
     m_scriptTreeView.icon = m_ScriptIcon;
+    m_scriptTreeView.id = m_script.Id;
 
     // Add begin to main function
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
     m_graphView.BuildNode(beginMain);
+    m_script.main.Id = m_IDGenerator.GetNextId();
     m_script.main.Graph.AddNode(beginMain);
 
     // Add main function to tree view
     TreeNode mainNode;
+    mainNode.id = m_script.main.Id;
     mainNode.label = "Main";
     mainNode.icon = m_FunctionIcon;
     mainNode.onclick = [&]() { ChangeGraph(m_script.main); };
@@ -200,12 +206,15 @@ void Example::OnStart()
     // Test variables
     auto AddVariable = [&](const char* name, Value defaultValue)
     {
+        const int varId = m_IDGenerator.GetNextId();
+
         TreeNode varNode;
         varNode.label = name;
         varNode.icon = m_VariableIcon;
+        varNode.id = varId;
         m_scriptTreeView.children.push_back(varNode);
 
-        m_script.variables.push_back({ name, defaultValue });
+        m_script.variables.push_back({ varId, name, defaultValue });
     };
 
     AddVariable("MyVar", Value(takeString("Hello World", 11)));
@@ -214,15 +223,18 @@ void Example::OnStart()
     // Test functions
     auto AddFunction = [this](const char* name)
     {
+        const int funId = m_IDGenerator.GetNextId();
+
         std::string namestr = name;
         TreeNode funcNode;
+        funcNode.id = funId;
         funcNode.icon = m_FunctionIcon;
         funcNode.label = name;
-        funcNode.onclick = [&, namestr]()
+        funcNode.onclick = [&, funId]()
         {
             for (auto& func : m_script.functions)
             {
-                if (func.functionDef->name == namestr)
+                if (func.Id == funId)
                 {
                     ChangeGraph(func);
                     return;
@@ -233,6 +245,7 @@ void Example::OnStart()
         m_scriptTreeView.children.push_back(funcNode);
 
         ScriptFunction foo;
+        foo.Id = funId;
         foo.functionDef->name = "Foo";
 
         NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);

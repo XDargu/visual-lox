@@ -17,6 +17,8 @@ struct ScriptFunction
         functionDef = std::make_shared<BasicFunctionDef>();
     }
 
+    int Id = -1;
+
     BasicFunctionDefPtr functionDef;
     Graph Graph;
     std::vector<ScriptProperty> variables;

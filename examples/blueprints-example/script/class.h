@@ -9,6 +9,8 @@
 
 struct ScriptClass
 {
+    int Id = -1;
+
     std::string Name;
 
     std::vector<ScriptProperty> properties;

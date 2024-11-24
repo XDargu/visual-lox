@@ -14,6 +14,8 @@ struct Script
     {
         main.functionDef->name = "Main";
     }
+    
+    int Id = -1;
 
     std::vector<ScriptClass> classes;
     std::vector<ScriptProperty> variables;

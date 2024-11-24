@@ -73,6 +73,7 @@ using MultiplyNode = BinaryOpNode<OpCode::OP_MULTIPLY>;
 using DivideNode = BinaryOpNode<OpCode::OP_DIVIDE>;
 using GreaterNode = BinaryOpNode<OpCode::OP_GREATER>;
 using LessNode = BinaryOpNode<OpCode::OP_LESS>;
+using EqualsNode = BinaryOpNode<OpCode::OP_EQUAL>;
 using ModuloNode = BinaryOpNode<OpCode::OP_MODULO>;
 
 static NodePtr CreateAddNode(IDGenerator& IDGenerator) { return CreateBinaryNode<AddNode>(IDGenerator, "+", "", "", ""); }
@@ -81,4 +82,5 @@ static NodePtr CreateMultiplyNode(IDGenerator& IDGenerator) { return CreateBinar
 static NodePtr CreateDivideNode(IDGenerator& IDGenerator) { return CreateBinaryNode<DivideNode>(IDGenerator, "/", "", "", ""); }
 static NodePtr CreateGreaterNode(IDGenerator& IDGenerator) { return CreateBinaryNode<GreaterNode>(IDGenerator, ">", "", "", "", PinType::Bool); }
 static NodePtr CreateLessNode(IDGenerator& IDGenerator) { return CreateBinaryNode<LessNode>(IDGenerator, "<", "", "", "", PinType::Bool); }
+static NodePtr CreateEqualsNode(IDGenerator& IDGenerator) { return CreateBinaryNode<EqualsNode>(IDGenerator, "=", "", "", "", PinType::Bool); }
 static NodePtr CreateModuloNode(IDGenerator& IDGenerator) { return CreateBinaryNode<ModuloNode>(IDGenerator, "Mod", "Dividend", "Modulus", "Remainder"); }

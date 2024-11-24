@@ -213,6 +213,7 @@ struct Example:
         m_NodeRegistry.RegisterCompiledNode("Math::Divide", &CreateDivideNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode);
+        m_NodeRegistry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode);
         m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode);
         m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode);
         m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode);

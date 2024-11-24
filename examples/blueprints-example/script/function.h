@@ -1,6 +1,7 @@
 # pragma once
 
 #include "property.h"
+#include "../shared/functionShared.h"
 
 #include <Value.h>
 
@@ -10,18 +11,12 @@
 
 struct ScriptFunction
 {
-    struct Input
+    ScriptFunction()
     {
-        std::string name;
-        Value value;
-    };
+        functionDef = std::make_shared<BasicFunctionDef>();
+    }
 
-    std::string Name;
-
+    BasicFunctionDefPtr functionDef;
     Graph Graph;
-
-    std::vector<Input> Inputs;
-    std::vector<Input> Outputs;
-
     std::vector<ScriptProperty> variables;
 };

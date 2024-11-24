@@ -131,12 +131,12 @@ struct Example:
         {
             VM& vm = VM::getInstance();
 
-            for (auto& input : scriptFunction.Inputs)
+            for (auto& input : scriptFunction.functionDef->inputs)
             {
                 vm.markValue(input.value);
             }
 
-            for (auto& output : scriptFunction.Outputs)
+            for (auto& output : scriptFunction.functionDef->outputs)
             {
                 vm.markValue(output.value);
             }
@@ -230,8 +230,8 @@ struct Example:
 
         // Add test script functions
         ScriptFunction foo;
-        foo.Inputs.push_back({ "Value", Value() });
-        foo.Name = "Foo";
+        foo.functionDef->inputs.push_back({ "Value", Value() });
+        foo.functionDef->name = "Foo";
 
 
         NodePtr beginFoo = BuildBeginNode(m_IDGenerator);
@@ -699,7 +699,7 @@ struct Example:
 
                     // A bit of a hack
                     // TODO: Perhaps expose this better
-                    Token funcToken(TokenType::IDENTIFIER, scriptFunction.Name.c_str(), scriptFunction.Name.length(), 0);
+                    Token funcToken(TokenType::IDENTIFIER, scriptFunction.functionDef->name.c_str(), scriptFunction.functionDef->name.length(), 0);
                     const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
                     compiler.markInitialized();
 
@@ -708,7 +708,7 @@ struct Example:
 
                     compiler.beginScope();
 
-                    for (auto& input : scriptFunction.Inputs)
+                    for (auto& input : scriptFunction.functionDef->inputs)
                     {
                         const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
 
@@ -1017,7 +1017,7 @@ struct Example:
                         {
                             for (ScriptFunction& scriptFunction : scriptClass.methods)
                             {
-                                if (ImGui::TreeNode(scriptFunction.Name.c_str()))
+                                if (ImGui::TreeNode(scriptFunction.functionDef->name.c_str()))
                                 {
                                     ImGui::TreePop();
                                 }
@@ -1034,7 +1034,7 @@ struct Example:
 
                     for (ScriptFunction& scriptFunction : m_script.functions)
                     {
-                        if (ImGui::Button(scriptFunction.Name.c_str()))
+                        if (ImGui::Button(scriptFunction.functionDef->name.c_str()))
                         {
                             m_graphView.SetGraph(&scriptFunction.Graph);
                         }
@@ -1056,7 +1056,7 @@ struct Example:
                         ImGui::PopID();
                     }
 
-                    if (ImGui::Button(m_script.main.Name.c_str()))
+                    if (ImGui::Button(m_script.main.functionDef->name.c_str()))
                     {
                         m_graphView.SetGraph(&m_script.main.Graph);
                     }

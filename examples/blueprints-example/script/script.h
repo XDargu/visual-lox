@@ -12,7 +12,7 @@ struct Script
 {
     Script()
     {
-        main.Name = "Main";
+        main.functionDef->name = "Main";
     }
 
     std::vector<ScriptClass> classes;

@@ -804,7 +804,7 @@ void GraphView::DrawContextMenu()
         {
             // Call
             {
-                const std::string fullFuncName = "Functions::" + def.Name;
+                const std::string fullFuncName = "Functions::" + def.functionDef->name;
 
                 if (!Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
                     continue;

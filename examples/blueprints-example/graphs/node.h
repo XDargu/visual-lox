@@ -159,6 +159,9 @@ struct Node
     std::string State;
     std::string SavedState;
 
+    // Reference to: functionId, variableId
+    int refId = -1;
+
     Node(int id, const char* name, ImColor color = ImColor(255, 255, 255)) :
         ID(id), Name(name), Color(color), Size(0, 0)
     {
@@ -166,11 +169,16 @@ struct Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
 
+    virtual void Refresh(IDGenerator& IDGenerator) {}
+
     // Dynamic node operations
     virtual void AddInput(IDGenerator& IDGenerator) {};
     virtual void RemoveInput(ed::PinId pinId) {};
     virtual bool CanRemoveInput(ed::PinId pinId) const { return false; };
     virtual bool CanAddInput() const { return false; };
+
+    Pin* FindOutputByName(const std::string& name);
+    Pin* FindInputByName(const std::string& name);
 };
 
 using NodePtr = std::shared_ptr<Node>;

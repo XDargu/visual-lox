@@ -38,6 +38,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     {
         std::string name;
         Value value;
+        int id = -1;
     };
 
     struct DynamicInputProps
@@ -58,6 +59,9 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     std::string name;
 
     NodePtr MakeNode(IDGenerator& IDGenerator);
+
+    Input* FindOutputByName(const std::string& name);
+    Input* FindInputByName(const std::string& name);
 };
 
 using BasicFunctionDefPtr = std::shared_ptr< BasicFunctionDef>;

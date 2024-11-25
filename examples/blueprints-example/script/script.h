@@ -49,4 +49,30 @@ namespace ScriptUtils
 
         return nullptr;
     }
+
+    static std::vector<NodePtr> FindFunctionReferences(Script& script, int funId)
+    {
+        std::vector<NodePtr> nodeRefs;
+
+        for (auto& function : script.functions)
+        {
+            for (auto& node : function.Graph.GetNodes())
+            {
+                if (node->refId == funId)
+                {
+                    nodeRefs.push_back(node);
+                }
+            }
+        }
+
+        for (auto& node : script.main.Graph.GetNodes())
+        {
+            if (node->refId == funId)
+            {
+                nodeRefs.push_back(node);
+            }
+        }
+
+        return nodeRefs;
+    }
 }

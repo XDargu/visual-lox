@@ -16,8 +16,7 @@ namespace Editor
         {
             node.isOpen = !node.isOpen; // Toggle node open/close
         }
-        ImGui::PopID();
-
+        
         // Render the selectable label
         ImGui::SameLine();
         ImGui::Image(node.icon, ImVec2(24, 24));
@@ -30,6 +29,8 @@ namespace Editor
         }
         if (node.contextMenu)
             node.contextMenu();
+
+        ImGui::PopID();
 
         // Render children if node is expanded
         if (node.isOpen && !node.children.empty())

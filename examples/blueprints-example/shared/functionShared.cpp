@@ -8,6 +8,9 @@
 #include "../graphs/idgeneration.h"
 #include "../graphs/graphCompiler.h"
 
+#include "../utilities/utils.h"
+
+
 #include <Compiler.h>
 
 
@@ -82,6 +85,67 @@ struct FunctionNode : public Node
         }
     }
 
+    virtual void Refresh(IDGenerator& IDGenerator) override
+    {
+        // Add missing inputs
+        int startingInput = HasFlag(Flags, NodeFlags::ReadOnly) ? 0 : 1;
+
+        for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
+        {
+            const BasicFunctionDef::Input& input = pFunctionDef->inputs[i];
+
+            if (Pin* existingInput = FindInputByName(input.name))
+            {
+                existingInput->Type = TypeOfValue(input.value);
+                auto it = InputValues.begin() + startingInput + i;
+            }
+            else
+            {
+                Inputs.insert(Inputs.begin() + startingInput + i, { IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value) });
+            }
+        }
+
+        // Remove inputs that are no longer there
+        stl::erase_if(Inputs, [&](const Pin& input)
+        {
+            return input.Type != PinType::Flow && pFunctionDef->FindInputByName(input.Name) == nullptr;
+        });
+
+        // Redo input values
+        InputValues.resize(pFunctionDef->inputs.size() + startingInput);
+
+        if (startingInput == 1)
+            InputValues[0] = Value(); // Flow node
+
+        for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
+        {
+            InputValues[i + startingInput] = pFunctionDef->inputs[i].value;
+        }
+
+        // Add missing outputs
+        int startingOutput = HasFlag(Flags, NodeFlags::ReadOnly) ? 0 : 1;
+
+        for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
+        {
+            const BasicFunctionDef::Input& output = pFunctionDef->outputs[i];
+
+            if (Pin* existingOutput = FindOutputByName(output.name))
+            {
+                existingOutput->Type = TypeOfValue(output.value);
+            }
+            else
+            {
+                Outputs.insert(Outputs.begin() + startingOutput + i, { IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value) });
+            }
+        }
+
+        // Remove outputs that are no longer there
+        stl::erase_if(Outputs, [&](const Pin& output)
+        {
+            return output.Type != PinType::Flow && pFunctionDef->FindOutputByName(output.Name) == nullptr;
+        });
+    }
+
     virtual void AddInput(IDGenerator& IDGenerator) override
     {
         Inputs.emplace_back(IDGenerator.GetNextId(), GetInputName(Inputs.size()).c_str(), pFunctionDef->dynamicInputProps.type);
@@ -142,4 +206,30 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator)
     node->Flags = flags;
 
     return node;
+}
+
+BasicFunctionDef::Input* BasicFunctionDef::FindOutputByName(const std::string& name)
+{
+    for (Input& input : inputs)
+    {
+        if (input.name == name)
+        {
+            return &input;
+        }
+    }
+
+    return nullptr;
+}
+
+BasicFunctionDef::Input* BasicFunctionDef::FindInputByName(const std::string& name)
+{
+    for (Input& input : inputs)
+    {
+        if (input.name == name)
+        {
+            return &input;
+        }
+    }
+
+    return nullptr;
 }

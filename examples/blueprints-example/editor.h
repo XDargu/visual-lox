@@ -82,6 +82,18 @@ struct AddVariableAction : public IAction
     int m_id;
 };
 
+struct AddFunctionInputAction : public IAction
+{
+    AddFunctionInputAction(Example* pEditor, int funId, int inputId);
+
+    virtual void Run() override;
+    virtual void Revert() override;
+
+    Example* m_pEditor;
+    int m_funId;
+    int m_inputId;
+};
+
 struct Example :
     public Application
 {
@@ -113,6 +125,8 @@ struct Example :
     void AddFunction(int id);
     void AddVariable(int id);
 
+    void AddFunctionInput(int funId, int inputId);
+
     void RemoveFunction(int id);
     void RemoveVariable(int id);
 
@@ -133,6 +147,7 @@ struct Example :
     ImTextureID          m_ClassIcon = nullptr;
     ImTextureID          m_FunctionIcon = nullptr;
     ImTextureID          m_VariableIcon = nullptr;
+    ImTextureID          m_InputIcon = nullptr;
 
     IDGenerator          m_IDGenerator;
     NodeRegistry         m_NodeRegistry;

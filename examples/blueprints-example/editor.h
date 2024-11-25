@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <utility>
 #include <sstream>
+#include <memory>
 
 namespace ed = ax::NodeEditor;
 namespace util = ax::NodeEditor::Utilities;
@@ -47,6 +48,39 @@ static ed::EditorContext* m_Editor = nullptr;
 
 namespace Editor
 {
+
+struct Example;
+struct IAction
+{
+    virtual ~IAction() {}
+
+    virtual void Run() = 0;
+    virtual void Revert() = 0;
+};
+
+using IActionPtr = std::shared_ptr<IAction>;
+
+struct AddFunctionAction : public IAction
+{
+    AddFunctionAction(Example* pEditor, int id);
+
+    virtual void Run() override;
+    virtual void Revert() override;
+
+    Example* m_pEditor;
+    int m_id;
+};
+
+struct AddVariableAction : public IAction
+{
+    AddVariableAction(Example* pEditor, int id);
+
+    virtual void Run() override;
+    virtual void Revert() override;
+
+    Example* m_pEditor;
+    int m_id;
+};
 
 struct Example :
     public Application
@@ -76,7 +110,15 @@ struct Example :
 
     void OnFrame(float deltaTime) override;
 
-    void AddFunction();
+    void AddFunction(int id);
+    void AddVariable(int id);
+
+    void RemoveFunction(int id);
+    void RemoveVariable(int id);
+
+    void DoAction(IActionPtr action);
+    void UndoLastAction();
+    void RedoLastAction();
 
     Script               m_script;
     GraphView            m_graphView;
@@ -103,6 +145,11 @@ struct Example :
     bool m_isRealTimeCompilationEnabled = true;
     std::vector<Value>   m_constFoldingValues;
     std::vector<ed::NodeId>   m_constFoldingIDs;
+
+    std::vector<IActionPtr> pendingActions;
+
+    std::vector<IActionPtr> actionStack;
+    int undoDepth = 0;
 };
 
 }

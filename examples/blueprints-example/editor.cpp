@@ -4,6 +4,38 @@
 namespace Editor
 {
 
+    AddFunctionAction::AddFunctionAction(Example* pEditor, int id)
+    {
+        m_pEditor = pEditor;
+        m_id = id;
+    }
+
+    void AddFunctionAction::Run()
+    {
+        m_pEditor->AddFunction(m_id);
+    }
+
+    void AddFunctionAction::Revert()
+    {
+        m_pEditor->RemoveFunction(m_id);
+    }
+
+    AddVariableAction::AddVariableAction(Example* pEditor, int id)
+    {
+        m_pEditor = pEditor;
+        m_id = id;
+    }
+
+    void AddVariableAction::Run()
+    {
+        m_pEditor->AddVariable(m_id);
+    }
+
+    void AddVariableAction::Revert()
+    {
+        m_pEditor->RemoveVariable(m_id);
+    }
+
 static bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
 {
     using namespace ImGui;
@@ -167,6 +199,63 @@ void Example::OnStart()
 
     m_NodeRegistry.RegisterDefinitions();
 
+    auto AddVariable = [&](const char* name, Value defaultValue)
+    {
+        const int varId = m_IDGenerator.GetNextId();
+
+        TreeNode varNode;
+        varNode.label = name;
+        varNode.icon = m_VariableIcon;
+        varNode.id = varId;
+        m_scriptTreeView.children.push_back(varNode);
+
+        m_script.variables.push_back({ varId, name, defaultValue });
+    };
+
+    auto AddFunction = [this](const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs)
+    {
+        const int funId = m_IDGenerator.GetNextId();
+
+        std::string namestr = name;
+        TreeNode funcNode;
+        funcNode.id = funId;
+        funcNode.icon = m_FunctionIcon;
+        funcNode.label = name;
+        funcNode.onclick = [&, funId]()
+        {
+            for (auto& func : m_script.functions)
+            {
+                if (func.Id == funId)
+                {
+                    ChangeGraph(func);
+                    return;
+                }
+            }
+
+        };
+        m_scriptTreeView.children.push_back(funcNode);
+
+        ScriptFunction foo;
+        foo.Id = funId;
+        foo.functionDef->name = "Foo";
+
+        for (BasicFunctionDef::Input& input : inputs)
+        {
+            foo.functionDef->inputs.push_back(input);
+        }
+
+        for (BasicFunctionDef::Input& output : outputs)
+        {
+            foo.functionDef->outputs.push_back(output);
+        }
+
+        NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
+        m_graphView.BuildNode(beginFoo);
+        foo.Graph.AddNode(beginFoo);
+
+        m_script.functions.push_back(foo);
+    };
+
     // Script ID
     m_script.Id = m_IDGenerator.GetNextId();
 
@@ -175,6 +264,22 @@ void Example::OnStart()
     m_scriptTreeView.isOpen = true;
     m_scriptTreeView.icon = m_ScriptIcon;
     m_scriptTreeView.id = m_script.Id;
+    m_scriptTreeView.contextMenu = [&]()
+    {
+        if (ImGui::BeginPopupContextItem("SelectablePopup"))
+        {
+            // Menu options
+            if (ImGui::MenuItem("Add Function"))
+            {
+                pendingActions.push_back(std::make_shared<AddFunctionAction>(this, m_IDGenerator.GetNextId()));
+            }
+            if (ImGui::MenuItem("Add Variable"))
+            {
+                pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
+            }
+            ImGui::EndPopup();
+        }
+    };
 
     // Add begin to main function
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
@@ -204,58 +309,12 @@ void Example::OnStart()
     m_script.functions.push_back(foo);*/
 
     // Test variables
-    auto AddVariable = [&](const char* name, Value defaultValue)
-    {
-        const int varId = m_IDGenerator.GetNextId();
-
-        TreeNode varNode;
-        varNode.label = name;
-        varNode.icon = m_VariableIcon;
-        varNode.id = varId;
-        m_scriptTreeView.children.push_back(varNode);
-
-        m_script.variables.push_back({ varId, name, defaultValue });
-    };
 
     AddVariable("MyVar", Value(takeString("Hello World", 11)));
     AddVariable("Amount", Value(11.0));
 
     // Test functions
-    auto AddFunction = [this](const char* name)
-    {
-        const int funId = m_IDGenerator.GetNextId();
-
-        std::string namestr = name;
-        TreeNode funcNode;
-        funcNode.id = funId;
-        funcNode.icon = m_FunctionIcon;
-        funcNode.label = name;
-        funcNode.onclick = [&, funId]()
-        {
-            for (auto& func : m_script.functions)
-            {
-                if (func.Id == funId)
-                {
-                    ChangeGraph(func);
-                    return;
-                }
-            }
-
-        };
-        m_scriptTreeView.children.push_back(funcNode);
-
-        ScriptFunction foo;
-        foo.Id = funId;
-        foo.functionDef->name = "Foo";
-
-        NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-        m_graphView.BuildNode(beginFoo);
-        foo.Graph.AddNode(beginFoo);
-
-        m_script.functions.push_back(foo);
-    };
-
-    AddFunction("Foo");
+    AddFunction("Foo", { { "Value", Value() } }, { { "Value", Value() } });
 }
 
 void Example::OnStop()
@@ -716,7 +775,7 @@ void Example::ShowCompilerInfo(float paneWidth)
 
 
         // Test to see how text instructions compile
-        const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2(); print 5;");
+        //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2(); print 5;");
         vm.resetStack();
 
         // Compile code
@@ -1016,6 +1075,15 @@ void Example::ShowLeftPane(float paneWidth)
 
 void Example::OnFrame(float deltaTime)
 {
+    // Pending actions
+    for (auto& action : pendingActions)
+    {
+        action->Run();
+        DoAction(action);
+    }
+
+    pendingActions.clear();
+
     m_graphView.OnFrame(deltaTime);
 
     VM& vm = VM::getInstance();
@@ -1027,6 +1095,17 @@ void Example::OnFrame(float deltaTime)
     auto& io = ImGui::GetIO();
 
     ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Undo"))
+    {
+        UndoLastAction();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Redo"))
+    {
+        RedoLastAction();
+    }
 
     //auto& style = ImGui::GetStyle();
 
@@ -1094,6 +1173,106 @@ void Example::OnFrame(float deltaTime)
 
     //ImGui::ShowTestWindow();
     //ImGui::ShowMetricsWindow();
+}
+
+void Example::AddFunction(int funId)
+{
+    std::string namestr = "Func";
+
+    TreeNode funcNode;
+    funcNode.id = funId;
+    funcNode.icon = m_FunctionIcon;
+    funcNode.label = namestr;
+    funcNode.onclick = [&, funId]()
+    {
+        for (auto& func : m_script.functions)
+        {
+            if (func.Id == funId)
+            {
+                ChangeGraph(func);
+                return;
+            }
+        }
+
+    };
+    m_scriptTreeView.children.push_back(funcNode);
+
+    ScriptFunction foo;
+    foo.Id = funId;
+    foo.functionDef->name = namestr;
+
+    NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
+    m_graphView.BuildNode(beginFoo);
+    foo.Graph.AddNode(beginFoo);
+
+    m_script.functions.push_back(foo);
+}
+
+void Example::AddVariable(int varId)
+{
+    TreeNode varNode;
+    varNode.label = "Variable";
+    varNode.icon = m_VariableIcon;
+    varNode.id = varId;
+    m_scriptTreeView.children.push_back(varNode);
+
+    m_script.variables.push_back({ varId, varNode.label, Value() });
+}
+
+void Example::RemoveFunction(int id)
+{
+    m_script.variables.erase(std::remove_if(
+        m_script.variables.begin(), m_script.variables.end(),
+        [id](const ScriptProperty& variable) { return variable.Id == id; }),
+        m_script.variables.end()
+    );
+
+    // Update tree view
+    m_scriptTreeView.children.erase(std::remove_if(
+        m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(),
+        [id](const TreeNode& node) { return node.id == id; }),
+        m_scriptTreeView.children.end()
+    );
+}
+
+void Example::RemoveVariable(int id)
+{
+    m_script.functions.erase(std::remove_if(
+        m_script.functions.begin(), m_script.functions.end(),
+        [id](const ScriptFunction& func) { return func.Id == id; }),
+        m_script.functions.end()
+    );
+
+    // Update tree view
+    m_scriptTreeView.children.erase(std::remove_if(
+        m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(),
+        [id](const TreeNode& node) { return node.id == id; }),
+        m_scriptTreeView.children.end()
+    );
+}
+
+void Example::DoAction(IActionPtr action)
+{
+    // Remove top of the stack
+    actionStack.resize(actionStack.size() - undoDepth);
+    undoDepth = 0;
+
+    // Push new action
+    actionStack.push_back(action);
+}
+
+void Example::UndoLastAction()
+{
+    IActionPtr action = actionStack[actionStack.size() - undoDepth - 1];
+    action->Revert();
+    undoDepth++;
+}
+
+void Example::RedoLastAction()
+{
+    IActionPtr action = actionStack[actionStack.size() - undoDepth];
+    action->Run();
+    undoDepth--;
 }
 
 }

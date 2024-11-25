@@ -28,6 +28,8 @@ namespace Editor
             if (node.onclick)
                 node.onclick();
         }
+        if (node.contextMenu)
+            node.contextMenu();
 
         // Render children if node is expanded
         if (node.isOpen && !node.children.empty())

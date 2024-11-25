@@ -17,6 +17,7 @@ namespace Editor
         std::vector<TreeNode> children;
         bool isOpen = false;
         std::function<void()> onclick;
+        std::function<void()> contextMenu;
         ImTextureID icon = nullptr;
     };
 

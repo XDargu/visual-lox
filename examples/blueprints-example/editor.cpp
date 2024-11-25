@@ -61,6 +61,31 @@ namespace Utils
         }
     }
 
+    std::string FindValidName(const char* name, const TreeNode& scope)
+    {
+        std::string nextName = name;
+
+        int sufix = 0;
+        bool found = false;
+
+        while (!found)
+        {
+            found = true;
+            for (auto& node : scope.children)
+            {
+                if (node.label == nextName)
+                {
+                    sufix++;
+                    nextName = name + std::to_string(sufix);
+                    found = false;
+                    break;
+                }
+            }
+        }
+
+        return nextName;
+    }
+
     struct CaptureStdout
     {
         CaptureStdout()
@@ -314,7 +339,7 @@ void Example::OnStart()
     AddVariable("Amount", Value(11.0));
 
     // Test functions
-    AddFunction("Foo", { { "Value", Value() } }, { { "Value", Value() } });
+    AddFunction("Foo", { { "Value", Value() }, { "Value2", Value() } }, { { "Value", Value() } });
 }
 
 void Example::OnStop()
@@ -1177,7 +1202,7 @@ void Example::OnFrame(float deltaTime)
 
 void Example::AddFunction(int funId)
 {
-    std::string namestr = "Func";
+    std::string namestr = Utils::FindValidName("Func", m_scriptTreeView);
 
     TreeNode funcNode;
     funcNode.id = funId;
@@ -1211,9 +1236,45 @@ void Example::AddFunction(int funId)
 void Example::AddVariable(int varId)
 {
     TreeNode varNode;
-    varNode.label = "Variable";
+    varNode.label = Utils::FindValidName("Variable", m_scriptTreeView);
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
+    varNode.contextMenu = [this, varId](){
+        auto it = std::find_if(m_script.variables.begin(), m_script.variables.end(), [varId](const ScriptProperty& v) { return v.Id == varId; });
+        if (it != m_script.variables.end())
+        {
+            ImGui::PushID(varId);
+            ImGui::SameLine();
+            ImGui::SetItemAllowOverlap();
+            GraphViewUtils::DrawTypeInput(TypeOfValue(it->defaultValue), it->defaultValue);
+            ImGui::SameLine();
+            ImGui::SetItemAllowOverlap();
+            //if (TypeOfValue(it->defaultValue) == PinType::Any)
+            {
+                int currentIdx = 0;
+
+                if (isBoolean(it->defaultValue))
+                    currentIdx = 0;
+                else if (isNumber(it->defaultValue))
+                    currentIdx = 1;
+                else if (isString(it->defaultValue))
+                    currentIdx = 2;
+
+                ImGui::PushItemWidth(80.0f);
+                if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
+                {
+                    if (currentIdx == 0)
+                        it->defaultValue = Value(false);
+                    else if (currentIdx == 1)
+                        it->defaultValue = Value(0.0);
+                    else if (currentIdx == 2)
+                        it->defaultValue = Value(copyString("", 0));
+                }
+                ImGui::PopItemWidth();
+            }
+            ImGui::PopID();
+        }
+    };
     m_scriptTreeView.children.push_back(varNode);
 
     m_script.variables.push_back({ varId, varNode.label, Value() });

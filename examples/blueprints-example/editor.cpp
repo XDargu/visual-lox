@@ -1210,15 +1210,10 @@ void Example::AddFunction(int funId)
     funcNode.label = namestr;
     funcNode.onclick = [&, funId]()
     {
-        for (auto& func : m_script.functions)
+        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
         {
-            if (func.Id == funId)
-            {
-                ChangeGraph(func);
-                return;
-            }
+            ChangeGraph(*pFun);
         }
-
     };
     m_scriptTreeView.children.push_back(funcNode);
 
@@ -1240,35 +1235,34 @@ void Example::AddVariable(int varId)
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
     varNode.contextMenu = [this, varId](){
-        auto it = std::find_if(m_script.variables.begin(), m_script.variables.end(), [varId](const ScriptProperty& v) { return v.Id == varId; });
-        if (it != m_script.variables.end())
+        if (ScriptProperty* pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
             ImGui::PushID(varId);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
-            GraphViewUtils::DrawTypeInput(TypeOfValue(it->defaultValue), it->defaultValue);
+            GraphViewUtils::DrawTypeInput(TypeOfValue(pVar->defaultValue), pVar->defaultValue);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
             //if (TypeOfValue(it->defaultValue) == PinType::Any)
             {
                 int currentIdx = 0;
 
-                if (isBoolean(it->defaultValue))
+                if (isBoolean(pVar->defaultValue))
                     currentIdx = 0;
-                else if (isNumber(it->defaultValue))
+                else if (isNumber(pVar->defaultValue))
                     currentIdx = 1;
-                else if (isString(it->defaultValue))
+                else if (isString(pVar->defaultValue))
                     currentIdx = 2;
 
                 ImGui::PushItemWidth(80.0f);
                 if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
                 {
                     if (currentIdx == 0)
-                        it->defaultValue = Value(false);
+                        pVar->defaultValue = Value(false);
                     else if (currentIdx == 1)
-                        it->defaultValue = Value(0.0);
+                        pVar->defaultValue = Value(0.0);
                     else if (currentIdx == 2)
-                        it->defaultValue = Value(copyString("", 0));
+                        pVar->defaultValue = Value(copyString("", 0));
                 }
                 ImGui::PopItemWidth();
             }

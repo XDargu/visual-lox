@@ -1,6 +1,7 @@
 #include "editorActions.h"
 
 #include "editor.h"
+#include "script/script.h"
 
 namespace Editor
 {

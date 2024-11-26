@@ -96,24 +96,9 @@ void GraphView::DrawPinIcon(const Pin& pin, bool connected, int alpha)
     ax::Widgets::Icon(ImVec2(static_cast<float>(m_PinIconSize), static_cast<float>(m_PinIconSize)), iconType, connected, color, ImColor(32, 32, 32, alpha));
 }
 
-void GraphView::BuildNode(const NodePtr& node)
-{
-    for (Pin& input : node->Inputs)
-    {
-        input.Node = node;
-        input.Kind = PinKind::Input;
-    }
-
-    for (Pin& output : node->Outputs)
-    {
-        output.Node = node;
-        output.Kind = PinKind::Output;
-    }
-}
-
 NodePtr GraphView::SpawnNode(const NodePtr& node)
 {
-    BuildNode(node);
+    NodeUtils::BuildNode(node);
     return m_pGraph->AddNode(node);
 }
 
@@ -264,7 +249,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 if (ImGui::Button("Add Pin"))
                 {
                     node->AddInput(*m_pIDGenerator);
-                    BuildNode(node);
+                    NodeUtils::BuildNode(node);
                 }
             }
 
@@ -1022,7 +1007,7 @@ void GraphView::DrawContextMenu()
 
         if (node)
         {
-            BuildNode(node);
+            NodeUtils::BuildNode(node);
 
             createNewNode = false;
 

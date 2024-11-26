@@ -237,7 +237,7 @@ void Example::OnStart()
 
     // Add begin to main function
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
-    m_graphView.BuildNode(beginMain);
+    NodeUtils::BuildNode(beginMain);
     m_script.main.Id = m_IDGenerator.GetNextId();
     m_script.main.Graph.AddNode(beginMain);
 
@@ -1159,7 +1159,7 @@ void Example::AddFunction(int funId)
     foo.functionDef->name = namestr;
 
     NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-    m_graphView.BuildNode(beginFoo);
+    NodeUtils::BuildNode(beginFoo);
     foo.Graph.AddNode(beginFoo);
 
     m_script.functions.push_back(foo);
@@ -1222,12 +1222,7 @@ void Example::RenameFunction(int funId, const char* name)
         funcNode.label = name;
         pFun->functionDef->name = name;
 
-        std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-        for (auto& node : nodeRefs)
-        {
-            node->Refresh(m_IDGenerator);
-            m_graphView.BuildNode(node);
-        }
+        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
     }
 }
 
@@ -1250,19 +1245,7 @@ void Example::AddFunctionInput(int funId, int inputId)
 
         pFun->functionDef->inputs.push_back({ namestr, Value(), inputId });
 
-        NodePtr begin = pFun->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-        if (begin)
-        {
-            begin->Refresh(m_IDGenerator);
-            m_graphView.BuildNode(begin);
-        }
-
-        std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-        for (auto& node : nodeRefs)
-        {
-            node->Refresh(m_IDGenerator);
-            m_graphView.BuildNode(node);
-        }
+        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
     }
 }
 
@@ -1285,43 +1268,30 @@ void Example::AddFunctionOutput(int funId, int outputId)
 
         pFun->functionDef->outputs.push_back({ namestr, Value(), outputId });
 
-        // Update all return nodes
-        for (auto& node : pFun->Graph.GetNodes())
-        {
-            if (node->Category == NodeCategory::Flow)
-            {
-                node->Refresh(m_IDGenerator);
-                m_graphView.BuildNode(node);
-            }
-        }
-
-        std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-        for (auto& node : nodeRefs)
-        {
-            node->Refresh(m_IDGenerator);
-            m_graphView.BuildNode(node);
-        }
+        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
     }
 }
 
-void Example::RemoveFunction(int id)
+void Example::RemoveFunction(int funId)
+{
+    stl::erase_if(m_script.functions, [funId](const ScriptFunction& func) { return func.Id == funId; });
+
+    // Update tree view
+    stl::erase_if(m_scriptTreeView.children, [funId](const TreeNode& node) { return node.id == funId; });
+ 
+    // TODO: Mark all nodes of missing functions as error!
+    // Think about how to do it
+
+}
+
+void Example::RemoveVariable(int id)
 {
     stl::erase_if(m_script.variables, [id](const ScriptProperty& variable) { return variable.Id == id; });
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [id](const TreeNode& node) { return node.id == id; });
-
     // TODO: Mark all nodes of missing functions as error!
-}
-
-void Example::RemoveVariable(int id)
-{
-    stl::erase_if(m_script.functions, [id](const ScriptFunction& func) { return func.Id == id; });
-
-    // Update tree view
-    stl::erase_if(m_scriptTreeView.children, [id](const TreeNode& node) { return node.id == id; });
-
-    // TODO: Mark all nodes of missing functions as error!
+    // Think about how to do it
 }
 
 void Example::RemoveFunctionInput(int funId, int inputId)
@@ -1342,13 +1312,7 @@ void Example::RemoveFunctionInput(int funId, int inputId)
         stl::erase_if(it->children, [inputId](const TreeNode& node) { return node.id == inputId; });
     }
 
-    // Refresh references
-    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-    for (auto& node : nodeRefs)
-    {
-        node->Refresh(m_IDGenerator);
-        m_graphView.BuildNode(node);
-    }
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
 }
 
 void Example::RemoveFunctionOutput(int funId, int outputId)
@@ -1369,13 +1333,7 @@ void Example::RemoveFunctionOutput(int funId, int outputId)
         stl::erase_if(it->children, [outputId](const TreeNode& node) { return node.id == outputId; });
     }
 
-    // Refresh references
-    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-    for (auto& node : nodeRefs)
-    {
-        node->Refresh(m_IDGenerator);
-        m_graphView.BuildNode(node);
-    }
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
 }
 
 void Example::DoAction(IActionPtr action)

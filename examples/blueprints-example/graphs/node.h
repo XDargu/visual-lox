@@ -191,3 +191,8 @@ struct NodeIdLess
         return lhs.AsPointer() < rhs.AsPointer();
     }
 };
+
+struct NodeUtils
+{
+    static void BuildNode(const NodePtr& node);
+};

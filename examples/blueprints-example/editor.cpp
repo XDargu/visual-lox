@@ -195,63 +195,6 @@ void Example::OnStart()
 
     m_NodeRegistry.RegisterDefinitions();
 
-    auto AddVariable = [&](const char* name, Value defaultValue)
-    {
-        const int varId = m_IDGenerator.GetNextId();
-
-        TreeNode varNode;
-        varNode.label = name;
-        varNode.icon = m_VariableIcon;
-        varNode.id = varId;
-        m_scriptTreeView.children.push_back(varNode);
-
-        m_script.variables.push_back({ varId, name, defaultValue });
-    };
-
-    auto AddFunction = [this](const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs)
-    {
-        const int funId = m_IDGenerator.GetNextId();
-
-        std::string namestr = name;
-        TreeNode funcNode;
-        funcNode.id = funId;
-        funcNode.icon = m_FunctionIcon;
-        funcNode.label = name;
-        funcNode.onclick = [&, funId]()
-        {
-            for (auto& func : m_script.functions)
-            {
-                if (func.Id == funId)
-                {
-                    ChangeGraph(func);
-                    return;
-                }
-            }
-
-        };
-        m_scriptTreeView.children.push_back(funcNode);
-
-        ScriptFunction foo;
-        foo.Id = funId;
-        foo.functionDef->name = "Foo";
-
-        for (BasicFunctionDef::Input& input : inputs)
-        {
-            foo.functionDef->inputs.push_back(input);
-        }
-
-        for (BasicFunctionDef::Input& output : outputs)
-        {
-            foo.functionDef->outputs.push_back(output);
-        }
-
-        NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-        m_graphView.BuildNode(beginFoo);
-        foo.Graph.AddNode(beginFoo);
-
-        m_script.functions.push_back(foo);
-    };
-
     // Script ID
     m_script.Id = m_IDGenerator.GetNextId();
 
@@ -290,27 +233,6 @@ void Example::OnStart()
     mainNode.icon = m_FunctionIcon;
     mainNode.onclick = [&]() { ChangeGraph(m_script.main); };
     m_scriptTreeView.children.push_back(mainNode);
-
-    // Add test script functions
-    /*ScriptFunction foo;
-    foo.functionDef->inputs.push_back({ "Value", Value() });
-    foo.functionDef->inputs.push_back({ "Other", Value() });
-    foo.functionDef->outputs.push_back({ "Result", Value() });
-    foo.functionDef->name = "Foo";
-
-    NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-    m_graphView.BuildNode(beginFoo);
-    foo.Graph.AddNode(beginFoo);
-
-    m_script.functions.push_back(foo);*/
-
-    // Test variables
-
-    AddVariable("MyVar", Value(takeString("Hello World", 11)));
-    AddVariable("Amount", Value(11.0));
-
-    // Test functions
-    AddFunction("Foo", { { "Value", Value() }, { "Value2", Value() } }, { { "Value", Value() } });
 }
 
 void Example::OnStop()

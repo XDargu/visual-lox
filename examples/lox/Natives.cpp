@@ -197,15 +197,12 @@ Value contains(int argCount, Value* args, VM* vm)
         if (!isString(args[1]))
             return Value();
 
-        if (asString(args[1])->chars.length() != 1)
-            return Value();
-
         ObjString* str = asString(args[0]);
+        ObjString* substr = asString(args[1]);
 
-        for (int idx = 0; idx < str->chars.size(); ++idx)
+        if (str->chars.find(substr->chars) != std::string::npos)
         {
-            if (str->chars[idx] == *asString(args[1])->chars.begin())
-                return Value(true);
+            return Value(true);
         }
     }
 

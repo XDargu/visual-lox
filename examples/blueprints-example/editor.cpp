@@ -975,8 +975,7 @@ void Example::ShowLeftPane(float paneWidth)
             int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
 
             // Update tree view data
-            static int selectedItem = 0;
-            RenderTreeNode(m_scriptTreeView, selectedItem);
+            RenderTreeNode(m_scriptTreeView, m_selectedItemId, m_editingItemId);
            
             ImGui::EndTabItem();
         }
@@ -1110,6 +1109,27 @@ void Example::AddFunction(int funId)
             ChangeGraph(*pFun);
         }
     };
+    funcNode.onRename = [this, funId](std::string newName)
+    {
+        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        {
+            pFun->functionDef->name = newName;
+
+            std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
+            for (auto& node : nodeRefs)
+            {
+                node->Refresh(m_IDGenerator);
+                m_graphView.BuildNode(node);
+            }
+        }
+
+        auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
+
+        if (it != m_scriptTreeView.children.end())
+        {
+            it->label = newName;
+        }
+    };
     funcNode.contextMenu = [this, funId]()
     {
         if (ImGui::BeginPopupContextItem("FuncPopup"))
@@ -1122,6 +1142,10 @@ void Example::AddFunction(int funId)
             if (ImGui::MenuItem("Add Output"))
             {
                 pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, funId, m_IDGenerator.GetNextId()));
+            }
+            if (ImGui::MenuItem("Rename"))
+            {
+                m_editingItemId = funId;
             }
             ImGui::EndPopup();
         }

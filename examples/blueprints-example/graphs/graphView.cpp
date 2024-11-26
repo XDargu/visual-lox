@@ -730,33 +730,33 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getVar = "Variables::Get::" + def.Name;
 
-                if (!Utils::FilterString(Utils::to_lower(getVar), searchFilterLower))
-                    continue;
-
-                Data* current = &root;
-                int depth = 1;
-                const std::vector<std::string> tokens = Utils::split(getVar, "::");
-
-                for (const std::string& token : tokens)
+                if (Utils::FilterString(Utils::to_lower(getVar), searchFilterLower))
                 {
-                    Data& child = current->children[token];
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(getVar, "::");
 
-                    child.name = token;
-                    child.depth = depth;
-                    child.fullName = token;
-
-                    if (token == tokens.back())
+                    for (const std::string& token : tokens)
                     {
-                        // Last element!
-                        child.fullName = getVar;
-                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                        {
-                            return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
-                        };
-                    }
+                        Data& child = current->children[token];
 
-                    current = &child;
-                    depth++;
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = getVar;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
                 }
             }
 
@@ -764,33 +764,33 @@ void GraphView::DrawContextMenu()
             {
                 const std::string setVar = "Variables::Set::" + def.Name;
 
-                if (!Utils::FilterString(Utils::to_lower(setVar), searchFilterLower))
-                    continue;
-
-                Data* current = &root;
-                int depth = 1;
-                const std::vector<std::string> tokens = Utils::split(setVar, "::");
-
-                for (const std::string& token : tokens)
+                if (Utils::FilterString(Utils::to_lower(setVar), searchFilterLower))
                 {
-                    Data& child = current->children[token];
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(setVar, "::");
 
-                    child.name = token;
-                    child.depth = depth;
-                    child.fullName = token;
-
-                    if (token == tokens.back())
+                    for (const std::string& token : tokens)
                     {
-                        // Last element!
-                        child.fullName = setVar;
-                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                        {
-                            return BuildSetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
-                        };
-                    }
+                        Data& child = current->children[token];
 
-                    current = &child;
-                    depth++;
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = setVar;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                return BuildSetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
                 }
             }
         }
@@ -801,35 +801,35 @@ void GraphView::DrawContextMenu()
             {
                 const std::string fullFuncName = "Functions::" + def.functionDef->name;
 
-                if (!Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
-                    continue;
-
-                Data* current = &root;
-                int depth = 1;
-                const std::vector<std::string> tokens = Utils::split(fullFuncName, "::");
-
-                for (const std::string& token : tokens)
+                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
                 {
-                    Data& child = current->children[token];
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(fullFuncName, "::");
 
-                    child.name = token;
-                    child.depth = depth;
-                    child.fullName = token;
-
-                    if (token == tokens.back())
+                    for (const std::string& token : tokens)
                     {
-                        // Last element!
-                        child.fullName = fullFuncName;
-                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                        {
-                            NodePtr node = def.functionDef->MakeNode(IDGenerator);
-                            node->refId = def.Id;
-                            return node;
-                        };
-                    }
+                        Data& child = current->children[token];
 
-                    current = &child;
-                    depth++;
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = fullFuncName;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                NodePtr node = def.functionDef->MakeNode(IDGenerator);
+                                node->refId = def.Id;
+                                return node;
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
                 }
             }
 
@@ -837,33 +837,35 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getFuncName = "Functions::Get::" + def.functionDef->name;
 
-                if (!Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
-                    continue;
-
-                Data* current = &root;
-                int depth = 1;
-                const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
-
-                for (const std::string& token : tokens)
+                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
                 {
-                    Data& child = current->children[token];
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
 
-                    child.name = token;
-                    child.depth = depth;
-                    child.fullName = token;
-
-                    if (token == tokens.back())
+                    for (const std::string& token : tokens)
                     {
-                        // Last element!
-                        child.fullName = getFuncName;
-                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                        {
-                            return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Function);
-                        };
-                    }
+                        Data& child = current->children[token];
 
-                    current = &child;
-                    depth++;
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = getFuncName;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                NodePtr node = BuildGetFunctionNode(IDGenerator, def.functionDef);
+                                node->refId = def.Id;
+                                return node;
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
                 }
             }
         }

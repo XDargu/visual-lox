@@ -117,6 +117,8 @@ struct Example :
 
     // Script treeview
     TreeNode             m_scriptTreeView;
+    int                  m_selectedItemId = 0;
+    int                  m_editingItemId = 0;
 
     // TODO: Move somewhere else!
     bool m_isConstFoldingEnabled = true;

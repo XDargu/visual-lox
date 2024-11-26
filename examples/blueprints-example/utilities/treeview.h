@@ -17,9 +17,10 @@ namespace Editor
         std::vector<TreeNode> children;
         bool isOpen = false;
         std::function<void()> onclick;
+        std::function<void(std::string)> onRename;
         std::function<void()> contextMenu;
         ImTextureID icon = nullptr;
     };
 
-    void RenderTreeNode(TreeNode& node, int& selectedItem);
+    void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem);
 }

@@ -87,6 +87,9 @@ struct FunctionNode : public Node
 
     virtual void Refresh(IDGenerator& IDGenerator) override
     {
+        // Basic info
+        Name = pFunctionDef->name;
+
         // Add missing inputs
         int startingInput = HasFlag(Flags, NodeFlags::ReadOnly) ? 0 : 1;
 
@@ -210,7 +213,7 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator)
 
 BasicFunctionDef::Input* BasicFunctionDef::FindOutputByName(const std::string& name)
 {
-    for (Input& input : inputs)
+    for (Input& input : outputs)
     {
         if (input.name == name)
         {

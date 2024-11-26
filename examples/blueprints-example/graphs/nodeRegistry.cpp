@@ -173,6 +173,65 @@ void NodeRegistry::RegisterDefinitions()
         },
         NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
+
+    RegisterNativeFunc("String::Substring",
+        { { "Text", Value(copyString("", 0)) }, { "Start", Value(0.0) }, { "Count", Value(0.0) } },
+        { { "Result", Value(copyString("", 0)) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value();
+
+            if (!isNumber(args[1]))
+                return Value();
+
+            if (!isNumber(args[2]))
+                return Value();
+
+            ObjString* text = asString(args[0]);
+
+            const int start = (int)asNumber(args[1]);
+            int count = (int)asNumber(args[2]);
+
+            // Bounds checking
+            if (start >= text->chars.length())
+                return Value(copyString("", 0));
+
+            if (start + count > text->chars.length())
+                count = text->chars.length() - start;
+
+            std::string result = text->chars.substr(start, count);
+
+            return Value(takeString(result.c_str(), result.length()));
+        },
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("String::Find",
+        { { "Text", Value(copyString("", 0)) }, { "Search", Value(copyString("", 0)) } },
+        { { "Index", Value(-1.0) } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value();
+
+            if (!isString(args[1]))
+                return Value();
+
+            ObjString* str = asString(args[0]);
+            ObjString* substr = asString(args[1]);
+
+            const size_t result = str->chars.find(substr->chars);
+
+            if (result == std::string::npos)
+            {
+                return Value(-1.0);
+            }
+
+            return Value((double)result);
+        },
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)

@@ -83,6 +83,8 @@ struct Example :
     void AddFunction(int id);
     void AddVariable(int id);
 
+    void RenameFunction(int funId, const char* name);
+
     void AddFunctionInput(int funId, int inputId);
     void AddFunctionOutput(int funId, int outputId);
 

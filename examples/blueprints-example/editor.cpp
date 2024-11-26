@@ -1111,24 +1111,7 @@ void Example::AddFunction(int funId)
     };
     funcNode.onRename = [this, funId](std::string newName)
     {
-        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
-        {
-            pFun->functionDef->name = newName;
-
-            std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
-            for (auto& node : nodeRefs)
-            {
-                node->Refresh(m_IDGenerator);
-                m_graphView.BuildNode(node);
-            }
-        }
-
-        auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
-
-        if (it != m_scriptTreeView.children.end())
-        {
-            it->label = newName;
-        }
+        pendingActions.push_back(std::make_shared<RenameFunctionAction>(this, funId, newName.c_str()));
     };
     funcNode.contextMenu = [this, funId]()
     {
@@ -1207,6 +1190,26 @@ void Example::AddVariable(int varId)
     m_scriptTreeView.children.push_back(varNode);
 
     m_script.variables.push_back({ varId, varNode.label, Value() });
+}
+
+void Example::RenameFunction(int funId, const char* name)
+{
+    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
+
+    if (it != m_scriptTreeView.children.end() && pFun)
+    {
+        TreeNode& funcNode = *it;
+        funcNode.label = name;
+        pFun->functionDef->name = name;
+
+        std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
+        for (auto& node : nodeRefs)
+        {
+            node->Refresh(m_IDGenerator);
+            m_graphView.BuildNode(node);
+        }
+    }
 }
 
 void Example::AddFunctionInput(int funId, int inputId)

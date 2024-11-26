@@ -69,4 +69,25 @@ namespace Editor
     {
         m_pEditor->RemoveFunctionOutput(m_funId, m_inputId);
     }
+
+    RenameFunctionAction::RenameFunctionAction(Example* pEditor, int id, const char* name)
+    {
+        m_pEditor = pEditor;
+        m_id = id;
+        m_name = name;
+    }
+
+    void RenameFunctionAction::Run()
+    {
+        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_id))
+        {
+            m_prevName = pFun->functionDef->name;
+        }
+        m_pEditor->RenameFunction(m_id, m_name.c_str());
+    }
+
+    void RenameFunctionAction::Revert()
+    {
+        m_pEditor->RenameFunction(m_id, m_prevName.c_str());
+    }
 }

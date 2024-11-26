@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 namespace Editor
 {
@@ -59,6 +60,19 @@ namespace Editor
         Example* m_pEditor;
         int m_funId;
         int m_inputId;
+    };
+
+    struct RenameFunctionAction : public IAction
+    {
+        RenameFunctionAction(Example* pEditor, int id, const char* name);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+        std::string m_name;
+        std::string m_prevName;
+        int m_id;
     };
 
 }

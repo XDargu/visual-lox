@@ -18,6 +18,21 @@ static bool Splitter(bool split_vertically, float thickness, float* size1, float
     return SplitterBehavior(bb, id, split_vertically ? ImGuiAxis_X : ImGuiAxis_Y, size1, size2, min_size1, min_size2, 0.0f);
 }
 
+namespace ImGuiUtils
+{
+    void BeginDisabled(bool disabled)
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * disabled ? 0.5f : 1.0f);
+        ImGui::PushItemFlag(ImGuiItemFlags_Disabled, disabled);
+    }
+
+    void EndDisabled()
+    {
+        ImGui::PopStyleVar();
+        ImGui::PopItemFlag();
+    }
+}
+
 namespace Utils
 {
     static void DrawEachLine(const std::string& text)
@@ -1016,15 +1031,19 @@ void Example::OnFrame(float deltaTime)
     ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
 
     ImGui::SameLine();
+    ImGuiUtils::BeginDisabled(!CanUndo());
     if (ImGui::Button("Undo"))
     {
         UndoLastAction();
     }
+    ImGuiUtils::EndDisabled();
     ImGui::SameLine();
+    ImGuiUtils::BeginDisabled(!CanRedo());
     if (ImGui::Button("Redo"))
     {
         RedoLastAction();
     }
+    ImGuiUtils::EndDisabled();
 
     //auto& style = ImGui::GetStyle();
 
@@ -1381,6 +1400,18 @@ void Example::RedoLastAction()
     IActionPtr action = actionStack[actionStack.size() - undoDepth];
     action->Run();
     undoDepth--;
+}
+
+bool Example::CanUndo() const
+{
+    const int undoActionIdx = actionStack.size() - undoDepth - 1;
+    return undoActionIdx >= 0;
+}
+
+bool Example::CanRedo() const
+{
+    const int redoActionIdx = actionStack.size() - undoDepth;
+    return redoActionIdx < actionStack.size();
 }
 
 }

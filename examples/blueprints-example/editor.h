@@ -97,6 +97,8 @@ struct Example :
     void DoAction(IActionPtr action);
     void UndoLastAction();
     void RedoLastAction();
+    bool CanUndo() const;
+    bool CanRedo() const;
 
     Script               m_script;
     GraphView            m_graphView;

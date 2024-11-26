@@ -50,7 +50,23 @@ namespace Editor
 
     void AddFunctionInputAction::Revert()
     {
-        //m_pEditor->RemoveVariable(m_id);
+        m_pEditor->RemoveFunctionInput(m_funId, m_inputId);
     }
 
+    AddFunctionOutputAction::AddFunctionOutputAction(Example* pEditor, int funId, int inputId)
+    {
+        m_pEditor = pEditor;
+        m_funId = funId;
+        m_inputId = inputId;
+    }
+
+    void AddFunctionOutputAction::Run()
+    {
+        m_pEditor->AddFunctionOutput(m_funId, m_inputId);
+    }
+
+    void AddFunctionOutputAction::Revert()
+    {
+        m_pEditor->RemoveFunctionOutput(m_funId, m_inputId);
+    }
 }

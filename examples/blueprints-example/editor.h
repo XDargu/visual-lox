@@ -84,9 +84,13 @@ struct Example :
     void AddVariable(int id);
 
     void AddFunctionInput(int funId, int inputId);
+    void AddFunctionOutput(int funId, int outputId);
 
     void RemoveFunction(int id);
     void RemoveVariable(int id);
+
+    void RemoveFunctionInput(int funId, int inputId);
+    void RemoveFunctionOutput(int funId, int outputId);
 
     void DoAction(IActionPtr action);
     void UndoLastAction();
@@ -106,6 +110,7 @@ struct Example :
     ImTextureID          m_FunctionIcon = nullptr;
     ImTextureID          m_VariableIcon = nullptr;
     ImTextureID          m_InputIcon = nullptr;
+    ImTextureID          m_OutputIcon = nullptr;
 
     IDGenerator          m_IDGenerator;
     NodeRegistry         m_NodeRegistry;

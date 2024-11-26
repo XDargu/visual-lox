@@ -101,6 +101,7 @@ void Example::OnStart()
     m_FunctionIcon = LoadTexture("data/ic_function.png");
     m_VariableIcon = LoadTexture("data/ic_variable.png");
     m_InputIcon = LoadTexture("data/ic_input.png");
+    m_OutputIcon = LoadTexture("data/ic_output.png");
 
     auto markFunction = [&](ScriptFunction& scriptFunction)
     {
@@ -181,7 +182,6 @@ void Example::OnStart()
     m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode);
     m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode);
     m_NodeRegistry.RegisterCompiledNode("String::Append", &CreateAppendNode);
-    m_NodeRegistry.RegisterCompiledNode("String::CreateString", &CreateString);
     m_NodeRegistry.RegisterCompiledNode("Math::Add", &CreateAddNode);
     m_NodeRegistry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode);
     m_NodeRegistry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode);
@@ -333,6 +333,7 @@ void Example::OnStop()
     releaseTexture(m_FunctionIcon);
     releaseTexture(m_VariableIcon);
     releaseTexture(m_InputIcon);
+    releaseTexture(m_OutputIcon);
 
 }
 
@@ -1198,7 +1199,7 @@ void Example::AddFunction(int funId)
             }
             if (ImGui::MenuItem("Add Output"))
             {
-                //pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
+                pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, funId, m_IDGenerator.GetNextId()));
             }
             ImGui::EndPopup();
         }
@@ -1297,12 +1298,52 @@ void Example::AddFunctionInput(int funId, int inputId)
     }
 }
 
+void Example::AddFunctionOutput(int funId, int outputId)
+{
+    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
+
+    if (it != m_scriptTreeView.children.end() && pFun)
+    {
+        TreeNode& funcNode = *it;
+
+        std::string namestr = Utils::FindValidName("Output", funcNode);
+
+        TreeNode outputNode;
+        outputNode.id = outputId;
+        outputNode.icon = m_OutputIcon;
+        outputNode.label = namestr;
+        funcNode.children.push_back(outputNode);
+
+        pFun->functionDef->outputs.push_back({ namestr, Value(), outputId });
+
+        // Update all return nodes
+        for (auto& node : pFun->Graph.GetNodes())
+        {
+            if (node->Category == NodeCategory::Flow)
+            {
+                node->Refresh(m_IDGenerator);
+                m_graphView.BuildNode(node);
+            }
+        }
+
+        std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
+        for (auto& node : nodeRefs)
+        {
+            node->Refresh(m_IDGenerator);
+            m_graphView.BuildNode(node);
+        }
+    }
+}
+
 void Example::RemoveFunction(int id)
 {
     stl::erase_if(m_script.variables, [id](const ScriptProperty& variable) { return variable.Id == id; });
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [id](const TreeNode& node) { return node.id == id; });
+
+    // TODO: Mark all nodes of missing functions as error!
 }
 
 void Example::RemoveVariable(int id)
@@ -1311,6 +1352,62 @@ void Example::RemoveVariable(int id)
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [id](const TreeNode& node) { return node.id == id; });
+
+    // TODO: Mark all nodes of missing functions as error!
+}
+
+void Example::RemoveFunctionInput(int funId, int inputId)
+{
+    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
+
+    if (pFun)
+    {
+        stl::erase_if(pFun->functionDef->inputs, [inputId](const BasicFunctionDef::Input& input){
+            return input.id == inputId;
+        });
+    }
+
+    if (it != m_scriptTreeView.children.end())
+    {
+        // Update tree view
+        stl::erase_if(it->children, [inputId](const TreeNode& node) { return node.id == inputId; });
+    }
+
+    // Refresh references
+    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
+    for (auto& node : nodeRefs)
+    {
+        node->Refresh(m_IDGenerator);
+        m_graphView.BuildNode(node);
+    }
+}
+
+void Example::RemoveFunctionOutput(int funId, int outputId)
+{
+    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
+
+    if (pFun)
+    {
+        stl::erase_if(pFun->functionDef->outputs, [outputId](const BasicFunctionDef::Input& input) {
+            return input.id == outputId;
+        });
+    }
+
+    if (it != m_scriptTreeView.children.end())
+    {
+        // Update tree view
+        stl::erase_if(it->children, [outputId](const TreeNode& node) { return node.id == outputId; });
+    }
+
+    // Refresh references
+    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(m_script, funId);
+    for (auto& node : nodeRefs)
+    {
+        node->Refresh(m_IDGenerator);
+        m_graphView.BuildNode(node);
+    }
 }
 
 void Example::DoAction(IActionPtr action)

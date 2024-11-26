@@ -31,6 +31,8 @@ struct BeginNode : public Node
     virtual void Refresh(IDGenerator& IDGenerator) override
     {
         // Add missing outputs
+        const int startingOutput = 1;
+
         for (int i = 0; i < functionDef->inputs.size(); ++i)
         {
             const BasicFunctionDef::Input& input = functionDef->inputs[i];
@@ -41,14 +43,14 @@ struct BeginNode : public Node
             }
             else
             {
-                Outputs.insert(Outputs.begin() + i, { IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value) });
+                Outputs.insert(Outputs.begin() + startingOutput + i, { IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value) });
             }
         }
 
         // Remove outputs that are no longer there
         stl::erase_if(Outputs, [&](const Pin& output)
         {
-            return functionDef->FindInputByName(output.Name) == nullptr;
+            return output.Type != PinType::Flow && functionDef->FindInputByName(output.Name) == nullptr;
         });
     }
 
@@ -66,80 +68,6 @@ static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunction& fu
         node->Outputs.emplace_back(IDGenerator.GetNextId(),input.name.c_str(), TypeOfValue(input.value));
     }
 
-    return node;
-}
-
-struct GetBoolVariableNode : public Node
-{
-    GetBoolVariableNode(int id, const char* name)
-        : Node(id, name, ImColor(230, 230, 0))
-    {
-        Category = NodeCategory::Function;
-    }
-
-    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
-    {
-        Compiler& compiler = compilerCtx.compiler;
-
-        switch (stage)
-        {
-        case CompilationStage::PullOutput:
-        {
-            ObjString* input = asString(InputValues[0]);
-            
-            const Token outputToken(TokenType::VAR, input->chars.c_str(), input->chars.length(), 0);
-            compiler.namedVariable(outputToken, false);
-
-            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
-        }
-        break;
-        }
-    }
-};
-
-static NodePtr GetBoolVariable(IDGenerator& IDGenerator)
-{
-    NodePtr node = std::make_shared<GetBoolVariableNode>(IDGenerator.GetNextId(), "Check");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Variable", PinType::String);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Bool);
-
-    node->InputValues.emplace_back(Value(copyString("", 0)));
-    return node;
-}
-
-struct CreateStringNode : public Node
-{
-    CreateStringNode(int id, const char* name)
-        : Node(id, name, ImColor(230, 230, 0))
-    {
-        Category = NodeCategory::Function;
-    }
-
-    virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
-    {
-        Compiler& compiler = compilerCtx.compiler;
-
-        switch (stage)
-        {
-        case CompilationStage::PullOutput:
-        {
-            ObjString* input = asString(InputValues[0]);
-            compiler.emitConstant(Value(input));
-
-            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
-        }
-        break;
-        }
-    }
-};
-
-static NodePtr CreateString(IDGenerator& IDGenerator)
-{
-    NodePtr node = std::make_shared<CreateStringNode>(IDGenerator.GetNextId(), "CreateString");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::String);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::String);
-
-    node->InputValues.emplace_back(Value(copyString("", 0)));
     return node;
 }
 
@@ -232,10 +160,11 @@ static NodePtr CreateAppendNode(IDGenerator& IDGenerator)
 
 struct ReturnNode : public Node
 {
-    ReturnNode(int id, const char* name)
+    ReturnNode(int id, const char* name, const BasicFunctionDefPtr& functionDef)
         : Node(id, name, ImColor(255, 255, 255))
     {
-        Category = NodeCategory::Begin;
+        Category = NodeCategory::Return;
+        pFunctionDef = functionDef;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
@@ -252,11 +181,49 @@ struct ReturnNode : public Node
         break;
         }
     }
+
+    virtual void Refresh(IDGenerator& IDGenerator) override
+    {
+        // Add missing inputs
+        const int startingInput = 1;
+
+        for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
+        {
+            const BasicFunctionDef::Input& output = pFunctionDef->outputs[i];
+
+            if (Pin* existingInput = FindInputByName(output.name))
+            {
+                existingInput->Type = TypeOfValue(output.value);
+            }
+            else
+            {
+                Inputs.insert(Inputs.begin() + startingInput + i, { IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value) });
+            }
+        }
+
+        // Redo input values
+        InputValues.resize(pFunctionDef->inputs.size() + startingInput);
+
+        InputValues[0] = Value(); // Flow node
+
+        for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
+        {
+            InputValues[i + startingInput] = pFunctionDef->inputs[i].value;
+        }
+
+        // Remove outputs that are no longer there
+        stl::erase_if(Inputs, [&](const Pin& input)
+        {
+            return input.Type != PinType::Flow && pFunctionDef->FindOutputByName(input.Name) == nullptr;
+        });
+    }
+
+    BasicFunctionDefPtr pFunctionDef;
 };
 
 static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& function)
 {
-    NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return");
+    NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return", function.functionDef);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->InputValues.emplace_back(Value());

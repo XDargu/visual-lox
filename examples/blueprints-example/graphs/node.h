@@ -117,6 +117,7 @@ struct Pin
 enum class NodeCategory
 {
     Begin,
+    Return,
     Function,
     Flow,
     Variable

@@ -49,4 +49,16 @@ namespace Editor
         int m_inputId;
     };
 
+    struct AddFunctionOutputAction : public IAction
+    {
+        AddFunctionOutputAction(Example* pEditor, int funId, int inputId);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+        int m_funId;
+        int m_inputId;
+    };
+
 }

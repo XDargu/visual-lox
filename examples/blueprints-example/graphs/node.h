@@ -76,7 +76,7 @@ inline ax::Drawing::IconType GetPinIcon(PinType type)
         case PinType::String:   return ax::Drawing::IconType::Circle;
         case PinType::List:     return ax::Drawing::IconType::Square;
         case PinType::Object:   return ax::Drawing::IconType::Circle;
-        case PinType::Function: return ax::Drawing::IconType::Circle;
+        case PinType::Function: return ax::Drawing::IconType::RoundSquare;
         case PinType::Any:      return ax::Drawing::IconType::Circle;
         case PinType::Error:    return ax::Drawing::IconType::Circle;
         default:                return ax::Drawing::IconType::Circle;

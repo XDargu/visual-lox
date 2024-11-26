@@ -832,6 +832,40 @@ void GraphView::DrawContextMenu()
                     depth++;
                 }
             }
+
+            // Get
+            {
+                const std::string getFuncName = "Functions::Get::" + def.functionDef->name;
+
+                if (!Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
+                    continue;
+
+                Data* current = &root;
+                int depth = 1;
+                const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
+
+                for (const std::string& token : tokens)
+                {
+                    Data& child = current->children[token];
+
+                    child.name = token;
+                    child.depth = depth;
+                    child.fullName = token;
+
+                    if (token == tokens.back())
+                    {
+                        // Last element!
+                        child.fullName = getFuncName;
+                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        {
+                            return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Function);
+                        };
+                    }
+
+                    current = &child;
+                    depth++;
+                }
+            }
         }
 
         // TODO: Only show return if we can return!

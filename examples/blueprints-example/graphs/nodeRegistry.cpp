@@ -232,6 +232,34 @@ void NodeRegistry::RegisterDefinitions()
         },
         NodeFlags::CanConstFold | NodeFlags::ReadOnly
     );
+
+    RegisterNativeFunc("Functional::FindIf",
+        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
+        { { "Result", Value() } },
+        &findIf,
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("Functional::Map",
+        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
+        { { "Result", Value(newList()) } },
+        &map,
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("Functional::Filter",
+        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
+        { { "Result", Value(newList()) } },
+        &filter,
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("Functional::Reduce",
+        { { "Iterable", Value() }, { "Function", Value(newFunction()) }, { "Init", Value() } },
+        { { "Result", Value(newList()) } },
+        &reduce,
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)

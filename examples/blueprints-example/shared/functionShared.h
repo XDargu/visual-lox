@@ -25,6 +25,8 @@ inline PinType TypeOfValue(const Value& value)
         {
         case ObjType::STRING: return PinType::String;
         case ObjType::LIST: return PinType::List;
+        case ObjType::FUNCTION: return PinType::Function;
+        case ObjType::CLOSURE: return PinType::Function;
         }
     }
     }

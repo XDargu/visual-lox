@@ -843,7 +843,18 @@ void Example::ShowCompilerInfo(float paneWidth)
 
 
     Utils::DrawEachLine(result);
-    Utils::DrawEachLine(runResult);
+    //Utils::DrawEachLine(runResult);
+
+    static bool runResultOpen = true;
+
+    if (pressedRun)
+        ImGui::OpenPopup("Run Result");
+
+    if (ImGui::BeginPopupModal("Run Result", &runResultOpen))
+    {
+        Utils::DrawEachLine(runResult);
+        ImGui::EndPopup();
+    }
 
 
     {

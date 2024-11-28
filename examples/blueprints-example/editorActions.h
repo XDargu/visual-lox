@@ -3,6 +3,9 @@
 #include <memory>
 #include <string>
 
+struct ScriptFunction;
+using ScriptFunctionPtr = std::shared_ptr<ScriptFunction>;
+
 namespace Editor
 {
     struct Example;
@@ -75,4 +78,17 @@ namespace Editor
         int m_id;
     };
 
+    struct DeleteFunctionAction : public IAction
+    {
+        DeleteFunctionAction(Example* pEditor, const ScriptFunctionPtr& pFunction);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+
+        // Keep the function ref active in the action so we can restore it
+        // This means we also need to restor the inputs and variables
+        ScriptFunctionPtr m_pFunction;
+    };
 }

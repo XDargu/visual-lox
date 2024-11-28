@@ -2,6 +2,7 @@
 
 #include "utilities/utils.h"
 
+#include <stack>
 
 namespace Editor
 {
@@ -848,7 +849,10 @@ void Example::ShowCompilerInfo(float paneWidth)
     static bool runResultOpen = true;
 
     if (pressedRun)
+    {
+        runResultOpen = true;
         ImGui::OpenPopup("Run Result");
+    }
 
     if (ImGui::BeginPopupModal("Run Result", &runResultOpen))
     {
@@ -1124,15 +1128,13 @@ void Example::OnFrame(float deltaTime)
     //ImGui::ShowMetricsWindow();
 }
 
-void Example::AddFunction(int funId)
+TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
 {
-    std::string namestr = Utils::FindValidName("Func", m_scriptTreeView);
-
     TreeNode funcNode;
     funcNode.id = funId;
     funcNode.icon = m_FunctionIcon;
-    funcNode.label = namestr;
-    funcNode.onclick = [&, funId]()
+    funcNode.label = name;
+    funcNode.onclick = [this, funId]()
     {
         if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
         {
@@ -1160,29 +1162,28 @@ void Example::AddFunction(int funId)
             {
                 m_editingItemId = funId;
             }
+            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+            {
+                if (ImGui::MenuItem("Delete"))
+                {
+                    pendingActions.push_back(std::make_shared<DeleteFunctionAction>(this, pFun));
+                }
+            }
             ImGui::EndPopup();
         }
     };
-    m_scriptTreeView.children.push_back(funcNode);
 
-    ScriptFunctionPtr foo = std::make_shared<ScriptFunction>();
-    foo->ID = funId;
-    foo->functionDef->name = namestr;
-
-    NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-    NodeUtils::BuildNode(beginFoo);
-    foo->Graph.AddNode(beginFoo);
-
-    m_script.functions.push_back(foo);
+    return funcNode;
 }
 
-void Example::AddVariable(int varId)
+TreeNode Example::MakeVariableNode(int varId, const std::string& name)
 {
     TreeNode varNode;
-    varNode.label = Utils::FindValidName("Variable", m_scriptTreeView);
+    varNode.label = name;
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
-    varNode.contextMenu = [this, varId](){
+    varNode.contextMenu = [this, varId]()
+    {
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
             ImGui::PushID(varId);
@@ -1207,6 +1208,171 @@ void Example::AddVariable(int varId)
             ImGui::PopID();
         }
     };
+
+    return varNode;
+}
+
+TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
+{
+    TreeNode inputNode;
+    inputNode.id = inputId;
+    inputNode.icon = m_InputIcon;
+    inputNode.label = name;
+    inputNode.contextMenu = [this, funId, inputId]()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        {
+            if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
+            {
+                Value& inputValue = pInput->value;
+                ImGui::PushID(funId);
+                ImGui::PushID(inputId);
+                ImGui::SameLine();
+                ImGui::SetItemAllowOverlap();
+                GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
+                ImGui::SameLine();
+                ImGui::SetItemAllowOverlap();
+                GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+                {
+                    // TODO: At some point this should become a new editor action!
+                    switch (newType)
+                    {
+                    case PinType::Bool:     inputValue = Value(false); break;
+                    case PinType::Float:    inputValue = Value(0.0); break;
+                    case PinType::String:   inputValue = Value(takeString("", 0)); break;
+                    case PinType::List:     inputValue = Value(newList()); break;
+                    case PinType::Function: inputValue = Value(newFunction()); break;
+                    case PinType::Any:      inputValue = Value(); break;
+                    }
+
+                    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                });
+                ImGui::PopID();
+                ImGui::PopID();
+            }
+        }
+    };
+
+    return inputNode;
+}
+
+TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& name)
+{
+    TreeNode outputNode;
+    outputNode.id = outputId;
+    outputNode.icon = m_OutputIcon;
+    outputNode.label = name;
+    outputNode.contextMenu = [this, funId, outputId]()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        {
+            if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
+            {
+                Value& inputValue = pOutput->value;
+                ImGui::PushID(funId);
+                ImGui::PushID(outputId);
+                ImGui::SameLine();
+                ImGui::SetItemAllowOverlap();
+                GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
+                ImGui::SameLine();
+                ImGui::SetItemAllowOverlap();
+                GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+                {
+                    // TODO: At some point this should become a new editor action!
+                    switch (newType)
+                    {
+                    case PinType::Bool:     inputValue = Value(false); break;
+                    case PinType::Float:    inputValue = Value(0.0); break;
+                    case PinType::String:   inputValue = Value(takeString("", 0)); break;
+                    case PinType::List:     inputValue = Value(newList()); break;
+                    case PinType::Function: inputValue = Value(newFunction()); break;
+                    case PinType::Any:      inputValue = Value(); break;
+                    }
+
+                    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                });
+                ImGui::PopID();
+                ImGui::PopID();
+            }
+        }
+    };
+
+    return outputNode;
+}
+
+TreeNode* Example::FindNodeByID(int id)
+{
+    // TODO: Make an index of tree elements
+    // Also, we probably should do the same with script elements
+    std::stack<TreeNode*> pending;
+    pending.push(&m_scriptTreeView);
+
+    while (!pending.empty())
+    {
+        TreeNode* current = pending.top();
+        pending.pop();
+
+        if (current->id == id)
+            return current;
+
+        for (TreeNode& child : current->children)
+        {
+            pending.push(&child);
+        }
+    }
+
+    return nullptr;
+}
+
+void Example::AddFunction(int funId)
+{
+    const std::string namestr = Utils::FindValidName("Func", m_scriptTreeView);
+
+    const TreeNode funcNode = MakeFunctionNode(funId, namestr);
+    m_scriptTreeView.children.push_back(funcNode);
+
+    ScriptFunctionPtr foo = std::make_shared<ScriptFunction>();
+    foo->ID = funId;
+    foo->functionDef->name = namestr;
+
+    NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
+    NodeUtils::BuildNode(beginFoo);
+    foo->Graph.AddNode(beginFoo);
+
+    m_script.functions.push_back(foo);
+}
+
+void Example::AddFunction(const ScriptFunctionPtr& pExistingFunction)
+{
+    m_script.functions.push_back(pExistingFunction);
+
+    // Add missing elements to the tree
+    const BasicFunctionDefPtr& pFunctionDef = pExistingFunction->functionDef;
+    const TreeNode funcNode = MakeFunctionNode(pExistingFunction->ID, pFunctionDef->name);
+    m_scriptTreeView.children.push_back(funcNode);
+
+    if (TreeNode* funcNode = FindNodeByID(pExistingFunction->ID))
+    {
+        for (auto& input : pFunctionDef->inputs)
+        {
+            const TreeNode inputNode = MakeInputNode(pExistingFunction->ID, input.id, input.name);
+            funcNode->children.push_back(inputNode);
+        }
+
+        for (auto& output : pFunctionDef->outputs)
+        {
+            const TreeNode outputNode = MakeOutputNode(pExistingFunction->ID, output.id, output.name);
+            funcNode->children.push_back(outputNode);
+        }
+
+        // TODO: Variables
+    }
+}
+
+void Example::AddVariable(int varId)
+{
+    const std::string namestr = Utils::FindValidName("Variable", m_scriptTreeView);
+    const TreeNode varNode = MakeVariableNode(varId, namestr);
     m_scriptTreeView.children.push_back(varNode);
     
     ScriptPropertyPtr var = std::make_shared<ScriptProperty>();
@@ -1239,46 +1405,8 @@ void Example::AddFunctionInput(int funId, int inputId)
     {
         TreeNode& funcNode = *it;
 
-        std::string namestr = Utils::FindValidName("Input", funcNode);
-
-        TreeNode inputNode;
-        inputNode.id = inputId;
-        inputNode.icon = m_InputIcon;
-        inputNode.label = namestr;
-        inputNode.contextMenu = [this, funId, inputId]()
-        {
-            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-            {
-                if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
-                {
-                    Value& inputValue = pInput->value;
-                    ImGui::PushID(funId);
-                    ImGui::PushID(inputId);
-                    ImGui::SameLine();
-                    ImGui::SetItemAllowOverlap();
-                    GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
-                    ImGui::SameLine();
-                    ImGui::SetItemAllowOverlap();
-                    GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
-                    {
-                        // TODO: At some point this should become a new editor action!
-                        switch (newType)
-                        {
-                        case PinType::Bool:     inputValue = Value(false); break;
-                        case PinType::Float:    inputValue = Value(0.0); break;
-                        case PinType::String:   inputValue = Value(takeString("", 0)); break;
-                        case PinType::List:     inputValue = Value(newList()); break;
-                        case PinType::Function: inputValue = Value(newFunction()); break;
-                        case PinType::Any:      inputValue = Value(); break;
-                        }
-
-                        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-                    });
-                    ImGui::PopID();
-                    ImGui::PopID();
-                }
-            }
-        };
+        const std::string namestr = Utils::FindValidName("Input", funcNode);
+        const TreeNode inputNode = MakeInputNode(funId, inputId, namestr);
         funcNode.children.push_back(inputNode);
 
         pFun->functionDef->inputs.push_back({ namestr, Value(), inputId });
@@ -1296,46 +1424,9 @@ void Example::AddFunctionOutput(int funId, int outputId)
     {
         TreeNode& funcNode = *it;
 
-        std::string namestr = Utils::FindValidName("Output", funcNode);
+        const std::string namestr = Utils::FindValidName("Output", funcNode);
 
-        TreeNode outputNode;
-        outputNode.id = outputId;
-        outputNode.icon = m_OutputIcon;
-        outputNode.label = namestr;
-        outputNode.contextMenu = [this, funId, outputId]()
-        {
-            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-            {
-                if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
-                {
-                    Value& inputValue = pOutput->value;
-                    ImGui::PushID(funId);
-                    ImGui::PushID(outputId);
-                    ImGui::SameLine();
-                    ImGui::SetItemAllowOverlap();
-                    GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
-                    ImGui::SameLine();
-                    ImGui::SetItemAllowOverlap();
-                    GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
-                    {
-                        // TODO: At some point this should become a new editor action!
-                        switch (newType)
-                        {
-                        case PinType::Bool:     inputValue = Value(false); break;
-                        case PinType::Float:    inputValue = Value(0.0); break;
-                        case PinType::String:   inputValue = Value(takeString("", 0)); break;
-                        case PinType::List:     inputValue = Value(newList()); break;
-                        case PinType::Function: inputValue = Value(newFunction()); break;
-                        case PinType::Any:      inputValue = Value(); break;
-                        }
-
-                        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-                    });
-                    ImGui::PopID();
-                    ImGui::PopID();
-                }
-            }
-        };
+        const TreeNode outputNode = MakeOutputNode(funId, outputId, namestr);
         funcNode.children.push_back(outputNode);
 
         pFun->functionDef->outputs.push_back({ namestr, Value(), outputId });

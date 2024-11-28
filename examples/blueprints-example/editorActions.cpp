@@ -91,4 +91,21 @@ namespace Editor
     {
         m_pEditor->RenameFunction(m_id, m_prevName.c_str());
     }
+
+    DeleteFunctionAction::DeleteFunctionAction(Example* pEditor, const ScriptFunctionPtr& pFunction)
+    {
+        m_pEditor = pEditor;
+        m_pFunction = pFunction;
+    }
+
+    void DeleteFunctionAction::Run()
+    {
+        m_pEditor->RemoveFunction(m_pFunction->ID);
+    }
+
+    void DeleteFunctionAction::Revert()
+    {
+        // Add function
+        m_pEditor->AddFunction(m_pFunction);
+    }
 }

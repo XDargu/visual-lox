@@ -80,7 +80,17 @@ struct Example :
 
     void OnFrame(float deltaTime) override;
 
+    // Tree Node Handling TODO: Move somewhere else
+    TreeNode MakeFunctionNode(int funId, const std::string& name);
+    TreeNode MakeVariableNode(int varId, const std::string& name);
+    TreeNode MakeInputNode(int funId, int inputId, const std::string& name);
+    TreeNode MakeOutputNode(int funId, int outputId, const std::string& name);
+
+    TreeNode* FindNodeByID(int id);
+
+    // Script operations
     void AddFunction(int id);
+    void AddFunction(const ScriptFunctionPtr& pExistingFunction);
     void AddVariable(int id);
 
     void RenameFunction(int funId, const char* name);

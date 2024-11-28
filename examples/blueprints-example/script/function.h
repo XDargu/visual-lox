@@ -1,5 +1,6 @@
 # pragma once
 
+#include "scriptElement.h"
 #include "property.h"
 #include "../shared/functionShared.h"
 #include "../graphs/graph.h"
@@ -10,16 +11,17 @@
 #include <vector>
 #include <memory>
 
-struct ScriptFunction
+struct ScriptFunction : public IScriptElement
 {
     ScriptFunction()
     {
+        Type = ScriptElementType::Function;
         functionDef = std::make_shared<BasicFunctionDef>();
     }
 
-    int Id = -1;
-
     BasicFunctionDefPtr functionDef;
     Graph Graph;
-    std::vector<ScriptProperty> variables;
+    std::vector<ScriptPropertyPtr> variables;
 };
+
+using ScriptFunctionPtr = std::shared_ptr<ScriptFunction>;

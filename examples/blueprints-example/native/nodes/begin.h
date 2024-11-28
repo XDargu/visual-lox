@@ -57,14 +57,14 @@ struct BeginNode : public Node
     BasicFunctionDefPtr functionDef;
 };
 
-static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunction& function)
+static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr& function)
 {
-    NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function.functionDef);
+    NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function->functionDef);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
-    for (int i = 0; i < function.functionDef->inputs.size(); ++i)
+    for (int i = 0; i < function->functionDef->inputs.size(); ++i)
     {
-        const BasicFunctionDef::Input& input = function.functionDef->inputs[i];
+        const BasicFunctionDef::Input& input = function->functionDef->inputs[i];
         node->Outputs.emplace_back(IDGenerator.GetNextId(),input.name.c_str(), TypeOfValue(input.value));
     }
 

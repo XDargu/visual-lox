@@ -1,5 +1,6 @@
 # pragma once
 
+#include "scriptElement.h"
 #include "function.h"
 #include "property.h"
 
@@ -7,14 +8,20 @@
 #include <vector>
 #include <memory>
 
-struct ScriptClass
+struct ScriptClass : public IScriptElement
 {
-    int Id = -1;
+    ScriptClass()
+    {
+        Type = ScriptElementType::Class;
+        constructor = std::make_shared<ScriptFunction>();
+    }
 
     std::string Name;
 
-    std::vector<ScriptProperty> properties;
-    std::vector<ScriptFunction> methods;
+    std::vector<ScriptPropertyPtr> properties;
+    std::vector<ScriptFunctionPtr> methods;
 
-    ScriptFunction constructor;
+    ScriptFunctionPtr constructor; // TODO: Should the constructor just be a method? We could just store the ID.
 };
+
+using ScriptClassPtr = std::shared_ptr<ScriptClass>;

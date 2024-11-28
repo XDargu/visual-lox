@@ -112,7 +112,7 @@ void GraphView::setNodeRegistry(NodeRegistry& nodeRegistry)
     m_pNodeRegistry = &nodeRegistry;
 }
 
-void GraphView::SetGraph(Script* pTargetScript, ScriptFunction* pScriptFunction, Graph* pTargetGraph)
+void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph)
 {
     m_pGraph = pTargetGraph;
     m_pScript = pTargetScript;
@@ -706,7 +706,7 @@ void GraphView::DrawContextMenu()
         {
             // Get
             {
-                const std::string getVar = "Variables::Get::" + def.Name;
+                const std::string getVar = "Variables::Get::" + def->Name;
 
                 if (Utils::FilterString(Utils::to_lower(getVar), searchFilterLower))
                 {
@@ -740,7 +740,7 @@ void GraphView::DrawContextMenu()
 
             // Set
             {
-                const std::string setVar = "Variables::Set::" + def.Name;
+                const std::string setVar = "Variables::Set::" + def->Name;
 
                 if (Utils::FilterString(Utils::to_lower(setVar), searchFilterLower))
                 {
@@ -777,7 +777,7 @@ void GraphView::DrawContextMenu()
         {
             // Call
             {
-                const std::string fullFuncName = "Functions::" + def.functionDef->name;
+                const std::string fullFuncName = "Functions::" + def->functionDef->name;
 
                 if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
                 {
@@ -799,8 +799,8 @@ void GraphView::DrawContextMenu()
                             child.fullName = fullFuncName;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                NodePtr node = def.functionDef->MakeNode(IDGenerator);
-                                node->refId = def.Id;
+                                NodePtr node = def->functionDef->MakeNode(IDGenerator);
+                                node->refId = def->ID;
                                 return node;
                             };
                         }
@@ -813,7 +813,7 @@ void GraphView::DrawContextMenu()
 
             // Get
             {
-                const std::string getFuncName = "Functions::Get::" + def.functionDef->name;
+                const std::string getFuncName = "Functions::Get::" + def->functionDef->name;
 
                 if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
                 {
@@ -835,8 +835,8 @@ void GraphView::DrawContextMenu()
                             child.fullName = getFuncName;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                NodePtr node = BuildGetFunctionNode(IDGenerator, def.functionDef);
-                                node->refId = def.Id;
+                                NodePtr node = BuildGetFunctionNode(IDGenerator, def->functionDef);
+                                node->refId = def->ID;
                                 return node;
                             };
                         }

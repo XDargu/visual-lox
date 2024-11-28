@@ -1,16 +1,22 @@
 # pragma once
 
-#include "class.h"
-#include "function.h"
-#include "property.h"
-
 #include <string>
 #include <vector>
 #include <memory>
+
+enum class ScriptElementType
+{
+    Function,
+    Variable,
+    Class,
+};
 
 using ScriptElementID = int;
 
 struct IScriptElement
 {
+    virtual ~IScriptElement() {};
+
     ScriptElementID ID;
+    ScriptElementType Type;
 };

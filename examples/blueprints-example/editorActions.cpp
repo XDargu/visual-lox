@@ -80,7 +80,7 @@ namespace Editor
 
     void RenameFunctionAction::Run()
     {
-        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_id))
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_id))
         {
             m_prevName = pFun->functionDef->name;
         }

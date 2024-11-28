@@ -1,14 +1,22 @@
 # pragma once
 
+#include "scriptElement.h"
+
 #include <Value.h>
 
 #include <string>
 #include <vector>
 #include <memory>
 
-struct ScriptProperty
+struct ScriptProperty : public IScriptElement
 {
-    int Id = -1;
+    ScriptProperty()
+    {
+        Type = ScriptElementType::Variable;
+    }
+
     std::string Name;
     Value defaultValue;
 };
+
+using ScriptPropertyPtr = std::shared_ptr<ScriptProperty>;

@@ -12,22 +12,23 @@ struct Script
 {
     Script()
     {
-        main.functionDef->name = "Main";
+        main = std::make_shared<ScriptFunction>();
+        main->functionDef->name = "Main";
     }
+
+    ScriptElementID ID;
     
-    int Id = -1;
+    std::vector<ScriptClassPtr> classes;
+    std::vector<ScriptPropertyPtr> variables;
+    std::vector<ScriptFunctionPtr> functions;
 
-    std::vector<ScriptClass> classes;
-    std::vector<ScriptProperty> variables;
-    std::vector<ScriptFunction> functions;
-
-    ScriptFunction main;
+    ScriptFunctionPtr main; // TODO: Should this just be a function?
 };
 
 struct ScriptUtils
 {
-    static ScriptProperty* FindVariableById(Script& script, int varId);
-    static ScriptFunction* FindFunctionById(Script& script, int funId);
+    static ScriptPropertyPtr FindVariableById(Script& script, int varId);
+    static ScriptFunctionPtr FindFunctionById(Script& script, int funId);
 
     static std::vector<NodePtr> FindFunctionReferences(Script& script, int funId);
 

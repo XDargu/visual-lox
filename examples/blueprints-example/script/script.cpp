@@ -1,24 +1,22 @@
 #include "script.h"
 
-ScriptProperty* ScriptUtils::FindVariableById(Script& script, int varId)
+ScriptPropertyPtr ScriptUtils::FindVariableById(Script& script, int varId)
 {
-    auto it = std::find_if(script.variables.begin(), script.variables.end(), [varId](const ScriptProperty& v) { return v.Id == varId; });
+    auto it = std::find_if(script.variables.begin(), script.variables.end(), [varId](const ScriptPropertyPtr& v) { return v->ID == varId; });
     if (it != script.variables.end())
     {
-        ScriptProperty& var = *it;
-        return &var;
+        return (*it);
     }
 
     return nullptr;
 }
 
-ScriptFunction* ScriptUtils::FindFunctionById(Script& script, int funId)
+ScriptFunctionPtr ScriptUtils::FindFunctionById(Script& script, int funId)
 {
-    auto it = std::find_if(script.functions.begin(), script.functions.end(), [funId](const ScriptFunction& f) { return f.Id == funId; });
+    auto it = std::find_if(script.functions.begin(), script.functions.end(), [funId](const ScriptFunctionPtr& f) { return f->ID == funId; });
     if (it != script.functions.end())
     {
-        ScriptFunction& fun = *it;
-        return &fun;
+        return (*it);
     }
 
     return nullptr;
@@ -30,7 +28,7 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
 
     for (auto& function : script.functions)
     {
-        for (auto& node : function.Graph.GetNodes())
+        for (auto& node : function->Graph.GetNodes())
         {
             if (node->refId == funId)
             {
@@ -39,7 +37,7 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
         }
     }
 
-    for (auto& node : script.main.Graph.GetNodes())
+    for (auto& node : script.main->Graph.GetNodes())
     {
         if (node->refId == funId)
         {
@@ -52,7 +50,7 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
 
 void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& IDGenerator)
 {
-    if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(script, funId))
+    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(script, funId))
     {
         NodePtr begin = pFun->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
         if (begin)

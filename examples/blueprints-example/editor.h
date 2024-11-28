@@ -60,7 +60,7 @@ struct Example :
     void OnStart() override;
     void OnStop() override;
 
-    void ChangeGraph(ScriptFunction& scriptFunction);
+    void ChangeGraph(const ScriptFunctionPtr& scriptFunction);
 
     void ShowStyleEditor(bool* show = nullptr);
     void ShowNodeSelection(float paneWidth);

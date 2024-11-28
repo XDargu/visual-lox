@@ -105,7 +105,7 @@ void Example::OnStart()
     m_graphView.Init(LargeNodeFont());
     m_graphView.setNodeRegistry(m_NodeRegistry);
 
-    m_graphView.SetGraph(&m_script, &m_script.main, &m_script.main.Graph);
+    m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
 
     m_HeaderBackground = LoadTexture("data/BlueprintBackground.png");
     m_SaveIcon = LoadTexture("data/ic_save_white_24dp.png");
@@ -118,26 +118,26 @@ void Example::OnStart()
     m_InputIcon = LoadTexture("data/ic_input.png");
     m_OutputIcon = LoadTexture("data/ic_output.png");
 
-    auto markFunction = [&](ScriptFunction& scriptFunction)
+    auto markFunction = [&](const ScriptFunctionPtr& scriptFunction)
     {
         VM& vm = VM::getInstance();
 
-        for (auto& input : scriptFunction.functionDef->inputs)
+        for (auto& input : scriptFunction->functionDef->inputs)
         {
             vm.markValue(input.value);
         }
 
-        for (auto& output : scriptFunction.functionDef->outputs)
+        for (auto& output : scriptFunction->functionDef->outputs)
         {
             vm.markValue(output.value);
         }
 
-        for (ScriptProperty& scriptProperty : scriptFunction.variables)
+        for (auto& scriptProperty : scriptFunction->variables)
         {
-            vm.markValue(scriptProperty.defaultValue);
+            vm.markValue(scriptProperty->defaultValue);
         }
 
-        for (NodePtr& node : scriptFunction.Graph.GetNodes())
+        for (NodePtr& node : scriptFunction->Graph.GetNodes())
         {
             for (Value& value : node->InputValues)
             {
@@ -169,27 +169,27 @@ void Example::OnStart()
 
         markFunction(m_script.main);
 
-        for (ScriptClass& scriptClass : m_script.classes)
+        for (const ScriptClassPtr& scriptClass : m_script.classes)
         {
-            for (ScriptFunction& scriptFunction : scriptClass.methods)
+            for (const ScriptFunctionPtr& scriptFunction : scriptClass->methods)
             {
                 markFunction(scriptFunction);
             }
 
-            for (ScriptProperty& scriptProperty : scriptClass.properties)
+            for (const ScriptPropertyPtr& scriptProperty : scriptClass->properties)
             {
-                vm.markValue(scriptProperty.defaultValue);
+                vm.markValue(scriptProperty->defaultValue);
             }
         }
 
-        for (ScriptFunction& scriptFunction : m_script.functions)
+        for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
         {
             markFunction(scriptFunction);
         }
 
-        for (ScriptProperty& scriptProperty : m_script.variables)
+        for (const ScriptPropertyPtr& scriptProperty : m_script.variables)
         {
-            vm.markValue(scriptProperty.defaultValue);
+            vm.markValue(scriptProperty->defaultValue);
         }
     });
 
@@ -211,13 +211,13 @@ void Example::OnStart()
     m_NodeRegistry.RegisterDefinitions();
 
     // Script ID
-    m_script.Id = m_IDGenerator.GetNextId();
+    m_script.ID = m_IDGenerator.GetNextId();
 
     // Start tree view
     m_scriptTreeView.label = "Script";
     m_scriptTreeView.isOpen = true;
     m_scriptTreeView.icon = m_ScriptIcon;
-    m_scriptTreeView.id = m_script.Id;
+    m_scriptTreeView.id = m_script.ID;
     m_scriptTreeView.contextMenu = [&]()
     {
         if (ImGui::BeginPopupContextItem("SelectablePopup"))
@@ -238,12 +238,12 @@ void Example::OnStart()
     // Add begin to main function
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
     NodeUtils::BuildNode(beginMain);
-    m_script.main.Id = m_IDGenerator.GetNextId();
-    m_script.main.Graph.AddNode(beginMain);
+    m_script.main->ID = m_IDGenerator.GetNextId();
+    m_script.main->Graph.AddNode(beginMain);
 
     // Add main function to tree view
     TreeNode mainNode;
-    mainNode.id = m_script.main.Id;
+    mainNode.id = m_script.main->ID;
     mainNode.label = "Main";
     mainNode.icon = m_FunctionIcon;
     mainNode.onclick = [&]() { ChangeGraph(m_script.main); };
@@ -274,7 +274,7 @@ void Example::OnStop()
 
 }
 
-void Example::ChangeGraph(ScriptFunction& scriptFunction)
+void Example::ChangeGraph(const ScriptFunctionPtr& scriptFunction)
 {
     // Save current graph
     for (auto& node : m_graphView.m_pGraph->GetNodes())
@@ -282,10 +282,10 @@ void Example::ChangeGraph(ScriptFunction& scriptFunction)
         node->SavedState = node->State;
     }
 
-    m_graphView.SetGraph(&m_script, &scriptFunction, &scriptFunction.Graph);
+    m_graphView.SetGraph(&m_script, scriptFunction, &scriptFunction->Graph);
 
     // Load new graph
-    for (auto& node : scriptFunction.Graph.GetNodes())
+    for (auto& node : scriptFunction->Graph.GetNodes())
     {
         node->State = node->SavedState;
         ed::RestoreNodeState(node->ID);
@@ -607,11 +607,11 @@ void Example::GatherConstFoldableNodes(Compiler& compiler, VM& vm)
 
     std::vector<Graph*> candidates;
 
-    candidates.push_back(&m_script.main.Graph);
+    candidates.push_back(&m_script.main->Graph);
 
-    for (ScriptFunction& scriptFunction : m_script.functions)
+    for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
     {
-        candidates.push_back(&scriptFunction.Graph);
+        candidates.push_back(&scriptFunction->Graph);
     }
 
     for (Graph* graph : candidates)
@@ -718,7 +718,7 @@ void Example::ShowCompilerInfo(float paneWidth)
         static ObjFunction* function = nullptr;
 
         // Compile everything here!
-        NodePtr begin = m_script.main.Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        NodePtr begin = m_script.main->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
         if (begin)
         {
             GraphCompiler graphCompiler(compiler);
@@ -726,16 +726,16 @@ void Example::ShowCompilerInfo(float paneWidth)
             compiler.beginCompile();
 
             // Compile script variables (globals)
-            for (const ScriptProperty& scriptProperty : m_script.variables)
+            for (const ScriptPropertyPtr& scriptProperty : m_script.variables)
             {
-                compiler.emitConstant(scriptProperty.defaultValue);
-                const Token outputToken(TokenType::VAR, scriptProperty.Name.c_str(), scriptProperty.Name.length(), 0);
+                compiler.emitConstant(scriptProperty->defaultValue);
+                const Token outputToken(TokenType::VAR, scriptProperty->Name.c_str(), scriptProperty->Name.length(), 0);
                 const uint32_t constant = compiler.identifierConstant(outputToken);
                 compiler.defineVariable(constant);
             }
 
             // Compile script functions (globals)
-            for (const ScriptFunction& scriptFunction : m_script.functions)
+            for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
             {
                 // TODO: I had to pretty much rewrite the compiler logic for parsing text, since it's completely mixed with
                 // the scanner/token logic
@@ -743,7 +743,7 @@ void Example::ShowCompilerInfo(float paneWidth)
 
                 // A bit of a hack
                 // TODO: Perhaps expose this better
-                Token funcToken(TokenType::IDENTIFIER, scriptFunction.functionDef->name.c_str(), scriptFunction.functionDef->name.length(), 0);
+                Token funcToken(TokenType::IDENTIFIER, scriptFunction->functionDef->name.c_str(), scriptFunction->functionDef->name.length(), 0);
                 const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
                 compiler.markInitialized();
 
@@ -752,7 +752,7 @@ void Example::ShowCompilerInfo(float paneWidth)
 
                 compiler.beginScope();
 
-                for (auto& input : scriptFunction.functionDef->inputs)
+                for (auto& input : scriptFunction->functionDef->inputs)
                 {
                     const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
 
@@ -770,7 +770,7 @@ void Example::ShowCompilerInfo(float paneWidth)
                 //
 
                 //compiler.beginScope();
-                CompileGraph(scriptFunction.Graph, compiler);
+                CompileGraph(scriptFunction->Graph, compiler);
                 //compiler.endScope();
 
                 ObjFunction* function = compiler.endCompiler();
@@ -792,7 +792,7 @@ void Example::ShowCompilerInfo(float paneWidth)
 
 
             compiler.beginScope();
-            CompileGraph(m_script.main.Graph, compiler);
+            CompileGraph(m_script.main->Graph, compiler);
             compiler.endScope();
 
             function = compiler.endCompiler();
@@ -1134,9 +1134,9 @@ void Example::AddFunction(int funId)
     funcNode.label = namestr;
     funcNode.onclick = [&, funId]()
     {
-        if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
         {
-            ChangeGraph(*pFun);
+            ChangeGraph(pFun);
         }
     };
     funcNode.onRename = [this, funId](std::string newName)
@@ -1165,13 +1165,13 @@ void Example::AddFunction(int funId)
     };
     m_scriptTreeView.children.push_back(funcNode);
 
-    ScriptFunction foo;
-    foo.Id = funId;
-    foo.functionDef->name = namestr;
+    ScriptFunctionPtr foo = std::make_shared<ScriptFunction>();
+    foo->ID = funId;
+    foo->functionDef->name = namestr;
 
     NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
     NodeUtils::BuildNode(beginFoo);
-    foo.Graph.AddNode(beginFoo);
+    foo->Graph.AddNode(beginFoo);
 
     m_script.functions.push_back(foo);
 }
@@ -1183,7 +1183,7 @@ void Example::AddVariable(int varId)
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
     varNode.contextMenu = [this, varId](){
-        if (ScriptProperty* pVar = ScriptUtils::FindVariableById(m_script, varId))
+        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
             ImGui::PushID(varId);
             ImGui::SameLine();
@@ -1208,13 +1208,16 @@ void Example::AddVariable(int varId)
         }
     };
     m_scriptTreeView.children.push_back(varNode);
-
-    m_script.variables.push_back({ varId, varNode.label, Value() });
+    
+    ScriptPropertyPtr var = std::make_shared<ScriptProperty>();
+    var->ID = varId;
+    var->Name = varNode.label;
+    m_script.variables.push_back(var);
 }
 
 void Example::RenameFunction(int funId, const char* name)
 {
-    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
 
     if (it != m_scriptTreeView.children.end() && pFun)
@@ -1229,7 +1232,7 @@ void Example::RenameFunction(int funId, const char* name)
 
 void Example::AddFunctionInput(int funId, int inputId)
 {
-    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
 
     if (it != m_scriptTreeView.children.end() && pFun)
@@ -1244,7 +1247,7 @@ void Example::AddFunctionInput(int funId, int inputId)
         inputNode.label = namestr;
         inputNode.contextMenu = [this, funId, inputId]()
         {
-            if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
             {
                 if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
                 {
@@ -1286,7 +1289,7 @@ void Example::AddFunctionInput(int funId, int inputId)
 
 void Example::AddFunctionOutput(int funId, int outputId)
 {
-    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
 
     if (it != m_scriptTreeView.children.end() && pFun)
@@ -1301,7 +1304,7 @@ void Example::AddFunctionOutput(int funId, int outputId)
         outputNode.label = namestr;
         outputNode.contextMenu = [this, funId, outputId]()
         {
-            if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
             {
                 if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
                 {
@@ -1343,7 +1346,7 @@ void Example::AddFunctionOutput(int funId, int outputId)
 
 void Example::RemoveFunction(int funId)
 {
-    stl::erase_if(m_script.functions, [funId](const ScriptFunction& func) { return func.Id == funId; });
+    stl::erase_if(m_script.functions, [funId](const ScriptFunctionPtr& func) { return func->ID == funId; });
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [funId](const TreeNode& node) { return node.id == funId; });
@@ -1355,7 +1358,7 @@ void Example::RemoveFunction(int funId)
 
 void Example::RemoveVariable(int id)
 {
-    stl::erase_if(m_script.variables, [id](const ScriptProperty& variable) { return variable.Id == id; });
+    stl::erase_if(m_script.variables, [id](const ScriptPropertyPtr& variable) { return variable->ID == id; });
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [id](const TreeNode& node) { return node.id == id; });
@@ -1365,7 +1368,7 @@ void Example::RemoveVariable(int id)
 
 void Example::RemoveFunctionInput(int funId, int inputId)
 {
-    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
 
     if (pFun)
@@ -1386,7 +1389,7 @@ void Example::RemoveFunctionInput(int funId, int inputId)
 
 void Example::RemoveFunctionOutput(int funId, int outputId)
 {
-    ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     auto it = std::find_if(m_scriptTreeView.children.begin(), m_scriptTreeView.children.end(), [funId](const TreeNode& node) { return node.id == funId; });
 
     if (pFun)

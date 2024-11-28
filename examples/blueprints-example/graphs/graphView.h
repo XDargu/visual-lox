@@ -58,7 +58,7 @@ struct GraphView
 
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
-    void SetGraph(Script* pTargetScript, ScriptFunction* pScriptFunction, Graph* pTargetGraph);
+    void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph);
 
     void Destroy();
 
@@ -69,7 +69,7 @@ struct GraphView
 
     ed::EditorContext* m_Editor = nullptr;
     Graph* m_pGraph = nullptr;
-    ScriptFunction* m_pScriptFunction = nullptr;
+    ScriptFunctionPtr m_pScriptFunction = nullptr;
     Script* m_pScript = nullptr;
 
     // Drawing

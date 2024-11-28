@@ -6,6 +6,9 @@
 struct ScriptFunction;
 using ScriptFunctionPtr = std::shared_ptr<ScriptFunction>;
 
+struct ScriptProperty;
+using ScriptPropertyPtr = std::shared_ptr<ScriptProperty>;
+
 namespace Editor
 {
     struct Example;
@@ -40,6 +43,18 @@ namespace Editor
 
         Example* m_pEditor;
         int m_id;
+    };
+
+    struct DeleteVariableAction : public IAction
+    {
+        DeleteVariableAction(Example* pEditor, const ScriptPropertyPtr& pVariable);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+        virtual void MarkRoots() override;
+
+        Example* m_pEditor;
+        ScriptPropertyPtr m_pVariable;
     };
 
     struct AddFunctionInputAction : public IAction

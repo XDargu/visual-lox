@@ -37,6 +37,27 @@ namespace Editor
         m_pEditor->RemoveVariable(m_id);
     }
 
+    DeleteVariableAction::DeleteVariableAction(Example* pEditor, const ScriptPropertyPtr& pVariable)
+        : m_pEditor(pEditor)
+        , m_pVariable(pVariable)
+    {
+    }
+
+    void DeleteVariableAction::Run()
+    {
+        m_pEditor->RemoveVariable(m_pVariable->ID);
+    }
+
+    void DeleteVariableAction::Revert()
+    {
+        m_pEditor->AddVariable(m_pVariable);
+    }
+
+    void DeleteVariableAction::MarkRoots()
+    {
+        ScriptUtils::MarkVariableRoots(m_pVariable);
+    }
+
     AddFunctionInputAction::AddFunctionInputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;

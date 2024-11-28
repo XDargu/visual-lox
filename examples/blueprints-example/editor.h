@@ -92,6 +92,7 @@ struct Example :
     void AddFunction(int id);
     void AddFunction(const ScriptFunctionPtr& pExistingFunction);
     void AddVariable(int id);
+    void AddVariable(const ScriptPropertyPtr& pVariable);
 
     void RenameFunction(int funId, const char* name);
 

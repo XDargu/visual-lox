@@ -1145,6 +1145,16 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     {
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
+            if (ImGui::BeginPopupContextItem("VarPopup"))
+            {
+                // Menu options
+                if (ImGui::MenuItem("Delete"))
+                {
+                    pendingActions.push_back(std::make_shared<DeleteVariableAction>(this, pVar));
+                }
+                ImGui::EndPopup();
+            }
+
             ImGui::PushID(varId);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
@@ -1165,6 +1175,8 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
                 }
             });
             ImGui::PopID();
+
+            
         }
     };
 
@@ -1338,6 +1350,15 @@ void Example::AddVariable(int varId)
     var->ID = varId;
     var->Name = varNode.label;
     m_script.variables.push_back(var);
+}
+
+void Example::AddVariable(const ScriptPropertyPtr& pVariable)
+{
+    m_script.variables.push_back(pVariable);
+
+    // Restore tree
+    const TreeNode varNode = MakeVariableNode(pVariable->ID, pVariable->Name);
+    m_scriptTreeView.children.push_back(varNode);
 }
 
 void Example::RenameFunction(int funId, const char* name)

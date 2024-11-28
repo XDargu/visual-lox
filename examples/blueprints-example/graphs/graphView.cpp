@@ -567,26 +567,7 @@ void GraphView::DrawContextMenu()
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
             Value& inputValue = pin->Node->InputValues[inputIdx];
 
-            static int currentIdx = 0;
-
-            if (isBoolean(inputValue))
-                currentIdx = 0;
-            else if (isNumber(inputValue))
-                currentIdx = 1;
-            else if (isString(inputValue))
-                currentIdx = 2;
-
-            ImGui::PushItemWidth(80.0f);
-            if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
-            {
-                if (currentIdx == 0)
-                    inputValue = Value(false);
-                else if (currentIdx == 1)
-                    inputValue = Value(0.0);
-                else if (currentIdx == 2)
-                    inputValue = Value(copyString("", 0));
-            }
-            ImGui::PopItemWidth();
+            GraphViewUtils::DrawTypeSelection(inputValue);
         }
 
         if (HasFlag(pin->Node->Flags, NodeFlags::DynamicInputs) && pin->Kind == PinKind::Input)
@@ -1114,4 +1095,28 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
 
         DrawTypeInputImpl(currentType, inputValue);
     }
+}
+
+void GraphViewUtils::DrawTypeSelection(Value& inputValue)
+{
+    int currentIdx = 0;
+
+    if (isBoolean(inputValue))
+        currentIdx = 0;
+    else if (isNumber(inputValue))
+        currentIdx = 1;
+    else if (isString(inputValue))
+        currentIdx = 2;
+
+    ImGui::PushItemWidth(80.0f);
+    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
+    {
+        if (currentIdx == 0)
+            inputValue = Value(false);
+        else if (currentIdx == 1)
+            inputValue = Value(0.0);
+        else if (currentIdx == 2)
+            inputValue = Value(copyString("", 0));
+    }
+    ImGui::PopItemWidth();
 }

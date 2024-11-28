@@ -1191,29 +1191,7 @@ void Example::AddVariable(int varId)
             GraphViewUtils::DrawTypeInput(TypeOfValue(pVar->defaultValue), pVar->defaultValue);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
-            //if (TypeOfValue(it->defaultValue) == PinType::Any)
-            {
-                int currentIdx = 0;
-
-                if (isBoolean(pVar->defaultValue))
-                    currentIdx = 0;
-                else if (isNumber(pVar->defaultValue))
-                    currentIdx = 1;
-                else if (isString(pVar->defaultValue))
-                    currentIdx = 2;
-
-                ImGui::PushItemWidth(80.0f);
-                if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
-                {
-                    if (currentIdx == 0)
-                        pVar->defaultValue = Value(false);
-                    else if (currentIdx == 1)
-                        pVar->defaultValue = Value(0.0);
-                    else if (currentIdx == 2)
-                        pVar->defaultValue = Value(copyString("", 0));
-                }
-                ImGui::PopItemWidth();
-            }
+            GraphViewUtils::DrawTypeSelection(pVar->defaultValue);
             ImGui::PopID();
         }
     };

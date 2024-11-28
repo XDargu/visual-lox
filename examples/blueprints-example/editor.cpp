@@ -119,34 +119,6 @@ void Example::OnStart()
     m_InputIcon = LoadTexture("data/ic_input.png");
     m_OutputIcon = LoadTexture("data/ic_output.png");
 
-    auto markFunction = [&](const ScriptFunctionPtr& scriptFunction)
-    {
-        VM& vm = VM::getInstance();
-
-        for (auto& input : scriptFunction->functionDef->inputs)
-        {
-            vm.markValue(input.value);
-        }
-
-        for (auto& output : scriptFunction->functionDef->outputs)
-        {
-            vm.markValue(output.value);
-        }
-
-        for (auto& scriptProperty : scriptFunction->variables)
-        {
-            vm.markValue(scriptProperty->defaultValue);
-        }
-
-        for (NodePtr& node : scriptFunction->Graph.GetNodes())
-        {
-            for (Value& value : node->InputValues)
-            {
-                vm.markValue(value);
-            }
-        }
-    };
-
     VM& vm = VM::getInstance();
     vm.setExternalMarkingFunc([&]()
     {
@@ -168,29 +140,16 @@ void Example::OnStart()
             vm.markValue(value);
         }
 
-        markFunction(m_script.main);
+        ScriptUtils::MarkScriptRoots(m_script);
 
-        for (const ScriptClassPtr& scriptClass : m_script.classes)
+        for (const IActionPtr& pAction : pendingActions)
         {
-            for (const ScriptFunctionPtr& scriptFunction : scriptClass->methods)
-            {
-                markFunction(scriptFunction);
-            }
-
-            for (const ScriptPropertyPtr& scriptProperty : scriptClass->properties)
-            {
-                vm.markValue(scriptProperty->defaultValue);
-            }
+            pAction->MarkRoots();
         }
 
-        for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
+        for (const IActionPtr& pAction : actionStack)
         {
-            markFunction(scriptFunction);
-        }
-
-        for (const ScriptPropertyPtr& scriptProperty : m_script.variables)
-        {
-            vm.markValue(scriptProperty->defaultValue);
+            pAction->MarkRoots();
         }
     });
 

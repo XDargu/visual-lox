@@ -108,4 +108,9 @@ namespace Editor
         // Add function
         m_pEditor->AddFunction(m_pFunction);
     }
+
+    void DeleteFunctionAction::MarkRoots()
+    {
+        ScriptUtils::MarkFunctionRoots(m_pFunction);
+    }
 }

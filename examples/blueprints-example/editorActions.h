@@ -15,6 +15,7 @@ namespace Editor
 
         virtual void Run() = 0;
         virtual void Revert() = 0;
+        virtual void MarkRoots() {}
     };
 
     using IActionPtr = std::shared_ptr<IAction>;
@@ -84,6 +85,7 @@ namespace Editor
 
         virtual void Run() override;
         virtual void Revert() override;
+        virtual void MarkRoots() override;
 
         Example* m_pEditor;
 

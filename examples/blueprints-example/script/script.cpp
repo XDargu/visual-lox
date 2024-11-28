@@ -1,5 +1,7 @@
 #include "script.h"
 
+#include <Vm.h>
+
 ScriptPropertyPtr ScriptUtils::FindVariableById(Script& script, int varId)
 {
     auto it = std::find_if(script.variables.begin(), script.variables.end(), [varId](const ScriptPropertyPtr& v) { return v->ID == varId; });
@@ -75,4 +77,69 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
             NodeUtils::BuildNode(node);
         }
     }
+}
+
+void ScriptUtils::MarkScriptRoots(Script& script)
+{
+    VM& vm = VM::getInstance();
+
+    MarkFunctionRoots(script.main);
+
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        for (const ScriptFunctionPtr& scriptFunction : scriptClass->methods)
+        {
+            MarkFunctionRoots(scriptFunction);
+        }
+
+        for (const ScriptPropertyPtr& scriptProperty : scriptClass->properties)
+        {
+            MarkVariableRoots(scriptProperty);
+        }
+    }
+
+    for (const ScriptFunctionPtr& scriptFunction : script.functions)
+    {
+        MarkFunctionRoots(scriptFunction);
+    }
+
+    for (const ScriptPropertyPtr& scriptProperty : script.variables)
+    {
+        MarkVariableRoots(scriptProperty);
+    }
+}
+
+void ScriptUtils::MarkFunctionRoots(const ScriptFunctionPtr& pFunction)
+{
+    VM& vm = VM::getInstance();
+
+    for (auto& input : pFunction->functionDef->inputs)
+    {
+        vm.markValue(input.value);
+    }
+
+    for (auto& output : pFunction->functionDef->outputs)
+    {
+        vm.markValue(output.value);
+    }
+
+    for (auto& scriptProperty : pFunction->variables)
+    {
+        vm.markValue(scriptProperty->defaultValue);
+    }
+
+    for (NodePtr& node : pFunction->Graph.GetNodes())
+    {
+        for (Value& value : node->InputValues)
+        {
+            vm.markValue(value);
+        }
+    }
+}
+
+void ScriptUtils::MarkVariableRoots(const ScriptPropertyPtr& pVariable)
+{
+    VM& vm = VM::getInstance();
+
+    vm.markValue(pVariable->defaultValue);
 }

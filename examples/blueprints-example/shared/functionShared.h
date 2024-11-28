@@ -64,6 +64,9 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 
     Input* FindOutputByName(const std::string& name);
     Input* FindInputByName(const std::string& name);
+
+    Input* FindOutputByID(const int inputId);
+    Input* FindInputByID(const int inputId);
 };
 
 using BasicFunctionDefPtr = std::shared_ptr< BasicFunctionDef>;

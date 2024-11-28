@@ -1191,7 +1191,19 @@ void Example::AddVariable(int varId)
             GraphViewUtils::DrawTypeInput(TypeOfValue(pVar->defaultValue), pVar->defaultValue);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
-            GraphViewUtils::DrawTypeSelection(pVar->defaultValue);
+            GraphViewUtils::DrawTypeSelection(pVar->defaultValue, [&](PinType newType)
+            {
+                // TODO: At some point this should become a new editor action!
+                switch (newType)
+                {
+                case PinType::Bool:     pVar->defaultValue = Value(false); break;
+                case PinType::Float:    pVar->defaultValue = Value(0.0); break;
+                case PinType::String:   pVar->defaultValue = Value(takeString("", 0)); break;
+                case PinType::List:     pVar->defaultValue = Value(newList()); break;
+                case PinType::Function: pVar->defaultValue = Value(newFunction()); break;
+                case PinType::Any:      pVar->defaultValue = Value(); break;
+                }
+            });
             ImGui::PopID();
         }
     };
@@ -1230,6 +1242,40 @@ void Example::AddFunctionInput(int funId, int inputId)
         inputNode.id = inputId;
         inputNode.icon = m_InputIcon;
         inputNode.label = namestr;
+        inputNode.contextMenu = [this, funId, inputId]()
+        {
+            if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+            {
+                if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
+                {
+                    Value& inputValue = pInput->value;
+                    ImGui::PushID(funId);
+                    ImGui::PushID(inputId);
+                    ImGui::SameLine();
+                    ImGui::SetItemAllowOverlap();
+                    GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
+                    ImGui::SameLine();
+                    ImGui::SetItemAllowOverlap();
+                    GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+                    {
+                        // TODO: At some point this should become a new editor action!
+                        switch (newType)
+                        {
+                        case PinType::Bool:     inputValue = Value(false); break;
+                        case PinType::Float:    inputValue = Value(0.0); break;
+                        case PinType::String:   inputValue = Value(takeString("", 0)); break;
+                        case PinType::List:     inputValue = Value(newList()); break;
+                        case PinType::Function: inputValue = Value(newFunction()); break;
+                        case PinType::Any:      inputValue = Value(); break;
+                        }
+
+                        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                    });
+                    ImGui::PopID();
+                    ImGui::PopID();
+                }
+            }
+        };
         funcNode.children.push_back(inputNode);
 
         pFun->functionDef->inputs.push_back({ namestr, Value(), inputId });
@@ -1253,6 +1299,40 @@ void Example::AddFunctionOutput(int funId, int outputId)
         outputNode.id = outputId;
         outputNode.icon = m_OutputIcon;
         outputNode.label = namestr;
+        outputNode.contextMenu = [this, funId, outputId]()
+        {
+            if (ScriptFunction* pFun = ScriptUtils::FindFunctionById(m_script, funId))
+            {
+                if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
+                {
+                    Value& inputValue = pOutput->value;
+                    ImGui::PushID(funId);
+                    ImGui::PushID(outputId);
+                    ImGui::SameLine();
+                    ImGui::SetItemAllowOverlap();
+                    GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
+                    ImGui::SameLine();
+                    ImGui::SetItemAllowOverlap();
+                    GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+                    {
+                        // TODO: At some point this should become a new editor action!
+                        switch (newType)
+                        {
+                        case PinType::Bool:     inputValue = Value(false); break;
+                        case PinType::Float:    inputValue = Value(0.0); break;
+                        case PinType::String:   inputValue = Value(takeString("", 0)); break;
+                        case PinType::List:     inputValue = Value(newList()); break;
+                        case PinType::Function: inputValue = Value(newFunction()); break;
+                        case PinType::Any:      inputValue = Value(); break;
+                        }
+
+                        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                    });
+                    ImGui::PopID();
+                    ImGui::PopID();
+                }
+            }
+        };
         funcNode.children.push_back(outputNode);
 
         pFun->functionDef->outputs.push_back({ namestr, Value(), outputId });

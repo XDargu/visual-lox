@@ -17,6 +17,7 @@
 #include <imgui_node_editor.h>
 
 #include <map>
+#include <functional>
 
 class NodeRegistry;
 struct Value;
@@ -99,5 +100,5 @@ struct GraphViewUtils
 {
     static void DrawTypeInputImpl(const PinType pinType, Value& inputValue);
     static void DrawTypeInput(const PinType pinType, Value& inputValue);
-    static void DrawTypeSelection(Value& inputValue);
+    static void DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange);
 };

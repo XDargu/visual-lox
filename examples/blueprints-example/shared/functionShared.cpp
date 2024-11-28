@@ -236,3 +236,29 @@ BasicFunctionDef::Input* BasicFunctionDef::FindInputByName(const std::string& na
 
     return nullptr;
 }
+
+BasicFunctionDef::Input* BasicFunctionDef::FindOutputByID(const int inputId)
+{
+    for (Input& input : outputs)
+    {
+        if (input.id == inputId)
+        {
+            return &input;
+        }
+    }
+
+    return nullptr;
+}
+
+BasicFunctionDef::Input* BasicFunctionDef::FindInputByID(const int inputId)
+{
+    for (Input& input : inputs)
+    {
+        if (input.id == inputId)
+        {
+            return &input;
+        }
+    }
+
+    return nullptr;
+}

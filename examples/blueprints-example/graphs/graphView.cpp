@@ -567,7 +567,19 @@ void GraphView::DrawContextMenu()
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
             Value& inputValue = pin->Node->InputValues[inputIdx];
 
-            GraphViewUtils::DrawTypeSelection(inputValue);
+            GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+            {
+                // TODO: At some point this should become a new editor action!
+                switch (newType)
+                {
+                case PinType::Bool: inputValue = Value(false); break;
+                case PinType::Float: inputValue = Value(0.0); break;
+                case PinType::String: inputValue = Value(takeString("", 0)); break;
+                case PinType::List: inputValue = Value(newList()); break;
+                case PinType::Function: inputValue = Value(newFunction()); break;
+                case PinType::Any: inputValue = Value(); break;
+                }
+            });
         }
 
         if (HasFlag(pin->Node->Flags, NodeFlags::DynamicInputs) && pin->Kind == PinKind::Input)
@@ -1097,7 +1109,7 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
     }
 }
 
-void GraphViewUtils::DrawTypeSelection(Value& inputValue)
+void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange)
 {
     int currentIdx = 0;
 
@@ -1118,17 +1130,17 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue)
     if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Function\0Any\0"))
     {
         if (currentIdx == 0)
-            inputValue = Value(false);
+            onChange(PinType::Bool);
         else if (currentIdx == 1)
-            inputValue = Value(0.0);
+            onChange(PinType::Float);
         else if (currentIdx == 2)
-            inputValue = Value(copyString("", 0));
+            onChange(PinType::String);
         else if (currentIdx == 3)
-            inputValue = Value(newList());
+            onChange(PinType::List);
         else if (currentIdx == 4)
-            inputValue = Value(newFunction());
+            onChange(PinType::Function);
         else
-            inputValue = Value();
+            onChange(PinType::Any);
     }
     ImGui::PopItemWidth();
 }

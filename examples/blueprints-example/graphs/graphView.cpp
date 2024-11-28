@@ -1107,9 +1107,15 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue)
         currentIdx = 1;
     else if (isString(inputValue))
         currentIdx = 2;
+    else if (isList(inputValue))
+        currentIdx = 3;
+    else if (isFunction(inputValue))
+        currentIdx = 4;
+    else
+        currentIdx = 5;
 
     ImGui::PushItemWidth(80.0f);
-    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0"))
+    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Function\0Any\0"))
     {
         if (currentIdx == 0)
             inputValue = Value(false);
@@ -1117,6 +1123,12 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue)
             inputValue = Value(0.0);
         else if (currentIdx == 2)
             inputValue = Value(copyString("", 0));
+        else if (currentIdx == 3)
+            inputValue = Value(newList());
+        else if (currentIdx == 4)
+            inputValue = Value(newFunction());
+        else
+            inputValue = Value();
     }
     ImGui::PopItemWidth();
 }

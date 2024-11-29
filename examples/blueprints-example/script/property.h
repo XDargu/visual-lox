@@ -10,8 +10,10 @@
 
 struct ScriptProperty : public IScriptElement
 {
-    ScriptProperty()
+    ScriptProperty(ScriptElementID id, const char* name)
+        : Name(name)
     {
+        ID = id;
         Type = ScriptElementType::Variable;
     }
 

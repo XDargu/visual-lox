@@ -87,6 +87,7 @@ struct Example :
     TreeNode MakeOutputNode(int funId, int outputId, const std::string& name);
 
     TreeNode* FindNodeByID(int id);
+    void EraseNodeByID(int id);
 
     // Script operations
     void AddFunction(int id);

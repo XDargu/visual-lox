@@ -265,6 +265,11 @@ Value findIf(int argCount, Value* args, VM* vm)
         return Value();
     }
 
+    if (getCallableArity(args[1]) != 1)
+    {
+        return Value();
+    }
+
     Value foundResult;
 
     forEachIterable(args[0], [&](const Value& element, int idx)
@@ -283,6 +288,11 @@ Value findIf(int argCount, Value* args, VM* vm)
 Value map(int argCount, Value* args, VM* vm)
 {
     if (!isIterable(args[0]) || !isCallable(args[1]))
+    {
+        return Value();
+    }
+
+    if (getCallableArity(args[1]) != 1)
     {
         return Value();
     }
@@ -308,6 +318,11 @@ Value filter(int argCount, Value* args, VM* vm)
         return Value();
     }
 
+    if (getCallableArity(args[1]) != 1)
+    {
+        return Value();
+    }
+
     ObjList* mappedList = newList();
 
     forEachIterable(args[0], [&](const Value& element, int idx)
@@ -325,6 +340,11 @@ Value filter(int argCount, Value* args, VM* vm)
 Value reduce(int argCount, Value* args, VM* vm)
 {
     if (!isIterable(args[0]) || !isCallable(args[1]))
+    {
+        return Value();
+    }
+
+    if (getCallableArity(args[1]) != 2)
     {
         return Value();
     }

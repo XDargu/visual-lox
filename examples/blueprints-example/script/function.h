@@ -13,10 +13,12 @@
 
 struct ScriptFunction : public IScriptElement
 {
-    ScriptFunction()
+    ScriptFunction(ScriptElementID id, const char* name)
     {
+        ID = id;
         Type = ScriptElementType::Function;
         functionDef = std::make_shared<BasicFunctionDef>();
+        functionDef->name = name;
     }
 
     BasicFunctionDefPtr functionDef;

@@ -61,6 +61,20 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
         }
     }
 
+    for (auto& scriptClass : script.classes)
+    {
+        for (auto& method : scriptClass->methods)
+        {
+            for (auto& node : method->Graph.GetNodes())
+            {
+                if (node->refId == funId)
+                {
+                    nodeRefs.push_back(node);
+                }
+            }
+        }
+    }
+
     for (auto& node : script.main->Graph.GetNodes())
     {
         if (node->refId == funId)
@@ -74,31 +88,26 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
 
 void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& IDGenerator)
 {
-    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(script, funId))
+    if (ScriptFunctionPtr pFunction = ScriptUtils::FindFunctionById(script, funId))
     {
-        RefreshFunctionRefs(script, pFun, IDGenerator);
-    }
-}
-
-void ScriptUtils::RefreshFunctionRefs(Script& script, const ScriptFunctionPtr& pFunction, IDGenerator& IDGenerator)
-{
-    NodePtr begin = pFunction->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-    if (begin)
-    {
-        begin->Refresh(script, IDGenerator);
-        NodeUtils::BuildNode(begin);
-    }
-
-    for (auto& node : pFunction->Graph.GetNodes())
-    {
-        if (node->Category == NodeCategory::Return)
+        NodePtr begin = pFunction->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+        if (begin)
         {
-            node->Refresh(script, IDGenerator);
-            NodeUtils::BuildNode(node);
+            begin->Refresh(script, IDGenerator);
+            NodeUtils::BuildNode(begin);
+        }
+
+        for (auto& node : pFunction->Graph.GetNodes())
+        {
+            if (node->Category == NodeCategory::Return)
+            {
+                node->Refresh(script, IDGenerator);
+                NodeUtils::BuildNode(node);
+            }
         }
     }
 
-    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(script, pFunction->ID);
+    std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(script, funId);
     for (auto& node : nodeRefs)
     {
         node->Refresh(script, IDGenerator);
@@ -138,6 +147,8 @@ void ScriptUtils::MarkScriptRoots(Script& script)
 
 void ScriptUtils::MarkFunctionRoots(const ScriptFunctionPtr& pFunction)
 {
+    if (!pFunction) return;
+
     VM& vm = VM::getInstance();
 
     for (auto& input : pFunction->functionDef->inputs)
@@ -166,6 +177,8 @@ void ScriptUtils::MarkFunctionRoots(const ScriptFunctionPtr& pFunction)
 
 void ScriptUtils::MarkVariableRoots(const ScriptPropertyPtr& pVariable)
 {
+    if (!pVariable) return;
+
     VM& vm = VM::getInstance();
 
     vm.markValue(pVariable->defaultValue);

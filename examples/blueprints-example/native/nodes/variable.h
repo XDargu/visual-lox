@@ -24,31 +24,7 @@ struct GetVariableNode : public Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
-        switch (stage)
-        {
-        case CompilationStage::BeginInputs:
-        {
-            if (!GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compilerCtx, graph);
-        }
-        break;
-        case CompilationStage::PullOutput:
-        {
-            if (GraphUtils::IsNodeImplicit(this))
-                CompileInputs(compilerCtx, graph);
-        }
-        break;
-        }
-    }
-
-    void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
-    {
-        Compiler& compiler = compilerCtx.compiler;
-
-        Token varToken(TokenType::VAR, VariableName.c_str(), VariableName.length(), 0);
-        compiler.emitVariable(varToken, false);
-
-        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
+        // Variables are loaded directly when compiling inputs
     }
 
     std::string VariableName;

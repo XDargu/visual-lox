@@ -13,7 +13,6 @@ struct ScriptClass : public IScriptElement
     ScriptClass()
     {
         Type = ScriptElementType::Class;
-        constructor = std::make_shared<ScriptFunction>();
     }
 
     std::string Name;
@@ -21,7 +20,7 @@ struct ScriptClass : public IScriptElement
     std::vector<ScriptPropertyPtr> properties;
     std::vector<ScriptFunctionPtr> methods;
 
-    ScriptFunctionPtr constructor; // TODO: Should the constructor just be a method? We could just store the ID.
+    ScriptFunctionPtr constructor = nullptr; // TODO: Should the constructor just be a method? We could just store the ID.
 };
 
 using ScriptClassPtr = std::shared_ptr<ScriptClass>;

@@ -18,6 +18,31 @@ inline bool isIterable(const Value& value)
     return isList(value) || isString(value) || isRange(value);
 }
 
+inline int getCallableArity(const Value& callable)
+{
+    switch (asObject(callable)->type)
+    {
+    case ObjType::CLOSURE:
+    {
+        ObjClosure* closure = asClosure(callable);
+        return closure->function->arity;
+    }
+    case ObjType::NATIVE:
+    {
+        ObjNative* native = asNative(callable);
+        return native->arity;
+    }
+    case ObjType::BOUND_METHOD:
+    {
+        ObjBoundMethod* bound = asBoundMethod(callable);
+        ObjClosure* method = asClosure(bound->method);
+        return method->function->arity;
+    }
+    }
+
+    return -1;
+}
+
 template<typename F>
 inline void forEachIterable(const Value& iterable, F predicate)
 {

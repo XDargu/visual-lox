@@ -6,6 +6,8 @@
 #include "node.h"
 #include "link.h"
 
+#include "../native/nodes/variable.h"
+
 #include <Compiler.h>
 #include <Vm.h>
 
@@ -138,12 +140,25 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
     {
         if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, input))
         {
+            if (HasFlag(pOutput->Node->Flags, NodeFlags::Error))
+            {
+                compiler.emitConstant(value);
+                return;
+            }
+
             if (pOutput->Node->Category == NodeCategory::Begin)
             {
                 // Inputs from the begin node are already locals, we can access them with the input name
                 
                 const Token outputToken = compilerCtx.StoreTempVariable(pOutput->Name);
                 compiler.emitVariable(outputToken, false);
+            }
+            else if (pOutput->Node->Category == NodeCategory::Variable)
+            {
+                // We can load the variable directly
+                GetVariableNode* pGetVar = static_cast<GetVariableNode*>(pOutput->Node.get());
+                Token varToken(TokenType::VAR, pGetVar->VariableName.c_str(), pGetVar->VariableName.length(), 0);
+                compiler.emitVariable(varToken, false);
             }
             else
             {

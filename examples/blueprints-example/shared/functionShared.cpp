@@ -46,43 +46,46 @@ struct FunctionNode : public Node
 
     void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        Compiler& compiler = compilerCtx.compiler;
-
-        // Load named variable (native func)
-        compiler.namedVariable(Token(TokenType::STRING, Name.c_str(), Name.length(), 10), false);
-
-        int argCount = 0;
-        // Gather Inputs normally
-        for (int i = 0; i < Inputs.size(); ++i)
+        if (pFunctionDef)
         {
-            if (Inputs[i].Type != PinType::Flow)
+            Compiler& compiler = compilerCtx.compiler;
+
+            // Load named variable (native func)
+            compiler.namedVariable(Token(TokenType::STRING, Name.c_str(), Name.length(), 10), false);
+
+            int argCount = 0;
+            // Gather Inputs normally
+            for (int i = 0; i < Inputs.size(); ++i)
             {
-                GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
-                argCount++;
+                if (Inputs[i].Type != PinType::Flow)
+                {
+                    GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
+                    argCount++;
+                }
             }
-        }
 
-        if (HasFlag(Flags, NodeFlags::DynamicInputs))
-        {
-            // Get all inputs on a list first
-            compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
-            compiler.emitByte(argCount);
+            if (HasFlag(Flags, NodeFlags::DynamicInputs))
+            {
+                // Get all inputs on a list first
+                compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
+                compiler.emitByte(argCount);
 
-            // We will only call the function with the list!
-            argCount = 1;
-        }
+                // We will only call the function with the list!
+                argCount = 1;
+            }
 
-        compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
+            compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
 
-        if (pFunctionDef->outputs.size() > 0)
-        {
-            // Set the output variable
-            const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
-            GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[dataOutputIdx]);
-        }
-        else
-        {
-            compiler.emitByte(OpByte(OpCode::OP_POP));
+            if (pFunctionDef->outputs.size() > 0)
+            {
+                // Set the output variable
+                const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
+                GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[dataOutputIdx]);
+            }
+            else
+            {
+                compiler.emitByte(OpByte(OpCode::OP_POP));
+            }
         }
     }
 
@@ -180,8 +183,11 @@ struct FunctionNode : public Node
 
     virtual void AddInput(IDGenerator& IDGenerator) override
     {
-        Inputs.emplace_back(IDGenerator.GetNextId(), GetInputName(Inputs.size()).c_str(), pFunctionDef->dynamicInputProps.type);
-        InputValues.emplace_back(pFunctionDef->dynamicInputProps.defaultValue);
+        if (pFunctionDef)
+        {
+            Inputs.emplace_back(IDGenerator.GetNextId(), GetInputName(Inputs.size()).c_str(), pFunctionDef->dynamicInputProps.type);
+            InputValues.emplace_back(pFunctionDef->dynamicInputProps.defaultValue);
+        }
     };
 
     virtual void RemoveInput(ed::PinId pinId) override

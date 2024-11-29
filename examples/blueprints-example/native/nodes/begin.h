@@ -224,7 +224,6 @@ struct ReturnNode : public Node
 static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& function)
 {
     NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return", function.functionDef);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->InputValues.emplace_back(Value());
 

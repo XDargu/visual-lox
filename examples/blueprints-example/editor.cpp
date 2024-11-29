@@ -1210,6 +1210,10 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
                     {
                         pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, inputId, pInput->name.c_str(), pInput->value));
                     }
+                    if (ImGui::MenuItem("Rename"))
+                    {
+                        m_editingItemId = inputId;
+                    }
                     ImGui::EndPopup();
                 }
 
@@ -1260,6 +1264,10 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
                     if (ImGui::MenuItem("Delete"))
                     {
                         pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, outputId, pOutput->name.c_str(), pOutput->value));
+                    }
+                    if (ImGui::MenuItem("Rename"))
+                    {
+                        m_editingItemId = outputId;
                     }
                     ImGui::EndPopup();
                 }

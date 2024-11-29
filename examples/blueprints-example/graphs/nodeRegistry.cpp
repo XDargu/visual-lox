@@ -11,6 +11,13 @@
 #include <string>
 #include <string_view>
 #include <filesystem>
+#include <iostream>
+#include <thread>
+#include <chrono>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 
 void NodeRegistry::RegisterDefinitions()
@@ -259,6 +266,133 @@ void NodeRegistry::RegisterDefinitions()
         { { "Result", Value(newList()) } },
         &reduce,
         NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("System::CopyToClipboard",
+        { { "Text", Value(copyString("", 0)) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value();
+
+            ObjString* str = asString(args[0]);
+#ifdef _WIN32
+            const char* output = str->chars.c_str();
+            const size_t len = strlen(output) + 1;
+            HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
+            memcpy(GlobalLock(hMem), output, len);
+            GlobalUnlock(hMem);
+            OpenClipboard(0);
+            EmptyClipboard();
+            SetClipboardData(CF_TEXT, hMem);
+            CloseClipboard();
+#endif
+            return Value();
+        },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("System::RunCommand",
+        { { "Command", Value(copyString("", 0)) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value();
+
+            ObjString* str = asString(args[0]);
+
+            std::system(str->chars.c_str());
+
+            return Value();
+        },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("System::Sleep",
+        { { "Seconds", Value(0.0) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isNumber(args[0]))
+                return Value();
+
+            const double seconds = asNumber(args[0]);
+
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)(seconds / 1000.0)));
+
+            return Value();
+        },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("System::SetCursorPos",
+        { { "X", Value(0.0) }, { "Y", Value(0.0) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isNumber(args[0]) || !isNumber(args[1]))
+                return Value();
+
+            const double x = asNumber(args[0]);
+            const double y = asNumber(args[1]);
+
+#ifdef _WIN32
+            SetCursorPos((int)x, (int)y);
+#endif
+            return Value();
+    
+        },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("System::ClickMouse",
+        { { "X", Value(0.0) }, { "Y", Value(0.0) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isNumber(args[0]) || !isNumber(args[1]))
+                return Value();
+
+            const double x = asNumber(args[0]);
+            const double y = asNumber(args[1]);
+
+    #ifdef _WIN32
+
+            const double XSCALEFACTOR = 65535 / (GetSystemMetrics(SM_CXSCREEN) - 1);
+            const double YSCALEFACTOR = 65535 / (GetSystemMetrics(SM_CYSCREEN) - 1);
+
+            POINT cursorPos;
+            GetCursorPos(&cursorPos);
+
+            double cx = cursorPos.x * XSCALEFACTOR;
+            double cy = cursorPos.y * YSCALEFACTOR;
+
+            double nx = x * XSCALEFACTOR;
+            double ny = y * YSCALEFACTOR;
+
+            INPUT Input = { 0 };
+            Input.type = INPUT_MOUSE;
+
+            Input.mi.dx = (LONG)nx;
+            Input.mi.dy = (LONG)ny;
+
+            Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP;
+
+            SendInput(1, &Input, sizeof(INPUT));
+
+            Input.mi.dx = (LONG)cx;
+            Input.mi.dy = (LONG)cy;
+
+            Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+
+            SendInput(1, &Input, sizeof(INPUT));
+    #endif
+            return Value();
+
+        },
+        NodeFlags::None
     );
 }
 

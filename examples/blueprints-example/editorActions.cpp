@@ -104,6 +104,32 @@ namespace Editor
         m_pEditor->RemoveFunctionInput(m_funId, m_inputId);
     }
 
+    DeleteFunctionInputAction::DeleteFunctionInputAction(Example* pEditor, int funId, int inputId, const char* name, const Value& value)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_inputId(inputId)
+        , m_name(name)
+        , m_value(value)
+    {
+    }
+
+    void DeleteFunctionInputAction::Run()
+    {
+        m_pEditor->RemoveFunctionInput(m_funId, m_inputId);
+    }
+
+    void DeleteFunctionInputAction::Revert()
+    {
+        m_pEditor->AddFunctionInput(m_funId, m_inputId, m_name.c_str(), m_value);
+    }
+
+    void DeleteFunctionInputAction::MarkRoots()
+    {
+        VM& vm = VM::getInstance();
+
+        vm.markValue(m_value);
+    }
+
     AddFunctionOutputAction::AddFunctionOutputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;
@@ -119,6 +145,32 @@ namespace Editor
     void AddFunctionOutputAction::Revert()
     {
         m_pEditor->RemoveFunctionOutput(m_funId, m_inputId);
+    }
+
+    DeleteFunctionOutputAction::DeleteFunctionOutputAction(Example* pEditor, int funId, int outputId, const char* name, const Value& value)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_outputId(outputId)
+        , m_name(name)
+        , m_value(value)
+    {
+    }
+
+    void DeleteFunctionOutputAction::Run()
+    {
+        m_pEditor->RemoveFunctionOutput(m_funId, m_outputId);
+    }
+
+    void DeleteFunctionOutputAction::Revert()
+    {
+        m_pEditor->AddFunctionOutput(m_funId, m_outputId, m_name.c_str(), m_value);
+    }
+
+    void DeleteFunctionOutputAction::MarkRoots()
+    {
+        VM& vm = VM::getInstance();
+
+        vm.markValue(m_value);
     }
 
     RenameFunctionAction::RenameFunctionAction(Example* pEditor, int id, const char* name)

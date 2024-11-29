@@ -100,7 +100,9 @@ struct Example :
     void RenameFunction(int funId, const char* name);
 
     void AddFunctionInput(int funId, int inputId);
+    void AddFunctionInput(int funId, int inputId, const char* name, const Value& value);
     void AddFunctionOutput(int funId, int outputId);
+    void AddFunctionOutput(int funId, int outputId, const char* name, const Value& value);
 
     void RemoveFunction(int id);
     void RemoveVariable(int id);

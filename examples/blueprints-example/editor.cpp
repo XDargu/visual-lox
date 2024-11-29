@@ -1199,6 +1199,16 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
         {
             if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
             {
+                if (ImGui::BeginPopupContextItem("InputPopup"))
+                {
+                    // Menu options
+                    if (ImGui::MenuItem("Delete"))
+                    {
+                        pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, inputId, pInput->name.c_str(), pInput->value));
+                    }
+                    ImGui::EndPopup();
+                }
+
                 Value& inputValue = pInput->value;
                 ImGui::PushID(funId);
                 ImGui::PushID(inputId);
@@ -1243,6 +1253,16 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
         {
             if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
             {
+                if (ImGui::BeginPopupContextItem("OutputPopup"))
+                {
+                    // Menu options
+                    if (ImGui::MenuItem("Delete"))
+                    {
+                        pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, outputId, pOutput->name.c_str(), pOutput->value));
+                    }
+                    ImGui::EndPopup();
+                }
+
                 Value& inputValue = pOutput->value;
                 ImGui::PushID(funId);
                 ImGui::PushID(outputId);
@@ -1416,6 +1436,22 @@ void Example::AddFunctionInput(int funId, int inputId)
     }
 }
 
+void Example::AddFunctionInput(int funId, int inputId, const char* name, const Value& value)
+{
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    TreeNode* pFunNode = FindNodeByID(funId);
+    if (pFunNode && pFun)
+    {
+        pFun->functionDef->inputs.push_back({ name, value, inputId });
+
+        // Update tree view
+        const TreeNode inputNode = MakeInputNode(funId, inputId, name);
+        pFunNode->AddChild(inputNode);
+
+        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    }
+}
+
 void Example::AddFunctionOutput(int funId, int outputId)
 {
     ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
@@ -1428,6 +1464,22 @@ void Example::AddFunctionOutput(int funId, int outputId)
 
         // Update tree view
         const TreeNode outputNode = MakeOutputNode(funId, outputId, namestr);
+        pFunNode->AddChild(outputNode);
+
+        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    }
+}
+
+void Example::AddFunctionOutput(int funId, int outputId, const char* name, const Value& value)
+{
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    TreeNode* pFunNode = FindNodeByID(funId);
+    if (pFunNode && pFun)
+    {
+        pFun->functionDef->outputs.push_back({ name, value, outputId });
+
+        // Update tree view
+        const TreeNode outputNode = MakeOutputNode(funId, outputId, name);
         pFunNode->AddChild(outputNode);
 
         ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);

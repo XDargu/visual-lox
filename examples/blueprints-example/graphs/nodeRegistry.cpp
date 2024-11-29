@@ -303,7 +303,9 @@ void NodeRegistry::RegisterDefinitions()
 
             ObjString* str = asString(args[0]);
 
-            std::system(str->chars.c_str());
+#ifdef _WIN32
+            system(("start " + str->chars).c_str());
+#endif
 
             return Value();
         },
@@ -320,7 +322,7 @@ void NodeRegistry::RegisterDefinitions()
 
             const double seconds = asNumber(args[0]);
 
-            std::this_thread::sleep_for(std::chrono::milliseconds((int)(seconds / 1000.0)));
+            std::this_thread::sleep_for(std::chrono::milliseconds((int)(seconds * 1000.0)));
 
             return Value();
         },

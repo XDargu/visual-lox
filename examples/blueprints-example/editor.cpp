@@ -1148,6 +1148,10 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     varNode.label = name;
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
+    varNode.onRename = [this, varId](std::string newName)
+    {
+        pendingActions.push_back(std::make_shared<RenameVariableAction>(this, varId, newName.c_str()));
+    };
     varNode.contextMenu = [this, varId]()
     {
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
@@ -1155,6 +1159,10 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
             if (ImGui::BeginPopupContextItem("VarPopup"))
             {
                 // Menu options
+                if (ImGui::MenuItem("Rename"))
+                {
+                    m_editingItemId = varId;
+                }
                 if (ImGui::MenuItem("Delete"))
                 {
                     pendingActions.push_back(std::make_shared<DeleteVariableAction>(this, pVar));
@@ -1418,6 +1426,22 @@ void Example::RenameFunction(int funId, const char* name)
 
         ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
     }
+}
+
+void Example::RenameVariable(int varId, const char* name)
+{
+    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+    {
+        pVar->Name = name;
+    }
+
+    if (TreeNode* pVarNode = FindNodeByID(varId))
+    {
+        pVarNode->label = name;
+    }
+
+    // TODO: Refresh variable refs!
+
 }
 
 void Example::AddFunctionInput(int funId, int inputId)

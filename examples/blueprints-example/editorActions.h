@@ -73,6 +73,19 @@ namespace Editor
         Value m_prevValue;
     };
 
+    struct RenameVariableAction : public IAction
+    {
+        RenameVariableAction(Example* pEditor, int id, const char* name);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+        std::string m_name;
+        std::string m_prevName;
+        int m_id;
+    };
+
     struct AddFunctionInputAction : public IAction
     {
         AddFunctionInputAction(Example* pEditor, int funId, int inputId);

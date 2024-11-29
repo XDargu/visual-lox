@@ -87,6 +87,27 @@ namespace Editor
         vm.markValue(m_prevValue);
     }
 
+    RenameVariableAction::RenameVariableAction(Example* pEditor, int id, const char* name)
+    {
+        m_pEditor = pEditor;
+        m_id = id;
+        m_name = name;
+    }
+
+    void RenameVariableAction::Run()
+    {
+        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_pEditor->m_script, m_id))
+        {
+            m_prevName = pVar->Name;
+        }
+        m_pEditor->RenameVariable(m_id, m_name.c_str());
+    }
+
+    void RenameVariableAction::Revert()
+    {
+        m_pEditor->RenameVariable(m_id, m_prevName.c_str());
+    }
+
     AddFunctionInputAction::AddFunctionInputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;

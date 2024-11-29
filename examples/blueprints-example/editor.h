@@ -98,6 +98,7 @@ struct Example :
     void ChangeVariableValue(int id, Value& value);
 
     void RenameFunction(int funId, const char* name);
+    void RenameVariable(int varId, const char* name);
 
     void AddFunctionInput(int funId, int inputId);
     void AddFunctionInput(int funId, int inputId, const char* name, const Value& value);

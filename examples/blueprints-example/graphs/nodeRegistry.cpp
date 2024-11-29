@@ -397,6 +397,78 @@ void NodeRegistry::RegisterDefinitions()
         NodeFlags::None
     );
 
+    RegisterNativeFunc("System::DragMouse",
+        { { "SourceX", Value(0.0) }, { "SourceY", Value(0.0) }, { "TargetX", Value(0.0) }, { "TargetY", Value(0.0) } },
+        { },
+        [](int argCount, Value* args, VM* vm)
+    {
+        if (!isNumber(args[0]) || !isNumber(args[1]) || !isNumber(args[2]) || !isNumber(args[3]))
+            return Value();
+
+        const double sx = asNumber(args[0]);
+        const double sy = asNumber(args[1]);
+
+        const double tx = asNumber(args[2]);
+        const double ty = asNumber(args[3]);
+
+#ifdef _WIN32
+
+        const double XSCALEFACTOR = 65535 / (GetSystemMetrics(SM_CXSCREEN) - 1);
+        const double YSCALEFACTOR = 65535 / (GetSystemMetrics(SM_CYSCREEN) - 1);
+
+        POINT cursorPos;
+        GetCursorPos(&cursorPos);
+
+        double cx = cursorPos.x * XSCALEFACTOR;
+        double cy = cursorPos.y * YSCALEFACTOR;
+
+        INPUT Input = { 0 };
+        Input.type = INPUT_MOUSE;
+
+        Input.mi.dx = (LONG)(sx * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(sy * XSCALEFACTOR);
+
+        Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+
+        SendInput(1, &Input, sizeof(INPUT));
+
+        Input.mi.dx = (LONG)(sx * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(sy * XSCALEFACTOR);
+
+        Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN;
+
+        SendInput(1, &Input, sizeof(INPUT));
+
+        Input.mi.dx = (LONG)(tx * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(ty * XSCALEFACTOR);
+
+        Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+
+        SendInput(1, &Input, sizeof(INPUT));
+
+        Input.mi.dx = (LONG)(tx * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(ty * XSCALEFACTOR);
+
+        Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP;
+
+        SendInput(1, &Input, sizeof(INPUT));
+
+
+        // Restore mouse pos
+        Input.mi.dx = (LONG)cx;
+        Input.mi.dy = (LONG)cy;
+
+        Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP;
+
+        SendInput(1, &Input, sizeof(INPUT));
+#endif
+        return Value();
+
+    },
+        NodeFlags::None
+    );
+
+
     RegisterNativeFunc("System::PressKey",
         { { "Key", Value(takeString("", 0))} },
         { },

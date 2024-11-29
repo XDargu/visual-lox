@@ -394,6 +394,38 @@ void NodeRegistry::RegisterDefinitions()
         },
         NodeFlags::None
     );
+
+    RegisterNativeFunc("System::PressKey",
+        { { "Key", Value(takeString("", 0))} },
+        { },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isString(args[0]))
+                return Value();
+
+            ObjString* str = asString(args[0]);
+
+            if (str->chars.size() != 1)
+                return Value();
+
+    #ifdef _WIN32
+
+            INPUT inputs[2] = {};
+
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].ki.wVk = str->chars[0];
+
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].ki.wVk = str->chars[0];
+            inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+
+            SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+    #endif
+            return Value();
+
+        },
+        NodeFlags::None
+    );
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)

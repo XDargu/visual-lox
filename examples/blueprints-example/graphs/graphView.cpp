@@ -651,30 +651,67 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
-            if (!Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower))
-                continue;
-
-            Data* current = &root;
-            int depth = 1;
-            const std::vector<std::string> tokens = Utils::split(def.functionDef->name, "::");
-
-            for (const std::string& token : tokens)
+            // Call
             {
-                Data& child = current->children[token];
-
-                child.name = token;
-                child.depth = depth;
-                child.fullName = token;
-
-                if (token == tokens.back())
+                if (Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower))
                 {
-                    // Last element!
-                    child.fullName = def.functionDef->name;
-                    child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator, ScriptElementID::Invalid); };
-                }
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(def.functionDef->name, "::");
 
-                current = &child;
-                depth++;
+                    for (const std::string& token : tokens)
+                    {
+                        Data& child = current->children[token];
+
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = def.functionDef->name;
+                            child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator, ScriptElementID::Invalid); };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
+                }
+            }
+
+            // Get
+            {
+                const std::string getFuncName = "Get::" + def.functionDef->name;
+
+                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
+                {
+                    Data* current = &root;
+                    int depth = 1;
+                    const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
+
+                    for (const std::string& token : tokens)
+                    {
+                        Data& child = current->children[token];
+
+                        child.name = token;
+                        child.depth = depth;
+                        child.fullName = token;
+
+                        if (token == tokens.back())
+                        {
+                            // Last element!
+                            child.fullName = getFuncName;
+                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            {
+                                return BuildGetFunctionNode(IDGenerator, def.functionDef, ScriptElementID::Invalid);
+                            };
+                        }
+
+                        current = &child;
+                        depth++;
+                    }
+                }
             }
         }
 

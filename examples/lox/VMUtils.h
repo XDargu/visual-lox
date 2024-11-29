@@ -10,7 +10,7 @@ inline bool isFalsey(const Value& value)
 
 inline bool isCallable(const Value& value)
 {
-    return isClosure(value) || isBoundMethod(value);
+    return isClosure(value) || isBoundMethod(value) || isNative(value);
 }
 
 inline bool isIterable(const Value& value)
@@ -68,7 +68,8 @@ inline Value callFunction(VM* vm, const Value& callable, const Args&... values)
     vm->push(callable);
     const int argCount = pushArgs(vm, values...);
     vm->callValue(callable, argCount);
-    vm->run(vm->getFrameCount() - 1);
+    if (!isNative(callable))
+        vm->run(vm->getFrameCount() - 1);
     return vm->pop();
 }
 

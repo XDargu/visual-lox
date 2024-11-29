@@ -286,13 +286,17 @@ Value map(int argCount, Value* args, VM* vm)
     {
         return Value();
     }
-    ObjList* mappedList = newList();
+    
+    vm->push(Value(newList()));
+    ObjList* mappedList = asList(vm->peek(0));
 
     forEachIterable(args[0], [&](const Value& element, int idx)
     {
         mappedList->append(callFunction(vm, args[1], element));
         return true;
     });
+
+    vm->pop();
 
     return Value(mappedList);
 }

@@ -152,26 +152,30 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
                 
                 const Token outputToken = compilerCtx.StoreTempVariable(pOutput->Name);
                 compiler.emitVariable(outputToken, false);
+                return;
             }
-            else if (pOutput->Node->Category == NodeCategory::Variable)
+
+            if (pOutput->Node->Category == NodeCategory::Variable)
             {
                 // We can load the variable directly
                 GetVariableNode* pGetVar = static_cast<GetVariableNode*>(pOutput->Node.get());
-                Token varToken(TokenType::VAR, pGetVar->VariableName.c_str(), pGetVar->VariableName.length(), 0);
-                compiler.emitVariable(varToken, false);
+
+                if (pGetVar->pPropertyDef)
+                {
+                    Token varToken(TokenType::VAR, pGetVar->pPropertyDef->Name.c_str(), pGetVar->pPropertyDef->Name.length(), 0);
+                    compiler.emitVariable(varToken, false);
+                    return;
+                }
             }
-            else
-            {
-                const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
-                const Token outputToken = compilerCtx.StoreTempVariable(outputName);
-                compiler.emitVariable(outputToken, false);
-            }
+            
+            const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
+            const Token outputToken = compilerCtx.StoreTempVariable(outputName);
+            compiler.emitVariable(outputToken, false);
+            return;
         }
     }
-    else
-    {
-        compiler.emitConstant(value);
-    }
+
+    compiler.emitConstant(value);
 }
 
 void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output)

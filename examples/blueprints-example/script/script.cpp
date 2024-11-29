@@ -86,6 +86,46 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
     return nodeRefs;
 }
 
+std::vector<NodePtr> ScriptUtils::FindVariableReferences(Script& script, int varId)
+{
+    std::vector<NodePtr> nodeRefs;
+
+    for (auto& function : script.functions)
+    {
+        for (auto& node : function->Graph.GetNodes())
+        {
+            if (node->refId == varId)
+            {
+                nodeRefs.push_back(node);
+            }
+        }
+    }
+
+    for (auto& scriptClass : script.classes)
+    {
+        for (auto& method : scriptClass->methods)
+        {
+            for (auto& node : method->Graph.GetNodes())
+            {
+                if (node->refId == varId)
+                {
+                    nodeRefs.push_back(node);
+                }
+            }
+        }
+    }
+
+    for (auto& node : script.main->Graph.GetNodes())
+    {
+        if (node->refId == varId)
+        {
+            nodeRefs.push_back(node);
+        }
+    }
+
+    return nodeRefs;
+}
+
 void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& IDGenerator)
 {
     if (ScriptFunctionPtr pFunction = ScriptUtils::FindFunctionById(script, funId))
@@ -108,6 +148,16 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
     }
 
     std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(script, funId);
+    for (auto& node : nodeRefs)
+    {
+        node->Refresh(script, IDGenerator);
+        NodeUtils::BuildNode(node);
+    }
+}
+
+void ScriptUtils::RefreshVariableRefs(Script& script, int varId, IDGenerator& IDGenerator)
+{
+    std::vector<NodePtr> nodeRefs = ScriptUtils::FindVariableReferences(script, varId);
     for (auto& node : nodeRefs)
     {
         node->Refresh(script, IDGenerator);

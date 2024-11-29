@@ -7,6 +7,9 @@
 
 #include "../../graphs/graphCompiler.h"
 
+#include "../../script/property.h"
+#include "../../script/script.h"
+
 #include <Compiler.h>
 #include <Vm.h>
 
@@ -14,10 +17,11 @@ namespace ed = ax::NodeEditor;
 
 struct GetVariableNode : public Node
 {
-    GetVariableNode(int id, const char* name, const char* variableName)
+    GetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID)
         : Node(id, name, ImColor(255, 128, 128))
-        , VariableName(variableName)
+        , pPropertyDef(pProperty)
     {
+        refId = varID;
         Category = NodeCategory::Variable;
         Type = NodeType::SimpleGet;
     }
@@ -27,23 +31,46 @@ struct GetVariableNode : public Node
         // Variables are loaded directly when compiling inputs
     }
 
-    std::string VariableName;
+    void Refresh(const Script& script, IDGenerator& IDGenerator) override
+    {
+        Flags = ClearFlag(Flags, NodeFlags::Error);
+
+        RefreshDefinition(script);
+
+        if (!pPropertyDef)
+        {
+            Flags |= NodeFlags::Error;
+            Error = "Missing variable with ID: " + std::to_string(refId);
+            return;
+        }
+
+        Outputs[0].Name = pPropertyDef->Name;
+        Outputs[0].Type = TypeOfValue(pPropertyDef->defaultValue);
+    }
+
+    void RefreshDefinition(const Script& script)
+    {
+        pPropertyDef = ScriptUtils::FindVariableById(script, refId);
+    }
+
+    ScriptPropertyPtr pPropertyDef;
 };
 
-static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
+static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
 {
-    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", variableName);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), variableName, type);
+    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, pProperty->ID);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 
     return node;
 }
 
 struct SetVariableNode : public Node
 {
-    SetVariableNode(int id, const char* name, const char* variableName)
+    SetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID)
         : Node(id, name, ImColor(255, 128, 128))
-        , VariableName(variableName)
+        , pPropertyDef(pProperty)
     {
+        refId = varID;
         Category = NodeCategory::Variable;
     }
 
@@ -68,22 +95,51 @@ struct SetVariableNode : public Node
 
     void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        Compiler& compiler = compilerCtx.compiler;
+        if (pPropertyDef)
+        {
+            Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
 
-        Token varToken(TokenType::VAR, VariableName.c_str(), VariableName.length(), 0);
-        compiler.emitVariable(varToken, true);
+            Token varToken(TokenType::VAR, pPropertyDef->Name.c_str(), pPropertyDef->Name.length(), 0);
+            compiler.emitVariable(varToken, true);
+        }
     }
 
-    std::string VariableName;
+    void Refresh(const Script& script, IDGenerator& IDGenerator) override
+    {
+        Flags = ClearFlag(Flags, NodeFlags::Error);
+
+        RefreshDefinition(script);
+
+        if (!pPropertyDef)
+        {
+            Flags |= NodeFlags::Error;
+            Error = "Missing variable with ID: " + std::to_string(refId);
+            return;
+        }
+
+        Inputs[1].Name = pPropertyDef->Name;
+        if (TypeOfValue(pPropertyDef->defaultValue) != Inputs[1].Type)
+        {
+            Inputs[1].Type = TypeOfValue(pPropertyDef->defaultValue);
+            InputValues[1] = pPropertyDef->defaultValue;
+        }
+    }
+
+    void RefreshDefinition(const Script& script)
+    {
+        pPropertyDef = ScriptUtils::FindVariableById(script, refId);
+    }
+
+    ScriptPropertyPtr pPropertyDef;
 };
 
-static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const char* variableName, PinType type)
+static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
 {
-    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", variableName);
+    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, pProperty->ID);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), variableName, type);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 

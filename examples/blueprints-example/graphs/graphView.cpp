@@ -773,7 +773,7 @@ void GraphView::DrawContextMenu()
                             child.fullName = getVar;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildGetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                                return BuildGetVariableNode(IDGenerator, def);
                             };
                         }
 
@@ -807,7 +807,7 @@ void GraphView::DrawContextMenu()
                             child.fullName = setVar;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildSetVariableNode(IDGenerator, child.name.c_str(), PinType::Any);
+                                return BuildSetVariableNode(IDGenerator, def);
                             };
                         }
 

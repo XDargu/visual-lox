@@ -1395,7 +1395,8 @@ void Example::AddVariable(int varId)
     // Update tree view
     const TreeNode varNode = MakeVariableNode(varId, namestr);
     m_scriptTreeView.AddChild(varNode);
-    
+
+    ScriptUtils::RefreshVariableRefs(m_script, varId, m_IDGenerator);
 }
 
 void Example::AddVariable(const ScriptPropertyPtr& pVariable)
@@ -1405,6 +1406,8 @@ void Example::AddVariable(const ScriptPropertyPtr& pVariable)
     // Update tree view
     const TreeNode varNode = MakeVariableNode(pVariable->ID, pVariable->Name);
     m_scriptTreeView.AddChild(varNode);
+
+    ScriptUtils::RefreshVariableRefs(m_script, pVariable->ID, m_IDGenerator);
 }
 
 void Example::ChangeVariableValue(int id, Value& value)
@@ -1413,6 +1416,8 @@ void Example::ChangeVariableValue(int id, Value& value)
     {
         pVar->defaultValue = value;
     }
+
+    ScriptUtils::RefreshVariableRefs(m_script, id, m_IDGenerator);
 }
 
 void Example::RenameFunction(int funId, const char* name)
@@ -1440,7 +1445,7 @@ void Example::RenameVariable(int varId, const char* name)
         pVarNode->label = name;
     }
 
-    // TODO: Refresh variable refs!
+    ScriptUtils::RefreshVariableRefs(m_script, varId, m_IDGenerator);
 
 }
 
@@ -1592,8 +1597,8 @@ void Example::RemoveVariable(int id)
 
     // Update tree view
     EraseNodeByID(id);
-    // TODO: Mark all nodes of missing functions as error!
-    // Think about how to do it
+    
+    ScriptUtils::RefreshVariableRefs(m_script, id, m_IDGenerator);
 }
 
 void Example::RemoveFunctionInput(int funId, int inputId)

@@ -36,6 +36,19 @@ inline PinType TypeOfValue(const Value& value)
     return PinType::Error;
 }
 
+inline Value MakeValueFromType(PinType type)
+{
+    switch (type)
+    {
+        case PinType::Bool:     return Value(false);
+        case PinType::Float:    return Value(0.0);
+        case PinType::String:   return Value(takeString("", 0));
+        case PinType::List:     return Value(newList());
+        case PinType::Function: return Value(newFunction());
+        case PinType::Any:      return Value();
+    }
+}
+
 struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 {
     struct Input

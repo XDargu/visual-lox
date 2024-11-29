@@ -1096,12 +1096,12 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
     ForceMinWidth(buffer, minWidth);
 }
 
-/* static */ void GraphViewUtils::DrawTypeInputImpl(const PinType pinType, Value& inputValue)
+/* static */ bool GraphViewUtils::DrawTypeInputImpl(const PinType pinType, Value& inputValue)
 {
     if (pinType == PinType::Bool)
     {
         bool& value = inputValue.as.boolean;
-        ImGui::Checkbox("", &value);
+        return ImGui::Checkbox("", &value);
     }
     else if (pinType == PinType::String)
     {
@@ -1113,6 +1113,7 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
         if (ImGui::InputText("##edit", &temp))
         {
             inputValue = Value(copyString(temp.c_str(), temp.size()));
+            return true;
         }
     }
     else if (pinType == PinType::Float)
@@ -1120,15 +1121,17 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
         double& value = inputValue.as.number;
 
         ForceMinWidth(value, 30.0f);
-        ImGui::InputDouble("##edit", &value, 0, 0, "%.15g");
+        return ImGui::InputDouble("##edit", &value, 0, 0, "%.15g");
     }
+
+    return false;
 }
 
-/* static */  void GraphViewUtils::DrawTypeInput(const PinType pinType, Value& inputValue)
+/* static */  bool GraphViewUtils::DrawTypeInput(const PinType pinType, Value& inputValue)
 {
     if (pinType == PinType::Bool || pinType == PinType::String || pinType == PinType::Float)
     {
-        DrawTypeInputImpl(pinType, inputValue);
+        return DrawTypeInputImpl(pinType, inputValue);
     }
     else if (pinType == PinType::Any)
     {
@@ -1146,8 +1149,10 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
             currentType = PinType::String;
         }
 
-        DrawTypeInputImpl(currentType, inputValue);
+        return DrawTypeInputImpl(currentType, inputValue);
     }
+
+    return false;
 }
 
 void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange)

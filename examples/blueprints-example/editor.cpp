@@ -1134,9 +1134,10 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
         }
     };
 
-    // Test
     if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+    {
         funcNode.pElement = std::static_pointer_cast<IScriptElement>(pFun);
+    }
 
     return funcNode;
 }
@@ -1164,27 +1165,24 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
             ImGui::PushID(varId);
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
-            GraphViewUtils::DrawTypeInput(TypeOfValue(pVar->defaultValue), pVar->defaultValue);
+            Value tmp = pVar->defaultValue;
+            if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+            {
+                pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, tmp));
+            }
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
             GraphViewUtils::DrawTypeSelection(pVar->defaultValue, [&](PinType newType)
             {
-                // TODO: At some point this should become a new editor action!
-                switch (newType)
-                {
-                case PinType::Bool:     pVar->defaultValue = Value(false); break;
-                case PinType::Float:    pVar->defaultValue = Value(0.0); break;
-                case PinType::String:   pVar->defaultValue = Value(takeString("", 0)); break;
-                case PinType::List:     pVar->defaultValue = Value(newList()); break;
-                case PinType::Function: pVar->defaultValue = Value(newFunction()); break;
-                case PinType::Any:      pVar->defaultValue = Value(); break;
-                }
+                pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, MakeValueFromType(newType)));
             });
             ImGui::PopID();
-
-            
         }
     };
+    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+    {
+        varNode.pElement = std::static_pointer_cast<IScriptElement>(pVar);
+    }
 
     return varNode;
 }
@@ -1377,6 +1375,14 @@ void Example::AddVariable(const ScriptPropertyPtr& pVariable)
     // Update tree view
     const TreeNode varNode = MakeVariableNode(pVariable->ID, pVariable->Name);
     m_scriptTreeView.AddChild(varNode);
+}
+
+void Example::ChangeVariableValue(int id, Value& value)
+{
+    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, id))
+    {
+        pVar->defaultValue = value;
+    }
 }
 
 void Example::RenameFunction(int funId, const char* name)

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Value.h>
+
 #include <memory>
 #include <string>
 
@@ -55,6 +57,20 @@ namespace Editor
 
         Example* m_pEditor;
         ScriptPropertyPtr m_pVariable;
+    };
+
+    struct ChangeVariableValueAction : public IAction
+    {
+        ChangeVariableValueAction(Example* pEditor, int id, Value& value);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+        virtual void MarkRoots() override;
+
+        Example* m_pEditor;
+        int m_id;
+        Value m_value;
+        Value m_prevValue;
     };
 
     struct AddFunctionInputAction : public IAction

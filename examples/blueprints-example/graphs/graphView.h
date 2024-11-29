@@ -98,7 +98,7 @@ struct GraphView
 
 struct GraphViewUtils
 {
-    static void DrawTypeInputImpl(const PinType pinType, Value& inputValue);
-    static void DrawTypeInput(const PinType pinType, Value& inputValue);
+    static bool DrawTypeInputImpl(const PinType pinType, Value& inputValue);
+    static bool DrawTypeInput(const PinType pinType, Value& inputValue);
     static void DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange);
 };

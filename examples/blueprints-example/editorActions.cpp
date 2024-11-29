@@ -58,6 +58,35 @@ namespace Editor
         ScriptUtils::MarkVariableRoots(m_pVariable);
     }
 
+    ChangeVariableValueAction::ChangeVariableValueAction(Example* pEditor, int id, Value& value)
+        : m_pEditor(pEditor)
+        , m_id(id)
+        , m_value(value)
+    {
+    }
+
+    void ChangeVariableValueAction::Run()
+    {
+        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_pEditor->m_script, m_id))
+        {
+            m_prevValue = pVar->defaultValue;
+        }
+        m_pEditor->ChangeVariableValue(m_id, m_value);
+    }
+
+    void ChangeVariableValueAction::Revert()
+    {
+        m_pEditor->ChangeVariableValue(m_id, m_prevValue);
+    }
+
+    void ChangeVariableValueAction::MarkRoots()
+    {
+        VM& vm = VM::getInstance();
+
+        vm.markValue(m_value);
+        vm.markValue(m_prevValue);
+    }
+
     AddFunctionInputAction::AddFunctionInputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;

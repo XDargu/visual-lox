@@ -95,6 +95,8 @@ struct Example :
     void AddVariable(int id);
     void AddVariable(const ScriptPropertyPtr& pVariable);
 
+    void ChangeVariableValue(int id, Value& value);
+
     void RenameFunction(int funId, const char* name);
 
     void AddFunctionInput(int funId, int inputId);

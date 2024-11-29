@@ -1193,6 +1193,10 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
     inputNode.id = inputId;
     inputNode.icon = m_InputIcon;
     inputNode.label = name;
+    inputNode.onRename = [this, funId, inputId](std::string newName)
+    {
+        pendingActions.push_back(std::make_shared<RenameFunctionInputAction>(this, funId, inputId, newName.c_str()));
+    };
     inputNode.contextMenu = [this, funId, inputId]()
     {
         if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
@@ -1240,6 +1244,10 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
     outputNode.id = outputId;
     outputNode.icon = m_OutputIcon;
     outputNode.label = name;
+    outputNode.onRename = [this, funId, outputId](std::string newName)
+    {
+        pendingActions.push_back(std::make_shared<RenameFunctionOutputAction>(this, funId, outputId, newName.c_str()));
+    };
     outputNode.contextMenu = [this, funId, outputId]()
     {
         if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
@@ -1451,6 +1459,25 @@ void Example::ChangeFunctionInputValue(int funId, int inputId, Value& value)
     ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
 }
 
+void Example::RenameFunctionInput(int funId, int inputId, const char* name)
+{
+    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+    {
+        if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
+        {
+            pInput->name = name;
+        }
+    }
+
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+
+    // Update tree view
+    if (TreeNode* pInputNode = FindNodeByID(inputId))
+    {
+        pInputNode->label = name;
+    }
+}
+
 void Example::AddFunctionOutput(int funId, int outputId)
 {
     ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
@@ -1496,6 +1523,25 @@ void Example::ChangeFunctionOutputValue(int funId, int outputId, Value& value)
     }
 
     ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+}
+
+void Example::RenameFunctionOutput(int funId, int outputId, const char* name)
+{
+    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+    {
+        if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
+        {
+            pOutput->name = name;
+        }
+    }
+
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+
+    // Update tree view
+    if (TreeNode* pOutputNode = FindNodeByID(outputId))
+    {
+        pOutputNode->label = name;
+    }
 }
 
 void Example::RemoveFunction(int funId)

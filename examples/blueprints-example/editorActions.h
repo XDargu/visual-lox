@@ -115,6 +115,20 @@ namespace Editor
         Value m_prevValue;
     };
 
+    struct RenameFunctionInputAction : public IAction
+    {
+        RenameFunctionInputAction(Example* pEditor, int funId, int inputId, const char* name);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+        std::string m_name;
+        std::string m_prevName;
+        int m_funId;
+        int m_inputId;
+    };
+
     struct AddFunctionOutputAction : public IAction
     {
         AddFunctionOutputAction(Example* pEditor, int funId, int inputId);
@@ -155,6 +169,20 @@ namespace Editor
         int m_outputId;
         Value m_value;
         Value m_prevValue;
+    };
+
+    struct RenameFunctionOutputAction : public IAction
+    {
+        RenameFunctionOutputAction(Example* pEditor, int funId, int outputId, const char* name);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+
+        Example* m_pEditor;
+        std::string m_name;
+        std::string m_prevName;
+        int m_funId;
+        int m_outputId;
     };
 
     struct RenameFunctionAction : public IAction

@@ -163,6 +163,31 @@ namespace Editor
         vm.markValue(m_prevValue);
     }
 
+    RenameFunctionInputAction::RenameFunctionInputAction(Example* pEditor, int funId, int inputId, const char* name)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_inputId(inputId)
+        , m_name(name)
+    {
+    }
+
+    void RenameFunctionInputAction::Run()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_funId))
+        {
+            if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(m_inputId))
+            {
+                m_prevName = pInput->name;
+            }
+        }
+        m_pEditor->RenameFunctionInput(m_funId, m_inputId, m_name.c_str());
+    }
+
+    void RenameFunctionInputAction::Revert()
+    {
+        m_pEditor->RenameFunctionInput(m_funId, m_inputId, m_prevName.c_str());
+    }
+
     AddFunctionOutputAction::AddFunctionOutputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;
@@ -237,6 +262,31 @@ namespace Editor
 
         vm.markValue(m_value);
         vm.markValue(m_prevValue);
+    }
+
+    RenameFunctionOutputAction::RenameFunctionOutputAction(Example* pEditor, int funId, int outputId, const char* name)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_outputId(outputId)
+        , m_name(name)
+    {
+    }
+
+    void RenameFunctionOutputAction::Run()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_funId))
+        {
+            if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(m_outputId))
+            {
+                m_prevName = pOutput->name;
+            }
+        }
+        m_pEditor->RenameFunctionOutput(m_funId, m_outputId, m_name.c_str());
+    }
+
+    void RenameFunctionOutputAction::Revert()
+    {
+        m_pEditor->RenameFunctionOutput(m_funId, m_outputId, m_prevName.c_str());
     }
 
     RenameFunctionAction::RenameFunctionAction(Example* pEditor, int id, const char* name)

@@ -130,6 +130,39 @@ namespace Editor
         vm.markValue(m_value);
     }
 
+    ChangeFunctionInputValueAction::ChangeFunctionInputValueAction(Example* pEditor, int funId, int inputId, Value& value)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_inputId(inputId)
+        , m_value(value)
+    {
+    }
+
+    void ChangeFunctionInputValueAction::Run()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_funId))
+        {
+            if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(m_inputId))
+            {
+                m_prevValue = pInput->value;
+            }
+        }
+        m_pEditor->ChangeFunctionInputValue(m_funId, m_inputId, m_value);
+    }
+
+    void ChangeFunctionInputValueAction::Revert()
+    {
+        m_pEditor->ChangeFunctionInputValue(m_funId, m_inputId, m_prevValue);
+    }
+
+    void ChangeFunctionInputValueAction::MarkRoots()
+    {
+        VM& vm = VM::getInstance();
+
+        vm.markValue(m_value);
+        vm.markValue(m_prevValue);
+    }
+
     AddFunctionOutputAction::AddFunctionOutputAction(Example* pEditor, int funId, int inputId)
     {
         m_pEditor = pEditor;
@@ -171,6 +204,39 @@ namespace Editor
         VM& vm = VM::getInstance();
 
         vm.markValue(m_value);
+    }
+
+    ChangeFunctionOutputValueAction::ChangeFunctionOutputValueAction(Example* pEditor, int funId, int outputId, Value& value)
+        : m_pEditor(pEditor)
+        , m_funId(funId)
+        , m_outputId(outputId)
+        , m_value(value)
+    {
+    }
+
+    void ChangeFunctionOutputValueAction::Run()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_pEditor->m_script, m_funId))
+        {
+            if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(m_outputId))
+            {
+                m_prevValue = pOutput->value;
+            }
+        }
+        m_pEditor->ChangeFunctionOutputValue(m_funId, m_outputId, m_value);
+    }
+
+    void ChangeFunctionOutputValueAction::Revert()
+    {
+        m_pEditor->ChangeFunctionOutputValue(m_funId, m_outputId, m_prevValue);
+    }
+
+    void ChangeFunctionOutputValueAction::MarkRoots()
+    {
+        VM& vm = VM::getInstance();
+
+        vm.markValue(m_value);
+        vm.markValue(m_prevValue);
     }
 
     RenameFunctionAction::RenameFunctionAction(Example* pEditor, int id, const char* name)

@@ -1214,23 +1214,16 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
                 ImGui::PushID(inputId);
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
-                GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue);
+                Value tmp = inputValue;
+                if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+                {
+                    pendingActions.push_back(std::make_shared<ChangeFunctionInputValueAction>(this, funId, inputId, tmp));
+                }
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
                 {
-                    // TODO: At some point this should become a new editor action!
-                    switch (newType)
-                    {
-                    case PinType::Bool:     inputValue = Value(false); break;
-                    case PinType::Float:    inputValue = Value(0.0); break;
-                    case PinType::String:   inputValue = Value(takeString("", 0)); break;
-                    case PinType::List:     inputValue = Value(newList()); break;
-                    case PinType::Function: inputValue = Value(newFunction()); break;
-                    case PinType::Any:      inputValue = Value(); break;
-                    }
-
-                    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                    pendingActions.push_back(std::make_shared<ChangeFunctionInputValueAction>(this, funId, inputId, MakeValueFromType(newType)));
                 });
                 ImGui::PopID();
                 ImGui::PopID();
@@ -1268,23 +1261,16 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
                 ImGui::PushID(outputId);
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
-                GraphViewUtils::DrawTypeInput(TypeOfValue(inputValue), inputValue); // TODO: Changing content should be an action!
+                Value tmp = inputValue;
+                if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+                {
+                    pendingActions.push_back(std::make_shared<ChangeFunctionOutputValueAction>(this, funId, outputId, tmp));
+                }
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
                 {
-                    // TODO: At some point this should become a new editor action!
-                    switch (newType)
-                    {
-                    case PinType::Bool:     inputValue = Value(false); break;
-                    case PinType::Float:    inputValue = Value(0.0); break;
-                    case PinType::String:   inputValue = Value(takeString("", 0)); break;
-                    case PinType::List:     inputValue = Value(newList()); break;
-                    case PinType::Function: inputValue = Value(newFunction()); break;
-                    case PinType::Any:      inputValue = Value(); break;
-                    }
-
-                    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+                    pendingActions.push_back(std::make_shared<ChangeFunctionOutputValueAction>(this, funId, outputId, MakeValueFromType(newType)));
                 });
                 ImGui::PopID();
                 ImGui::PopID();
@@ -1452,6 +1438,19 @@ void Example::AddFunctionInput(int funId, int inputId, const char* name, const V
     }
 }
 
+void Example::ChangeFunctionInputValue(int funId, int inputId, Value& value)
+{
+    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+    {
+        if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
+        {
+            pInput->value = value;
+        }
+    }
+
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+}
+
 void Example::AddFunctionOutput(int funId, int outputId)
 {
     ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
@@ -1484,6 +1483,19 @@ void Example::AddFunctionOutput(int funId, int outputId, const char* name, const
 
         ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
     }
+}
+
+void Example::ChangeFunctionOutputValue(int funId, int outputId, Value& value)
+{
+    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+    {
+        if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
+        {
+            pOutput->value = value;
+        }
+    }
+
+    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
 }
 
 void Example::RemoveFunction(int funId)

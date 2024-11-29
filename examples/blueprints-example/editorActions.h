@@ -100,6 +100,21 @@ namespace Editor
         Value m_value;
     };
 
+    struct ChangeFunctionInputValueAction : public IAction
+    {
+        ChangeFunctionInputValueAction(Example* pEditor, int funId, int inputId, Value& value);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+        virtual void MarkRoots() override;
+
+        Example* m_pEditor;
+        int m_funId;
+        int m_inputId;
+        Value m_value;
+        Value m_prevValue;
+    };
+
     struct AddFunctionOutputAction : public IAction
     {
         AddFunctionOutputAction(Example* pEditor, int funId, int inputId);
@@ -125,6 +140,21 @@ namespace Editor
         int m_outputId;
         std::string m_name;
         Value m_value;
+    };
+
+    struct ChangeFunctionOutputValueAction : public IAction
+    {
+        ChangeFunctionOutputValueAction(Example* pEditor, int funId, int outputId, Value& value);
+
+        virtual void Run() override;
+        virtual void Revert() override;
+        virtual void MarkRoots() override;
+
+        Example* m_pEditor;
+        int m_funId;
+        int m_outputId;
+        Value m_value;
+        Value m_prevValue;
     };
 
     struct RenameFunctionAction : public IAction

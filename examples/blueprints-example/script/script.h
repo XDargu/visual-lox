@@ -30,9 +30,13 @@ struct ScriptUtils
     static ScriptPropertyPtr FindVariableById(Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(Script& script, int funId);
 
+    static ScriptPropertyPtr FindVariableById(const Script& script, int varId);
+    static ScriptFunctionPtr FindFunctionById(const Script& script, int funId);
+
     static std::vector<NodePtr> FindFunctionReferences(Script& script, int funId);
 
     static void RefreshFunctionRefs(Script& script, int funId, IDGenerator& IDGenerator);
+    static void RefreshFunctionRefs(Script& script, const ScriptFunctionPtr& pFunction, IDGenerator& IDGenerator);
 
     static void MarkScriptRoots(Script& script);
     static void MarkFunctionRoots(const ScriptFunctionPtr& pFunction);

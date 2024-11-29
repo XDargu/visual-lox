@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../script/scriptElement.h"
+
 #include "../utilities/drawing.h"
 
 #include <imgui_node_editor.h>
@@ -13,6 +15,7 @@
 
 namespace ed = ax::NodeEditor;
 struct CompilerContext;
+struct Script;
 
 enum class NodeFlags
 {
@@ -20,6 +23,7 @@ enum class NodeFlags
     ReadOnly = 1 << 0,
     DynamicInputs = 1 << 1,
     CanConstFold = 1 << 2,
+    Error = 1 << 3,
 };
 
 // TODO: Move to some macro?
@@ -32,6 +36,7 @@ constexpr inline NodeFlags& operator&= (NodeFlags& a, NodeFlags b) { return (Nod
 constexpr inline NodeFlags& operator^= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a ^= (int)b); }
 
 constexpr inline bool HasFlag(NodeFlags a, NodeFlags b) { return (int)(a & b) != 0; }
+constexpr inline NodeFlags ClearFlag(NodeFlags a, NodeFlags b) { return a &~b; }
 
 enum class PinType
 {
@@ -160,8 +165,10 @@ struct Node
     std::string State;
     std::string SavedState;
 
+    std::string Error;
+
     // Reference to: functionId, variableId
-    int refId = -1;
+    ScriptElementID refId;
 
     Node(int id, const char* name, ImColor color = ImColor(255, 255, 255)) :
         ID(id), Name(name), Color(color), Size(0, 0)
@@ -170,7 +177,7 @@ struct Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
 
-    virtual void Refresh(IDGenerator& IDGenerator) {}
+    virtual void Refresh(const Script& script, IDGenerator& IDGenerator) {}
 
     // Dynamic node operations
     virtual void AddInput(IDGenerator& IDGenerator) {};

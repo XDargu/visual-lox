@@ -6,7 +6,7 @@
 #include "../../graphs/idgeneration.h"
 
 #include "../../graphs/graphCompiler.h"
-#include "../../script/function.h"
+#include "../../script/script.h"
 
 #include "../../utilities/utils.h"
 
@@ -28,7 +28,7 @@ struct BeginNode : public Node
     {
     }
 
-    virtual void Refresh(IDGenerator& IDGenerator) override
+    virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
         // Add missing outputs
         const int startingOutput = 1;
@@ -182,7 +182,7 @@ struct ReturnNode : public Node
         }
     }
 
-    virtual void Refresh(IDGenerator& IDGenerator) override
+    virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
         // Add missing inputs
         const int startingInput = 1;

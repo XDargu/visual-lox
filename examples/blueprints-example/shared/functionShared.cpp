@@ -10,17 +10,18 @@
 
 #include "../utilities/utils.h"
 
+#include "../script/script.h"
 
 #include <Compiler.h>
 
 
-
 struct FunctionNode : public Node
 {
-    FunctionNode(int id, const char* name, const BasicFunctionDefPtr& pFunctionDef)
+    FunctionNode(int id, const char* name, const BasicFunctionDefPtr& pFunctionDef, ScriptElementID funcID)
         : Node(id, name, ImColor(255, 128, 128))
         , pFunctionDef(pFunctionDef)
     {
+        refId = funcID;
         Category = NodeCategory::Function;
     }
 
@@ -85,8 +86,19 @@ struct FunctionNode : public Node
         }
     }
 
-    virtual void Refresh(IDGenerator& IDGenerator) override
+    virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
+        Flags = ClearFlag(Flags, NodeFlags::Error);
+
+        RefreshDefinition(script);
+
+        if (!pFunctionDef)
+        {
+            Flags |= NodeFlags::Error;
+            Error = "Missing function with ID: " + std::to_string(refId);
+            return;
+        }
+
         // Basic info
         Name = pFunctionDef->name;
 
@@ -149,6 +161,23 @@ struct FunctionNode : public Node
         });
     }
 
+    void RefreshDefinition(const Script& script)
+    {
+        const bool isNative = !refId.IsValid();
+
+        if (!isNative)
+        {
+            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(script, refId))
+            {
+                pFunctionDef = pFun->functionDef;
+            }
+            else
+            {
+                pFunctionDef = nullptr;
+            }
+        }
+    }
+
     virtual void AddInput(IDGenerator& IDGenerator) override
     {
         Inputs.emplace_back(IDGenerator.GetNextId(), GetInputName(Inputs.size()).c_str(), pFunctionDef->dynamicInputProps.type);
@@ -180,9 +209,9 @@ struct FunctionNode : public Node
     BasicFunctionDefPtr pFunctionDef;
 };
 
-NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator)
+NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID)
 {
-    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this());
+    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this(), funcID);
 
     if (!HasFlag(flags, NodeFlags::ReadOnly))
     {

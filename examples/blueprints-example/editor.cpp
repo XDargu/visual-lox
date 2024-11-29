@@ -1338,6 +1338,8 @@ void Example::AddFunction(const ScriptFunctionPtr& pExistingFunction)
 
         // TODO: Variables
     }
+
+    ScriptUtils::RefreshFunctionRefs(m_script, pExistingFunction->ID, m_IDGenerator);
 }
 
 void Example::AddVariable(int varId)
@@ -1417,14 +1419,17 @@ void Example::AddFunctionOutput(int funId, int outputId)
 
 void Example::RemoveFunction(int funId)
 {
+    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
+
     stl::erase_if(m_script.functions, [funId](const ScriptFunctionPtr& func) { return func->ID == funId; });
 
     // Update tree view
     stl::erase_if(m_scriptTreeView.children, [funId](const TreeNode& node) { return node.id == funId; });
  
-    // TODO: Mark all nodes of missing functions as error!
-    // Think about how to do it
-
+    if (pFun)
+    {
+        ScriptUtils::RefreshFunctionRefs(m_script, pFun, m_IDGenerator);
+    }
 }
 
 void Example::RemoveVariable(int id)

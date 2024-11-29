@@ -1,6 +1,8 @@
 
 # pragma once
 
+#include "../script/scriptElement.h"
+
 #include "../graphs/node.h"
 #include "../graphs/idgeneration.h"
 
@@ -60,7 +62,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 
     std::string name;
 
-    NodePtr MakeNode(IDGenerator& IDGenerator);
+    NodePtr MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID);
 
     Input* FindOutputByName(const std::string& name);
     Input* FindInputByName(const std::string& name);

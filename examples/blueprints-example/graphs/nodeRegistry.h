@@ -38,6 +38,5 @@ public:
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc);
 
     std::vector<NativeFunctionDef> nativeDefinitions;
-    std::vector<BasicFunctionDefPtr> scriptDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
 };

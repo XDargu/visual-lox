@@ -213,6 +213,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 builder.Header(node->Color);
                 ImGui::Spring(0);
                 ImGui::TextUnformatted(node->Name.c_str());
+                // Test error
+                if (HasFlag(node->Flags, NodeFlags::Error))
+                {
+                    ImGui::Text("Error: %s", node->Error.c_str());
+                }
                 ImGui::Spring(1);
                 ImGui::Dummy(ImVec2(0, 28));
                 ImGui::Spring(0);
@@ -665,7 +670,7 @@ void GraphView::DrawContextMenu()
                 {
                     // Last element!
                     child.fullName = def.functionDef->name;
-                    child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator); };
+                    child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator, ScriptElementID::Invalid); };
                 }
 
                 current = &child;
@@ -693,7 +698,10 @@ void GraphView::DrawContextMenu()
                 if (token == tokens.back())
                 {
                     // Last element!
-                    child.creationFun = def->nodeCreationFunc;
+                    child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                    {
+                        return def->nodeCreationFunc(IDGenerator);
+                    };
                     child.fullName = def->name;
                 }
 
@@ -799,9 +807,7 @@ void GraphView::DrawContextMenu()
                             child.fullName = fullFuncName;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                NodePtr node = def->functionDef->MakeNode(IDGenerator);
-                                node->refId = def->ID;
-                                return node;
+                                return def->functionDef->MakeNode(IDGenerator, def->ID);
                             };
                         }
 
@@ -835,9 +841,7 @@ void GraphView::DrawContextMenu()
                             child.fullName = getFuncName;
                             child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                NodePtr node = BuildGetFunctionNode(IDGenerator, def->functionDef);
-                                node->refId = def->ID;
-                                return node;
+                                return BuildGetFunctionNode(IDGenerator, def->functionDef, def->ID);
                             };
                         }
 

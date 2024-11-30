@@ -15,6 +15,10 @@
 #include <thread>
 #include <chrono>
 
+#include <locale>
+#include <codecvt>
+#include <string>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -482,16 +486,20 @@ void NodeRegistry::RegisterDefinitions()
             if (str->chars.size() != 1)
                 return Value();
 
+            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+            std::wstring wide = converter.from_bytes(str->chars);
+
     #ifdef _WIN32
 
             INPUT inputs[2] = {};
 
             inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki.wVk = str->chars[0];
+            inputs[0].ki.wScan = wide[0];
+            inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
 
             inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki.wVk = str->chars[0];
-            inputs[1].ki.dwFlags = KEYEVENTF_KEYUP;
+            inputs[1].ki.wScan = wide[0];
+            inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
 
             SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
     #endif

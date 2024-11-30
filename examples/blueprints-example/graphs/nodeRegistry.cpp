@@ -14,6 +14,8 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <map>
+#include <set>
 
 #include <locale>
 #include <codecvt>
@@ -21,6 +23,211 @@
 
 #ifdef _WIN32
 #include <windows.h>
+
+bool IsExtendedKey(WORD key)
+{
+    static const std::set<WORD> values{
+        VK_PRIOR ,
+        VK_NEXT  ,
+        VK_END   ,
+        VK_HOME  ,
+        VK_LEFT  ,
+        VK_UP    ,
+        VK_RIGHT ,
+        VK_DOWN  ,
+        VK_INSERT,
+        VK_DELETE,
+    };
+
+    return values.find(key) != values.end();
+}
+
+WORD GetSpecialKey(const std::string& name)
+{
+    static const std::map<std::string, WORD> values {
+        { "BACK"        , VK_BACK       },
+        { "TAB"         , VK_TAB        },
+        { "CLEAR"       , VK_CLEAR      },
+        { "RETURN"      , VK_RETURN     },
+        { "SHIFT"       , VK_SHIFT      },
+        { "CONTROL"     , VK_CONTROL    },
+        { "MENU"        , VK_MENU       },
+        { "PAUSE"       , VK_PAUSE      },
+        { "CAPITAL"     , VK_CAPITAL    },
+        { "KANA"        , VK_KANA       },
+        { "HANGEUL"     , VK_HANGEUL    },
+        { "HANGUL"      , VK_HANGUL     },
+        { "IME_ON"      , VK_IME_ON     },
+        { "JUNJA"       , VK_JUNJA      },
+        { "FINAL"       , VK_FINAL      },
+        { "HANJA"       , VK_HANJA      },
+        { "KANJI"       , VK_KANJI      },
+        { "IME_OFF"     , VK_IME_OFF    },
+        { "ESCAPE"      , VK_ESCAPE     },
+        { "CONVERT"     , VK_CONVERT    },
+        { "NONCONVERT"  , VK_NONCONVERT },
+        { "ACCEPT"      , VK_ACCEPT     },
+        { "MODECHANGE"  , VK_MODECHANGE },
+        { "SPACE"       , VK_SPACE      },
+        { "PRIOR"       , VK_PRIOR      },
+        { "NEXT"        , VK_NEXT       },
+        { "END"         , VK_END        },
+        { "HOME"        , VK_HOME       },
+        { "LEFT"        , VK_LEFT       },
+        { "UP"          , VK_UP         },
+        { "RIGHT"       , VK_RIGHT      },
+        { "DOWN"        , VK_DOWN       },
+        { "SELECT"      , VK_SELECT     },
+        { "PRINT"       , VK_PRINT      },
+        { "EXECUTE"     , VK_EXECUTE    },
+        { "SNAPSHOT"    , VK_SNAPSHOT   },
+        { "INSERT"      , VK_INSERT     },
+        { "DELETE"      , VK_DELETE     },
+        { "HELP"        , VK_HELP       },
+        { "LWIN"        , VK_LWIN       },
+        { "RWIN"        , VK_RWIN       },
+        { "APPS"        , VK_APPS       },
+        { "NUMPAD0"     , VK_NUMPAD0    },
+        { "NUMPAD1"     , VK_NUMPAD1    },
+        { "NUMPAD2"     , VK_NUMPAD2    },
+        { "NUMPAD3"     , VK_NUMPAD3    },
+        { "NUMPAD4"     , VK_NUMPAD4    },
+        { "NUMPAD5"     , VK_NUMPAD5    },
+        { "NUMPAD6"     , VK_NUMPAD6    },
+        { "NUMPAD7"     , VK_NUMPAD7    },
+        { "NUMPAD8"     , VK_NUMPAD8    },
+        { "NUMPAD9"     , VK_NUMPAD9    },
+        { "MULTIPLY"    , VK_MULTIPLY   },
+        { "ADD"         , VK_ADD        },
+        { "SEPARATOR"   , VK_SEPARATOR  },
+        { "SUBTRACT"    , VK_SUBTRACT   },
+        { "DECIMAL"     , VK_DECIMAL    },
+        { "DIVIDE"      , VK_DIVIDE     },
+        { "F1"          , VK_F1         },
+        { "F2"          , VK_F2         },
+        { "F3"          , VK_F3         },
+        { "F4"          , VK_F4         },
+        { "F5"          , VK_F5         },
+        { "F6"          , VK_F6         },
+        { "F7"          , VK_F7         },
+        { "F8"          , VK_F8         },
+        { "F9"          , VK_F9         },
+        { "F10"         , VK_F10        },
+        { "F11"         , VK_F11        },
+        { "F12"         , VK_F12        },
+        { "F13"         , VK_F13        },
+        { "F14"         , VK_F14        },
+        { "F15"         , VK_F15        },
+        { "F16"         , VK_F16        },
+        { "F17"         , VK_F17        },
+        { "F18"         , VK_F18        },
+        { "F19"         , VK_F19        },
+        { "F20"         , VK_F20        },
+        { "F21"         , VK_F21        },
+        { "F22"         , VK_F22        },
+        { "F23"         , VK_F23        },
+        { "F24"         , VK_F24        },
+    };
+
+    auto it = values.find(name);
+    if (it != values.end())
+    {
+        return it->second;
+    }
+
+    return 0;
+}
+
+WORD GetKeyFromName(const std::string& name)
+{
+    if (name.size() != 1)
+    {
+        return GetSpecialKey(name);
+    }
+    else
+    {
+        // Conver to wide string
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+        std::wstring wide = converter.from_bytes(name);
+
+        return wide[0];
+    }
+}
+
+void PressKey(WORD key)
+{
+    INPUT inputs[1] = {};
+
+    inputs[0].type = INPUT_KEYBOARD;
+    inputs[0].ki.wScan = key;
+    inputs[0].ki.dwFlags = KEYEVENTF_UNICODE | (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+    SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+}
+
+void ReleaseKey(WORD key)
+{
+    INPUT inputs[1] = {};
+
+    inputs[0].type = INPUT_KEYBOARD;
+    inputs[0].ki.wScan = key;
+    inputs[0].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP | (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+    SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+}
+
+void PressReleaseKey(WORD key)
+{
+    INPUT inputs[2] = {};
+
+    inputs[0].type = INPUT_KEYBOARD;
+    inputs[0].ki.wScan = key;
+    inputs[0].ki.dwFlags = KEYEVENTF_UNICODE | (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+    inputs[1].type = INPUT_KEYBOARD;
+    inputs[1].ki.wScan = key;
+    inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP | (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+    SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+}
+
+void PressReleaseKeys(const std::vector<WORD>& keys)
+{
+    std::vector<INPUT> inputs;
+    inputs.reserve(keys.size());
+    //ZeroMemory(&inputs[0], static_cast<UINT>(inputs.size()));
+
+    for (WORD key : keys)
+    {
+        INPUT input;
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = key;
+        input.ki.dwFlags = (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+        inputs.push_back(input);
+    }
+
+    SendInput(static_cast<UINT>(inputs.size()), &inputs[0], sizeof(INPUT));
+
+    Sleep(10);
+
+    inputs.clear();
+    //ZeroMemory(&inputs[0], static_cast<UINT>(inputs.size()));
+
+    for (WORD key : keys)
+    {
+        INPUT input;
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = key;
+        input.ki.dwFlags = KEYEVENTF_KEYUP | (IsExtendedKey(key) ? KEYEVENTF_EXTENDEDKEY : 0);
+
+        inputs.push_back(input);
+    }
+
+    SendInput(static_cast<UINT>(inputs.size()), &inputs[0], sizeof(INPUT));
+}
+
+
 #endif
 
 
@@ -483,29 +690,52 @@ void NodeRegistry::RegisterDefinitions()
 
             ObjString* str = asString(args[0]);
 
-            if (str->chars.size() != 1)
+#ifdef _WIN32
+
+            const WORD key = GetKeyFromName(str->chars);
+            if (key == 0)
                 return Value();
-
-            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-            std::wstring wide = converter.from_bytes(str->chars);
-
-    #ifdef _WIN32
-
-            INPUT inputs[2] = {};
-
-            inputs[0].type = INPUT_KEYBOARD;
-            inputs[0].ki.wScan = wide[0];
-            inputs[0].ki.dwFlags = KEYEVENTF_UNICODE;
-
-            inputs[1].type = INPUT_KEYBOARD;
-            inputs[1].ki.wScan = wide[0];
-            inputs[1].ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
-
-            SendInput(ARRAYSIZE(inputs), inputs, sizeof(INPUT));
+            
+            PressReleaseKey(key);
     #endif
             return Value();
 
         },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("System::PressKeys",
+        { { "Keys", Value(newList())} },
+        { },
+        [](int argCount, Value* args, VM* vm)
+    {
+        if (!isList(args[0]))
+            return Value();
+
+        ObjList* list = asList(args[0]);
+
+#ifdef _WIN32
+
+        std::vector<WORD> keys;
+        keys.reserve(list->items.size());
+
+        for (const Value& keyVal : list->items)
+        {
+            // Ignore non-strings
+            if (isString(keyVal))
+            {
+                ObjString* str = asString(keyVal);
+                const WORD key = GetKeyFromName(str->chars);
+                keys.push_back(key);
+            }
+        }
+
+        PressReleaseKeys(keys);
+        
+#endif
+        return Value();
+
+    },
         NodeFlags::None
     );
 }

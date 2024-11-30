@@ -638,6 +638,64 @@ void GraphView::DrawContextMenu()
             searchFilterLower = Utils::to_lower(searchFilter);
         }
 
+        static bool contextualSearch = true;
+        ImGui::Checkbox("Contextual", &contextualSearch);
+
+        const bool isInput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Input;
+        const bool isOutput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Output;
+        const bool isFlow = newNodeLinkPin && newNodeLinkPin->Type == PinType::Flow;
+
+        auto FilterContext = [&](const BasicFunctionDefPtr& functionDef)
+        {
+            if (!contextualSearch) return true;
+            if (isFlow) return true;
+
+            if (isInput)
+            {
+                for (auto& otuput : functionDef->outputs)
+                {
+                    if (TypeOfValue(otuput.value) == newNodeLinkPin->Type)
+                        return true;
+                }
+
+                return false;
+            }
+            if (isOutput)
+            {
+                for (auto& input : functionDef->inputs)
+                {
+                    if (TypeOfValue(input.value) == newNodeLinkPin->Type)
+                        return true;
+                }
+
+                return false;
+            }
+
+            return true;
+        };
+
+        auto FilterContextVar = [&](const ScriptPropertyPtr& propertyDef)
+        {
+            if (!contextualSearch) return true;
+            if (isFlow) return true;
+
+            if (newNodeLinkPin)
+                return TypeOfValue(propertyDef->defaultValue) == newNodeLinkPin->Type;
+
+            return true;
+        };
+
+        auto FilterContextFuncGet = [&](const BasicFunctionDefPtr& functionDef)
+        {
+            if (!contextualSearch) return true;
+            if (isFlow) return true;
+
+            if (newNodeLinkPin)
+                return newNodeLinkPin->Type == PinType::Function;
+
+            return true;
+        };
+
         struct Data
         {
             std::string name;
@@ -656,7 +714,7 @@ void GraphView::DrawContextMenu()
         {
             // Call
             {
-                if (Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower) && FilterContext(def.functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -687,7 +745,7 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getFuncName = "Get::" + def.functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) && FilterContextFuncGet(def.functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -756,7 +814,7 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getVar = "Variables::Get::" + def->Name;
 
-                if (Utils::FilterString(Utils::to_lower(getVar), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(getVar), searchFilterLower) && FilterContextVar(def))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -790,7 +848,7 @@ void GraphView::DrawContextMenu()
             {
                 const std::string setVar = "Variables::Set::" + def->Name;
 
-                if (Utils::FilterString(Utils::to_lower(setVar), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(setVar), searchFilterLower) && FilterContextVar(def))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -827,7 +885,7 @@ void GraphView::DrawContextMenu()
             {
                 const std::string fullFuncName = "Functions::" + def->functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower) && FilterContext(def->functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -861,7 +919,7 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getFuncName = "Functions::Get::" + def->functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower))
+                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) && FilterContextFuncGet(def->functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;

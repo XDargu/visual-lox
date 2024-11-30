@@ -500,6 +500,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
 void GraphView::DrawContextMenu()
 {
+    static std::string searchFilter = "";
+    static std::string searchFilterLower = "";
+
     static bool addNodePopupOpened = false;
     static ImVec2 openPopupPosition;
 
@@ -524,6 +527,8 @@ void GraphView::DrawContextMenu()
         addNodePopupOpened = true;
         ImGui::OpenPopup("Create New Node");
         newNodeLinkPin = nullptr;
+        searchFilter = "";
+        searchFilterLower = "";
     }
     ed::Resume();
 
@@ -627,8 +632,6 @@ void GraphView::DrawContextMenu()
         addNodePopupOpened = true;
         bool searchChanged = false;
 
-        static std::string searchFilter = "";
-        static std::string searchFilterLower = "";
         if (ImGui::InputText("##search", &searchFilter))
         {
             searchChanged = true;

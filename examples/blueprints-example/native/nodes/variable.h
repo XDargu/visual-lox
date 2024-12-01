@@ -144,7 +144,7 @@ static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptProper
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
     node->InputValues.push_back(Value());
-    node->InputValues.push_back(Value());
+    node->InputValues.push_back(Value(pProperty->defaultValue));
 
     return node;
 }

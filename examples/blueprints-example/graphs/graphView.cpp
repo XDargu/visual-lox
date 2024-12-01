@@ -203,7 +203,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             const bool isSimpleGet = node->Type == NodeType::SimpleGet;
             const bool isSimpleLarge = node->Type == NodeType::SimpleLargeBody;
 
-            const bool isDisconnected = std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end();
+            const bool isDisconnected = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end();
 
             const float alpha = ImGui::GetStyle().Alpha;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
@@ -229,7 +229,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& input : node->Inputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && !m_pGraph->CanCreateLink(newLinkPin, &input) && &input != newLinkPin)
+                if (newLinkPin && !GraphUtils::CanCreateLink(newLinkPin, &input, processedNodes) && &input != newLinkPin)
                     alpha = alpha * (48.0f / 255.0f);
 
                 builder.Input(input.ID);
@@ -277,7 +277,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& output : node->Outputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && !m_pGraph->CanCreateLink(newLinkPin, &output) && &output != newLinkPin)
+                if (newLinkPin && !GraphUtils::CanCreateLink(newLinkPin, &output, processedNodes) && &output != newLinkPin)
                     alpha = alpha * (48.0f / 255.0f);
 
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
@@ -421,7 +421,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
                     if (startPin && endPin)
                     {
-                        if (m_pGraph->CanCreateLink(startPin, endPin))
+                        if (GraphUtils::CanCreateLink(startPin, endPin, processedNodes))
                         {
                             showLabel("+ Create Link", ImColor(32, 45, 32, 180));
                             if (ed::AcceptNewItem(ImColor(128, 255, 128), 4.0f))
@@ -438,7 +438,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                         }
                         else
                         {
-                            const std::string reason =m_pGraph->LinkCreationFailedReason(*startPin, *endPin);
+                            const std::string reason = GraphUtils::LinkCreationFailedReason(*startPin, *endPin, processedNodes);
                             showLabel(("x " + reason).c_str(), ImColor(45, 32, 32, 180));
                             ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
                         }
@@ -655,7 +655,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& otuput : functionDef->outputs)
                 {
-                    if (m_pGraph->CanCreateLink(TypeOfValue(otuput.value), newNodeLinkPin->Type))
+                    if (GraphUtils::AreTypesCompatible(TypeOfValue(otuput.value), newNodeLinkPin->Type))
                         return true;
                 }
 
@@ -665,7 +665,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& input : functionDef->inputs)
                 {
-                    if (m_pGraph->CanCreateLink(TypeOfValue(input.value), newNodeLinkPin->Type))
+                    if (GraphUtils::AreTypesCompatible(TypeOfValue(input.value), newNodeLinkPin->Type))
                         return true;
                 }
 
@@ -681,7 +681,7 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return m_pGraph->CanCreateLink(TypeOfValue(propertyDef->defaultValue), newNodeLinkPin->Type);
+                return GraphUtils::AreTypesCompatible(TypeOfValue(propertyDef->defaultValue), newNodeLinkPin->Type);
 
             return true;
         };
@@ -692,7 +692,7 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return m_pGraph->CanCreateLink(newNodeLinkPin->Type, PinType::Function);
+                return GraphUtils::AreTypesCompatible(newNodeLinkPin->Type, PinType::Function);
 
             return true;
         };
@@ -1116,7 +1116,7 @@ void GraphView::DrawContextMenu()
 
                 for (auto& pin : pins)
                 {
-                    if (m_pGraph->CanCreateLink(startPin, &pin))
+                    if (GraphUtils::CanCreateLink(startPin, &pin, processedNodes))
                     {
                         auto endPin = &pin;
                         if (startPin->Kind == PinKind::Input)

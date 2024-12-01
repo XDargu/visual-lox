@@ -58,7 +58,7 @@ struct Example :
     void ShowStyleEditor(bool* show = nullptr);
     void ShowNodeSelection(float paneWidth);
 
-    std::vector<NodePtr> GatherProcessedNodes(Graph& graph, Compiler& compiler);
+    std::vector<ProcessedNode> GatherProcessedNodes(Graph& graph, Compiler& compiler);
 
     void GatherConstFoldableNodes(Compiler& compiler, VM& vm);
     InterpretResult CompileConstFolding(VM& vm, const NodePtr& constNode);

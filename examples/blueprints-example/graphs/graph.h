@@ -52,9 +52,6 @@ struct Graph
     }
 
     bool IsPinLinked(ed::PinId id) const;
-    bool CanCreateLink(PinType a, PinType b) const;
-    bool CanCreateLink(const Pin* a, const Pin* b) const;
-    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin) const;
 
     void DeleteNode(ed::NodeId id);
     void DeleteLink(ed::LinkId id);
@@ -71,6 +68,13 @@ struct Graph
 private:
     std::vector<NodePtr>   m_Nodes;
     std::vector<Link>    m_Links;
+};
+
+// TODO: Move somewhere else
+struct ProcessedNode
+{
+    NodePtr node;
+    std::vector<int> stackFrames;
 };
 
 namespace GraphUtils
@@ -96,4 +100,8 @@ namespace GraphUtils
     std::vector<const Link*> CollectOutputLinks(const Graph& graph, const Pin& outputPin);
 
     bool IsNodeConstFoldable(const Graph& graph, const NodePtr& node);
+
+    bool AreTypesCompatible(PinType a, PinType b);
+    bool CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes);
+    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin, const std::vector<ProcessedNode>& processedNodes);
 }

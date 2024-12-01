@@ -567,14 +567,18 @@ void Example::ShowNodeSelection(float paneWidth)
         ++changeCount;
 }
 
-std::vector<NodePtr> Example::GatherProcessedNodes(Graph& graph, Compiler& compiler)
+std::vector<ProcessedNode> Example::GatherProcessedNodes(Graph& graph, Compiler& compiler)
 {
-    std::vector<NodePtr> processedNodes;
+    std::vector<ProcessedNode> processedNodes;
+    std::vector<int> stackFrames;
 
     NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
     if (begin)
     {
         GraphCompiler graphCompiler(compiler);
+
+        int currentStackFrame = 0;
+        stackFrames.push_back(currentStackFrame);
 
         graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
         {
@@ -582,9 +586,41 @@ std::vector<NodePtr> Example::GatherProcessedNodes(Graph& graph, Compiler& compi
             {
                 if (stage == CompilationStage::BeginInputs)
                 {
-                    if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                    if (std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end())
                     {
-                        processedNodes.push_back(node);
+                        ProcessedNode pnode;
+                        pnode.node = node;
+                        pnode.stackFrames = stackFrames;
+                        processedNodes.push_back(pnode);
+                    }
+                }
+                else if (stage == CompilationStage::BeginOutput)
+                {
+                    int flowCount = 0;
+                    for (auto& output : node->Outputs)
+                    {
+                        if (output.Type == PinType::Flow)
+                            flowCount++;
+                    }
+
+                    if (flowCount > 1)
+                    {
+                        ++currentStackFrame;
+                        stackFrames.push_back(currentStackFrame);
+                    }
+                }
+                else if (stage == CompilationStage::EndOutput)
+                {
+                    int flowCount = 0;
+                    for (auto& output : node->Outputs)
+                    {
+                        if (output.Type == PinType::Flow)
+                            flowCount++;
+                    }
+
+                    if (flowCount > 1)
+                    {
+                        stackFrames.pop_back();
                     }
                 }
             }
@@ -592,9 +628,11 @@ std::vector<NodePtr> Example::GatherProcessedNodes(Graph& graph, Compiler& compi
             {
                 if (stage == CompilationStage::PullOutput)
                 {
-                    if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                    if (std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end())
                     {
-                        processedNodes.push_back(node);
+                        ProcessedNode pnode;
+                        pnode.node = node;
+                        processedNodes.push_back(pnode);
                     }
                 }
             }
@@ -1099,16 +1137,27 @@ void Example::OnFrame(float deltaTime)
         drawList->PushClipRect(editorMin, editorMax);
 
         int ordinal = 0;
-        for (const NodePtr& node : m_graphView.processedNodes)
+        for (const ProcessedNode& node : m_graphView.processedNodes)
         {
-            auto p0 = ed::GetNodePosition(node->ID);
-            auto p1 = p0 + ed::GetNodeSize(node->ID);
+            auto p0 = ed::GetNodePosition(node.node->ID);
+            auto p1 = p0 + ed::GetNodeSize(node.node->ID);
             p0 = ed::CanvasToScreen(p0);
             p1 = ed::CanvasToScreen(p1);
 
 
             ImGuiTextBuffer builder;
             builder.appendf("#%d", ordinal++);
+
+            builder.append(" (");
+
+            for (int stackFrame : node.stackFrames)
+            {
+                builder.appendf("%d", stackFrame);
+                if (stackFrame != node.stackFrames.back())
+                    builder.append(",");
+            }
+
+            builder.append(")");
 
             auto textSize = ImGui::CalcTextSize(builder.c_str());
             auto padding = ImVec2(2.0f, 2.0f);

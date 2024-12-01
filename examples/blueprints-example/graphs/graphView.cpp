@@ -229,8 +229,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& input : node->Inputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && m_pGraph->CanCreateLink(newLinkPin, &input, processedNodes) != ELinkQueryResult::Possible && &input != newLinkPin)
-                    alpha = alpha * (48.0f / 255.0f);
+                //if (newLinkPin && m_pGraph->CanCreateLink(newLinkPin, &input, processedNodes) != ELinkQueryResult::Possible && &input != newLinkPin)
+                //    alpha = alpha * (48.0f / 255.0f);
 
                 builder.Input(input.ID);
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
@@ -277,8 +277,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& output : node->Outputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && m_pGraph->CanCreateLink(newLinkPin, &output, processedNodes) != ELinkQueryResult::Possible && &output != newLinkPin)
-                    alpha = alpha * (48.0f / 255.0f);
+                //if (newLinkPin && m_pGraph->CanCreateLink(newLinkPin, &output, processedNodes) != ELinkQueryResult::Possible && &output != newLinkPin)
+                //    alpha = alpha * (48.0f / 255.0f);
 
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
                 builder.Output(output.ID);

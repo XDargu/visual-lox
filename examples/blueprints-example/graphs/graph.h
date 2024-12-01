@@ -138,4 +138,5 @@ namespace GraphUtils
     bool AreTypesCompatible(PinType a, PinType b);
 
     bool IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child);
+    bool CanReachNodeAllPaths(const Graph& graph, const NodePtr& node, const NodePtr& child);
 }

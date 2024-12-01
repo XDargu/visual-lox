@@ -149,16 +149,8 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
         // Are we trying to connect to something on a different branch? Only for data
         if (a->Type != PinType::Flow)
         {
-            const int shortestStackFrame = std::min(aProcessedNode->stackFrames.size(), bProcessedNode->stackFrames.size());
-
-            for (int i = 0; i < shortestStackFrame; ++i)
-            {
-                int stackFrameA = aProcessedNode->stackFrames[i];
-                int stackFrameB = bProcessedNode->stackFrames[i];
-
-                if (stackFrameA != stackFrameB)
-                    return ELinkQueryResult::CantConnectBranch;
-            }
+            if (!GraphUtils::CanReachNodeAllPaths(*this, output.Node, input.Node))
+                return ELinkQueryResult::CantConnectBranch;
         }
     }
 
@@ -385,30 +377,43 @@ NodePtr Graph::AddNode(const NodePtr& node)
      return true;
  }
 
- bool GraphUtils::IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child)
- {
-     NodePtr current = child;
+bool GraphUtils::IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child)
+{
+    if (child == node) { return true; }
 
-     while (current)
-     {
-         if (current == node) { return true; }
+    for (const Pin& input : child->Inputs)
+    {
+        if (input.Type == PinType::Flow)
+        {
+            const std::vector<const Pin*> outputs = GraphUtils::FindConnectedOutputs(graph, input);
+            for (const Pin* output : outputs)
+            {
+                if (IsNodeParent(graph, node, output->Node))
+                    return true;
+            }
+        }
+    }
 
-         NodePtr pParent = nullptr;
+    return false;
+}
 
-         for (const Pin& input : current->Inputs)
-         {
-             if (input.Type == PinType::Flow)
-             {
-                 if (const Pin* pin = FindConnectedOutput(graph, input))
-                 {
-                     pParent = pin->Node;
-                 }
-                 break;
-             }
-         }
+bool GraphUtils::CanReachNodeAllPaths(const Graph& graph, const NodePtr& node, const NodePtr& child)
+{
+    if (child == node) { return true; } // Found the node
+    if (child->Inputs.size() == 0) { return false; } // Begin node
 
-         current = pParent;
-     }
+    for (const Pin& input : child->Inputs)
+    {
+        if (input.Type == PinType::Flow)
+        {
+            const std::vector<const Pin*> outputs = GraphUtils::FindConnectedOutputs(graph, input);
+            for (const Pin* output : outputs)
+            {
+                if (!CanReachNodeAllPaths(graph, node, output->Node))
+                    return false; // One path wasn't successful
+            }
+        }
+    }
 
-     return false;
- }
+    return true; // No paths failed
+}

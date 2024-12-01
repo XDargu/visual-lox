@@ -317,6 +317,34 @@ void NodeRegistry::RegisterDefinitions()
         }
     );
 
+    RegisterNativeFunc("List::Concat",
+        { { "List", Value(newList()) }, { "List", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &concat,
+        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+    );
+
+    RegisterNativeFunc("List::Erase",
+        { { "List", Value(newList()) }, { "Index", Value(0.0) } },
+        { },
+        &erase,
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("List::Push",
+        { { "List", Value(newList()) }, { "Value", Value() } },
+        { { "Size", Value(0.0) } },
+        &push,
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("List::Pop",
+        { { "List", Value(newList()) } },
+        { { "Value", Value() } },
+        &pop,
+        NodeFlags::None
+    );
+
     RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },

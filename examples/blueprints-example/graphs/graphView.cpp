@@ -655,7 +655,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& otuput : functionDef->outputs)
                 {
-                    if (TypeOfValue(otuput.value) == newNodeLinkPin->Type)
+                    if (m_pGraph->CanCreateLink(TypeOfValue(otuput.value), newNodeLinkPin->Type))
                         return true;
                 }
 
@@ -665,7 +665,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& input : functionDef->inputs)
                 {
-                    if (TypeOfValue(input.value) == newNodeLinkPin->Type)
+                    if (m_pGraph->CanCreateLink(TypeOfValue(input.value), newNodeLinkPin->Type))
                         return true;
                 }
 
@@ -681,7 +681,7 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return TypeOfValue(propertyDef->defaultValue) == newNodeLinkPin->Type;
+                return m_pGraph->CanCreateLink(TypeOfValue(propertyDef->defaultValue), newNodeLinkPin->Type);
 
             return true;
         };
@@ -692,7 +692,7 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return newNodeLinkPin->Type == PinType::Function;
+                return m_pGraph->CanCreateLink(newNodeLinkPin->Type, PinType::Function);
 
             return true;
         };

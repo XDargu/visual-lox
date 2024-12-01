@@ -95,21 +95,25 @@ bool Graph::IsPinLinked(ed::PinId id) const
     return false;
 }
 
-bool Graph::CanCreateLink(const Pin* a, const Pin* b) const
+bool Graph::CanCreateLink(PinType a, PinType b) const
 {
-    if (!a || !b || a == b || a->Kind == b->Kind || a->Node == b->Node)
-        return false;
-
-    // Type check
-    if (a->Type != b->Type)
+    if (a != b)
     {
-        const bool isAny = (a->Type == PinType::Any || b->Type == PinType::Any);
-        const bool isFlow = (a->Type == PinType::Flow || b->Type == PinType::Flow);
+        const bool isAny = (a == PinType::Any || b == PinType::Any);
+        const bool isFlow = (a == PinType::Flow || b == PinType::Flow);
 
         return isAny && !isFlow;
     }
 
     return true;
+}
+
+bool Graph::CanCreateLink(const Pin* a, const Pin* b) const
+{
+    if (!a || !b || a == b || a->Kind == b->Kind || a->Node == b->Node)
+        return false;
+
+    return CanCreateLink(a->Type, b->Type);
 }
 
 std::string Graph::LinkCreationFailedReason(const Pin& startPin, const Pin& endPin) const

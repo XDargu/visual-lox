@@ -779,33 +779,34 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pNodeRegistry->compiledDefinitions)
         {
-            if (!Utils::FilterString(Utils::to_lower(def->name), searchFilterLower))
-                continue;
-
-            Data* current = &root;
-            int depth = 1;
-            const std::vector<std::string> tokens = Utils::split(def->name, "::");
-
-            for (const std::string& token : tokens)
+            // Call
+            if (Utils::FilterString(Utils::to_lower(def->name), searchFilterLower) && FilterContext(def->functionDef))
             {
-                Data& child = current->children[token];
+                Data* current = &root;
+                int depth = 1;
+                const std::vector<std::string> tokens = Utils::split(def->name, "::");
 
-                child.name = token;
-                child.depth = depth;
-                child.fullName = token;
-
-                if (token == tokens.back())
+                for (const std::string& token : tokens)
                 {
-                    // Last element!
-                    child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
-                    {
-                        return def->nodeCreationFunc(IDGenerator);
-                    };
-                    child.fullName = def->name;
-                }
+                    Data& child = current->children[token];
 
-                current = &child;
-                depth++;
+                    child.name = token;
+                    child.depth = depth;
+                    child.fullName = token;
+
+                    if (token == tokens.back())
+                    {
+                        // Last element!
+                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        {
+                            return def->nodeCreationFunc(IDGenerator);
+                        };
+                        child.fullName = def->name;
+                    }
+
+                    current = &child;
+                    depth++;
+                }
             }
         }
 

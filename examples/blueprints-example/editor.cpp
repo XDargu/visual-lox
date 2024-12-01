@@ -142,6 +142,19 @@ void Example::OnStart()
             }
         }
 
+        for (const CompiledNodeDefPtr& def : m_NodeRegistry.compiledDefinitions)
+        {
+            for (auto& input : def->functionDef->inputs)
+            {
+                vm.markValue(input.value);
+            }
+
+            for (auto& input : def->functionDef->outputs)
+            {
+                vm.markValue(input.value);
+            }
+        }
+
         for (Value& value : m_constFoldingValues)
         {
             vm.markValue(value);
@@ -161,20 +174,20 @@ void Example::OnStart()
     });
 
     // TODO: We should find a less manual way of doing this!
-    m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode);
-    m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode);
-    m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode);
-    m_NodeRegistry.RegisterCompiledNode("String::Append", &CreateAppendNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Add", &CreateAddNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Divide", &CreateDivideNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode);
-    m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode);
-    m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode);
-    m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode);
+    m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode, {}, { { "Value", Value(false) } });
+    m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode, {}, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode, { { "Value", Value() } }, {});
+    m_NodeRegistry.RegisterCompiledNode("String::Append", &CreateAppendNode, { { "Value", Value(takeString("", 0)) } }, { { "Value", Value(takeString("", 0)) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Add", &CreateAddNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Divide", &CreateDivideNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
+    m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode, { { "List", Value(newList()) }, { "Index", Value(0.0) } }, { { "Value", Value() } });
+    m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode, { { "List", Value(newList()) }, { "Index", Value(0.0) }, { "Value", Value() } }, { { "Value", Value(newList()) } });
 
     m_NodeRegistry.RegisterDefinitions();
 

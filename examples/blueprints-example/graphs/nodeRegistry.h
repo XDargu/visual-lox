@@ -18,6 +18,7 @@ struct CompiledNodeDef : public std::enable_shared_from_this<CompiledNodeDef>
     
     std::string name;
     NodeCreationFun nodeCreationFunc;
+    BasicFunctionDefPtr functionDef; // Only used to check the layout
 };
 
 using CompiledNodeDefPtr = std::shared_ptr< CompiledNodeDef>;
@@ -35,7 +36,7 @@ public:
     void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags);
     void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps);
     void RegisterNatives(VM& vm);
-    void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc);
+    void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeFlags flags = NodeFlags::None);
 
     std::vector<NativeFunctionDef> nativeDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;

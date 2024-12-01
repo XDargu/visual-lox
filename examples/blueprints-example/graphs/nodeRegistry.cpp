@@ -773,11 +773,20 @@ void NodeRegistry::RegisterNatives(VM& vm)
     }
 }
 
-void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc)
+void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeFlags flags)
 {
     CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
     compiledNodeDef->nodeCreationFunc = creationFunc;
     compiledNodeDef->name = name;
+
+    BasicFunctionDefPtr funtionDef = std::make_shared<BasicFunctionDef>();
+    funtionDef->name = name;
+
+    funtionDef->inputs = inputs;
+    funtionDef->outputs = outputs;
+    funtionDef->flags = flags;
+
+    compiledNodeDef->functionDef = funtionDef;
 
     compiledDefinitions.push_back(compiledNodeDef);
 }

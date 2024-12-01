@@ -229,7 +229,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& input : node->Inputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && !GraphUtils::CanCreateLink(newLinkPin, &input, processedNodes) && &input != newLinkPin)
+                if (newLinkPin && !m_pGraph->CanCreateLink(newLinkPin, &input, processedNodes) && &input != newLinkPin)
                     alpha = alpha * (48.0f / 255.0f);
 
                 builder.Input(input.ID);
@@ -277,7 +277,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             for (const Pin& output : node->Outputs)
             {
                 float alpha = ImGui::GetStyle().Alpha;
-                if (newLinkPin && !GraphUtils::CanCreateLink(newLinkPin, &output, processedNodes) && &output != newLinkPin)
+                if (newLinkPin && !m_pGraph->CanCreateLink(newLinkPin, &output, processedNodes) && &output != newLinkPin)
                     alpha = alpha * (48.0f / 255.0f);
 
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
@@ -421,7 +421,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
                     if (startPin && endPin)
                     {
-                        if (GraphUtils::CanCreateLink(startPin, endPin, processedNodes))
+                        if (m_pGraph->CanCreateLink(startPin, endPin, processedNodes))
                         {
                             showLabel("+ Create Link", ImColor(32, 45, 32, 180));
                             if (ed::AcceptNewItem(ImColor(128, 255, 128), 4.0f))
@@ -438,7 +438,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                         }
                         else
                         {
-                            const std::string reason = GraphUtils::LinkCreationFailedReason(*startPin, *endPin, processedNodes);
+                            const std::string reason = m_pGraph->LinkCreationFailedReason(*startPin, *endPin, processedNodes);
                             showLabel(("x " + reason).c_str(), ImColor(45, 32, 32, 180));
                             ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
                         }
@@ -1116,7 +1116,7 @@ void GraphView::DrawContextMenu()
 
                 for (auto& pin : pins)
                 {
-                    if (GraphUtils::CanCreateLink(startPin, &pin, processedNodes))
+                    if (m_pGraph->CanCreateLink(startPin, &pin, processedNodes))
                     {
                         auto endPin = &pin;
                         if (startPin->Kind == PinKind::Input)

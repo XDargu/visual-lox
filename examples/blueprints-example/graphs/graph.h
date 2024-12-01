@@ -21,6 +21,13 @@ class VM;
 
 namespace ed = ax::NodeEditor;
 
+// TODO: Move somewhere else
+struct ProcessedNode
+{
+    NodePtr node;
+    std::vector<int> stackFrames;
+};
+
 struct Graph
 {
     NodePtr FindNode(ed::NodeId id);
@@ -53,6 +60,9 @@ struct Graph
 
     bool IsPinLinked(ed::PinId id) const;
 
+    bool CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const;
+    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin, const std::vector<ProcessedNode>& processedNodes) const;
+
     void DeleteNode(ed::NodeId id);
     void DeleteLink(ed::LinkId id);
 
@@ -68,13 +78,6 @@ struct Graph
 private:
     std::vector<NodePtr>   m_Nodes;
     std::vector<Link>    m_Links;
-};
-
-// TODO: Move somewhere else
-struct ProcessedNode
-{
-    NodePtr node;
-    std::vector<int> stackFrames;
 };
 
 namespace GraphUtils
@@ -102,6 +105,6 @@ namespace GraphUtils
     bool IsNodeConstFoldable(const Graph& graph, const NodePtr& node);
 
     bool AreTypesCompatible(PinType a, PinType b);
-    bool CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes);
-    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin, const std::vector<ProcessedNode>& processedNodes);
+
+    bool IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child);
 }

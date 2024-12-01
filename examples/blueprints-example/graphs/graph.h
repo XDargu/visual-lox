@@ -28,6 +28,38 @@ struct ProcessedNode
     std::vector<int> stackFrames;
 };
 
+enum class ELinkQueryResult
+{
+    Possible,
+    // Errors
+    InvalidPin,
+    IncompatibleKind,
+    IncompatibleType,
+    SelfConnection,
+    AlreadyConnected,
+    CantConnectEarlier,
+    CantConnectBranch,
+    Unknown,
+};
+
+inline const char* LinkQueryResultToString(ELinkQueryResult result)
+{
+    switch (result)
+    {
+    case ELinkQueryResult::Possible: return "Possible";
+    case ELinkQueryResult::InvalidPin: return "Invalid Pin";
+    case ELinkQueryResult::IncompatibleKind: return "Incompatible Pin Kind";
+    case ELinkQueryResult::IncompatibleType: return "Incompatible Pin Type";
+    case ELinkQueryResult::SelfConnection: return "Cannot connect to self";
+    case ELinkQueryResult::AlreadyConnected: return "Already connected";
+    case ELinkQueryResult::CantConnectEarlier: return "Cannot connect to a node earlier in the sequence";
+    case ELinkQueryResult::CantConnectBranch: return "Cannot connect to a different branch";
+    case ELinkQueryResult::Unknown: return "Unknown reason";
+    }
+
+    return "";
+}
+
 struct Graph
 {
     NodePtr FindNode(ed::NodeId id);
@@ -60,8 +92,7 @@ struct Graph
 
     bool IsPinLinked(ed::PinId id) const;
 
-    bool CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const;
-    std::string LinkCreationFailedReason(const Pin& startPin, const Pin& endPin, const std::vector<ProcessedNode>& processedNodes) const;
+    ELinkQueryResult CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const;
 
     void DeleteNode(ed::NodeId id);
     void DeleteLink(ed::LinkId id);

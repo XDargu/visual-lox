@@ -586,12 +586,21 @@ std::vector<ProcessedNode> Example::GatherProcessedNodes(Graph& graph, Compiler&
             {
                 if (stage == CompilationStage::BeginInputs)
                 {
-                    if (std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end())
+                    auto result = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; });
+                    if (result == processedNodes.end())
                     {
                         ProcessedNode pnode;
                         pnode.node = node;
                         pnode.stackFrames = stackFrames;
                         processedNodes.push_back(pnode);
+                    }
+                    else
+                    {
+                        for (int stackFrame : stackFrames)
+                        {
+                            if (std::find(result->stackFrames.begin(), result->stackFrames.end(), stackFrame) == result->stackFrames.end())
+                                result->stackFrames.push_back(stackFrame);
+                        }
                     }
                 }
                 else if (stage == CompilationStage::BeginOutput)

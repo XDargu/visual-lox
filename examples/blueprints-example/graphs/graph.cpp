@@ -95,21 +95,43 @@ bool Graph::IsPinLinked(ed::PinId id) const
     return false;
 }
 
-bool Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const
+ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const
 {
-    if (!a || !b || a == b || a->Kind == b->Kind || a->Node == b->Node)
-        return false;
+    if (!a || !b || a == b)
+        return ELinkQueryResult::InvalidPin;
+
+    if (a->Kind == b->Kind)
+    {
+        return ELinkQueryResult::IncompatibleKind;
+    }
+
+    if (a->Node == b->Node)
+    {
+        return ELinkQueryResult::SelfConnection;
+    }
 
     if (!GraphUtils::AreTypesCompatible(a->Type, b->Type))
-        return false;
+    {
+        return ELinkQueryResult::IncompatibleType;
+    }
+
+    const Pin& input = a->Kind == PinKind::Input ? *a : *b;
+    const Pin& output = a->Kind == PinKind::Output ? *a : *b;
 
     if (a->Type != PinType::Flow)
     {
-        // TODO: Data ports can't hold multiple pins!
+        // Data ports can only be connected once
+        if (IsPinLinked(input.ID))
+            return ELinkQueryResult::AlreadyConnected;
+
+        if (IsPinLinked(output.ID))
+            return ELinkQueryResult::AlreadyConnected;
     }
     else
     {
-        // TODO: 
+        // Flow pins can have several inputs going to an output
+        if (IsPinLinked(output.ID))
+            return ELinkQueryResult::AlreadyConnected;
     }
 
     auto aProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == a->Node->ID; });
@@ -121,57 +143,12 @@ bool Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vector<Processe
         size_t indexA = std::distance(processedNodes.begin(), aProcessedNode);
         size_t indexB = std::distance(processedNodes.begin(), bProcessedNode);
 
-        if (a->Kind == PinKind::Input)
+        if (GraphUtils::IsNodeParent(*this, input.Node, output.Node))
+            return ELinkQueryResult::CantConnectEarlier;
+
+        // Are we trying to connect to something on a different branch? Only for data
+        if (a->Type != PinType::Flow)
         {
-            // Connecting b->a, a must be later!
-            if (indexA < indexB)
-                return false;
-        }
-        else
-        {
-            // Connecting a->b, b must be later!
-            if (indexB < indexA)
-                return false;
-        }
-
-        // Are we trying to connect to something on a different branch?
-        const int shortestStackFrame = std::min(aProcessedNode->stackFrames.size(), bProcessedNode->stackFrames.size());
-
-        for (int i = 0; i < shortestStackFrame; ++i)
-        {
-            int stackFrameA = aProcessedNode->stackFrames[i];
-            int stackFrameB = bProcessedNode->stackFrames[i];
-
-            if (stackFrameA != stackFrameB)
-                return false;
-        }
-    }
-
-    return true;
-}
-
-std::string Graph::LinkCreationFailedReason(const Pin& startPin, const Pin& endPin, const std::vector<ProcessedNode>& processedNodes) const
-{
-    if (endPin.Kind == startPin.Kind)
-    {
-        return "Incompatible Pin Kind";
-    }
-    else if (endPin.Node == startPin.Node)
-    {
-        return "Cannot connect to self";
-    }
-    else if (!GraphUtils::AreTypesCompatible(startPin.Type, endPin.Type))
-    {
-        return "Incompatible Pin Type";
-    }
-    else
-    {
-        auto aProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == startPin.Node->ID; });
-        auto bProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == endPin.Node->ID; });
-
-        if (aProcessedNode != processedNodes.end() && bProcessedNode != processedNodes.end())
-        {
-            // Are we trying to connect to something on a different branch?
             const int shortestStackFrame = std::min(aProcessedNode->stackFrames.size(), bProcessedNode->stackFrames.size());
 
             for (int i = 0; i < shortestStackFrame; ++i)
@@ -180,31 +157,13 @@ std::string Graph::LinkCreationFailedReason(const Pin& startPin, const Pin& endP
                 int stackFrameB = bProcessedNode->stackFrames[i];
 
                 if (stackFrameA != stackFrameB)
-                    return "Cannot connect to a different branch";
-            }
-
-            // Are we trying to connect to something behind?
-            size_t indexA = std::distance(processedNodes.begin(), aProcessedNode);
-            size_t indexB = std::distance(processedNodes.begin(), bProcessedNode);
-
-            if (startPin.Kind == PinKind::Input)
-            {
-                // Connecting b->a, a must be later!
-                if (indexA < indexB)
-                    return "Cannot conntext to a node earlier in the sequence";
-            }
-            else
-            {
-                // Connecting a->b, b must be later!
-                if (indexB < indexA)
-                    return "Cannot conntext to a node earlier in the sequence";
+                    return ELinkQueryResult::CantConnectBranch;
             }
         }
     }
 
-    return "Unknown";
+    return ELinkQueryResult::Possible;
 }
-
 void Graph::DeleteNode(ed::NodeId id)
 {
     auto nodeIt = std::find_if(m_Nodes.begin(), m_Nodes.end(), [id](auto& node) { return node->ID == id; });

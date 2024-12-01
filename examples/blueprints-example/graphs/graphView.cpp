@@ -5,6 +5,7 @@
 #include "nodeRegistry.h"
 
 #include "../native/nodes/begin.h"
+#include "../native/nodes/return.h"
 #include "../utilities/utils.h"
 
 #include "../native/nodes/variable.h"

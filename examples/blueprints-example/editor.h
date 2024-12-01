@@ -14,13 +14,6 @@
 
 #include "script/script.h"
 
-#include "native/nodes/begin.h"
-#include "native/nodes/branch.h"
-#include "native/nodes/print.h"
-#include "native/nodes/for-in.h"
-#include "native/nodes/math.h"
-#include "native/nodes/list.h"
-
 #include "graphs/nodeRegistry.h"
 
 #include "utilities/treeview.h"

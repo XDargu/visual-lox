@@ -1,5 +1,14 @@
 #include "editor.h"
 
+#include "native/nodes/begin.h"
+#include "native/nodes/begin.h"
+#include "native/nodes/append.h"
+#include "native/nodes/branch.h"
+#include "native/nodes/print.h"
+#include "native/nodes/for-in.h"
+#include "native/nodes/math.h"
+#include "native/nodes/list.h"
+
 #include "utilities/utils.h"
 
 #include <stack>
@@ -151,6 +160,7 @@ void Example::OnStart()
         }
     });
 
+    // TODO: We should find a less manual way of doing this!
     m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode);
     m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode);
     m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode);

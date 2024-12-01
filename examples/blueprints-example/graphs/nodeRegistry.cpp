@@ -374,7 +374,7 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("List::IndexOf",
-        { { "List", Value(newList()) }, { "Value", Value(0.0) } },
+        { { "List", Value(newList()) }, { "Value", Value() } },
         { { "Result", Value(0.0) } },
         &indexOf,
         NodeFlags::CanConstFold | NodeFlags::ReadOnly

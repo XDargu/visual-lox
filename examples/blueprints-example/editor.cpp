@@ -173,6 +173,10 @@ void Example::OnStart()
         }
     });
 
+    // Since we create alot of values on the fly, as function params, GC can be triggered and delete some before they are inserted into function defs
+    // Creating params on the fly is quite convenient, so we just pause GC while it happens
+    vm.allowGarbageCollection(false);
+
     // TODO: We should find a less manual way of doing this!
     m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode, {}, { { "Value", Value(false) } });
     m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode, {}, { { "Value", Value(0.0) } });
@@ -190,6 +194,8 @@ void Example::OnStart()
     m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode, { { "List", Value(newList()) }, { "Index", Value(0.0) }, { "Value", Value() } }, { { "Value", Value(newList()) } });
 
     m_NodeRegistry.RegisterDefinitions();
+
+    vm.allowGarbageCollection(true);
 
     // Script ID
     m_script.ID = m_IDGenerator.GetNextId();

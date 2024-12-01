@@ -111,6 +111,8 @@ void VM::freeAllObjects()
 
 void VM::collectGarbage()
 {
+    if (!canCollectGarbage) return;
+
 #ifdef DEBUG_LOG_GC
     std::cout << "-- gc begin" << std::endl;
     const size_t before = bytesAllocated;

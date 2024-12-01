@@ -79,6 +79,7 @@ public:
     void markCompilerRoots();
     void blackenObject(Obj* object);
     void setExternalMarkingFunc(ExternalMarkingFunc func) { externalMarkingFunc = func; };
+    void allowGarbageCollection(bool isAllowed) { canCollectGarbage = isAllowed; }
 
     void push(Value value);
     Value pop();
@@ -125,6 +126,7 @@ private:
     Table globals;
     Compiler compiler;
     bool nativesDefined = false;
+    bool canCollectGarbage = false;
 
     ExternalMarkingFunc externalMarkingFunc;
     std::vector<Obj*> grayNodes;

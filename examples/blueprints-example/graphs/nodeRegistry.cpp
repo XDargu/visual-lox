@@ -7,6 +7,7 @@
 #include "../utilities/utils.h"
 
 #include <Natives.h>
+#include <VMUtils.h>
 
 #include <string>
 #include <string_view>
@@ -736,6 +737,38 @@ void NodeRegistry::RegisterDefinitions()
         return Value();
 
     },
+        NodeFlags::None
+    );
+
+    RegisterNativeFunc("Functional::Call",
+        { { "Function", Value(newFunction()) }, { "Params", Value() } },
+        { { "Result", Value() } },
+        [](int argCount, Value* args, VM* vm)
+        {
+            if (!isCallable(args[0]) || !isList(args[1]))
+            {
+                return Value();
+            }
+
+            ObjList* params = asList(args[1]);
+
+            if (getCallableArity(args[0]) != params->items.size())
+            {
+                return Value();
+            }
+
+            // Same as callFunction
+            vm->push(args[0]);
+            for (Value& param : params->items)
+            {
+                vm->push(param);
+            }
+            vm->callValue(args[0], params->items.size());
+            if (!isNative(args[0]))
+                vm->run(vm->getFrameCount() - 1);
+
+            return vm->pop();
+        },
         NodeFlags::None
     );
 }

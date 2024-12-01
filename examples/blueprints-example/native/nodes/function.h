@@ -20,7 +20,7 @@ struct GetFunctionNode : public Node
         : Node(id, name, ImColor(255, 128, 128))
         , pFunctionDef(pFunctionDef)
     {
-        Category = NodeCategory::Variable;
+        Category = NodeCategory::Function;
         Type = NodeType::SimpleGet;
         refId = funcID;
     }

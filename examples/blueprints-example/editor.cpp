@@ -578,10 +578,27 @@ std::vector<NodePtr> Example::GatherProcessedNodes(Graph& graph, Compiler& compi
 
         graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
         {
-            if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+            if (!GraphUtils::IsNodeImplicit(node))
             {
-                processedNodes.push_back(node);
+                if (stage == CompilationStage::BeginInputs)
+                {
+                    if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                    {
+                        processedNodes.push_back(node);
+                    }
+                }
             }
+            else
+            {
+                if (stage == CompilationStage::PullOutput)
+                {
+                    if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
+                    {
+                        processedNodes.push_back(node);
+                    }
+                }
+            }
+            
         });
     }
 
@@ -1078,20 +1095,14 @@ void Example::OnFrame(float deltaTime)
 
     if (m_ShowOrdinals)
     {
-        int nodeCount = ed::GetNodeCount();
-        std::vector<ed::NodeId> orderedNodeIds;
-        orderedNodeIds.resize(static_cast<size_t>(nodeCount));
-        ed::GetOrderedNodeIds(orderedNodeIds.data(), nodeCount);
-
-
         auto drawList = ImGui::GetWindowDrawList();
         drawList->PushClipRect(editorMin, editorMax);
 
         int ordinal = 0;
-        for (auto& nodeId : orderedNodeIds)
+        for (const NodePtr& node : m_graphView.processedNodes)
         {
-            auto p0 = ed::GetNodePosition(nodeId);
-            auto p1 = p0 + ed::GetNodeSize(nodeId);
+            auto p0 = ed::GetNodePosition(node->ID);
+            auto p1 = p0 + ed::GetNodeSize(node->ID);
             p0 = ed::CanvasToScreen(p0);
             p1 = ed::CanvasToScreen(p1);
 

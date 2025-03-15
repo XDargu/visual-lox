@@ -123,9 +123,6 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
         // Data ports can only be connected once
         if (IsPinLinked(input.ID))
             return ELinkQueryResult::AlreadyConnected;
-
-        if (IsPinLinked(output.ID))
-            return ELinkQueryResult::AlreadyConnected;
     }
     else
     {

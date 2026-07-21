@@ -115,6 +115,10 @@ void GraphView::setNodeRegistry(NodeRegistry& nodeRegistry)
 
 void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph)
 {
+    // Destroying the old context flushes its latest node positions through the
+    // SaveNodeSettings callback while m_pGraph still points at the old graph.
+    Destroy();
+
     m_pGraph = pTargetGraph;
     m_pScript = pTargetScript;
     m_pScriptFunction = pScriptFunction;
@@ -161,11 +165,20 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     // I might need to manually expose this
     for (auto& node : m_pGraph->GetNodes())
     {
+        // Creating a node can initialize settings from Blueprints.json. Keep
+        // the graph-owned state authoritative so loading a .vlox file cannot
+        // be overwritten by those defaults before RestoreNodeState runs.
+        const std::string persistedState = node->State;
         ed::BeginNode(node->ID);
         ed::EndNode();
+        node->State = persistedState;
+        if (!node->State.empty())
+            ed::RestoreNodeState(node->ID);
     }
 
-    ed::NavigateToContent();
+    // Restoration is applied when nodes are drawn on the next frame. Frame the
+    // content afterwards, once the restored bounds are available.
+    m_NavigateToContentOnNextFrame = true;
 }
 
 void GraphView::Destroy()
@@ -496,6 +509,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
     }
 
     DrawContextMenu();
+    if (m_NavigateToContentOnNextFrame)
+    {
+        ed::NavigateToContent(0.0f);
+        m_NavigateToContentOnNextFrame = false;
+    }
     ed::End();
 }
 
@@ -799,7 +817,7 @@ void GraphView::DrawContextMenu()
                         // Last element!
                         child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
                         {
-                            return def->nodeCreationFunc(IDGenerator);
+                            return def->MakeNode(IDGenerator);
                         };
                         child.fullName = def->name;
                     }

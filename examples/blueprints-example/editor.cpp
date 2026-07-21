@@ -11,10 +11,50 @@
 
 #include "utilities/utils.h"
 
+#include <filesystem>
+#include <optional>
 #include <stack>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <commdlg.h>
+#endif
 
 namespace Editor
 {
+
+namespace
+{
+std::optional<std::string> SelectVloxFile(bool save, const std::string& currentPath)
+{
+#ifdef _WIN32
+    char pathBuffer[4096] = {};
+    if (!currentPath.empty())
+        strncpy_s(pathBuffer, currentPath.c_str(), _TRUNCATE);
+
+    OPENFILENAMEA dialog = {};
+    dialog.lStructSize = sizeof(dialog);
+    dialog.lpstrFilter = "Visual Lox scripts (*.vlox)\0*.vlox\0All files (*.*)\0*.*\0";
+    dialog.lpstrFile = pathBuffer;
+    dialog.nMaxFile = static_cast<DWORD>(sizeof(pathBuffer));
+    dialog.lpstrDefExt = "vlox";
+    dialog.Flags = OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (save)
+        dialog.Flags |= OFN_OVERWRITEPROMPT;
+    else
+        dialog.Flags |= OFN_FILEMUSTEXIST;
+
+    const BOOL selected = save ? GetSaveFileNameA(&dialog) : GetOpenFileNameA(&dialog);
+    if (selected)
+        return std::string(pathBuffer);
+#else
+    (void)save;
+    (void)currentPath;
+#endif
+    return std::nullopt;
+}
+}
 
 static bool Splitter(bool split_vertically, float thickness, float* size1, float* size2, float min_size1, float min_size2, float splitter_long_axis_size = -1.0f)
 {
@@ -200,28 +240,6 @@ void Example::OnStart()
     // Script ID
     m_script.ID = m_IDGenerator.GetNextId();
 
-    // Start tree view
-    m_scriptTreeView.label = "Script";
-    m_scriptTreeView.isOpen = true;
-    m_scriptTreeView.icon = m_ScriptIcon;
-    m_scriptTreeView.id = m_script.ID;
-    m_scriptTreeView.contextMenu = [&]()
-    {
-        if (ImGui::BeginPopupContextItem("SelectablePopup"))
-        {
-            // Menu options
-            if (ImGui::MenuItem("Add Function"))
-            {
-                pendingActions.push_back(std::make_shared<AddFunctionAction>(this, m_IDGenerator.GetNextId()));
-            }
-            if (ImGui::MenuItem("Add Variable"))
-            {
-                pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
-            }
-            ImGui::EndPopup();
-        }
-    };
-
     // Add begin to main function
     m_script.main = std::make_shared<ScriptFunction>(m_IDGenerator.GetNextId(), "Main");
 
@@ -232,13 +250,7 @@ void Example::OnStart()
     NodeUtils::BuildNode(beginMain);
     m_script.main->Graph.AddNode(beginMain);
 
-    // Add main function to tree view
-    TreeNode mainNode;
-    mainNode.id = m_script.main->ID;
-    mainNode.label = "Main";
-    mainNode.icon = m_FunctionIcon;
-    mainNode.onclick = [&]() { ChangeGraph(m_script.main); };
-    m_scriptTreeView.AddChild(mainNode);
+    RebuildScriptTree();
 }
 
 void Example::OnStop()
@@ -267,22 +279,7 @@ void Example::OnStop()
 
 void Example::ChangeGraph(const ScriptFunctionPtr& scriptFunction)
 {
-    // Save current graph
-    for (auto& node : m_graphView.m_pGraph->GetNodes())
-    {
-        node->SavedState = node->State;
-    }
-
     m_graphView.SetGraph(&m_script, scriptFunction, &scriptFunction->Graph);
-
-    // Load new graph
-    for (auto& node : scriptFunction->Graph.GetNodes())
-    {
-        node->State = node->SavedState;
-        ed::RestoreNodeState(node->ID);
-        node->SavedState.clear();
-    }
-
 }
 
 void Example::ShowStyleEditor(bool* show)
@@ -1114,6 +1111,9 @@ void Example::OnFrame(float deltaTime)
     }
     ImGuiUtils::EndDisabled();
 
+    ImGui::SameLine();
+    ShowFileControls();
+
     //auto& style = ImGui::GetStyle();
 
 # if 0
@@ -1767,6 +1767,134 @@ bool Example::CanRedo() const
 {
     const int redoActionIdx = actionStack.size() - undoDepth;
     return redoActionIdx < actionStack.size();
+}
+
+void Example::InitializeScriptTree()
+{
+    m_scriptTreeView = TreeNode{};
+    m_scriptTreeView.label = "Script";
+    m_scriptTreeView.isOpen = true;
+    m_scriptTreeView.icon = m_ScriptIcon;
+    m_scriptTreeView.id = m_script.ID;
+    m_scriptTreeView.contextMenu = [this]()
+    {
+        if (ImGui::BeginPopupContextItem("SelectablePopup"))
+        {
+            if (ImGui::MenuItem("Add Function"))
+                pendingActions.push_back(std::make_shared<AddFunctionAction>(this, m_IDGenerator.GetNextId()));
+            if (ImGui::MenuItem("Add Variable"))
+                pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
+            ImGui::EndPopup();
+        }
+    };
+}
+
+void Example::RebuildScriptTree()
+{
+    InitializeScriptTree();
+
+    if (m_script.main)
+    {
+        TreeNode mainNode;
+        mainNode.id = m_script.main->ID;
+        mainNode.label = m_script.main->functionDef->name;
+        mainNode.icon = m_FunctionIcon;
+        mainNode.onclick = [this]() { ChangeGraph(m_script.main); };
+        m_scriptTreeView.AddChild(mainNode);
+    }
+
+    for (const ScriptFunctionPtr& function : m_script.functions)
+    {
+        m_scriptTreeView.AddChild(MakeFunctionNode(function->ID, function->functionDef->name));
+        TreeNode* functionNode = FindNodeByID(function->ID);
+        if (!functionNode)
+            continue;
+        for (const BasicFunctionDef::Input& input : function->functionDef->inputs)
+            functionNode->AddChild(MakeInputNode(function->ID, input.id, input.name));
+        for (const BasicFunctionDef::Input& output : function->functionDef->outputs)
+            functionNode->AddChild(MakeOutputNode(function->ID, output.id, output.name));
+    }
+
+    for (const ScriptPropertyPtr& variable : m_script.variables)
+        m_scriptTreeView.AddChild(MakeVariableNode(variable->ID, variable->Name));
+}
+
+void Example::SaveScript(const std::string& path)
+{
+    const SerializationResult result = ScriptSerializer::Save(m_script, path);
+    m_fileStatusIsError = !result;
+    if (!result)
+    {
+        m_fileStatus = "Save failed: " + result.error;
+        return;
+    }
+
+    m_currentScriptPath = path;
+    m_fileStatus = "Saved " + std::filesystem::path(path).filename().string();
+    SetTitle(("VisualLox - " + std::filesystem::path(path).filename().string()).c_str());
+}
+
+void Example::LoadScript(const std::string& path)
+{
+    Script loadedScript;
+    IDGenerator loadedIds;
+    const SerializationResult result = ScriptSerializer::Load(path, m_NodeRegistry, loadedScript, loadedIds);
+    m_fileStatusIsError = !result;
+    if (!result)
+    {
+        m_fileStatus = "Open failed: " + result.error;
+        return;
+    }
+
+    m_graphView.Destroy();
+    m_script = std::move(loadedScript);
+    m_IDGenerator = loadedIds;
+    pendingActions.clear();
+    actionStack.clear();
+    undoDepth = 0;
+    m_constFoldingValues.clear();
+    m_constFoldingIDs.clear();
+    m_selectedItemId = m_script.main ? m_script.main->ID.id : 0;
+    m_editingItemId = 0;
+    RebuildScriptTree();
+    m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
+
+    m_currentScriptPath = path;
+    m_fileStatus = "Opened " + std::filesystem::path(path).filename().string();
+    SetTitle(("VisualLox - " + std::filesystem::path(path).filename().string()).c_str());
+}
+
+void Example::ShowFileControls()
+{
+    if (ImGui::Button("Open"))
+    {
+        if (const std::optional<std::string> path = SelectVloxFile(false, m_currentScriptPath))
+            LoadScript(*path);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Save"))
+    {
+        if (!m_currentScriptPath.empty())
+            SaveScript(m_currentScriptPath);
+        else if (const std::optional<std::string> path = SelectVloxFile(true, "Untitled.vlox"))
+            SaveScript(*path);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Save As"))
+    {
+        const std::string suggested = m_currentScriptPath.empty() ? "Untitled.vlox" : m_currentScriptPath;
+        if (const std::optional<std::string> path = SelectVloxFile(true, suggested))
+            SaveScript(*path);
+    }
+
+    if (!m_fileStatus.empty())
+    {
+        ImGui::SameLine();
+        if (m_fileStatusIsError)
+            ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", m_fileStatus.c_str());
+        else
+            ImGui::TextDisabled("%s", m_fileStatus.c_str());
+    }
 }
 
 }

@@ -54,8 +54,14 @@ While at the moment Visual Lox is on early stages, it is already possible to use
 
 ![Some of the native nodes of Visual Lox](https://github.com/XDargu/visual-lox/blob/main/resources/Visual%20Lox%20Nodes.png)
 
+## Script Files
+
+Visual Lox scripts can be saved and reopened as `.vlox` files from the editor.
+
+The files use a versioned JSON format.
+
 ## Future Work
-- Allow saving and loading scripts
+
 - Fully support all LoxCpp features (classes, pattern matching, all flow control nodes, ranges...)
 - Improve editor UX
 - Module system

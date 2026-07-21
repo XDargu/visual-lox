@@ -52,6 +52,10 @@ add_example_executable(blueprints-example
     script/scriptElement.h
     script/script.h
     script/script.cpp
+    script/scriptSerializer.h
+    script/scriptSerializer.cpp
+    script/scriptSerializerTest.h
+    script/scriptSerializerTest.cpp
     script/class.h
     script/class.cpp
     script/property.h
@@ -59,3 +63,15 @@ add_example_executable(blueprints-example
     script/function.h
     script/function.cpp
 )
+
+if (WIN32)
+    target_link_libraries(blueprints-example PRIVATE comdlg32)
+endif()
+
+if (BUILD_TESTING)
+    add_test(
+        NAME visual-lox-serialization-round-trip
+        COMMAND $<TARGET_FILE:blueprints-example> --serialization-test
+                ${CMAKE_CURRENT_BINARY_DIR}/serialization-roundtrip-test.vlox
+    )
+endif()

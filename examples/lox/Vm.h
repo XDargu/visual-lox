@@ -80,6 +80,7 @@ public:
     void blackenObject(Obj* object);
     void setExternalMarkingFunc(ExternalMarkingFunc func) { externalMarkingFunc = func; };
     void allowGarbageCollection(bool isAllowed) { canCollectGarbage = isAllowed; }
+    bool isGarbageCollectionAllowed() const { return canCollectGarbage; }
 
     void push(Value value);
     Value pop();

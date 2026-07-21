@@ -68,6 +68,7 @@ struct GraphView
     void DrawContextMenu();
 
     ed::EditorContext* m_Editor = nullptr;
+    bool m_NavigateToContentOnNextFrame = false;
     Graph* m_pGraph = nullptr;
     ScriptFunctionPtr m_pScriptFunction = nullptr;
     Script* m_pScript = nullptr;

@@ -218,6 +218,9 @@ struct FunctionNode : public Node
 NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID)
 {
     NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this(), funcID);
+    node->SerializationType = "function.call";
+    if (!funcID.IsValid())
+        node->DefinitionId = name;
 
     if (!HasFlag(flags, NodeFlags::ReadOnly))
     {

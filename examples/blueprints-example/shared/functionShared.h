@@ -47,6 +47,8 @@ inline Value MakeValueFromType(PinType type)
         case PinType::Function: return Value(newFunction());
         case PinType::Any:      return Value();
     }
+
+    return Value();
 }
 
 struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
@@ -69,7 +71,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     std::vector<Input> inputs;
     std::vector<Input> outputs;
 
-    NodeFlags flags;
+    NodeFlags flags = NodeFlags::None;
 
     DynamicInputProps dynamicInputProps;
 

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.12)
 
 project(imgui-node-editor)
 
+include(CTest)
+
 # Define IMGUI_NODE_EDITOR_ROOT_DIR pointing to project root directory
 get_filename_component(IMGUI_NODE_EDITOR_ROOT_DIR ${CMAKE_SOURCE_DIR}/.. ABSOLUTE CACHE)
 

@@ -59,6 +59,7 @@ struct GetVariableNode : public Node
 static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
 {
     NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, pProperty->ID);
+    node->SerializationType = "variable.get";
     node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 
     return node;
@@ -138,6 +139,7 @@ struct SetVariableNode : public Node
 static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
 {
     NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, pProperty->ID);
+    node->SerializationType = "variable.set";
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 

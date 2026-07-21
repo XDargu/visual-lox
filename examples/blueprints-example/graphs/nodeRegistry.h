@@ -38,6 +38,9 @@ public:
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeFlags flags = NodeFlags::None);
 
+    const NativeFunctionDef* FindNative(const std::string& name) const;
+    CompiledNodeDefPtr FindCompiled(const std::string& name) const;
+
     std::vector<NativeFunctionDef> nativeDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
 };

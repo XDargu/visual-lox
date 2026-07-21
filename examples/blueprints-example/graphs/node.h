@@ -167,6 +167,11 @@ struct Node
 
     std::string Error;
 
+    // Stable persistence metadata. Display names are intentionally not used as
+    // identifiers: compiled nodes such as Math::Add are displayed as "+".
+    std::string SerializationType;
+    std::string DefinitionId;
+
     // Reference to: functionId, variableId
     ScriptElementID refId;
 

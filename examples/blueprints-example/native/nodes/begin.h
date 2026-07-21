@@ -60,6 +60,7 @@ struct BeginNode : public Node
 static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr& function)
 {
     NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function->functionDef);
+    node->SerializationType = "begin";
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
     for (int i = 0; i < function->functionDef->inputs.size(); ++i)

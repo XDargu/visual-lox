@@ -13,6 +13,7 @@
 #include "graphs/graphCompiler.h"
 
 #include "script/script.h"
+#include "script/scriptSerializer.h"
 
 #include "graphs/nodeRegistry.h"
 
@@ -72,6 +73,12 @@ struct Example :
     void ShowLeftPane(float paneWidth);
 
     void OnFrame(float deltaTime) override;
+
+    void InitializeScriptTree();
+    void RebuildScriptTree();
+    void SaveScript(const std::string& path);
+    void LoadScript(const std::string& path);
+    void ShowFileControls();
 
     // Tree Node Handling TODO: Move somewhere else
     TreeNode MakeFunctionNode(int funId, const std::string& name);
@@ -149,6 +156,10 @@ struct Example :
 
     std::vector<IActionPtr> actionStack;
     int undoDepth = 0;
+
+    std::string m_currentScriptPath;
+    std::string m_fileStatus;
+    bool m_fileStatusIsError = false;
 };
 
 }

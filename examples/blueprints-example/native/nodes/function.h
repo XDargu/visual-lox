@@ -96,6 +96,9 @@ struct GetFunctionNode : public Node
 static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& pFunctionDef, ScriptElementID funcID)
 {
     NodePtr node = std::make_shared<GetFunctionNode>(IDGenerator.GetNextId(), "", pFunctionDef, funcID);
+    node->SerializationType = "function.get";
+    if (!funcID.IsValid())
+        node->DefinitionId = pFunctionDef->name;
     node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(), PinType::Function);
 
     return node;

@@ -854,5 +854,30 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
 
 NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
 {
-    return nodeCreationFunc(IDGenerator);
+    NodePtr node = nodeCreationFunc(IDGenerator);
+    node->SerializationType = "compiled";
+    node->DefinitionId = name;
+    return node;
+}
+
+const NativeFunctionDef* NodeRegistry::FindNative(const std::string& name) const
+{
+    for (const NativeFunctionDef& definition : nativeDefinitions)
+    {
+        if (definition.functionDef && definition.functionDef->name == name)
+            return &definition;
+    }
+
+    return nullptr;
+}
+
+CompiledNodeDefPtr NodeRegistry::FindCompiled(const std::string& name) const
+{
+    for (const CompiledNodeDefPtr& definition : compiledDefinitions)
+    {
+        if (definition && definition->name == name)
+            return definition;
+    }
+
+    return nullptr;
 }

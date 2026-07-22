@@ -158,6 +158,13 @@ void util::BlueprintNodeBuilder::EndOutput()
     EndPin();
 }
 
+void util::BlueprintNodeBuilder::Footer()
+{
+    if (CurrentStage == Stage::Begin)
+        SetStage(Stage::Content);
+    SetStage(Stage::Footer);
+}
+
 bool util::BlueprintNodeBuilder::SetStage(Stage stage)
 {
     if (stage == CurrentStage)
@@ -218,6 +225,10 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
 
             break;
 
+        case Stage::Footer:
+            ImGui::EndVertical();
+            break;
+
         case Stage::End:
             break;
 
@@ -274,10 +285,16 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
                 ImGui::Spring(1, 0);
             break;
 
+        case Stage::Footer:
+            if (oldStage != Stage::Begin)
+                ImGui::EndHorizontal();
+            ImGui::BeginVertical("footer", ImVec2(0, 0), 0.0f);
+            break;
+
         case Stage::End:
             if (oldStage == Stage::Input)
                 ImGui::Spring(1, 0);
-            if (oldStage != Stage::Begin)
+            if (oldStage != Stage::Begin && oldStage != Stage::Footer)
                 ImGui::EndHorizontal();
             ContentMin = ImGui::GetItemRectMin();
             ContentMax = ImGui::GetItemRectMax();

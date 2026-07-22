@@ -93,7 +93,7 @@ struct Graph
 
     ELinkQueryResult CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const;
 
-    void DeleteNode(ed::NodeId id);
+    bool DeleteNode(ed::NodeId id);
     void DeleteLink(ed::LinkId id);
 
     NodePtr AddNode(const NodePtr& node);

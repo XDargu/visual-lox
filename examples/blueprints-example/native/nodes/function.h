@@ -97,9 +97,10 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
 {
     NodePtr node = std::make_shared<GetFunctionNode>(IDGenerator.GetNextId(), "", pFunctionDef, funcID);
     node->SerializationType = "function.get";
-    if (!funcID.IsValid())
+    if (!funcID.IsValid() && pFunctionDef)
         node->DefinitionId = pFunctionDef->name;
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(), PinType::Function);
+    if (pFunctionDef)
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(), PinType::Function);
 
     return node;
 }

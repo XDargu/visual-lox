@@ -61,6 +61,7 @@ static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr&
 {
     NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function->functionDef);
     node->SerializationType = "begin";
+    node->DefinitionFlags |= NodeDefinitionFlags::Protected;
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
     for (int i = 0; i < function->functionDef->inputs.size(); ++i)

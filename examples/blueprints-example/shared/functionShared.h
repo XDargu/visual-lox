@@ -87,3 +87,8 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 };
 
 using BasicFunctionDefPtr = std::shared_ptr< BasicFunctionDef>;
+
+// Constructs the standard function-call node. A null definition is permitted while
+// deserializing a dangling script reference; FunctionNode::Refresh owns that error.
+NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& pFunctionDef,
+                          ScriptElementID funcID);

@@ -18,6 +18,7 @@
 #include "runtime/standardLibrary.h"
 
 #include "graphs/nodeRegistry.h"
+#include "operations/documentOperations.h"
 
 #include "utilities/treeview.h"
 
@@ -120,6 +121,8 @@ struct Example :
     void RedoLastAction();
     bool CanUndo() const;
     bool CanRedo() const;
+    void CopySelection();
+    void PasteClipboard();
 
     Script               m_script;
     GraphView            m_graphView;
@@ -139,6 +142,7 @@ struct Example :
 
     IDGenerator          m_IDGenerator;
     NodeRegistry         m_NodeRegistry;
+    std::unique_ptr<DocumentOperations> m_operations;
 
     // Script treeview
     TreeNode             m_scriptTreeView;
@@ -152,6 +156,7 @@ struct Example :
     std::vector<ed::NodeId>   m_constFoldingIDs;
 
     std::vector<IActionPtr> pendingActions;
+    bool m_commitPendingEdit = false;
 
     std::vector<IActionPtr> actionStack;
     int undoDepth = 0;

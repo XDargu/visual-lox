@@ -12,6 +12,7 @@
 #include "../native/nodes/function.h"
 
 #include "../script/script.h"
+#include "../operations/documentOperations.h"
 
 #include <Compiler.h>
 
@@ -69,9 +70,20 @@ void GraphView::UpdateTouch()
 void GraphView::DrawPinInput(const Pin& input, int inputIdx)
 {
     const NodePtr& node = input.Node;
-    Value& inputValue = node->InputValues[inputIdx];
-    
-    GraphViewUtils::DrawTypeInput(input.Type, inputValue);
+    Value inputValue = node->InputValues[inputIdx];
+    const bool changed = GraphViewUtils::DrawTypeInput(input.Type, inputValue);
+    if (ImGui::IsItemActivated() && m_pOperations && !m_pOperations->IsTransactionActive())
+        ReportOperation(m_pOperations->BeginTransaction("Edit node input"));
+    if (changed && m_pOperations && m_pScriptFunction)
+    {
+        if (!m_pOperations->IsTransactionActive())
+            ReportOperation(m_pOperations->BeginTransaction("Edit node input"));
+        OperationResult operation = m_pOperations->ChangeNodeInputValue(
+            m_pScriptFunction->ID.id, node->ID, inputIdx, inputValue);
+        ReportOperation(operation);
+    }
+    if (ImGui::IsItemDeactivatedAfterEdit() && m_pOperations && m_pOperations->IsTransactionActive())
+        ReportOperation(m_pOperations->CommitTransaction());
     ImGui::Spring(0);
 }
 
@@ -99,8 +111,25 @@ void GraphView::DrawPinIcon(const Pin& pin, bool connected, int alpha)
 
 NodePtr GraphView::SpawnNode(const NodePtr& node)
 {
-    NodeUtils::BuildNode(node);
-    return m_pGraph->AddNode(node);
+    if (!m_pOperations || !m_pScriptFunction)
+        return nullptr;
+    OperationResult result = m_pOperations->AddNode(m_pScriptFunction->ID.id, node);
+    ReportOperation(result);
+    return result ? node : nullptr;
+}
+
+void GraphView::ReportOperation(const OperationResult& result)
+{
+    if (result)
+    {
+        operationError.clear();
+        operationErrorTime = 0.0f;
+    }
+    else
+    {
+        operationError = result.error;
+        operationErrorTime = 4.0f;
+    }
 }
 
 void GraphView::setIDGenerator(IDGenerator& generator)
@@ -111,6 +140,60 @@ void GraphView::setIDGenerator(IDGenerator& generator)
 void GraphView::setNodeRegistry(NodeRegistry& nodeRegistry)
 {
     m_pNodeRegistry = &nodeRegistry;
+}
+
+namespace
+{
+void DrawNodeDiagnosticBox(ed::NodeId nodeId,
+                           const std::vector<const ValidationDiagnostic*>& diagnostics,
+                           bool hasError)
+{
+    if (diagnostics.empty()) return;
+
+    const ValidationDiagnostic* primary = diagnostics.front();
+    if (hasError)
+    {
+        const auto error = std::find_if(diagnostics.begin(), diagnostics.end(),
+            [](const ValidationDiagnostic* diagnostic)
+            {
+                return diagnostic->severity == DiagnosticSeverity::Error;
+            });
+        if (error != diagnostics.end()) primary = *error;
+    }
+    const std::string& message = primary->message;
+    const float previousNodeWidth = ed::GetNodeSize(nodeId).x;
+    const float width = previousNodeWidth > 40.0f
+        ? std::max(80.0f, previousNodeWidth - 16.0f)
+        : 160.0f;
+    const ImVec2 size(width, ImGui::GetTextLineHeight() + 8.0f);
+
+    ImGui::PushID("node-diagnostic");
+    ImGui::InvisibleButton("##message", size);
+    const ImVec2 min = ImGui::GetItemRectMin();
+    const ImVec2 max = ImGui::GetItemRectMax();
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImU32 fill = hasError ? IM_COL32(125, 35, 35, 245) : IM_COL32(120, 85, 20, 245);
+    const ImU32 border = hasError ? IM_COL32(255, 90, 90, 255) : IM_COL32(255, 195, 60, 255);
+    drawList->AddRectFilled(min, max, fill, 3.0f);
+    drawList->AddRect(min, max, border, 3.0f);
+    const ImVec2 textMin = min + ImVec2(5.0f, 4.0f);
+    const ImVec2 textMax = max - ImVec2(5.0f, 2.0f);
+    ImGui::RenderTextEllipsis(drawList, textMin, textMax, textMax.x, textMax.x,
+                              message.c_str(), message.c_str() + message.size(), nullptr);
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        for (const ValidationDiagnostic* diagnostic : diagnostics)
+            ImGui::TextWrapped("%s", diagnostic->message.c_str());
+        ImGui::EndTooltip();
+    }
+    ImGui::PopID();
+}
+}
+
+void GraphView::setDocumentOperations(DocumentOperations& operations)
+{
+    m_pOperations = &operations;
 }
 
 void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph)
@@ -150,7 +233,23 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
         if (!node)
             return false;
 
-        node->State.assign(data, size);
+        const std::string state(data, size);
+        if (self->m_pOperations && self->m_pScriptFunction)
+        {
+            const bool isPositionChange =
+                (reason & ed::SaveReasonFlags::Position) != ed::SaveReasonFlags::None;
+            const bool dragging = isPositionChange && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+            const int rawNodeId = static_cast<int>(nodeId.Get());
+            const bool amendCreation = isPositionChange &&
+                self->amendNextNodePosition.erase(rawNodeId) != 0;
+            self->m_pOperations->SetNodeState(self->m_pScriptFunction->ID.id, nodeId, state,
+                                               self->recordNodeStateHistory && isPositionChange,
+                                               dragging && self->nodePositionDragActive,
+                                               amendCreation);
+            self->nodePositionDragActive = dragging;
+        }
+        else
+            node->State = state;
 
         self->TouchNode(nodeId);
 
@@ -185,7 +284,9 @@ void GraphView::Destroy()
 {
     if (m_Editor)
     {
+        recordNodeStateHistory = false;
         ed::DestroyEditor(m_Editor);
+        recordNodeStateHistory = true;
         m_Editor = nullptr;
         m_pGraph = nullptr;
     }
@@ -195,11 +296,22 @@ void GraphView::OnFrame(float deltaTime)
 {
     UpdateTouch();
 
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        nodePositionDragActive = false;
+    if (operationErrorTime > 0.0f)
+    {
+        operationErrorTime -= deltaTime;
+        if (operationErrorTime <= 0.0f)
+            operationError.clear();
+    }
+
     ed::SetCurrentEditor(m_Editor);
 }
 
 void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, int headerHeight)
 {
+    if (!operationError.empty())
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", operationError.c_str());
     ed::Begin("Node editor");
 
     {
@@ -225,7 +337,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     return diagnostic->severity == DiagnosticSeverity::Error;
                 });
 
-            const bool isDisconnected = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end();
+            const bool isDisconnected = nodeDiagnostics.empty() &&
+                std::find_if(processedNodes.begin(), processedNodes.end(),
+                    [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end();
 
             const float alpha = ImGui::GetStyle().Alpha;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
@@ -277,8 +391,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             {
                 if (ImGui::Button("Add Pin"))
                 {
-                    node->AddInput(*m_pIDGenerator);
-                    NodeUtils::BuildNode(node);
+                    OperationResult operation = m_pOperations->AddDynamicInput(m_pScriptFunction->ID.id, node->ID);
+                    ReportOperation(operation);
                 }
             }
 
@@ -334,6 +448,12 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 DrawPinIcon(output, m_pGraph->IsPinLinked(output.ID), (int)(alpha * 255));
                 ImGui::PopStyleVar();
                 builder.EndOutput();
+            }
+
+            if (!nodeDiagnostics.empty())
+            {
+                builder.Footer();
+                DrawNodeDiagnosticBox(node->ID, nodeDiagnostics, hasDiagnosticError);
             }
 
             builder.End();
@@ -455,9 +575,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                                       ImColor(32, 45, 32, 180));
                             if (ed::AcceptNewItem(ImColor(128, 255, 128), 4.0f))
                             {
-                                Link link(GetNextId(), startPinId, endPinId);
-                                link.Color = GetIconColor(startPin->Type);
-                                m_pGraph->AddLink(link);
+                                OperationResult operation = m_pOperations->Connect(
+                                    m_pScriptFunction->ID.id, startPinId, endPinId, processedNodes);
+                                ReportOperation(operation);
                             }
                         }
                         else if (endPin == startPin)
@@ -504,7 +624,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 {
                     if (ed::AcceptDeletedItem())
                     {
-                        m_pGraph->DeleteNode(nodeId);
+                        OperationResult operation = m_pOperations->RemoveNode(m_pScriptFunction->ID.id, nodeId);
+                        ReportOperation(operation);
                     }
                 }
 
@@ -513,7 +634,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 {
                     if (ed::AcceptDeletedItem())
                     {
-                        m_pGraph->DeleteLink(linkId);
+                        OperationResult operation = m_pOperations->Disconnect(m_pScriptFunction->ID.id, linkId);
+                        ReportOperation(operation);
                     }
                 }
             }
@@ -524,6 +646,17 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
     }
 
     DrawContextMenu();
+    if (ed::BeginShortcut())
+    {
+        // Clipboard handling is centralized by the editor. Accept the node
+        // editor's shortcut action so it cannot remain active and block input.
+        ed::AcceptCopy();
+        ed::AcceptPaste();
+        ed::AcceptCut();
+        ed::AcceptDuplicate();
+        ed::AcceptCreateNode();
+        ed::EndShortcut();
+    }
     if (m_NavigateToContentOnNextFrame)
     {
         ed::NavigateToContent(0.0f);
@@ -584,7 +717,32 @@ void GraphView::DrawContextMenu()
         else
             ImGui::Text("Unknown node: %p", contextNodeId.AsPointer());
         ImGui::Separator();
-        if (ImGui::MenuItem("Delete"))
+        if (node && ImGui::MenuItem("Copy"))
+        {
+            std::vector<ed::NodeId> selected(ed::GetSelectedObjectCount());
+            int count = ed::GetSelectedNodes(selected.data(), static_cast<int>(selected.size()));
+            const bool contextIsSelected = std::find(selected.begin(), selected.begin() + count,
+                                                     contextNodeId) != selected.begin() + count;
+            std::vector<int> ids;
+            if (contextIsSelected)
+            {
+                for (int i = 0; i < count; ++i)
+                    ids.push_back(static_cast<int>(selected[i].Get()));
+            }
+            else
+            {
+                ids.push_back(static_cast<int>(contextNodeId.Get()));
+            }
+            ReportOperation(m_pOperations->CopyNodes(m_pScriptFunction->ID.id, ids));
+        }
+        if (m_pOperations->ClipboardContainsNodes() && ImGui::MenuItem("Paste"))
+        {
+            std::vector<int> pasted;
+            ReportOperation(m_pOperations->PasteNodes(m_pScriptFunction->ID.id, pasted));
+        }
+        const bool canDelete = node &&
+            !HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected);
+        if (ImGui::MenuItem("Delete", nullptr, false, canDelete))
             ed::DeleteNode(contextNodeId);
         ImGui::EndPopup();
     }
@@ -606,14 +764,13 @@ void GraphView::DrawContextMenu()
         else
             ImGui::Text("Unknown pin: %p", contextPinId.AsPointer());
 
-        if (pin->Type == PinType::Any)
+        if (pin && pin->Type == PinType::Any)
         {
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
-            Value& inputValue = pin->Node->InputValues[inputIdx];
+            Value inputValue = pin->Node->InputValues[inputIdx];
 
             GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
             {
-                // TODO: At some point this should become a new editor action!
                 switch (newType)
                 {
                 case PinType::Bool: inputValue = Value(false); break;
@@ -623,16 +780,23 @@ void GraphView::DrawContextMenu()
                 case PinType::Function: inputValue = Value(newFunction()); break;
                 case PinType::Any: inputValue = Value(); break;
                 }
+                OperationResult operation = m_pOperations->ChangeNodeInputValue(
+                    m_pScriptFunction->ID.id, pin->Node->ID, inputIdx, inputValue);
+                ReportOperation(operation);
             });
         }
 
-        if (HasFlag(pin->Node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) && pin->Kind == PinKind::Input)
+        if (pin && pin->Node &&
+            HasFlag(pin->Node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) &&
+            pin->Kind == PinKind::Input)
         {
             if (pin->Node->CanRemoveInput(pin->ID))
             {
                 if (ImGui::MenuItem("Remove Pin"))
                 {
-                    pin->Node->RemoveInput(pin->ID);
+                    OperationResult operation = m_pOperations->RemoveDynamicInput(
+                        m_pScriptFunction->ID.id, pin->Node->ID, pin->ID);
+                    ReportOperation(operation);
                 }
             }
         }
@@ -1022,6 +1186,7 @@ void GraphView::DrawContextMenu()
         }
 
         NodePtr node = nullptr;
+        bool creationTransactionStarted = false;
         auto newNodePostion = openPopupPosition;
 
         std::stack<const Data*> stack;
@@ -1052,7 +1217,15 @@ void GraphView::DrawContextMenu()
             if (ImGui::Selectable((top->fullName + "##" + top->fullName).c_str(), &isSelected))
             {
                 if (top->children.empty())
-                    node = SpawnNode(top->creationFun(*m_pIDGenerator));
+                {
+                    OperationResult begun = m_pOperations->BeginTransaction("Create node");
+                    ReportOperation(begun);
+                    if (begun)
+                    {
+                        creationTransactionStarted = true;
+                        node = SpawnNode(top->creationFun(*m_pIDGenerator));
+                    }
+                }
             }
 
             currentDepth = top->depth;
@@ -1141,6 +1314,7 @@ void GraphView::DrawContextMenu()
 
             createNewNode = false;
 
+            amendNextNodePosition.insert(static_cast<int>(node->ID.Get()));
             ed::SetNodePosition(node->ID, newNodePostion);
 
             if (auto startPin = newNodeLinkPin)
@@ -1155,13 +1329,20 @@ void GraphView::DrawContextMenu()
                         if (startPin->Kind == PinKind::Input)
                             std::swap(startPin, endPin);
 
-                        Link link(GetNextId(), startPin->ID, endPin->ID);
-                        link.Color = GetIconColor(startPin->Type);
-                        m_pGraph->AddLink(link);
+                        OperationResult operation = m_pOperations->Connect(
+                            m_pScriptFunction->ID.id, startPin->ID, endPin->ID, processedNodes);
+                        ReportOperation(operation);
                         break;
                     }
                 }
             }
+
+            if (m_pOperations->IsTransactionActive())
+                ReportOperation(m_pOperations->CommitTransaction());
+        }
+        else if (creationTransactionStarted && m_pOperations->IsTransactionActive())
+        {
+            ReportOperation(m_pOperations->CommitTransaction());
         }
 
         ImGui::EndPopup();

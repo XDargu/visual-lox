@@ -207,22 +207,34 @@ struct FunctionNode : public Node
     };
 
     // TODO: Should be defined in the function def
-    virtual bool CanRemoveInput(ed::PinId pinId) const override { return Inputs.size() > pFunctionDef->dynamicInputProps.minInputs; };
-    virtual bool CanAddInput() const override { return Inputs.size() < pFunctionDef->dynamicInputProps.maxInputs; };
+    virtual bool CanRemoveInput(ed::PinId pinId) const override
+    {
+        return pFunctionDef && Inputs.size() > pFunctionDef->dynamicInputProps.minInputs;
+    };
+    virtual bool CanAddInput() const override
+    {
+        return pFunctionDef && Inputs.size() < pFunctionDef->dynamicInputProps.maxInputs;
+    };
 
     static std::string GetInputName(int inputIdx) { return std::string(1, char(65 + inputIdx)); }
 
     BasicFunctionDefPtr pFunctionDef;
 };
 
-NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID)
+NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& pFunctionDef,
+                          ScriptElementID funcID)
 {
-    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(), name.c_str(), shared_from_this(), funcID);
+    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(),
+        pFunctionDef ? pFunctionDef->name.c_str() : "", pFunctionDef, funcID);
     node->SerializationType = "function.call";
-    if (!funcID.IsValid())
-        node->DefinitionId = name;
+    if (!funcID.IsValid() && pFunctionDef)
+        node->DefinitionId = pFunctionDef->name;
 
-    if (!HasFlag(flags, NodeDefinitionFlags::ReadOnly))
+    // The serialized pins are restored after construction for a dangling reference.
+    if (!pFunctionDef)
+        return node;
+
+    if (!HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -230,23 +242,28 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID fun
         node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     }
 
-    if (!HasFlag(flags, NodeDefinitionFlags::DynamicInputs))
+    if (!HasFlag(pFunctionDef->flags, NodeDefinitionFlags::DynamicInputs))
     {
-        for (const Input& input : inputs)
+        for (const BasicFunctionDef::Input& input : pFunctionDef->inputs)
         {
             node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value));
             node->InputValues.emplace_back(input.value);
         }
     }
 
-    for (const Input& output : outputs)
+    for (const BasicFunctionDef::Input& output : pFunctionDef->outputs)
     {
         node->Outputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
     }
 
-    node->DefinitionFlags = flags;
+    node->DefinitionFlags = pFunctionDef->flags;
 
     return node;
+}
+
+NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID)
+{
+    return BuildFunctionNode(IDGenerator, shared_from_this(), funcID);
 }
 
 BasicFunctionDef::Input* BasicFunctionDef::FindOutputByName(const std::string& name)

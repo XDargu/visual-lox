@@ -160,11 +160,23 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
 
     return ELinkQueryResult::Possible;
 }
-void Graph::DeleteNode(ed::NodeId id)
+bool Graph::DeleteNode(ed::NodeId id)
 {
     auto nodeIt = std::find_if(m_Nodes.begin(), m_Nodes.end(), [id](auto& node) { return node->ID == id; });
-    if (nodeIt != m_Nodes.end())
-        m_Nodes.erase(nodeIt);
+    if (nodeIt == m_Nodes.end() || HasFlag((*nodeIt)->DefinitionFlags, NodeDefinitionFlags::Protected))
+        return false;
+
+    std::set<int> pins;
+    for (const Pin& pin : (*nodeIt)->Inputs)
+        pins.insert(pin.ID.Get());
+    for (const Pin& pin : (*nodeIt)->Outputs)
+        pins.insert(pin.ID.Get());
+    m_Links.erase(std::remove_if(m_Links.begin(), m_Links.end(), [&](const Link& link)
+    {
+        return pins.find(link.StartPinID.Get()) != pins.end() || pins.find(link.EndPinID.Get()) != pins.end();
+    }), m_Links.end());
+    m_Nodes.erase(nodeIt);
+    return true;
 }
 
 void Graph::DeleteLink(ed::LinkId id)

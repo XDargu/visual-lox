@@ -24,6 +24,7 @@ enum class NodeDefinitionFlags
     ReadOnly = 1 << 0,
     DynamicInputs = 1 << 1,
     Pure = 1 << 2,
+    Protected = 1 << 3,
 };
 
 // Mutable state belonging to one node instance in one graph.

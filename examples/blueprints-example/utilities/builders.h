@@ -38,6 +38,7 @@ struct BlueprintNodeBuilder
 
     void Output(PinId id);
     void EndOutput();
+    void Footer();
 
 
 private:
@@ -50,6 +51,7 @@ private:
         Input,
         Output,
         Middle,
+        Footer,
         End
     };
 

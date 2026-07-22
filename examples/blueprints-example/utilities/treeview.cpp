@@ -24,16 +24,20 @@ namespace Editor
 
             // Edit mode: Render InputText for renaming
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x); // Full width
-            if (ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer), ImGuiInputTextFlags_EnterReturnsTrue))
+            const bool submitted = ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer),
+                                                     ImGuiInputTextFlags_EnterReturnsTrue);
+            if (submitted || ImGui::IsItemDeactivatedAfterEdit())
             {
-                // Save the new name when Enter is pressed
-                node.onRename(std::string(buffer));
+                // Commit one rename when Enter is pressed or focus leaves the
+                // field. Keystrokes only update the local edit buffer.
+                if (node.onRename && node.label != buffer)
+                    node.onRename(std::string(buffer));
                 editingItem = -1;
                 buffer[0] = '\0';
             }
 
-            // Exit edit mode if the user clicks elsewhere
-            if (!ImGui::IsItemActive() && ImGui::IsMouseClicked(0))
+            // Exit unchanged edits when the user clicks elsewhere.
+            else if (!ImGui::IsItemActive() && ImGui::IsMouseClicked(0))
             {
                 editingItem = -1;
                 buffer[0] = '\0';

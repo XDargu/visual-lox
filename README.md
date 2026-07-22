@@ -72,6 +72,12 @@ Visual Lox is split into reusable layers:
 
 Both applications use the same standard node library and the same compile-and-execute pipeline, so a script behaves consistently in the editor and at the command line.
 
+All editor chnges pass through the core `DocumentOperations`.
+
+Use `Ctrl+C` and `Ctrl+V` to copy and paste selected graph nodes or the selected function, variable, function input, or function output. Pasted fragments receive new IDs; links and references within the copied fragment are remapped to those IDs.
+
+Undo and redo are available through the editor buttons or with `Ctrl+Z` and `Ctrl+Y` (`Ctrl+Shift+Z` also redoes).
+
 ### Validation and diagnostics
 
 Graphs are validated before compilation.
@@ -83,7 +89,7 @@ Errors prevent compilation:
 ### Node flags
 
 Node flags are split by lifetime:
- - `NodeDefinitionFlags`: definition data such as `ReadOnly`, `DynamicInputs` and `Pure`.
+ - `NodeDefinitionFlags`: definition data such as `ReadOnly`, `DynamicInputs`, `Pure` and `Protected`.
  - `NodeInstanceFlags`: per-instance node state such as `Error`.
 
 ## Building

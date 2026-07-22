@@ -18,9 +18,12 @@
 #include <imgui_node_editor.h>
 
 #include <map>
+#include <set>
 #include <functional>
 
 class NodeRegistry;
+class DocumentOperations;
+struct OperationResult;
 struct Value;
 struct Script;
 
@@ -59,6 +62,7 @@ struct GraphView
 
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
+    void setDocumentOperations(DocumentOperations& operations);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph);
 
     void Destroy();
@@ -67,6 +71,7 @@ struct GraphView
 
     void DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, int headerHeight);
     void DrawContextMenu();
+    void ReportOperation(const OperationResult& result);
 
     ed::EditorContext* m_Editor = nullptr;
     bool m_NavigateToContentOnNextFrame = false;
@@ -97,6 +102,12 @@ struct GraphView
     // ID genration
     NodeRegistry* m_pNodeRegistry = nullptr;
     IDGenerator* m_pIDGenerator = nullptr;
+    DocumentOperations* m_pOperations = nullptr;
+    std::string operationError;
+    float operationErrorTime = 0.0f;
+    bool recordNodeStateHistory = true;
+    bool nodePositionDragActive = false;
+    std::set<int> amendNextNodePosition;
 };
 
 struct GraphViewUtils

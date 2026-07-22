@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <limits>
+#include <map>
 #include <set>
 #include <stdexcept>
 
@@ -322,10 +323,12 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
     if (kind == "variable.get" || kind == "variable.set")
     {
         ScriptPropertyPtr property = ScriptUtils::FindVariableById(script, reference);
+        NodePtr node = kind == "variable.get"
+            ? BuildGetVariableNode(constructionIds, property, reference)
+            : BuildSetVariableNode(constructionIds, property, reference);
         if (!property)
-            throw SerializationError("Node references missing variable ID " + std::to_string(reference.id) + ".");
-        return kind == "variable.get" ? BuildGetVariableNode(constructionIds, property)
-                                      : BuildSetVariableNode(constructionIds, property);
+            node->Refresh(script, constructionIds);
+        return node;
     }
     if (kind == "function.call" || kind == "function.get")
     {
@@ -333,9 +336,8 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
         if (reference.IsValid())
         {
             ScriptFunctionPtr function = ScriptUtils::FindFunctionById(script, reference);
-            if (!function)
-                throw SerializationError("Node references missing function ID " + std::to_string(reference.id) + ".");
-            functionDefinition = function->functionDef;
+            if (function)
+                functionDefinition = function->functionDef;
         }
         else
         {
@@ -345,8 +347,12 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
             functionDefinition = native->functionDef;
         }
 
-        return kind == "function.call" ? functionDefinition->MakeNode(constructionIds, reference)
-                                        : BuildGetFunctionNode(constructionIds, functionDefinition, reference);
+        NodePtr node = kind == "function.call"
+            ? BuildFunctionNode(constructionIds, functionDefinition, reference)
+            : BuildGetFunctionNode(constructionIds, functionDefinition, reference);
+        if (!functionDefinition)
+            node->Refresh(script, constructionIds);
+        return node;
     }
     if (kind == "compiled")
     {
@@ -396,15 +402,19 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
 
         const Array& inputs = Field(nodeJson, "inputs", crude_json::type_t::array).get<Array>();
         const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
-        if ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
+        const bool isMissingReference = HasFlag(node->InstanceFlags, NodeInstanceFlags::Error) &&
+            (node->SerializationType == "variable.get" || node->SerializationType == "variable.set" ||
+             node->SerializationType == "function.get" || node->SerializationType == "function.call");
+        if (!isMissingReference && ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
             (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
+           )
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid input layout.");
         node->Inputs.clear();
         for (const Json& pin : inputs)
             node->Inputs.push_back(DeserializePin(pin, ids));
 
         const Array& outputs = Field(nodeJson, "outputs", crude_json::type_t::array).get<Array>();
-        if (outputs.size() != node->Outputs.size())
+        if (!isMissingReference && outputs.size() != node->Outputs.size())
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid output layout.");
         node->Outputs.clear();
         for (const Json& pin : outputs)
@@ -604,6 +614,273 @@ SerializationResult ScriptSerializer::Load(const std::string& path, const NodeRe
         DeserializeScript(loaded.first, registry, staged, nextId);
         outputScript = std::move(staged);
         idGenerator.Reset(nextId);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::SerializeToString(const Script& script, std::string& output)
+{
+    try
+    {
+        output = SerializeScript(script).dump(2);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::DeserializeFromString(const std::string& data,
+                                                              const NodeRegistry& registry,
+                                                              Script& outputScript,
+                                                              IDGenerator& idGenerator)
+{
+    try
+    {
+        const Json document = Json::parse(data);
+        if (document.is_discarded())
+            return SerializationResult::Fail("Could not parse a Visual Lox document from memory.");
+
+        GarbageCollectionPause pause;
+        Script staged;
+        int nextId = 1;
+        DeserializeScript(document, registry, staged, nextId);
+        outputScript = std::move(staged);
+        idGenerator.Reset(nextId);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+namespace
+{
+ScriptFunctionPtr FindAnyFunction(const Script& script, int id)
+{
+    if (script.main && script.main->ID == id)
+        return script.main;
+    return ScriptUtils::FindFunctionById(script, id);
+}
+
+Value CloneValue(const Value& value)
+{
+    return DeserializeValue(SerializeValue(value));
+}
+
+std::string OffsetNodeState(const std::string& state, double offset)
+{
+    if (state.empty() || offset == 0.0)
+        return state;
+    Json parsed = Json::parse(state);
+    if (parsed.is_discarded() || !parsed.is_object() || !parsed.contains("location"))
+        return state;
+    Json& location = parsed["location"];
+    if (!location.is_array() || location.get<Array>().size() < 2 ||
+        !location[0].is_number() || !location[1].is_number())
+        return state;
+    location[0] = location[0].get<crude_json::number>() + offset;
+    location[1] = location[1].get<crude_json::number>() + offset;
+    return parsed.dump();
+}
+
+NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
+                  const Script& destination, const ScriptFunctionPtr& owner,
+                  IDGenerator& ids, const std::map<int, int>& referenceMap,
+                  std::map<int, int>& pinMap, double positionOffset)
+{
+    Json definition = SerializeNode(*sourceNode);
+    const auto reference = referenceMap.find(sourceNode->refId.id);
+    if (reference != referenceMap.end())
+        definition["reference_id"] = static_cast<double>(reference->second);
+
+    IDGenerator constructionIds;
+    NodePtr clone = CreateNode(definition, registry, destination, owner, constructionIds);
+    clone->ID = ed::NodeId(ids.GetNextId());
+    clone->State = OffsetNodeState(sourceNode->State, positionOffset);
+    clone->Inputs.clear();
+    clone->Outputs.clear();
+    clone->InputValues.clear();
+
+    for (size_t i = 0; i < sourceNode->Inputs.size(); ++i)
+    {
+        const Pin& sourcePin = sourceNode->Inputs[i];
+        const int newId = ids.GetNextId();
+        pinMap[sourcePin.ID.Get()] = newId;
+        clone->Inputs.emplace_back(newId, sourcePin.Name.c_str(), sourcePin.Type);
+        clone->InputValues.push_back(CloneValue(sourceNode->InputValues[i]));
+    }
+    for (const Pin& sourcePin : sourceNode->Outputs)
+    {
+        const int newId = ids.GetNextId();
+        pinMap[sourcePin.ID.Get()] = newId;
+        clone->Outputs.emplace_back(newId, sourcePin.Name.c_str(), sourcePin.Type);
+    }
+    NodeUtils::BuildNode(clone);
+    return clone;
+}
+
+void CloneLinks(const Graph& source, Graph& destination, IDGenerator& ids,
+                const std::map<int, int>& pinMap)
+{
+    for (const Link& sourceLink : source.GetLinks())
+    {
+        const auto start = pinMap.find(sourceLink.StartPinID.Get());
+        const auto end = pinMap.find(sourceLink.EndPinID.Get());
+        if (start == pinMap.end() || end == pinMap.end())
+            continue;
+        Link link{ ed::LinkId(ids.GetNextId()), ed::PinId(start->second), ed::PinId(end->second) };
+        const Pin* startPin = destination.FindPin(link.StartPinID);
+        link.Color = startPin ? GetIconColor(startPin->Type) : ImColor(255, 255, 255);
+        destination.AddLink(link);
+    }
+}
+}
+
+SerializationResult ScriptSerializer::CloneNodes(const Script& source, int sourceFunctionId,
+                                                   const std::vector<int>& nodeIds,
+                                                   const NodeRegistry& registry, Script& destination,
+                                                   int destinationFunctionId, IDGenerator& ids,
+                                                   std::vector<int>& pastedNodeIds)
+{
+    try
+    {
+        GarbageCollectionPause pause;
+        ScriptFunctionPtr sourceFunction = FindAnyFunction(source, sourceFunctionId);
+        ScriptFunctionPtr destinationFunction = FindAnyFunction(destination, destinationFunctionId);
+        if (!sourceFunction || !destinationFunction)
+            return SerializationResult::Fail("The source or destination function no longer exists.");
+
+        std::set<int> selected(nodeIds.begin(), nodeIds.end());
+        std::map<int, int> pinMap;
+        std::map<int, int> referenceMap;
+        pastedNodeIds.clear();
+        for (const NodePtr& node : sourceFunction->Graph.GetNodes())
+        {
+            if (selected.find(node->ID.Get()) == selected.end() ||
+                HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected))
+                continue;
+            NodePtr clone = CloneNode(node, registry, destination, destinationFunction,
+                                      ids, referenceMap, pinMap, 30.0);
+            pastedNodeIds.push_back(clone->ID.Get());
+            destinationFunction->Graph.AddNode(clone);
+        }
+        if (pastedNodeIds.empty())
+            return SerializationResult::Fail("The selection contains no copyable nodes.");
+        CloneLinks(sourceFunction->Graph, destinationFunction->Graph, ids, pinMap);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::CloneFunction(const Script& source, int functionId,
+                                                      const NodeRegistry& registry, Script& destination,
+                                                      IDGenerator& ids, int& pastedFunctionId)
+{
+    try
+    {
+        GarbageCollectionPause pause;
+        ScriptFunctionPtr sourceFunction = ScriptUtils::FindFunctionById(source, functionId);
+        if (!sourceFunction)
+            return SerializationResult::Fail("The copied function no longer exists.");
+
+        std::map<int, int> referenceMap;
+        pastedFunctionId = ids.GetNextId();
+        referenceMap[sourceFunction->ID.id] = pastedFunctionId;
+        ScriptFunctionPtr clone = std::make_shared<ScriptFunction>(pastedFunctionId,
+                                                                   sourceFunction->functionDef->name.c_str());
+        for (const BasicFunctionDef::Input& input : sourceFunction->functionDef->inputs)
+        {
+            const int newId = ids.GetNextId();
+            referenceMap[input.id] = newId;
+            clone->functionDef->inputs.push_back({ input.name, CloneValue(input.value), newId });
+        }
+        for (const BasicFunctionDef::Input& output : sourceFunction->functionDef->outputs)
+        {
+            const int newId = ids.GetNextId();
+            referenceMap[output.id] = newId;
+            clone->functionDef->outputs.push_back({ output.name, CloneValue(output.value), newId });
+        }
+        for (const ScriptPropertyPtr& variable : sourceFunction->variables)
+        {
+            const int newId = ids.GetNextId();
+            referenceMap[variable->ID.id] = newId;
+            ScriptPropertyPtr variableClone = std::make_shared<ScriptProperty>(newId, variable->Name.c_str());
+            variableClone->defaultValue = CloneValue(variable->defaultValue);
+            clone->variables.push_back(variableClone);
+        }
+
+        // Install the shell first so recursive function-reference nodes resolve.
+        destination.functions.push_back(clone);
+        std::map<int, int> pinMap;
+        for (const NodePtr& node : sourceFunction->Graph.GetNodes())
+        {
+            NodePtr nodeClone = CloneNode(node, registry, destination, clone, ids,
+                                          referenceMap, pinMap, 0.0);
+            clone->Graph.AddNode(nodeClone);
+        }
+        CloneLinks(sourceFunction->Graph, clone->Graph, ids, pinMap);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::CloneVariable(const Script& source, int variableId,
+                                                      Script& destination, IDGenerator& ids,
+                                                      int& pastedVariableId)
+{
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(source, variableId);
+    if (!variable)
+        return SerializationResult::Fail("The copied variable no longer exists.");
+    try
+    {
+        GarbageCollectionPause pause;
+        pastedVariableId = ids.GetNextId();
+        ScriptPropertyPtr clone = std::make_shared<ScriptProperty>(pastedVariableId, variable->Name.c_str());
+        clone->defaultValue = CloneValue(variable->defaultValue);
+        destination.variables.push_back(clone);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::CloneFunctionPort(const Script& source, int sourceFunctionId,
+                                                          int portId, bool output, Script& destination,
+                                                          int destinationFunctionId, IDGenerator& ids,
+                                                          int& pastedPortId)
+{
+    ScriptFunctionPtr sourceFunction = FindAnyFunction(source, sourceFunctionId);
+    ScriptFunctionPtr destinationFunction = FindAnyFunction(destination, destinationFunctionId);
+    if (!sourceFunction || !destinationFunction)
+        return SerializationResult::Fail("The source or destination function no longer exists.");
+    const BasicFunctionDef::Input* sourcePort = output
+        ? sourceFunction->functionDef->FindOutputByID(portId)
+        : sourceFunction->functionDef->FindInputByID(portId);
+    if (!sourcePort)
+        return SerializationResult::Fail("The copied function port no longer exists.");
+    try
+    {
+        GarbageCollectionPause pause;
+        pastedPortId = ids.GetNextId();
+        BasicFunctionDef::Input clone{ sourcePort->name, CloneValue(sourcePort->value), pastedPortId };
+        if (output) destinationFunction->functionDef->outputs.push_back(std::move(clone));
+        else destinationFunction->functionDef->inputs.push_back(std::move(clone));
+        ScriptUtils::RefreshFunctionRefs(destination, destinationFunctionId, ids);
         return SerializationResult::Ok();
     }
     catch (const std::exception& exception)

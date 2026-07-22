@@ -198,6 +198,9 @@ void Example::OnStart()
     NodeUtils::BuildNode(beginMain);
     m_script.main->Graph.AddNode(beginMain);
 
+    m_operations = std::make_unique<DocumentOperations>(m_script, m_IDGenerator, m_NodeRegistry);
+    m_graphView.setDocumentOperations(*m_operations);
+
     RebuildScriptTree();
 }
 
@@ -458,10 +461,6 @@ void Example::ShowNodeSelection(float paneWidth)
     for (int i = 0; i < nodeCount; ++i) ImGui::Text("Node (%p)", selectedNodes[i].AsPointer());
     for (int i = 0; i < linkCount; ++i) ImGui::Text("Link (%p)", selectedLinks[i].AsPointer());
     ImGui::Unindent();
-
-    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)))
-        for (auto& link : m_graphView.m_pGraph->GetLinks())
-            ed::Flow(link.ID);
 
     if (ed::HasSelectionChanged())
         ++changeCount;
@@ -809,12 +808,43 @@ void Example::OnFrame(float deltaTime)
     for (auto& action : pendingActions)
     {
         action->Run();
-        DoAction(action);
     }
 
     pendingActions.clear();
+    if (m_commitPendingEdit)
+    {
+        if (m_operations->IsTransactionActive())
+        {
+            const OperationResult result = m_operations->CommitTransaction();
+            m_fileStatusIsError = !result;
+            if (!result) m_fileStatus = result.error;
+        }
+        m_commitPendingEdit = false;
+    }
 
     m_graphView.OnFrame(deltaTime);
+
+    const bool editingText = GImGui && GImGui->InputTextState.ID != 0;
+    if (!editingText && ImGui::GetIO().KeyCtrl)
+    {
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C), false))
+            CopySelection();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V), false))
+            PasteClipboard();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z), false))
+        {
+            if (ImGui::GetIO().KeyShift)
+            {
+                if (CanRedo()) RedoLastAction();
+            }
+            else if (CanUndo())
+            {
+                UndoLastAction();
+            }
+        }
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y), false) && CanRedo())
+            RedoLastAction();
+    }
 
     m_validationReport = ScriptValidator::Validate(m_script);
     m_graphView.validationReport = &m_validationReport;
@@ -931,6 +961,7 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
     funcNode.label = name;
     funcNode.onclick = [this, funId]()
     {
+        ed::ClearSelection();
         if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
         {
             ChangeGraph(pFun);
@@ -982,6 +1013,7 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     varNode.label = name;
     varNode.icon = m_VariableIcon;
     varNode.id = varId;
+    varNode.onclick = []() { ed::ClearSelection(); };
     varNode.onRename = [this, varId](std::string newName)
     {
         pendingActions.push_back(std::make_shared<RenameVariableAction>(this, varId, newName.c_str()));
@@ -1008,10 +1040,15 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
             Value tmp = pVar->defaultValue;
-            if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+            const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
+            if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
+                m_operations->BeginTransaction("Edit variable value");
+            if (valueChanged)
             {
                 pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, tmp));
             }
+            if (ImGui::IsItemDeactivatedAfterEdit())
+                m_commitPendingEdit = true;
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
             GraphViewUtils::DrawTypeSelection(pVar->defaultValue, [&](PinType newType)
@@ -1035,6 +1072,7 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
     inputNode.id = inputId;
     inputNode.icon = m_InputIcon;
     inputNode.label = name;
+    inputNode.onclick = []() { ed::ClearSelection(); };
     inputNode.onRename = [this, funId, inputId](std::string newName)
     {
         pendingActions.push_back(std::make_shared<RenameFunctionInputAction>(this, funId, inputId, newName.c_str()));
@@ -1065,10 +1103,15 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 Value tmp = inputValue;
-                if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+                const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
+                if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
+                    m_operations->BeginTransaction("Edit function input value");
+                if (valueChanged)
                 {
                     pendingActions.push_back(std::make_shared<ChangeFunctionInputValueAction>(this, funId, inputId, tmp));
                 }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                    m_commitPendingEdit = true;
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
@@ -1090,6 +1133,7 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
     outputNode.id = outputId;
     outputNode.icon = m_OutputIcon;
     outputNode.label = name;
+    outputNode.onclick = []() { ed::ClearSelection(); };
     outputNode.onRename = [this, funId, outputId](std::string newName)
     {
         pendingActions.push_back(std::make_shared<RenameFunctionOutputAction>(this, funId, outputId, newName.c_str()));
@@ -1105,7 +1149,7 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
                     // Menu options
                     if (ImGui::MenuItem("Delete"))
                     {
-                        pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, outputId, pOutput->name.c_str(), pOutput->value));
+                        pendingActions.push_back(std::make_shared<DeleteFunctionOutputAction>(this, funId, outputId, pOutput->name.c_str(), pOutput->value));
                     }
                     if (ImGui::MenuItem("Rename"))
                     {
@@ -1120,10 +1164,15 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 Value tmp = inputValue;
-                if (GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp))
+                const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
+                if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
+                    m_operations->BeginTransaction("Edit function output value");
+                if (valueChanged)
                 {
                     pendingActions.push_back(std::make_shared<ChangeFunctionOutputValueAction>(this, funId, outputId, tmp));
                 }
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                    m_commitPendingEdit = true;
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
@@ -1177,332 +1226,271 @@ void Example::EraseNodeByID(int id)
 void Example::AddFunction(int funId)
 {
     const std::string namestr = Utils::FindValidName("Func", m_scriptTreeView);
-
-    ScriptFunctionPtr foo = std::make_shared<ScriptFunction>(funId, namestr.c_str());
-
-    NodePtr beginFoo = BuildBeginNode(m_IDGenerator, foo);
-    NodeUtils::BuildNode(beginFoo);
-    foo->Graph.AddNode(beginFoo);
-
-    m_script.functions.push_back(foo);
-
-    // Update tree view
-    const TreeNode funcNode = MakeFunctionNode(funId, namestr);
-    m_scriptTreeView.AddChild(funcNode);
+    const OperationResult result = m_operations->AddFunction(funId, namestr);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Function added" : result.error;
+    if (result) RebuildScriptTree();
 }
 
 void Example::AddFunction(const ScriptFunctionPtr& pExistingFunction)
 {
-    m_script.functions.push_back(pExistingFunction);
-
-    // Update tree view
-    const BasicFunctionDefPtr& pFunctionDef = pExistingFunction->functionDef;
-    const TreeNode funcNode = MakeFunctionNode(pExistingFunction->ID, pFunctionDef->name);
-    m_scriptTreeView.AddChild(funcNode);
-
-    if (TreeNode* funcNode = FindNodeByID(pExistingFunction->ID))
-    {
-        for (auto& input : pFunctionDef->inputs)
-        {
-            const TreeNode inputNode = MakeInputNode(pExistingFunction->ID, input.id, input.name);
-            funcNode->AddChild(inputNode);
-        }
-
-        for (auto& output : pFunctionDef->outputs)
-        {
-            const TreeNode outputNode = MakeOutputNode(pExistingFunction->ID, output.id, output.name);
-            funcNode->AddChild(outputNode);
-        }
-
-        // TODO: Variables
-    }
-
-    ScriptUtils::RefreshFunctionRefs(m_script, pExistingFunction->ID, m_IDGenerator);
+    if (pExistingFunction)
+        AddFunction(pExistingFunction->ID);
 }
 
 void Example::AddVariable(int varId)
 {
     const std::string namestr = Utils::FindValidName("Variable", m_scriptTreeView);
-
-    m_script.variables.push_back(std::make_shared<ScriptProperty>(varId, namestr.c_str()));
-
-    // Update tree view
-    const TreeNode varNode = MakeVariableNode(varId, namestr);
-    m_scriptTreeView.AddChild(varNode);
-
-    ScriptUtils::RefreshVariableRefs(m_script, varId, m_IDGenerator);
+    const OperationResult result = m_operations->AddVariable(varId, namestr);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Variable added" : result.error;
+    if (result) RebuildScriptTree();
 }
 
 void Example::AddVariable(const ScriptPropertyPtr& pVariable)
 {
-    m_script.variables.push_back(pVariable);
-
-    // Update tree view
-    const TreeNode varNode = MakeVariableNode(pVariable->ID, pVariable->Name);
-    m_scriptTreeView.AddChild(varNode);
-
-    ScriptUtils::RefreshVariableRefs(m_script, pVariable->ID, m_IDGenerator);
+    if (!pVariable) return;
+    const OperationResult result = m_operations->AddVariable(pVariable->ID, pVariable->Name, pVariable->defaultValue);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Variable added" : result.error;
+    if (result) RebuildScriptTree();
 }
 
 void Example::ChangeVariableValue(int id, Value& value)
 {
-    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, id))
-    {
-        pVar->defaultValue = value;
-    }
-
-    ScriptUtils::RefreshVariableRefs(m_script, id, m_IDGenerator);
+    const OperationResult result = m_operations->ChangeVariableValue(id, value);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
 }
 
 void Example::RenameFunction(int funId, const char* name)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
-    TreeNode* pFunNode = FindNodeByID(funId);
-    if (pFunNode && pFun)
-    {
-        pFunNode->label = name;
-        pFun->functionDef->name = name;
-
-        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-    }
+    const OperationResult result = m_operations->RenameFunction(funId, name);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::RenameVariable(int varId, const char* name)
 {
-    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
-    {
-        pVar->Name = name;
-    }
-
-    if (TreeNode* pVarNode = FindNodeByID(varId))
-    {
-        pVarNode->label = name;
-    }
-
-    ScriptUtils::RefreshVariableRefs(m_script, varId, m_IDGenerator);
-
+    const OperationResult result = m_operations->RenameVariable(varId, name);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::AddFunctionInput(int funId, int inputId)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     TreeNode* pFunNode = FindNodeByID(funId);
-    if (pFunNode && pFun)
-    {
-        const std::string namestr = Utils::FindValidName("Input", *pFunNode);
-
-        pFun->functionDef->inputs.push_back({ namestr, Value(), inputId });
-
-        // Update tree view
-        const TreeNode inputNode = MakeInputNode(funId, inputId, namestr);
-        pFunNode->AddChild(inputNode);
-
-        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-    }
+    const std::string namestr = pFunNode ? Utils::FindValidName("Input", *pFunNode) : "Input";
+    const OperationResult result = m_operations->AddFunctionInput(funId, inputId, namestr);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::AddFunctionInput(int funId, int inputId, const char* name, const Value& value)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
-    TreeNode* pFunNode = FindNodeByID(funId);
-    if (pFunNode && pFun)
-    {
-        pFun->functionDef->inputs.push_back({ name, value, inputId });
-
-        // Update tree view
-        const TreeNode inputNode = MakeInputNode(funId, inputId, name);
-        pFunNode->AddChild(inputNode);
-
-        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-    }
+    const OperationResult result = m_operations->AddFunctionInput(funId, inputId, name, value);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::ChangeFunctionInputValue(int funId, int inputId, Value& value)
 {
-    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-    {
-        if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
-        {
-            pInput->value = value;
-        }
-    }
-
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    const OperationResult result = m_operations->ChangeFunctionInputValue(funId, inputId, value);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
 }
 
 void Example::RenameFunctionInput(int funId, int inputId, const char* name)
 {
-    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-    {
-        if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
-        {
-            pInput->name = name;
-        }
-    }
-
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-
-    // Update tree view
-    if (TreeNode* pInputNode = FindNodeByID(inputId))
-    {
-        pInputNode->label = name;
-    }
+    const OperationResult result = m_operations->RenameFunctionInput(funId, inputId, name);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::AddFunctionOutput(int funId, int outputId)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
     TreeNode* pFunNode = FindNodeByID(funId);
-    if (pFunNode && pFun)
-    {
-        const std::string namestr = Utils::FindValidName("Output", *pFunNode);
-
-        pFun->functionDef->outputs.push_back({ namestr, Value(), outputId });
-
-        // Update tree view
-        const TreeNode outputNode = MakeOutputNode(funId, outputId, namestr);
-        pFunNode->AddChild(outputNode);
-
-        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-    }
+    const std::string namestr = pFunNode ? Utils::FindValidName("Output", *pFunNode) : "Output";
+    const OperationResult result = m_operations->AddFunctionOutput(funId, outputId, namestr);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::AddFunctionOutput(int funId, int outputId, const char* name, const Value& value)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
-    TreeNode* pFunNode = FindNodeByID(funId);
-    if (pFunNode && pFun)
-    {
-        pFun->functionDef->outputs.push_back({ name, value, outputId });
-
-        // Update tree view
-        const TreeNode outputNode = MakeOutputNode(funId, outputId, name);
-        pFunNode->AddChild(outputNode);
-
-        ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-    }
+    const OperationResult result = m_operations->AddFunctionOutput(funId, outputId, name, value);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::ChangeFunctionOutputValue(int funId, int outputId, Value& value)
 {
-    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-    {
-        if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
-        {
-            pOutput->value = value;
-        }
-    }
-
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    const OperationResult result = m_operations->ChangeFunctionOutputValue(funId, outputId, value);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
 }
 
 void Example::RenameFunctionOutput(int funId, int outputId, const char* name)
 {
-    if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-    {
-        if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
-        {
-            pOutput->name = name;
-        }
-    }
-
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
-
-    // Update tree view
-    if (TreeNode* pOutputNode = FindNodeByID(outputId))
-    {
-        pOutputNode->label = name;
-    }
+    const OperationResult result = m_operations->RenameFunctionOutput(funId, outputId, name);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::RemoveFunction(int funId)
 {
-    stl::erase_if(m_script.functions, [funId](const ScriptFunctionPtr& func) { return func->ID == funId; });
-
-    // Update tree view
-    EraseNodeByID(funId);
- 
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    if (m_graphView.m_pScriptFunction && m_graphView.m_pScriptFunction->ID == funId)
+        ChangeGraph(m_script.main);
+    const OperationResult result = m_operations->RemoveFunction(funId);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Function deleted" : result.error;
+    if (result) RebuildScriptTree();
 }
 
 void Example::RemoveVariable(int id)
 {
-    stl::erase_if(m_script.variables, [id](const ScriptPropertyPtr& variable) { return variable->ID == id; });
-
-    // Update tree view
-    EraseNodeByID(id);
-    
-    ScriptUtils::RefreshVariableRefs(m_script, id, m_IDGenerator);
+    const OperationResult result = m_operations->RemoveVariable(id);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Variable deleted" : result.error;
+    if (result) RebuildScriptTree();
 }
 
 void Example::RemoveFunctionInput(int funId, int inputId)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
-
-    if (pFun)
-    {
-        stl::erase_if(pFun->functionDef->inputs, [inputId](const BasicFunctionDef::Input& input){
-            return input.id == inputId;
-        });
-    }
-
-    // Update tree view
-    EraseNodeByID(inputId);
-
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+    const OperationResult result = m_operations->RemoveFunctionInput(funId, inputId);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
 }
 
 void Example::RemoveFunctionOutput(int funId, int outputId)
 {
-    ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId);
+    const OperationResult result = m_operations->RemoveFunctionOutput(funId, outputId);
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    else RebuildScriptTree();
+}
 
-    if (pFun)
+void Example::CopySelection()
+{
+    std::vector<ed::NodeId> selected(ed::GetSelectedObjectCount());
+    const int count = ed::GetSelectedNodes(selected.data(), static_cast<int>(selected.size()));
+    if (count > 0 && m_graphView.m_pScriptFunction)
     {
-        stl::erase_if(pFun->functionDef->outputs, [outputId](const BasicFunctionDef::Input& input) {
-            return input.id == outputId;
-        });
+        std::vector<int> ids;
+        ids.reserve(count);
+        for (int i = 0; i < count; ++i) ids.push_back(selected[i].Get());
+        const OperationResult result = m_operations->CopyNodes(m_graphView.m_pScriptFunction->ID.id, ids);
+        m_fileStatusIsError = !result;
+        m_fileStatus = result ? "Copied nodes" : result.error;
+        return;
     }
 
-    // Update tree view
-    EraseNodeByID(outputId);
+    const OperationResult result = m_operations->CopyScriptElement(m_selectedItemId);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Copied script data" : result.error;
+}
 
-    ScriptUtils::RefreshFunctionRefs(m_script, funId, m_IDGenerator);
+void Example::PasteClipboard()
+{
+    if (!m_operations->HasClipboard())
+        return;
+
+    if (m_operations->ClipboardContainsNodes())
+    {
+        if (!m_graphView.m_pScriptFunction) return;
+        const int functionId = m_graphView.m_pScriptFunction->ID.id;
+        std::vector<int> pasted;
+        const OperationResult result = m_operations->PasteNodes(functionId, pasted);
+        m_fileStatusIsError = !result;
+        m_fileStatus = result ? "Pasted nodes" : result.error;
+        if (result)
+        {
+            ScriptFunctionPtr function = functionId == m_script.main->ID.id
+                ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
+            m_graphView.SetGraph(&m_script, function, &function->Graph);
+            bool append = false;
+            for (int id : pasted)
+            {
+                ed::SelectNode(ed::NodeId(id), append);
+                append = true;
+            }
+        }
+        return;
+    }
+
+    int targetFunctionId = m_graphView.m_pScriptFunction
+        ? m_graphView.m_pScriptFunction->ID.id : m_script.main->ID.id;
+    if (TreeNode* selected = FindNodeByID(m_selectedItemId))
+    {
+        if ((m_script.main && m_script.main->ID == selected->id) ||
+            ScriptUtils::FindFunctionById(m_script, selected->id))
+            targetFunctionId = selected->id;
+        else if ((m_script.main && m_script.main->ID == selected->parentId) ||
+                 ScriptUtils::FindFunctionById(m_script, selected->parentId))
+            targetFunctionId = selected->parentId;
+    }
+
+    int pastedId = 0;
+    const OperationResult result = m_operations->PasteScriptElement(targetFunctionId, pastedId);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Pasted script data" : result.error;
+    if (result)
+    {
+        RebuildScriptTree();
+        m_selectedItemId = pastedId;
+    }
 }
 
 void Example::DoAction(IActionPtr action)
 {
-    // Remove top of the stack
-    actionStack.resize(actionStack.size() - undoDepth);
-    undoDepth = 0;
-
-    // Push new action
-    actionStack.push_back(action);
+    (void)action;
 }
 
 void Example::UndoLastAction()
 {
-    IActionPtr action = actionStack[actionStack.size() - undoDepth - 1];
-    action->Revert();
-    undoDepth++;
+    const int functionId = m_graphView.m_pScriptFunction ? m_graphView.m_pScriptFunction->ID.id : 0;
+    m_graphView.Destroy();
+    const OperationResult result = m_operations->Undo();
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    RebuildScriptTree();
+    ScriptFunctionPtr function = functionId == m_script.main->ID.id
+        ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
+    if (!function) function = m_script.main;
+    m_graphView.SetGraph(&m_script, function, &function->Graph);
 }
 
 void Example::RedoLastAction()
 {
-    IActionPtr action = actionStack[actionStack.size() - undoDepth];
-    action->Run();
-    undoDepth--;
+    const int functionId = m_graphView.m_pScriptFunction ? m_graphView.m_pScriptFunction->ID.id : 0;
+    m_graphView.Destroy();
+    const OperationResult result = m_operations->Redo();
+    m_fileStatusIsError = !result;
+    if (!result) m_fileStatus = result.error;
+    RebuildScriptTree();
+    ScriptFunctionPtr function = functionId == m_script.main->ID.id
+        ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
+    if (!function) function = m_script.main;
+    m_graphView.SetGraph(&m_script, function, &function->Graph);
 }
 
 bool Example::CanUndo() const
 {
-    const int undoActionIdx = actionStack.size() - undoDepth - 1;
-    return undoActionIdx >= 0;
+    return m_operations && m_operations->CanUndo();
 }
 
 bool Example::CanRedo() const
 {
-    const int redoActionIdx = actionStack.size() - undoDepth;
-    return redoActionIdx < actionStack.size();
+    return m_operations && m_operations->CanRedo();
 }
 
 void Example::InitializeScriptTree()
@@ -1535,7 +1523,7 @@ void Example::RebuildScriptTree()
         mainNode.id = m_script.main->ID;
         mainNode.label = m_script.main->functionDef->name;
         mainNode.icon = m_FunctionIcon;
-        mainNode.onclick = [this]() { ChangeGraph(m_script.main); };
+        mainNode.onclick = [this]() { ed::ClearSelection(); ChangeGraph(m_script.main); };
         m_scriptTreeView.AddChild(mainNode);
     }
 
@@ -1586,8 +1574,10 @@ void Example::LoadScript(const std::string& path)
     m_script = std::move(loadedScript);
     m_IDGenerator = loadedIds;
     pendingActions.clear();
+    m_commitPendingEdit = false;
     actionStack.clear();
     undoDepth = 0;
+    m_operations->ResetHistory();
     m_constFoldingValues.clear();
     m_constFoldingIDs.clear();
     m_selectedItemId = m_script.main ? m_script.main->ID.id : 0;

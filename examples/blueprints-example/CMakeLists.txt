@@ -53,6 +53,8 @@ set(_VisualLoxCoreSources
     runtime/scriptRuntime.cpp
     validation/scriptValidator.h
     validation/scriptValidator.cpp
+    operations/documentOperations.h
+    operations/documentOperations.cpp
 )
 
 find_package(imgui_node_editor REQUIRED)
@@ -106,6 +108,8 @@ if (BUILD_TESTING)
         tests/main.cpp
         tests/runtimeTests.h
         tests/runtimeTests.cpp
+        tests/documentOperationsTests.h
+        tests/documentOperationsTests.cpp
         script/scriptSerializerTest.h
         script/scriptSerializerTest.cpp
     )

@@ -56,11 +56,16 @@ struct GetVariableNode : public Node
     ScriptPropertyPtr pPropertyDef;
 };
 
-static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
+static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty,
+                                    ScriptElementID varID = ScriptElementID::Invalid)
 {
-    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, pProperty->ID);
+    if (pProperty)
+        varID = pProperty->ID;
+
+    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID);
     node->SerializationType = "variable.get";
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
+    if (pProperty)
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 
     return node;
 }
@@ -136,17 +141,24 @@ struct SetVariableNode : public Node
     ScriptPropertyPtr pPropertyDef;
 };
 
-static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty)
+static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty,
+                                    ScriptElementID varID = ScriptElementID::Invalid)
 {
-    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, pProperty->ID);
+    if (pProperty)
+        varID = pProperty->ID;
+
+    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, varID);
     node->SerializationType = "variable.set";
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
+    if (pProperty)
+    {
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
 
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
-    node->InputValues.push_back(Value());
-    node->InputValues.push_back(Value(MakeValueFromType(TypeOfValue(pProperty->defaultValue))));
+        node->InputValues.push_back(Value());
+        node->InputValues.push_back(Value(MakeValueFromType(TypeOfValue(pProperty->defaultValue))));
+    }
 
     return node;
 }

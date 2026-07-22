@@ -47,8 +47,12 @@ set(_VisualLoxCoreSources
     script/function.cpp
     runtime/standardLibrary.h
     runtime/standardLibrary.cpp
+    runtime/constantFolder.h
+    runtime/constantFolder.cpp
     runtime/scriptRuntime.h
     runtime/scriptRuntime.cpp
+    validation/scriptValidator.h
+    validation/scriptValidator.cpp
 )
 
 find_package(imgui_node_editor REQUIRED)
@@ -100,6 +104,8 @@ set_target_properties(visual-lox-cli PROPERTIES
 if (BUILD_TESTING)
     add_executable(visual-lox-tests
         tests/main.cpp
+        tests/runtimeTests.h
+        tests/runtimeTests.cpp
         script/scriptSerializerTest.h
         script/scriptSerializerTest.cpp
     )

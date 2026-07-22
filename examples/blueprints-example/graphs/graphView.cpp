@@ -215,11 +215,23 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             const bool isSimpleGet = node->Type == NodeType::SimpleGet;
             const bool isSimpleLarge = node->Type == NodeType::SimpleLargeBody;
+            const std::vector<const ValidationDiagnostic*> nodeDiagnostics =
+                validationReport && m_pScriptFunction
+                    ? validationReport->ForNode(m_pScriptFunction->ID, node->ID)
+                    : std::vector<const ValidationDiagnostic*>();
+            const bool hasDiagnosticError = std::any_of(nodeDiagnostics.begin(), nodeDiagnostics.end(),
+                [](const ValidationDiagnostic* diagnostic)
+                {
+                    return diagnostic->severity == DiagnosticSeverity::Error;
+                });
 
             const bool isDisconnected = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == node->ID; }) == processedNodes.end();
 
             const float alpha = ImGui::GetStyle().Alpha;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
+            if (!nodeDiagnostics.empty())
+                ed::PushStyleColor(ed::StyleColor_NodeBorder,
+                    hasDiagnosticError ? ImColor(255, 55, 55, 255) : ImColor(255, 190, 40, 255));
 
             builder.Begin(node->ID);
             if (!(isSimpleGet || isSimpleLarge))
@@ -227,11 +239,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 builder.Header(node->Color);
                 ImGui::Spring(0);
                 ImGui::TextUnformatted(node->Name.c_str());
-                // Test error
-                if (HasFlag(node->Flags, NodeFlags::Error))
-                {
-                    ImGui::Text("Error: %s", node->Error.c_str());
-                }
+                if (!nodeDiagnostics.empty())
+                    ImGui::TextColored(hasDiagnosticError ? ImVec4(1.0f, 0.25f, 0.25f, 1.0f)
+                                                           : ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "!");
                 ImGui::Spring(1);
                 ImGui::Dummy(ImVec2(0, 28));
                 ImGui::Spring(0);
@@ -263,7 +273,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 ++idx;
             }
 
-            if (HasFlag(node->Flags, NodeFlags::DynamicInputs) && node->CanAddInput())
+            if (HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) && node->CanAddInput())
             {
                 if (ImGui::Button("Add Pin"))
                 {
@@ -327,6 +337,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             }
 
             builder.End();
+
+            if (!nodeDiagnostics.empty())
+                ed::PopStyleColor();
 
             ImGui::PopStyleVar();
         }
@@ -426,7 +439,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
                     newLinkPin = startPin ? startPin : endPin;
 
-                    if (startPin->Kind == PinKind::Input)
+                    if (startPin && startPin->Kind == PinKind::Input)
                     {
                         std::swap(startPin, endPin);
                         std::swap(startPinId, endPinId);
@@ -437,7 +450,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                         const ELinkQueryResult result = m_pGraph->CanCreateLink(startPin, endPin, processedNodes);
                         if (result == ELinkQueryResult::Possible)
                         {
-                            showLabel("+ Create Link", ImColor(32, 45, 32, 180));
+                            const bool replacesLink = !m_pGraph->CollectLinksToReplace(startPin, endPin).empty();
+                            showLabel(replacesLink ? "~ Replace Link" : "+ Create Link",
+                                      ImColor(32, 45, 32, 180));
                             if (ed::AcceptNewItem(ImColor(128, 255, 128), 4.0f))
                             {
                                 Link link(GetNextId(), startPinId, endPinId);
@@ -611,7 +626,7 @@ void GraphView::DrawContextMenu()
             });
         }
 
-        if (HasFlag(pin->Node->Flags, NodeFlags::DynamicInputs) && pin->Kind == PinKind::Input)
+        if (HasFlag(pin->Node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) && pin->Kind == PinKind::Input)
         {
             if (pin->Node->CanRemoveInput(pin->ID))
             {

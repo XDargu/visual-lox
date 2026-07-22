@@ -17,26 +17,34 @@ namespace ed = ax::NodeEditor;
 struct CompilerContext;
 struct Script;
 
-enum class NodeFlags
+// Immutable capabilities copied from the registered node definition.
+enum class NodeDefinitionFlags
 {
     None = 0,
     ReadOnly = 1 << 0,
     DynamicInputs = 1 << 1,
-    CanConstFold = 1 << 2,
-    Error = 1 << 3,
+    Pure = 1 << 2,
 };
 
-// TODO: Move to some macro?
-constexpr inline NodeFlags operator~ (NodeFlags a) { return (NodeFlags)~(int)a; }
-constexpr inline NodeFlags operator| (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a | (int)b); }
-constexpr inline NodeFlags operator& (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a & (int)b); }
-constexpr inline NodeFlags operator^ (NodeFlags a, NodeFlags b) { return (NodeFlags)((int)a ^ (int)b); }
-constexpr inline NodeFlags& operator|= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a |= (int)b); }
-constexpr inline NodeFlags& operator&= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a &= (int)b); }
-constexpr inline NodeFlags& operator^= (NodeFlags& a, NodeFlags b) { return (NodeFlags&)((int&)a ^= (int)b); }
+// Mutable state belonging to one node instance in one graph.
+enum class NodeInstanceFlags
+{
+    None = 0,
+    Error = 1 << 0,
+};
 
-constexpr inline bool HasFlag(NodeFlags a, NodeFlags b) { return (int)(a & b) != 0; }
-constexpr inline NodeFlags ClearFlag(NodeFlags a, NodeFlags b) { return a &~b; }
+constexpr inline NodeDefinitionFlags operator~ (NodeDefinitionFlags a) { return (NodeDefinitionFlags)~(int)a; }
+constexpr inline NodeDefinitionFlags operator| (NodeDefinitionFlags a, NodeDefinitionFlags b) { return (NodeDefinitionFlags)((int)a | (int)b); }
+constexpr inline NodeDefinitionFlags operator& (NodeDefinitionFlags a, NodeDefinitionFlags b) { return (NodeDefinitionFlags)((int)a & (int)b); }
+constexpr inline NodeDefinitionFlags& operator|= (NodeDefinitionFlags& a, NodeDefinitionFlags b) { return (NodeDefinitionFlags&)((int&)a |= (int)b); }
+constexpr inline bool HasFlag(NodeDefinitionFlags a, NodeDefinitionFlags b) { return (int)(a & b) != 0; }
+
+constexpr inline NodeInstanceFlags operator~ (NodeInstanceFlags a) { return (NodeInstanceFlags)~(int)a; }
+constexpr inline NodeInstanceFlags operator| (NodeInstanceFlags a, NodeInstanceFlags b) { return (NodeInstanceFlags)((int)a | (int)b); }
+constexpr inline NodeInstanceFlags operator& (NodeInstanceFlags a, NodeInstanceFlags b) { return (NodeInstanceFlags)((int)a & (int)b); }
+constexpr inline NodeInstanceFlags& operator|= (NodeInstanceFlags& a, NodeInstanceFlags b) { return (NodeInstanceFlags&)((int&)a |= (int)b); }
+constexpr inline bool HasFlag(NodeInstanceFlags a, NodeInstanceFlags b) { return (int)(a & b) != 0; }
+constexpr inline NodeInstanceFlags ClearFlag(NodeInstanceFlags a, NodeInstanceFlags b) { return a & ~b; }
 
 enum class PinType
 {
@@ -158,7 +166,8 @@ struct Node
     NodeType         Type = NodeType::Blueprint;
     NodeCategory     Category = NodeCategory::Begin;
     ImVec2           Size;
-    NodeFlags        Flags = NodeFlags(0);
+    NodeDefinitionFlags DefinitionFlags = NodeDefinitionFlags::None;
+    NodeInstanceFlags   InstanceFlags = NodeInstanceFlags::None;
 
     std::vector<Value> InputValues;
 
@@ -181,6 +190,8 @@ struct Node
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const = 0;
+
+    bool IsPure() const { return HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure); }
 
     virtual void Refresh(const Script& script, IDGenerator& IDGenerator) {}
 

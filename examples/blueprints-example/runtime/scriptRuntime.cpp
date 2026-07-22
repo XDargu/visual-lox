@@ -1,11 +1,15 @@
 #include "scriptRuntime.h"
 
+#include "constantFolder.h"
 #include "../graphs/graphCompiler.h"
 
 #include <Debug.h>
 
+#include <utility>
+
 void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
-                                 const ScriptCompileOptions& options)
+                                 const std::vector<Value>& foldedValues,
+                                 const std::vector<ed::NodeId>& foldedNodeIds)
 {
     const NodePtr begin = graph.FindNodeIf([](const NodePtr& node)
     {
@@ -15,19 +19,16 @@ void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
         return;
 
     GraphCompiler graphCompiler(compiler);
-    if (options.constFoldingValues)
-        graphCompiler.context.constFoldingValues = *options.constFoldingValues;
-    if (options.constFoldingNodeIds)
-        graphCompiler.context.constFoldingIDs = *options.constFoldingNodeIds;
+    graphCompiler.context.constFoldingValues = foldedValues;
+    graphCompiler.context.constFoldingIDs = foldedNodeIds;
 
     graphCompiler.CompileGraph(graph, begin, 0,
         [&](const NodePtr& node, const Graph& currentGraph, CompilationStage stage, int portIdx)
         {
-            if (stage == CompilationStage::ConstFoldedInputs && options.constFoldingValues)
+            if (stage == CompilationStage::ConstFoldedInputs)
             {
-                compiler.emitConstant((*options.constFoldingValues)[portIdx]);
-                const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
-                GraphCompiler::CompileOutput(graphCompiler.context, currentGraph, node->Outputs[outputIdx]);
+                compiler.emitConstant(foldedValues[portIdx]);
+                GraphCompiler::CompileOutput(graphCompiler.context, currentGraph, node->Outputs[0]);
             }
             else
             {
@@ -39,17 +40,45 @@ void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
 ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
                                            const ScriptCompileOptions& options)
 {
+    ValidationReport validation = ScriptValidator::Validate(script);
+    if (validation.HasErrors())
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
+
+    ConstantFoldingResult folding;
+    if (options.enableConstantFolding)
+    {
+        const bool wasGcAllowed = vm.isGarbageCollectionAllowed();
+        vm.allowGarbageCollection(false);
+        folding = ConstantFolder::Fold(vm, script);
+        vm.allowGarbageCollection(wasGcAllowed);
+
+        for (const ConstantFoldingFailure& failure : folding.failures)
+        {
+            std::string graphName = "<graph>";
+            if (script.main && script.main->ID.id == failure.functionId.id)
+                graphName = script.main->functionDef->name;
+            else
+                for (const ScriptFunctionPtr& function : script.functions)
+                    if (function && function->ID.id == failure.functionId.id)
+                        graphName = function->functionDef->name;
+            validation.diagnostics.push_back({ DiagnosticSeverity::Warning, "constant-fold-skipped",
+                failure.message, graphName, failure.functionId, failure.nodeId });
+        }
+    }
+
     if (!script.main)
-        return {};
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
 
     const NodePtr mainBegin = script.main->Graph.FindNodeIf([](const NodePtr& node)
     {
         return node->Category == NodeCategory::Begin;
     });
     if (!mainBegin)
-        return {};
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
 
     vm.resetStack();
+    for (Value& value : folding.values)
+        vm.push(value);
     Compiler& compiler = vm.getCompiler();
     compiler.beginCompile();
     compiler.parser.hadError = false;
@@ -82,7 +111,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
             compiler.defineVariable(compiler.parseVariableDirectly(false, inputToken));
         }
 
-        CompileGraph(scriptFunction->Graph, compiler, options);
+        CompileGraph(scriptFunction->Graph, compiler, folding.values, folding.nodeIds);
         ObjFunction* function = compiler.endCompiler();
         const uint32_t constant = compiler.makeConstant(Value(function));
         compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
@@ -95,15 +124,21 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     }
 
     compiler.beginScope();
-    CompileGraph(script.main->Graph, compiler, options);
+    CompileGraph(script.main->Graph, compiler, folding.values, folding.nodeIds);
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();
 
     if (compiler.parser.hadError)
-        return {};
+    {
+        vm.resetStack();
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation),
+                 std::move(folding.values), std::move(folding.nodeIds) };
+    }
     if (options.disassemble)
         disassembleChunk(function->chunk, function->name ? function->name->chars.c_str() : "<script>");
-    return { function, InterpretResult::INTERPRET_OK };
+    vm.resetStack();
+    return { function, InterpretResult::INTERPRET_OK, std::move(validation),
+             std::move(folding.values), std::move(folding.nodeIds) };
 }
 
 InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)

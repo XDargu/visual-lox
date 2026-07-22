@@ -21,8 +21,7 @@ struct AppendNode : public Node
         : Node(id, name, ImColor(255, 128, 128))
     {
         Category = NodeCategory::Function;
-        Flags |= NodeFlags::DynamicInputs;
-        Flags |= NodeFlags::CanConstFold;
+        DefinitionFlags |= NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::Pure;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override

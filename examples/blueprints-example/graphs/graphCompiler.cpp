@@ -140,7 +140,7 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
     {
         if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, input))
         {
-            if (HasFlag(pOutput->Node->Flags, NodeFlags::Error))
+            if (HasFlag(pOutput->Node->InstanceFlags, NodeInstanceFlags::Error))
             {
                 compiler.emitConstant(value);
                 return;

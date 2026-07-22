@@ -33,13 +33,13 @@ struct GetVariableNode : public Node
 
     void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
-        Flags = ClearFlag(Flags, NodeFlags::Error);
+        InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
 
         RefreshDefinition(script);
 
         if (!pPropertyDef)
         {
-            Flags |= NodeFlags::Error;
+            InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing variable with ID: " + std::to_string(refId);
             return;
         }
@@ -109,13 +109,13 @@ struct SetVariableNode : public Node
 
     void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
-        Flags = ClearFlag(Flags, NodeFlags::Error);
+        InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
 
         RefreshDefinition(script);
 
         if (!pPropertyDef)
         {
-            Flags |= NodeFlags::Error;
+            InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing variable with ID: " + std::to_string(refId);
             return;
         }

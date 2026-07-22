@@ -63,8 +63,6 @@ struct Example :
 
     std::vector<ProcessedNode> GatherProcessedNodes(Graph& graph, Compiler& compiler);
 
-    void GatherConstFoldableNodes(Compiler& compiler, VM& vm);
-    InterpretResult CompileConstFolding(VM& vm, const NodePtr& constNode);
     void ShowCompilerInfo(float paneWidth);
 
     void ShowDebugPanel(float paneWidth);
@@ -161,6 +159,7 @@ struct Example :
     std::string m_currentScriptPath;
     std::string m_fileStatus;
     bool m_fileStatusIsError = false;
+    ValidationReport m_validationReport;
 };
 
 }

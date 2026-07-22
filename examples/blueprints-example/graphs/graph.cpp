@@ -5,6 +5,7 @@
 #include <Compiler.h>
 
 #include <algorithm>
+#include <set>
 #include <utility>
 
 #include <imgui_node_editor_internal.h>
@@ -95,6 +96,25 @@ bool Graph::IsPinLinked(ed::PinId id) const
     return false;
 }
 
+std::vector<ed::LinkId> Graph::CollectLinksToReplace(const Pin* a, const Pin* b) const
+{
+    std::vector<ed::LinkId> result;
+    if (!a || !b || a->Kind == b->Kind)
+        return result;
+
+    const Pin* input = a->Kind == PinKind::Input ? a : b;
+    const Pin* output = a->Kind == PinKind::Output ? a : b;
+    for (const Link& link : m_Links)
+    {
+        const bool conflicts = output->Type == PinType::Flow
+            ? link.StartPinID == output->ID
+            : link.EndPinID == input->ID;
+        if (conflicts)
+            result.push_back(link.ID);
+    }
+    return result;
+}
+
 ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const
 {
     if (!a || !b || a == b)
@@ -117,19 +137,6 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
 
     const Pin& input = a->Kind == PinKind::Input ? *a : *b;
     const Pin& output = a->Kind == PinKind::Output ? *a : *b;
-
-    if (a->Type != PinType::Flow)
-    {
-        // Data ports can only be connected once
-        if (IsPinLinked(input.ID))
-            return ELinkQueryResult::AlreadyConnected;
-    }
-    else
-    {
-        // Flow pins can have several inputs going to an output
-        if (IsPinLinked(output.ID))
-            return ELinkQueryResult::AlreadyConnected;
-    }
 
     auto aProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == a->Node->ID; });
     auto bProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == b->Node->ID; });
@@ -175,6 +182,16 @@ NodePtr Graph::AddNode(const NodePtr& node)
 
  Link* Graph::AddLink(Link& link)
  {
+     const Pin* start = FindPin(link.StartPinID);
+     const Pin* end = FindPin(link.EndPinID);
+     const std::vector<ed::LinkId> replacedLinks = CollectLinksToReplace(start, end);
+     if (!replacedLinks.empty())
+     {
+         m_Links.erase(std::remove_if(m_Links.begin(), m_Links.end(), [&](const Link& existing)
+         {
+             return std::find(replacedLinks.begin(), replacedLinks.end(), existing.ID) != replacedLinks.end();
+         }), m_Links.end());
+     }
      m_Links.push_back(link);
      return &m_Links.back();
  }
@@ -338,27 +355,65 @@ NodePtr Graph::AddNode(const NodePtr& node)
      return links;
  }
 
- bool GraphUtils::IsNodeConstFoldable(const Graph& graph, const NodePtr& node)
+ namespace
  {
-     if (!HasFlag(node->Flags, NodeFlags::CanConstFold))
+ bool IsNodeConstFoldableRecursive(const Graph& graph, const NodePtr& node,
+                                   std::set<const Node*>& visiting,
+                                   std::set<const Node*>& verified)
+ {
+     if (!node || !node->IsPure() || !GraphUtils::IsNodeImplicit(node) ||
+         HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
          return false;
 
-     if (node->Category != NodeCategory::Function)
+     // The current folding bytecode path materializes one result. Definitions
+     // with zero or multiple values need an explicit folding strategy first.
+     const Pin* dataOutput = nullptr;
+     size_t dataOutputCount = 0;
+     for (const Pin& output : node->Outputs)
+     {
+         if (output.Type != PinType::Flow)
+         {
+             dataOutput = &output;
+             ++dataOutputCount;
+         }
+     }
+     if (dataOutputCount != 1)
+         return false;
+     if (dataOutput->Type != PinType::Bool && dataOutput->Type != PinType::Int &&
+         dataOutput->Type != PinType::Float && dataOutput->Type != PinType::String)
+         return false;
+
+     if (verified.find(node.get()) != verified.end())
+         return true;
+     if (!visiting.insert(node.get()).second)
          return false;
 
      for (const Pin& input : node->Inputs)
      {
-         if (input.Type != PinType::Flow)
+         if (input.Type == PinType::Flow)
+             continue;
+
+         if (const Pin* output = GraphUtils::FindConnectedOutput(graph, input))
          {
-             if (const Pin* output = FindConnectedOutput(graph, input))
+             if (!IsNodeConstFoldableRecursive(graph, output->Node, visiting, verified))
              {
-                 if (!IsNodeConstFoldable(graph, output->Node))
-                     return false;
+                 visiting.erase(node.get());
+                 return false;
              }
          }
      }
 
+     visiting.erase(node.get());
+     verified.insert(node.get());
      return true;
+ }
+ }
+
+ bool GraphUtils::IsNodeConstFoldable(const Graph& graph, const NodePtr& node)
+ {
+     std::set<const Node*> visiting;
+     std::set<const Node*> verified;
+     return IsNodeConstFoldableRecursive(graph, node, visiting, verified);
  }
 
  bool GraphUtils::AreTypesCompatible(PinType a, PinType b)

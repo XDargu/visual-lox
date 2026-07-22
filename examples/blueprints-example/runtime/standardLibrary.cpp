@@ -17,17 +17,18 @@ void RegisterStandardLibrary(NodeRegistry& registry)
     registry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode, {}, { { "Value", Value(false) } });
     registry.RegisterCompiledNode("Flow::For In", &BuildForInNode, {}, { { "Value", Value(0.0) } });
     registry.RegisterCompiledNode("Debug::Print", &BuildPrintNode, { { "Value", Value() } }, {});
-    registry.RegisterCompiledNode("String::Append", &CreateAppendNode, { { "Value", Value(takeString("", 0)) } }, { { "Value", Value(takeString("", 0)) } });
-    registry.RegisterCompiledNode("Math::Add", &CreateAddNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    registry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    registry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    registry.RegisterCompiledNode("Math::Divide", &CreateDivideNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    registry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    registry.RegisterCompiledNode("Math::Less Than", &CreateLessNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    registry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    registry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
+    registry.RegisterCompiledNode("String::Append", &CreateAppendNode, { { "Value", Value(takeString("", 0)) } }, { { "Value", Value(takeString("", 0)) } }, NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Add", &CreateAddNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Divide", &CreateDivideNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Less Than", &CreateLessNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } }, NodeDefinitionFlags::Pure);
+    registry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
     registry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode,
-        { { "List", Value(newList()) }, { "Index", Value(0.0) } }, { { "Value", Value() } });
+        { { "List", Value(newList()) }, { "Index", Value(0.0) } },
+        { { "Value", Value() } }, NodeDefinitionFlags::Pure);
     registry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode,
         { { "List", Value(newList()) }, { "Index", Value(0.0) }, { "Value", Value() } },
         { { "Value", Value(newList()) } });

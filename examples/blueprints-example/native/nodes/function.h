@@ -59,13 +59,13 @@ struct GetFunctionNode : public Node
 
     void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
-        Flags = ClearFlag(Flags, NodeFlags::Error);
+        InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
 
         RefreshDefinition(script);
 
         if (!pFunctionDef)
         {
-            Flags |= NodeFlags::Error;
+            InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing function with ID: " + std::to_string(refId);
             return;
         }

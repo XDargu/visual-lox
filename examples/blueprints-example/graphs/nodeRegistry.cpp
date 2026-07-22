@@ -249,7 +249,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(0.0);
         },
-        NodeFlags::ReadOnly | NodeFlags::CanConstFold
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("File::FileExists",
@@ -265,7 +265,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(false);
         },
-        NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("String::Split",
@@ -295,14 +295,14 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(newList());
         },
-        NodeFlags::ReadOnly | NodeFlags::CanConstFold
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("System::Clock",
         { },
         { { "Time", Value(0.0) } },
         &clock,
-        NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("List::MakeList",
@@ -311,7 +311,7 @@ void NodeRegistry::RegisterDefinitions()
         {
             return Value(args[0]); // Result is already a list!
         },
-        NodeFlags::ReadOnly | NodeFlags::DynamicInputs | NodeFlags::CanConstFold,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::Pure,
         {
             1, 16, PinType::Any, Value(0.0)
         }
@@ -321,70 +321,70 @@ void NodeRegistry::RegisterDefinitions()
         { { "List", Value(newList()) }, { "List", Value(newList()) } },
         { { "Result", Value(newList()) } },
         &concat,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::Erase",
         { { "List", Value(newList()) }, { "Index", Value(0.0) } },
         { },
         &erase,
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Push",
         { { "List", Value(newList()) }, { "Value", Value() } },
         { { "Size", Value(0.0) } },
         &push,
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Pop",
         { { "List", Value(newList()) } },
         { { "Value", Value() } },
         &pop,
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
         &readFile,
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("File::WriteFile",
         { { "File", Value(copyString("", 0)) }, { "Content", Value(copyString("", 0)) } },
         { },
         &writeFile,
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Contains",
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::Contains",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
         & contains,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::IndexOf",
         { { "List", Value(newList()) }, { "Value", Value() } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::IndexOf",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::ToLower",
@@ -401,7 +401,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length())); // Result is already a list!
         },
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::ToUpper",
@@ -418,7 +418,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length())); // Result is already a list!
         },
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::Substring",
@@ -451,7 +451,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length()));
         },
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("String::Find",
@@ -477,35 +477,35 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value((double)result);
         },
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("Functional::FindIf",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value() } },
         &findIf,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("Functional::Map",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value(newList()) } },
         &map,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("Functional::Filter",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value(newList()) } },
         &filter,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("Functional::Reduce",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) }, { "Init", Value() } },
         { { "Result", Value(newList()) } },
         &reduce,
-        NodeFlags::CanConstFold | NodeFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly
     );
 
     RegisterNativeFunc("System::CopyToClipboard",
@@ -530,7 +530,7 @@ void NodeRegistry::RegisterDefinitions()
 #endif
             return Value();
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::RunCommand",
@@ -549,7 +549,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value();
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::Sleep",
@@ -566,7 +566,7 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value();
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::SetCursorPos",
@@ -586,7 +586,7 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
     
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::ClickMouse",
@@ -634,7 +634,7 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
 
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::DragMouse",
@@ -705,7 +705,7 @@ void NodeRegistry::RegisterDefinitions()
         return Value();
 
     },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
 
@@ -730,7 +730,7 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
 
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("System::PressKeys",
@@ -765,7 +765,7 @@ void NodeRegistry::RegisterDefinitions()
         return Value();
 
     },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("Functional::Call",
@@ -797,11 +797,11 @@ void NodeRegistry::RegisterDefinitions()
 
             return vm->pop();
         },
-        NodeFlags::None
+        NodeDefinitionFlags::None
     );
 }
 
-void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags)
+void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags)
 {
     BasicFunctionDefPtr nativeFunc  = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -813,7 +813,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctio
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
 
-void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps)
+void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps)
 {
     BasicFunctionDefPtr nativeFunc = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -834,7 +834,7 @@ void NodeRegistry::RegisterNatives(VM& vm)
     }
 }
 
-void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeFlags flags)
+void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags)
 {
     CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
     compiledNodeDef->nodeCreationFunc = creationFunc;
@@ -857,6 +857,7 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     NodePtr node = nodeCreationFunc(IDGenerator);
     node->SerializationType = "compiled";
     node->DefinitionId = name;
+    node->DefinitionFlags = functionDef->flags;
     return node;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../script/script.h"
+#include "../validation/scriptValidator.h"
 
 #include <Vm.h>
 
@@ -8,8 +9,7 @@
 
 struct ScriptCompileOptions
 {
-    const std::vector<Value>* constFoldingValues = nullptr;
-    const std::vector<ed::NodeId>* constFoldingNodeIds = nullptr;
+    bool enableConstantFolding = true;
     bool disassemble = false;
 };
 
@@ -17,6 +17,9 @@ struct ScriptCompileResult
 {
     ObjFunction* function = nullptr;
     InterpretResult status = InterpretResult::INTERPRET_COMPILE_ERROR;
+    ValidationReport validation;
+    std::vector<Value> foldedValues;
+    std::vector<ed::NodeId> foldedNodeIds;
 
     explicit operator bool() const
     {
@@ -35,5 +38,6 @@ public:
 
 private:
     static void CompileGraph(const Graph& graph, Compiler& compiler,
-                             const ScriptCompileOptions& options);
+                             const std::vector<Value>& foldedValues,
+                             const std::vector<ed::NodeId>& foldedNodeIds);
 };

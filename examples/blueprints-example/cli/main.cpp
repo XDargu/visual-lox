@@ -75,6 +75,11 @@ int main(int argc, char** argv)
     ScriptCompileOptions options;
     options.disassemble = disassemble;
     const ScriptCompileResult compileResult = ScriptRuntime::Compile(vm, script, options);
+    for (const ValidationDiagnostic& diagnostic : compileResult.validation.diagnostics)
+    {
+        std::ostream& output = diagnostic.severity == DiagnosticSeverity::Error ? std::cerr : std::clog;
+        output << FormatDiagnostic(diagnostic) << '\n';
+    }
     if (!compileResult)
     {
         std::cerr << "Visual Lox compilation failed.\n";

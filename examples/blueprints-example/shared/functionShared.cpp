@@ -64,7 +64,7 @@ struct FunctionNode : public Node
                 }
             }
 
-            if (HasFlag(Flags, NodeFlags::DynamicInputs))
+            if (HasFlag(DefinitionFlags, NodeDefinitionFlags::DynamicInputs))
             {
                 // Get all inputs on a list first
                 compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
@@ -91,13 +91,13 @@ struct FunctionNode : public Node
 
     virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
-        Flags = ClearFlag(Flags, NodeFlags::Error);
+        InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
 
         RefreshDefinition(script);
 
         if (!pFunctionDef)
         {
-            Flags |= NodeFlags::Error;
+            InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing function with ID: " + std::to_string(refId);
             return;
         }
@@ -106,7 +106,7 @@ struct FunctionNode : public Node
         Name = pFunctionDef->name;
 
         // Add missing inputs
-        int startingInput = HasFlag(Flags, NodeFlags::ReadOnly) ? 0 : 1;
+        int startingInput = HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ? 0 : 1;
 
         for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
         {
@@ -141,7 +141,7 @@ struct FunctionNode : public Node
         }
 
         // Add missing outputs
-        int startingOutput = HasFlag(Flags, NodeFlags::ReadOnly) ? 0 : 1;
+        int startingOutput = HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ? 0 : 1;
 
         for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
         {
@@ -222,7 +222,7 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID fun
     if (!funcID.IsValid())
         node->DefinitionId = name;
 
-    if (!HasFlag(flags, NodeFlags::ReadOnly))
+    if (!HasFlag(flags, NodeDefinitionFlags::ReadOnly))
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
         node->InputValues.emplace_back(Value());
@@ -230,7 +230,7 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID fun
         node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     }
 
-    if (!HasFlag(flags, NodeFlags::DynamicInputs))
+    if (!HasFlag(flags, NodeDefinitionFlags::DynamicInputs))
     {
         for (const Input& input : inputs)
         {
@@ -244,7 +244,7 @@ NodePtr BasicFunctionDef::MakeNode(IDGenerator& IDGenerator, ScriptElementID fun
         node->Outputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
     }
 
-    node->Flags = flags;
+    node->DefinitionFlags = flags;
 
     return node;
 }

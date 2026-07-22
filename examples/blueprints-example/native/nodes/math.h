@@ -19,7 +19,7 @@ struct BinaryOpNode : public Node
         : Node(id, name, ImColor(230, 230, 0))
     {
         Category = NodeCategory::Function;
-        Flags |= NodeFlags::CanConstFold;
+        DefinitionFlags |= NodeDefinitionFlags::Pure;
         Type = NodeType::SimpleLargeBody;
     }
 

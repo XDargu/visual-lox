@@ -36,7 +36,6 @@ enum class ELinkQueryResult
     IncompatibleKind,
     IncompatibleType,
     SelfConnection,
-    AlreadyConnected,
     CantConnectEarlier,
     CantConnectBranch,
     Unknown,
@@ -51,7 +50,6 @@ inline const char* LinkQueryResultToString(ELinkQueryResult result)
     case ELinkQueryResult::IncompatibleKind: return "Incompatible Pin Kind";
     case ELinkQueryResult::IncompatibleType: return "Incompatible Pin Type";
     case ELinkQueryResult::SelfConnection: return "Cannot connect to self";
-    case ELinkQueryResult::AlreadyConnected: return "Already connected";
     case ELinkQueryResult::CantConnectEarlier: return "Cannot connect to a node earlier in the sequence";
     case ELinkQueryResult::CantConnectBranch: return "Cannot connect to a different branch";
     case ELinkQueryResult::Unknown: return "Unknown reason";
@@ -91,6 +89,7 @@ struct Graph
     }
 
     bool IsPinLinked(ed::PinId id) const;
+    std::vector<ed::LinkId> CollectLinksToReplace(const Pin* a, const Pin* b) const;
 
     ELinkQueryResult CanCreateLink(const Pin* a, const Pin* b, const std::vector<ProcessedNode>& processedNodes) const;
 

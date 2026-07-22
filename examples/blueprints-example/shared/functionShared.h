@@ -71,7 +71,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     std::vector<Input> inputs;
     std::vector<Input> outputs;
 
-    NodeFlags flags = NodeFlags::None;
+    NodeDefinitionFlags flags = NodeDefinitionFlags::None;
 
     DynamicInputProps dynamicInputProps;
 

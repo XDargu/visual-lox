@@ -395,7 +395,7 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         node->State = StringField(nodeJson, "state");
 
         const Array& inputs = Field(nodeJson, "inputs", crude_json::type_t::array).get<Array>();
-        const bool hasDynamicInputs = HasFlag(node->Flags, NodeFlags::DynamicInputs);
+        const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
         if ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
             (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid input layout.");

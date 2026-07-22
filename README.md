@@ -72,6 +72,20 @@ Visual Lox is split into reusable layers:
 
 Both applications use the same standard node library and the same compile-and-execute pipeline, so a script behaves consistently in the editor and at the command line.
 
+### Validation and diagnostics
+
+Graphs are validated before compilation.
+
+Errors prevent compilation:
+ - In the editor, affected nodes receive a red border, warnings receive a yellow border, and the Compiler tab lists the full diagnostics.
+ - The CLI writes the same structured diagnostics to the console and exits with a compilation error code.
+
+### Node flags
+
+Node flags are split by lifetime:
+ - `NodeDefinitionFlags`: definition data such as `ReadOnly`, `DynamicInputs` and `Pure`.
+ - `NodeInstanceFlags`: per-instance node state such as `Error`.
+
 ## Building
 
 Configure the examples and build the editor, CLI and tests:

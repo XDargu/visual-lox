@@ -306,51 +306,6 @@ void Example::ShowStyleEditor(bool* show)
     ImGui::End();
 }
 
-InterpretResult Example::CompileConstFolding(VM& vm, const NodePtr& constNode)
-{
-    std::cout << std::endl << "Compiling node: " << constNode->Name << std::endl;
-    // Compile code
-    Compiler& compiler = vm.getCompiler();
-    compiler.beginCompile();
-
-    const Token resultToken(TokenType::VAR, "__res", 5, 0);
-
-    compiler.beginScope();
-
-    GraphCompiler graphCompiler(compiler);
-
-    auto callback = [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
-    {
-        node->Compile(graphCompiler.context, graph, stage, portIdx);
-    };
-    graphCompiler.CompileSingle(*m_graphView.m_pGraph, constNode, -1, 0, callback);
-
-    // Store result in a global
-    const uint32_t constant = compiler.identifierConstant(resultToken);
-    compiler.emitOpWithValue(OpCode::OP_DEFINE_GLOBAL, OpCode::OP_DEFINE_GLOBAL_LONG, constant);
-
-    compiler.endScope();
-
-    compiler.emitVariable(resultToken, false);
-
-    // We return that value directly
-    compiler.emitByte(OpByte(OpCode::OP_RETURN));
-    ObjFunction* function = compiler.current->function;
-
-    if (function != nullptr)
-    {
-        vm.push(Value(function));
-        ObjClosure* closure = newClosure(function);
-        vm.pop();
-        vm.push(Value(closure));
-        vm.callValue(Value(closure), 0);
-
-        return vm.run(0);
-    }
-
-    return InterpretResult::INTERPRET_COMPILE_ERROR;
-}
-
 void Example::ShowNodeSelection(float paneWidth)
 {
     auto& io = ImGui::GetIO();
@@ -597,70 +552,28 @@ std::vector<ProcessedNode> Example::GatherProcessedNodes(Graph& graph, Compiler&
     return processedNodes;
 }
 
-void Example::GatherConstFoldableNodes(Compiler& compiler, VM& vm)
-{
-    // We should do this for each graph
-    // Do only with main and script functions for now
-
-    m_constFoldingValues.clear();
-    m_constFoldingIDs.clear();
-
-    std::vector<Graph*> candidates;
-
-    candidates.push_back(&m_script.main->Graph);
-
-    for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
-    {
-        candidates.push_back(&scriptFunction->Graph);
-    }
-
-    for (Graph* graph : candidates)
-    {
-        NodePtr begin = graph->FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-        if (begin)
-        {
-            GraphCompiler graphCompiler(compiler);
-
-            std::vector<NodePtr> processedNodes;
-            // First pass to gather processed nodes and cost folding
-            graphCompiler.CompileGraph(*graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
-            {
-                if (std::find(processedNodes.begin(), processedNodes.end(), node) == processedNodes.end())
-                {
-                    processedNodes.push_back(node);
-                }
-            });
-
-            if (m_isConstFoldingEnabled)
-            {
-                for (const NodePtr& node : processedNodes)
-                {
-                    if (GraphUtils::IsNodeConstFoldable(*graph, node))
-                    {
-                        if (CompileConstFolding(vm, node) == InterpretResult::INTERPRET_OK)
-                        {
-                            m_constFoldingValues.push_back(vm.peek(-1));
-                            m_constFoldingIDs.push_back(node->ID);
-                        }
-                        vm.resetStack();
-                    }
-                }
-            }
-        }
-    }
-}
-
 void Example::ShowCompilerInfo(float paneWidth)
 {
     static std::string result = "<output>";
     static std::string runResult = "";
 
+    ImGui::Text("Validation: %zu error(s), %zu warning(s)",
+                m_validationReport.ErrorCount(), m_validationReport.WarningCount());
+    for (const ValidationDiagnostic& diagnostic : m_validationReport.diagnostics)
+    {
+        const ImVec4 color = diagnostic.severity == DiagnosticSeverity::Error
+            ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+            : ImVec4(1.0f, 0.75f, 0.2f, 1.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, color);
+        ImGui::TextWrapped("%s", FormatDiagnostic(diagnostic).c_str());
+        ImGui::PopStyleColor();
+    }
+    ImGui::Separator();
+
     ImGui::Checkbox("Const Folding Enabled", &m_isConstFoldingEnabled);
     ImGui::Checkbox("Real time compilation Enabled", &m_isRealTimeCompilationEnabled);
 
     VM& vm = VM::getInstance();
-
-    Compiler& compiler = vm.getCompiler();
 
     const bool pressedCompile = ImGui::Button("Compile") || m_isRealTimeCompilationEnabled;
     const bool pressedRun = ImGui::Button("Run");
@@ -669,17 +582,15 @@ void Example::ShowCompilerInfo(float paneWidth)
     {
         Utils::CaptureStdout captureCompilation;
 
-        // Gather const folding options
-        GatherConstFoldableNodes(compiler, vm);
-
-
         std::cout << std::endl << "Compiling script: " << std::endl;
         static ObjFunction* function = nullptr;
         ScriptCompileOptions compileOptions;
-        compileOptions.constFoldingValues = &m_constFoldingValues;
-        compileOptions.constFoldingNodeIds = &m_constFoldingIDs;
+        compileOptions.enableConstantFolding = m_isConstFoldingEnabled;
         compileOptions.disassemble = true;
         const ScriptCompileResult compileResult = ScriptRuntime::Compile(vm, m_script, compileOptions);
+        m_validationReport = compileResult.validation;
+        m_constFoldingValues = compileResult.foldedValues;
+        m_constFoldingIDs = compileResult.foldedNodeIds;
         function = compileResult.function;
 
         result = captureCompilation.Restore();
@@ -905,11 +816,17 @@ void Example::OnFrame(float deltaTime)
 
     m_graphView.OnFrame(deltaTime);
 
+    m_validationReport = ScriptValidator::Validate(m_script);
+    m_graphView.validationReport = &m_validationReport;
+
     VM& vm = VM::getInstance();
     Compiler& compiler = vm.getCompiler();
 
     // Traverse graph to see which nodes are processed, in order to display them enabled in the graph view
-    m_graphView.processedNodes = GatherProcessedNodes(*m_graphView.m_pGraph, compiler);
+    if (m_validationReport.HasErrors())
+        m_graphView.processedNodes.clear();
+    else
+        m_graphView.processedNodes = GatherProcessedNodes(*m_graphView.m_pGraph, compiler);
 
     auto& io = ImGui::GetIO();
 

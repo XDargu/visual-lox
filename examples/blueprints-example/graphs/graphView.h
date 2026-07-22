@@ -12,6 +12,7 @@
 #include "../utilities/drawing.h"
 
 #include "../script/function.h"
+#include "../validation/scriptValidator.h"
 
 #include <imgui_internal.h>
 #include <imgui_node_editor.h>
@@ -91,6 +92,7 @@ struct GraphView
 
     // TODO: Move somewhere else
     std::vector<ProcessedNode> processedNodes;
+    const ValidationReport* validationReport = nullptr;
     
     // ID genration
     NodeRegistry* m_pNodeRegistry = nullptr;

@@ -1,0 +1,79 @@
+{
+  "format": "visual-lox",
+  "format_version": 1,
+  "script": {
+    "classes": [],
+    "functions": [],
+    "id": 1,
+    "main": {
+      "graph": {
+        "links": [
+          {
+            "end_pin_id": 6,
+            "id": 9,
+            "start_pin_id": 4
+          }
+        ],
+        "nodes": [
+          {
+            "definition": "",
+            "id": 3,
+            "input_values": [],
+            "inputs": [],
+            "kind": "begin",
+            "outputs": [
+              {
+                "id": 4,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": ""
+          },
+          {
+            "definition": "Debug::Print",
+            "id": 5,
+            "input_values": [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": "Hello from Visual Lox CLI"
+              }
+            ],
+            "inputs": [
+              {
+                "id": 6,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "id": 7,
+                "name": "Content",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs": [
+              {
+                "id": 8,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": ""
+          }
+        ]
+      },
+      "id": 2,
+      "inputs": [],
+      "name": "Main",
+      "outputs": [],
+      "variables": []
+    },
+    "variables": []
+  }
+}

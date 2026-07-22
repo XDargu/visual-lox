@@ -2,6 +2,8 @@
 
 #include "scriptSerializer.h"
 #include "../graphs/nodeRegistry.h"
+#include "../runtime/scriptRuntime.h"
+#include "../runtime/standardLibrary.h"
 #include "../native/nodes/begin.h"
 #include "../native/nodes/function.h"
 #include "../native/nodes/math.h"
@@ -49,9 +51,8 @@ int RunScriptSerializerRoundTripTest(const std::string& outputPath)
         vm.allowGarbageCollection(false);
 
         NodeRegistry registry;
-        registry.RegisterCompiledNode("Math::Add", &CreateAddNode,
-            { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-        registry.RegisterDefinitions();
+        RegisterStandardLibrary(registry);
+        registry.RegisterNatives(vm);
 
         IDGenerator ids;
         Script script;
@@ -124,6 +125,16 @@ int RunScriptSerializerRoundTripTest(const std::string& outputPath)
         result = ScriptSerializer::Save(loaded, secondPath);
         Require(result.success, result.error.c_str());
         Require(ReadFile(outputPath) == ReadFile(secondPath), "Saving a loaded script changed the document.");
+
+        vm.setExternalMarkingFunc([&]()
+        {
+            MarkNodeRegistryRoots(registry, vm);
+            ScriptUtils::MarkScriptRoots(loaded);
+        });
+        const ScriptCompileResult compiled = ScriptRuntime::Compile(vm, loaded);
+        Require(static_cast<bool>(compiled), "The round-tripped script did not compile.");
+        Require(ScriptRuntime::Execute(vm, compiled.function) == InterpretResult::INTERPRET_OK,
+                "The round-tripped script did not execute successfully.");
 
         std::remove(outputPath.c_str());
         std::remove(secondPath.c_str());

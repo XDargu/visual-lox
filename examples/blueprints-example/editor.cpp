@@ -1,13 +1,6 @@
 #include "editor.h"
 
 #include "native/nodes/begin.h"
-#include "native/nodes/begin.h"
-#include "native/nodes/append.h"
-#include "native/nodes/branch.h"
-#include "native/nodes/print.h"
-#include "native/nodes/for-in.h"
-#include "native/nodes/math.h"
-#include "native/nodes/list.h"
 
 #include "utilities/utils.h"
 
@@ -169,31 +162,7 @@ void Example::OnStart()
     VM& vm = VM::getInstance();
     vm.setExternalMarkingFunc([&]()
     {
-        for (NativeFunctionDef& def : m_NodeRegistry.nativeDefinitions)
-        {
-            for (auto& input : def.functionDef->inputs)
-            {
-                vm.markValue(input.value);
-            }
-
-            for (auto& input : def.functionDef->outputs)
-            {
-                vm.markValue(input.value);
-            }
-        }
-
-        for (const CompiledNodeDefPtr& def : m_NodeRegistry.compiledDefinitions)
-        {
-            for (auto& input : def->functionDef->inputs)
-            {
-                vm.markValue(input.value);
-            }
-
-            for (auto& input : def->functionDef->outputs)
-            {
-                vm.markValue(input.value);
-            }
-        }
+        MarkNodeRegistryRoots(m_NodeRegistry, vm);
 
         for (Value& value : m_constFoldingValues)
         {
@@ -213,29 +182,8 @@ void Example::OnStart()
         }
     });
 
-    // Since we create alot of values on the fly, as function params, GC can be triggered and delete some before they are inserted into function defs
-    // Creating params on the fly is quite convenient, so we just pause GC while it happens
-    vm.allowGarbageCollection(false);
-
-    // TODO: We should find a less manual way of doing this!
-    m_NodeRegistry.RegisterCompiledNode("Flow::Branch", &BuildBranchNode, {}, { { "Value", Value(false) } });
-    m_NodeRegistry.RegisterCompiledNode("Flow::For In", &BuildForInNode, {}, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("Debug::Print", &BuildPrintNode, { { "Value", Value() } }, {});
-    m_NodeRegistry.RegisterCompiledNode("String::Append", &CreateAppendNode, { { "Value", Value(takeString("", 0)) } }, { { "Value", Value(takeString("", 0)) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Add", &CreateAddNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Divide", &CreateDivideNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Less Than", &CreateLessNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } });
-    m_NodeRegistry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } });
-    m_NodeRegistry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode, { { "List", Value(newList()) }, { "Index", Value(0.0) } }, { { "Value", Value() } });
-    m_NodeRegistry.RegisterCompiledNode("List::Set By Index", &BuildListSetByIndexNode, { { "List", Value(newList()) }, { "Index", Value(0.0) }, { "Value", Value() } }, { { "Value", Value(newList()) } });
-
-    m_NodeRegistry.RegisterDefinitions();
-
-    vm.allowGarbageCollection(true);
+    RegisterStandardLibrary(m_NodeRegistry);
+    m_NodeRegistry.RegisterNatives(vm);
 
     // Script ID
     m_script.ID = m_IDGenerator.GetNextId();
@@ -702,33 +650,6 @@ void Example::GatherConstFoldableNodes(Compiler& compiler, VM& vm)
     }
 }
 
-void Example::CompileGraph(const Graph& graph, Compiler& compiler)
-{
-    const NodePtr begin = graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-
-    if (begin)
-    {
-        GraphCompiler graphCompiler(compiler);
-
-        graphCompiler.context.constFoldingValues = m_constFoldingValues;
-        graphCompiler.context.constFoldingIDs = m_constFoldingIDs;
-
-        graphCompiler.CompileGraph(graph, begin, 0, [&](const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)
-        {
-            if (stage == CompilationStage::ConstFoldedInputs)
-            {
-                compiler.emitConstant(m_constFoldingValues[portIdx]);
-                const int outputIdx = GraphUtils::IsNodeImplicit(node) ? 0 : 1;
-                GraphCompiler::CompileOutput(graphCompiler.context, graph, node->Outputs[outputIdx]);
-            }
-            else
-            {
-                node->Compile(graphCompiler.context, graph, stage, portIdx);
-            }
-        });
-    }
-}
-
 void Example::ShowCompilerInfo(float paneWidth)
 {
     static std::string result = "<output>";
@@ -738,15 +659,6 @@ void Example::ShowCompilerInfo(float paneWidth)
     ImGui::Checkbox("Real time compilation Enabled", &m_isRealTimeCompilationEnabled);
 
     VM& vm = VM::getInstance();
-
-    // Register natives if needed
-    // TODO: Move somewhere else
-    static bool isRegistered = false;
-    if (!isRegistered)
-    {
-        m_NodeRegistry.RegisterNatives(vm);
-        isRegistered = true;
-    }
 
     Compiler& compiler = vm.getCompiler();
 
@@ -761,97 +673,14 @@ void Example::ShowCompilerInfo(float paneWidth)
         GatherConstFoldableNodes(compiler, vm);
 
 
-        // Test to see how text instructions compile
-        //const InterpretResult vmResult = vm.interpret("fun foo2(){ print \"Hello World\"; } foo2(); print 5;");
-        vm.resetStack();
-
-        // Compile code
         std::cout << std::endl << "Compiling script: " << std::endl;
         static ObjFunction* function = nullptr;
-
-        // Compile everything here!
-        NodePtr begin = m_script.main->Graph.FindNodeIf([](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
-        if (begin)
-        {
-            GraphCompiler graphCompiler(compiler);
-
-            compiler.beginCompile();
-
-            // Compile script variables (globals)
-            for (const ScriptPropertyPtr& scriptProperty : m_script.variables)
-            {
-                compiler.emitConstant(scriptProperty->defaultValue);
-                const Token outputToken(TokenType::VAR, scriptProperty->Name.c_str(), scriptProperty->Name.length(), 0);
-                const uint32_t constant = compiler.identifierConstant(outputToken);
-                compiler.defineVariable(constant);
-            }
-
-            // Compile script functions (globals)
-            for (const ScriptFunctionPtr& scriptFunction : m_script.functions)
-            {
-                // TODO: I had to pretty much rewrite the compiler logic for parsing text, since it's completely mixed with
-                // the scanner/token logic
-                // I should separate it better
-
-                // A bit of a hack
-                // TODO: Perhaps expose this better
-                Token funcToken(TokenType::IDENTIFIER, scriptFunction->functionDef->name.c_str(), scriptFunction->functionDef->name.length(), 0);
-                const uint32_t global = compiler.parseVariableDirectly(false, funcToken);
-                compiler.markInitialized();
-
-                CompilerScope compilerScope(FunctionType::FUNCTION, compiler.current, &funcToken);
-                compiler.current = &compilerScope;
-
-                compiler.beginScope();
-
-                for (auto& input : scriptFunction->functionDef->inputs)
-                {
-                    const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
-
-                    compiler.current->function->arity++;
-                    if (compiler.current->function->arity > 255)
-                    {
-                        compiler.errorAtCurrent("Can't have more than 255 parameters.");
-                    }
-
-                    const uint32_t constant = compiler.parseVariableDirectly(false, inputToken);
-                    compiler.defineVariable(constant);
-                }
-
-                // Compile function here
-                //
-
-                //compiler.beginScope();
-                CompileGraph(scriptFunction->Graph, compiler);
-                //compiler.endScope();
-
-                ObjFunction* function = compiler.endCompiler();
-                const uint32_t constant = compiler.makeConstant(Value(function));
-                compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
-
-                for (int i = 0; i < function->upvalueCount; i++)
-                {
-                    compiler.emitByte(compilerScope.upvalues[i].isLocal ? 1 : 0);
-                    compiler.emitByte(compilerScope.upvalues[i].index);
-                }
-
-                // Original func compilation
-                //compiler.funDeclaration();
-
-                // Define function itself
-                compiler.defineVariable(global);
-            }
-
-
-            compiler.beginScope();
-            CompileGraph(m_script.main->Graph, compiler);
-            compiler.endScope();
-
-            function = compiler.endCompiler();
-
-            // Print debug code
-            disassembleChunk(compiler.compilerData.function->chunk, function->name != nullptr ? function->name->chars.c_str() : "<script>");
-        }
+        ScriptCompileOptions compileOptions;
+        compileOptions.constFoldingValues = &m_constFoldingValues;
+        compileOptions.constFoldingNodeIds = &m_constFoldingIDs;
+        compileOptions.disassemble = true;
+        const ScriptCompileResult compileResult = ScriptRuntime::Compile(vm, m_script, compileOptions);
+        function = compileResult.function;
 
         result = captureCompilation.Restore();
 
@@ -859,18 +688,8 @@ void Example::ShowCompilerInfo(float paneWidth)
         {
             if (function != nullptr)
             {
-                vm.push(Value(function));
-                ObjClosure* closure = newClosure(function);
-                vm.pop();
-                vm.push(Value(closure));
-                vm.callValue(Value(closure), 0);
-
                 Utils::CaptureStdout captureExecution;
-
-                const InterpretResult vmResult = vm.run(0);
-
-                if (vmResult == InterpretResult::INTERPRET_OK)
-                    vm.pop();
+                const InterpretResult vmResult = ScriptRuntime::Execute(vm, function);
 
                 if (vmResult == InterpretResult::INTERPRET_COMPILE_ERROR)
                     std::cout << "Compilation Error";

@@ -1,34 +1,19 @@
-add_example_executable(blueprints-example
-    blueprints-example.cpp
-    editor.h
-    editor.cpp
-    editorActions.h
-    editorActions.cpp
-    utilities/builders.h
-    utilities/drawing.h
-    utilities/widgets.h
-    utilities/builders.cpp
-    utilities/drawing.cpp
-    utilities/widgets.cpp
+set(_VisualLoxCoreSources
     utilities/utils.h
     utilities/utils.cpp
-    utilities/treeview.h
-    utilities/treeview.cpp
+    graphs/idgeneration.h
     graphs/node.h
     graphs/node.cpp
     graphs/link.h
     graphs/link.cpp
     graphs/graph.h
     graphs/graph.cpp
-    graphs/graphView.h
-    graphs/graphView.cpp
     graphs/graphCompiler.h
     graphs/graphCompiler.cpp
     graphs/nodeRegistry.h
     graphs/nodeRegistry.cpp
     shared/functionShared.h
     shared/functionShared.cpp
-    graphs/idgeneration.h
     native/nodes/begin.h
     native/nodes/begin.cpp
     native/nodes/return.h
@@ -54,24 +39,90 @@ add_example_executable(blueprints-example
     script/script.cpp
     script/scriptSerializer.h
     script/scriptSerializer.cpp
-    script/scriptSerializerTest.h
-    script/scriptSerializerTest.cpp
     script/class.h
     script/class.cpp
     script/property.h
     script/property.cpp
     script/function.h
     script/function.cpp
+    runtime/standardLibrary.h
+    runtime/standardLibrary.cpp
+    runtime/scriptRuntime.h
+    runtime/scriptRuntime.cpp
 )
 
+find_package(imgui_node_editor REQUIRED)
+
+add_library(visual-lox-core STATIC ${_VisualLoxCoreSources})
+target_include_directories(visual-lox-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(visual-lox-core PUBLIC lox imgui_node_editor)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${_VisualLoxCoreSources})
+set_property(TARGET visual-lox-core PROPERTY FOLDER "visual-lox")
+
+set(_VisualLoxEditorSources
+    blueprints-example.cpp
+    editor.h
+    editor.cpp
+    editorActions.h
+    editorActions.cpp
+    utilities/builders.h
+    utilities/builders.cpp
+    utilities/drawing.h
+    utilities/drawing.cpp
+    utilities/widgets.h
+    utilities/widgets.cpp
+    utilities/treeview.h
+    utilities/treeview.cpp
+    graphs/graphView.h
+    graphs/graphView.cpp
+)
+
+add_example_executable(visual-lox-editor ${_VisualLoxEditorSources})
+target_link_libraries(visual-lox-editor PRIVATE visual-lox-core)
+set_property(TARGET visual-lox-editor PROPERTY FOLDER "visual-lox")
+
 if (WIN32)
-    target_link_libraries(blueprints-example PRIVATE comdlg32)
+    target_link_libraries(visual-lox-editor PRIVATE comdlg32)
 endif()
 
+add_executable(visual-lox-cli cli/main.cpp)
+target_link_libraries(visual-lox-cli PRIVATE visual-lox-core)
+set_target_properties(visual-lox-cli PROPERTIES
+    FOLDER "visual-lox"
+    RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
+    DEBUG_POSTFIX                           _d
+)
+
 if (BUILD_TESTING)
+    add_executable(visual-lox-tests
+        tests/main.cpp
+        script/scriptSerializerTest.h
+        script/scriptSerializerTest.cpp
+    )
+    target_link_libraries(visual-lox-tests PRIVATE visual-lox-core)
+    set_target_properties(visual-lox-tests PROPERTIES
+        FOLDER "visual-lox/tests"
+        RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
+        DEBUG_POSTFIX                           _d
+    )
+
     add_test(
-        NAME visual-lox-serialization-round-trip
-        COMMAND $<TARGET_FILE:blueprints-example> --serialization-test
+        NAME visual-lox-tests
+        COMMAND $<TARGET_FILE:visual-lox-tests>
                 ${CMAKE_CURRENT_BINARY_DIR}/serialization-roundtrip-test.vlox
+    )
+
+    add_test(
+        NAME visual-lox-cli-smoke
+        COMMAND $<TARGET_FILE:visual-lox-cli>
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/hello.vlox
     )
 endif()

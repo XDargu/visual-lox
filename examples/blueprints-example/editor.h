@@ -14,6 +14,8 @@
 
 #include "script/script.h"
 #include "script/scriptSerializer.h"
+#include "runtime/scriptRuntime.h"
+#include "runtime/standardLibrary.h"
 
 #include "graphs/nodeRegistry.h"
 
@@ -63,7 +65,6 @@ struct Example :
 
     void GatherConstFoldableNodes(Compiler& compiler, VM& vm);
     InterpretResult CompileConstFolding(VM& vm, const NodePtr& constNode);
-    void CompileGraph(const Graph& graph, Compiler& compiler);
     void ShowCompilerInfo(float paneWidth);
 
     void ShowDebugPanel(float paneWidth);

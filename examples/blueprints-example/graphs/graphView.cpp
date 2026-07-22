@@ -10,6 +10,7 @@
 
 #include "../native/nodes/variable.h"
 #include "../native/nodes/function.h"
+#include "../native/nodes/object.h"
 
 #include "../script/script.h"
 #include "../operations/documentOperations.h"
@@ -777,6 +778,8 @@ void GraphView::DrawContextMenu()
                 case PinType::Float: inputValue = Value(0.0); break;
                 case PinType::String: inputValue = Value(takeString("", 0)); break;
                 case PinType::List: inputValue = Value(newList()); break;
+                case PinType::Range: inputValue = Value(newRange(0.0, 1.0)); break;
+                case PinType::Object: inputValue = Value(); break;
                 case PinType::Function: inputValue = Value(newFunction()); break;
                 case PinType::Any: inputValue = Value(); break;
                 }
@@ -907,6 +910,28 @@ void GraphView::DrawContextMenu()
         root.name = "Nodes";
         root.fullName = "Nodes";
         root.depth = 0;
+
+        auto AddEntry = [&](const std::string& fullName, std::function<NodePtr(IDGenerator&)> creation)
+        {
+            if (!Utils::FilterString(Utils::to_lower(fullName), searchFilterLower))
+                return;
+            Data* current = &root;
+            int depth = 1;
+            const std::vector<std::string> tokens = Utils::split(fullName, "::");
+            for (const std::string& token : tokens)
+            {
+                Data& child = current->children[token];
+                child.name = token;
+                child.depth = depth++;
+                child.fullName = token;
+                if (token == tokens.back())
+                {
+                    child.fullName = fullName;
+                    child.creationFun = creation;
+                }
+                current = &child;
+            }
+        };
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
@@ -1149,6 +1174,32 @@ void GraphView::DrawContextMenu()
             }
         }
 
+        // Class-specific nodes must be added before the palette tree is rendered.
+        // These nodes work both outside a class and inside methods/constructors;
+        // inside a class, connect them to the This node for the current instance.
+        for (const ScriptClassPtr& scriptClass : m_pScript->classes)
+        {
+            const ScriptClassPtr capturedClass = scriptClass;
+            AddEntry("Classes::" + scriptClass->Name + "::Construct",
+                [capturedClass](IDGenerator& ids) { return BuildConstructObjectNode(ids, capturedClass); });
+            for (const ScriptPropertyPtr& property : scriptClass->properties)
+            {
+                const ScriptPropertyPtr capturedProperty = property;
+                AddEntry("Classes::" + scriptClass->Name + "::Properties::Get " + property->Name,
+                    [capturedProperty](IDGenerator& ids) { return BuildGetPropertyNode(ids, capturedProperty); });
+                AddEntry("Classes::" + scriptClass->Name + "::Properties::Set " + property->Name,
+                    [capturedProperty](IDGenerator& ids) { return BuildSetPropertyNode(ids, capturedProperty); });
+            }
+            for (const ScriptFunctionPtr& method : scriptClass->methods)
+            {
+                const ScriptFunctionPtr capturedMethod = method;
+                AddEntry("Classes::" + scriptClass->Name + "::Methods::Call " + method->functionDef->name,
+                    [capturedMethod](IDGenerator& ids) { return BuildMethodCallNode(ids, capturedMethod); });
+            }
+        }
+        if (ScriptUtils::FindOwningClass(*m_pScript, m_pScriptFunction->ID.id))
+            AddEntry("Classes::This", [](IDGenerator& ids) { return BuildThisNode(ids); });
+
         // TODO: Only show return if we can return!
         {
             {
@@ -1340,7 +1391,8 @@ void GraphView::DrawContextMenu()
             if (m_pOperations->IsTransactionActive())
                 ReportOperation(m_pOperations->CommitTransaction());
         }
-        else if (creationTransactionStarted && m_pOperations->IsTransactionActive())
+
+        if (creationTransactionStarted && m_pOperations->IsTransactionActive())
         {
             ReportOperation(m_pOperations->CommitTransaction());
         }
@@ -1400,13 +1452,35 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
         ForceMinWidth(value, 30.0f);
         return ImGui::InputDouble("##edit", &value, 0, 0, "%.15g");
     }
+    else if (pinType == PinType::Range)
+    {
+        ObjRange* range = asRange(inputValue);
+        double min = range->min;
+        double max = range->max;
+        bool changed = false;
+        ImGui::PushID("range-min");
+        ForceMinWidth(min, 30.0f);
+        changed |= ImGui::InputDouble("##edit", &min, 0, 0, "%.15g");
+        ImGui::PopID();
+        ImGui::SameLine();
+        ImGui::TextUnformatted("..");
+        ImGui::SameLine();
+        ImGui::PushID("range-max");
+        ForceMinWidth(max, 30.0f);
+        changed |= ImGui::InputDouble("##edit", &max, 0, 0, "%.15g");
+        ImGui::PopID();
+        if (changed)
+            inputValue = Value(newRange(min, max));
+        return changed;
+    }
 
     return false;
 }
 
 /* static */  bool GraphViewUtils::DrawTypeInput(const PinType pinType, Value& inputValue)
 {
-    if (pinType == PinType::Bool || pinType == PinType::String || pinType == PinType::Float)
+    if (pinType == PinType::Bool || pinType == PinType::String || pinType == PinType::Float ||
+        pinType == PinType::Range)
     {
         return DrawTypeInputImpl(pinType, inputValue);
     }
@@ -1424,6 +1498,10 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
         else if (isString(inputValue))
         {
             currentType = PinType::String;
+        }
+        else if (isRange(inputValue))
+        {
+            currentType = PinType::Range;
         }
 
         return DrawTypeInputImpl(currentType, inputValue);
@@ -1446,11 +1524,13 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(Pin
         currentIdx = 3;
     else if (isFunction(inputValue))
         currentIdx = 4;
-    else
+    else if (isRange(inputValue))
         currentIdx = 5;
+    else
+        currentIdx = 6;
 
     ImGui::PushItemWidth(80.0f);
-    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Function\0Any\0"))
+    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Function\0Range\0Any\0"))
     {
         if (currentIdx == 0)
             onChange(PinType::Bool);
@@ -1462,6 +1542,8 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(Pin
             onChange(PinType::List);
         else if (currentIdx == 4)
             onChange(PinType::Function);
+        else if (currentIdx == 5)
+            onChange(PinType::Range);
         else
             onChange(PinType::Any);
     }

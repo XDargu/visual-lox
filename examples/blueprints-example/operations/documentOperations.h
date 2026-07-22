@@ -56,6 +56,20 @@ public:
     OperationResult RemoveFunction(int id);
     OperationResult RenameFunction(int id, const std::string& name);
 
+    OperationResult AddClass(int id, const std::string& name = "Class");
+    OperationResult RemoveClass(int id);
+    OperationResult RenameClass(int id, const std::string& name);
+    OperationResult AddClassProperty(int classId, int propertyId,
+                                     const std::string& name = "Property",
+                                     const Value& value = Value());
+    OperationResult RemoveClassProperty(int classId, int propertyId);
+    OperationResult RenameClassProperty(int classId, int propertyId, const std::string& name);
+    OperationResult ChangeClassPropertyValue(int classId, int propertyId, const Value& value);
+    OperationResult AddClassMethod(int classId, int methodId, const std::string& name = "Method");
+    OperationResult RemoveClassMethod(int classId, int methodId);
+    OperationResult AddClassConstructor(int classId, int constructorId);
+    OperationResult RemoveClassConstructor(int classId);
+
     OperationResult AddVariable(int id, const std::string& name = "Variable", const Value& value = Value());
     OperationResult RemoveVariable(int id);
     OperationResult RenameVariable(int id, const std::string& name);

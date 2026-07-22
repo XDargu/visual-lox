@@ -27,6 +27,9 @@ inline PinType TypeOfValue(const Value& value)
         {
         case ObjType::STRING: return PinType::String;
         case ObjType::LIST: return PinType::List;
+        case ObjType::RANGE: return PinType::Range;
+        case ObjType::CLASS: return PinType::Object;
+        case ObjType::INSTANCE: return PinType::Object;
         case ObjType::FUNCTION: return PinType::Function;
         case ObjType::CLOSURE: return PinType::Function;
         }
@@ -44,6 +47,7 @@ inline Value MakeValueFromType(PinType type)
         case PinType::Float:    return Value(0.0);
         case PinType::String:   return Value(takeString("", 0));
         case PinType::List:     return Value(newList());
+        case PinType::Range:    return Value(newRange(0.0, 0.0));
         case PinType::Function: return Value(newFunction());
         case PinType::Any:      return Value();
     }

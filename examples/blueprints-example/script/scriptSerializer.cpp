@@ -6,6 +6,7 @@
 #include "../native/nodes/function.h"
 #include "../native/nodes/return.h"
 #include "../native/nodes/variable.h"
+#include "../native/nodes/object.h"
 
 #include <Object.h>
 #include <Vm.h>
@@ -73,6 +74,11 @@ int IntField(const Json& value, const char* name)
     return static_cast<int>(number);
 }
 
+bool BoolField(const Json& value, const char* name)
+{
+    return Field(value, name, crude_json::type_t::boolean).get<crude_json::boolean>();
+}
+
 class IdSet
 {
 public:
@@ -108,6 +114,7 @@ const char* PinTypeName(PinType type)
     case PinType::Float: return "number";
     case PinType::String: return "string";
     case PinType::List: return "list";
+    case PinType::Range: return "range";
     case PinType::Object: return "object";
     case PinType::Function: return "function";
     case PinType::Any: return "any";
@@ -124,6 +131,7 @@ PinType ParsePinType(const std::string& type)
     if (type == "number") return PinType::Float;
     if (type == "string") return PinType::String;
     if (type == "list") return PinType::List;
+    if (type == "range") return PinType::Range;
     if (type == "object") return PinType::Object;
     if (type == "function") return PinType::Function;
     if (type == "any") return PinType::Any;
@@ -354,6 +362,32 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
             node->Refresh(script, constructionIds);
         return node;
     }
+    if (kind == "class.construct")
+    {
+        ScriptClassPtr scriptClass = ScriptUtils::FindClassById(script, reference);
+        NodePtr node = BuildConstructObjectNode(constructionIds, scriptClass, reference);
+        if (!scriptClass) node->Refresh(script, constructionIds);
+        return node;
+    }
+    if (kind == "class.this")
+        return BuildThisNode(constructionIds);
+    if (kind == "property.get" || kind == "property.set")
+    {
+        ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(script, reference);
+        NodePtr node = kind == "property.get"
+            ? BuildGetPropertyNode(constructionIds, property, reference)
+            : BuildSetPropertyNode(constructionIds, property, reference);
+        if (!property) node->Refresh(script, constructionIds);
+        return node;
+    }
+    if (kind == "method.call")
+    {
+        ScriptFunctionPtr method = ScriptUtils::FindFunctionById(script, reference);
+        if (!ScriptUtils::FindOwningClass(script, reference)) method = nullptr;
+        NodePtr node = BuildMethodCallNode(constructionIds, method, reference);
+        if (!method) node->Refresh(script, constructionIds);
+        return node;
+    }
     if (kind == "compiled")
     {
         CompiledNodeDefPtr compiled = registry.FindCompiled(definition);
@@ -404,7 +438,9 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
         const bool isMissingReference = HasFlag(node->InstanceFlags, NodeInstanceFlags::Error) &&
             (node->SerializationType == "variable.get" || node->SerializationType == "variable.set" ||
-             node->SerializationType == "function.get" || node->SerializationType == "function.call");
+             node->SerializationType == "function.get" || node->SerializationType == "function.call" ||
+             node->SerializationType == "class.construct" || node->SerializationType == "property.get" ||
+             node->SerializationType == "property.set" || node->SerializationType == "method.call");
         if (!isMissingReference && ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
             (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
            )
@@ -414,7 +450,9 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
             node->Inputs.push_back(DeserializePin(pin, ids));
 
         const Array& outputs = Field(nodeJson, "outputs", crude_json::type_t::array).get<Array>();
-        if (!isMissingReference && outputs.size() != node->Outputs.size())
+        const bool hasDynamicOutputs = node->DefinitionId == "Flow::Match";
+        const bool validDynamicOutputs = hasDynamicOutputs && outputs.size() == inputs.size() - 1;
+        if (!isMissingReference && !validDynamicOutputs && outputs.size() != node->Outputs.size())
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid output layout.");
         node->Outputs.clear();
         for (const Json& pin : outputs)
@@ -512,13 +550,44 @@ ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids)
     return function;
 }
 
+Json SerializeClass(const ScriptClass& scriptClass)
+{
+    Json result(Object{});
+    result["id"] = static_cast<double>(scriptClass.ID.id);
+    result["name"] = scriptClass.Name;
+    Json properties(Array{});
+    for (const ScriptPropertyPtr& property : scriptClass.properties)
+        properties.push_back(SerializeProperty(*property));
+    result["properties"] = std::move(properties);
+    Json methods(Array{});
+    for (const ScriptFunctionPtr& method : scriptClass.methods)
+        methods.push_back(SerializeFunction(*method));
+    result["methods"] = std::move(methods);
+    result["has_constructor"] = scriptClass.constructor != nullptr;
+    result["constructor"] = scriptClass.constructor
+        ? SerializeFunction(*scriptClass.constructor) : Json(Object{});
+    return result;
+}
+
+ScriptClassPtr DeserializeClassShell(const Json& json, IdSet& ids)
+{
+    const int id = IntField(json, "id");
+    ids.Add(id, "Class");
+    ScriptClassPtr scriptClass = std::make_shared<ScriptClass>(id, StringField(json, "name").c_str());
+    for (const Json& property : Field(json, "properties", crude_json::type_t::array).get<Array>())
+        scriptClass->properties.push_back(DeserializeProperty(property, ids));
+    for (const Json& method : Field(json, "methods", crude_json::type_t::array).get<Array>())
+        scriptClass->methods.push_back(DeserializeFunctionShell(method, ids));
+    if (BoolField(json, "has_constructor"))
+        scriptClass->constructor = DeserializeFunctionShell(
+            Field(json, "constructor", crude_json::type_t::object), ids);
+    return scriptClass;
+}
+
 Json SerializeScript(const Script& script)
 {
     if (!script.main)
         throw SerializationError("The script has no main function.");
-    if (!script.classes.empty())
-        throw SerializationError("Class serialization is not available in format version 1.");
-
     Json root(Object{});
     root["format"] = "visual-lox";
     root["format_version"] = static_cast<double>(ScriptSerializer::FormatVersion);
@@ -534,7 +603,10 @@ Json SerializeScript(const Script& script)
     for (const ScriptPropertyPtr& variable : script.variables)
         variables.push_back(SerializeProperty(*variable));
     scriptJson["variables"] = std::move(variables);
-    scriptJson["classes"] = Json(Array{});
+    Json classes(Array{});
+    for (const ScriptClassPtr& scriptClass : script.classes)
+        classes.push_back(SerializeClass(*scriptClass));
+    scriptJson["classes"] = std::move(classes);
     root["script"] = std::move(scriptJson);
     return root;
 }
@@ -544,7 +616,7 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
     if (StringField(root, "format") != "visual-lox")
         throw SerializationError("This is not a Visual Lox document.");
     const int version = IntField(root, "format_version");
-    if (version != ScriptSerializer::FormatVersion)
+    if (version != 1 && version != ScriptSerializer::FormatVersion)
         throw SerializationError("Unsupported .vlox format version " + std::to_string(version) + ".");
 
     const Json& scriptJson = Field(root, "script", crude_json::type_t::object);
@@ -553,8 +625,8 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
     ids.Add(script.ID, "Script");
 
     const Array& classes = Field(scriptJson, "classes", crude_json::type_t::array).get<Array>();
-    if (!classes.empty())
-        throw SerializationError("Class serialization is not available in format version 1.");
+    if (version == 1 && !classes.empty())
+        throw SerializationError("Version 1 documents cannot contain classes.");
 
     const Array& variables = Field(scriptJson, "variables", crude_json::type_t::array).get<Array>();
     for (const Json& variable : variables)
@@ -566,6 +638,9 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
     const Array& functionJsons = Field(scriptJson, "functions", crude_json::type_t::array).get<Array>();
     for (const Json& functionJson : functionJsons)
         script.functions.push_back(DeserializeFunctionShell(functionJson, ids));
+    if (version >= 2)
+        for (const Json& classJson : classes)
+            script.classes.push_back(DeserializeClassShell(classJson, ids));
 
     IDGenerator constructionIds;
     DeserializeGraph(Field(mainJson, "graph", crude_json::type_t::object), registry, script,
@@ -574,6 +649,22 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
     {
         DeserializeGraph(Field(functionJsons[i], "graph", crude_json::type_t::object), registry, script,
                          script.functions[i], script.functions[i]->Graph, ids, constructionIds);
+    }
+    for (size_t classIndex = 0; classIndex < classes.size(); ++classIndex)
+    {
+        const Json& classJson = classes[classIndex];
+        ScriptClassPtr scriptClass = script.classes[classIndex];
+        const Array& methods = Field(classJson, "methods", crude_json::type_t::array).get<Array>();
+        for (size_t methodIndex = 0; methodIndex < methods.size(); ++methodIndex)
+            DeserializeGraph(Field(methods[methodIndex], "graph", crude_json::type_t::object),
+                registry, script, scriptClass->methods[methodIndex],
+                scriptClass->methods[methodIndex]->Graph, ids, constructionIds);
+        if (scriptClass->constructor)
+        {
+            const Json& constructor = Field(classJson, "constructor", crude_json::type_t::object);
+            DeserializeGraph(Field(constructor, "graph", crude_json::type_t::object), registry,
+                script, scriptClass->constructor, scriptClass->constructor->Graph, ids, constructionIds);
+        }
     }
 
     nextId = ids.Next();

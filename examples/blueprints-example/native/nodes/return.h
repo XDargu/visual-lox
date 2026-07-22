@@ -59,13 +59,13 @@ struct ReturnNode : public Node
         }
 
         // Redo input values
-        InputValues.resize(pFunctionDef->inputs.size() + startingInput);
+        InputValues.resize(pFunctionDef->outputs.size() + startingInput);
 
         InputValues[0] = Value(); // Flow node
 
-        for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
+        for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
         {
-            InputValues[i + startingInput] = pFunctionDef->inputs[i].value;
+            InputValues[i + startingInput] = pFunctionDef->outputs[i].value;
         }
 
         // Remove outputs that are no longer there

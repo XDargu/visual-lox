@@ -85,6 +85,10 @@ struct Example :
     TreeNode MakeVariableNode(int varId, const std::string& name);
     TreeNode MakeInputNode(int funId, int inputId, const std::string& name);
     TreeNode MakeOutputNode(int funId, int outputId, const std::string& name);
+    TreeNode MakeClassNode(const ScriptClassPtr& scriptClass);
+    TreeNode MakeClassMethodNode(int classId, const ScriptFunctionPtr& method);
+    TreeNode MakeConstructorNode(int classId, const ScriptFunctionPtr& constructor);
+    TreeNode MakeClassPropertyNode(int classId, const ScriptPropertyPtr& property);
 
     TreeNode* FindNodeByID(int id);
     void EraseNodeByID(int id);

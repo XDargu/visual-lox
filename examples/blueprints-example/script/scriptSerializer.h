@@ -20,12 +20,13 @@ struct SerializationResult
     static SerializationResult Fail(std::string message) { return { false, std::move(message) }; }
 };
 
-// Version 1 of the .vlox format. Loading is transactional: outputScript and
+// Version 2 adds script-level classes, properties, methods and constructors.
+// Loading remains backward-compatible with version 1 and is transactional: outputScript and
 // idGenerator are only replaced after the complete document has been checked.
 class ScriptSerializer
 {
 public:
-    static constexpr int FormatVersion = 1;
+    static constexpr int FormatVersion = 2;
 
     static SerializationResult Save(const Script& script, const std::string& path);
     static SerializationResult Load(const std::string& path, const NodeRegistry& registry,

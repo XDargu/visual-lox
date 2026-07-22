@@ -28,6 +28,12 @@ set(_VisualLoxCoreSources
     native/nodes/print.cpp
     native/nodes/math.h
     native/nodes/math.cpp
+    native/nodes/match.h
+    native/nodes/match.cpp
+    native/nodes/range.h
+    native/nodes/range.cpp
+    native/nodes/object.h
+    native/nodes/object.cpp
     native/nodes/list.h
     native/nodes/list.cpp
     native/nodes/variable.h

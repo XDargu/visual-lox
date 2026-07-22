@@ -36,6 +36,20 @@ The IsEven function is implemented like this:
 
 You can declare, get and set global variables in Visual Lox.
 
+### Ranges
+
+You can use the `Range::Make` to create inclusive ascending or descending ranges.
+
+Ranges can be iterated with `Flow::For In`.
+
+### Pattern matching
+
+Visual Lox supports pattern matching by using the `Flow::Match` node. It allows creating different flow paths, by matching an input value to other entries.
+
+### Classes and Objects
+
+Classes can be declared at script level in the Script tree. A class can contain properties, methods, and one constructor with inputs.
+
 ### Expression Folding
 
 Visual Lox is a visual programming language, which means that implementing expression folding is pretty simple without needing to represent the compiled data in an intermediate format, like ASTs. With only the graph information, it is possible to do a pretty decent expression folding.
@@ -131,6 +145,6 @@ New core tests can be added to the `visual-lox-tests` target, while end-to-end b
 
 ## Future Work
 
-- Fully support all LoxCpp features (classes, pattern matching, all flow control nodes, ranges...)
+- Add the remaining LoxCpp flow-control nodes
 - Improve editor UX
 - Module system

@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <set>
 #include <stack>
 
 #ifdef _WIN32
@@ -1508,6 +1509,18 @@ void Example::InitializeScriptTree()
                 pendingActions.push_back(std::make_shared<AddFunctionAction>(this, m_IDGenerator.GetNextId()));
             if (ImGui::MenuItem("Add Variable"))
                 pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
+            if (ImGui::MenuItem("Add Class"))
+            {
+                const int id = m_IDGenerator.GetNextId();
+                pendingActions.push_back(std::make_shared<DeferredAction>([this, id]()
+                {
+                    const std::string name = Utils::FindValidName("Class", m_scriptTreeView);
+                    const OperationResult result = m_operations->AddClass(id, name);
+                    m_fileStatusIsError = !result;
+                    m_fileStatus = result ? "Class added" : result.error;
+                    if (result) RebuildScriptTree();
+                }));
+            }
             ImGui::EndPopup();
         }
     };
@@ -1515,6 +1528,19 @@ void Example::InitializeScriptTree()
 
 void Example::RebuildScriptTree()
 {
+    std::set<int> openItems;
+    std::stack<const TreeNode*> previousNodes;
+    previousNodes.push(&m_scriptTreeView);
+    while (!previousNodes.empty())
+    {
+        const TreeNode* current = previousNodes.top();
+        previousNodes.pop();
+        if (current->isOpen)
+            openItems.insert(current->id);
+        for (const TreeNode& child : current->children)
+            previousNodes.push(&child);
+    }
+
     InitializeScriptTree();
 
     if (m_script.main)
@@ -1539,8 +1565,233 @@ void Example::RebuildScriptTree()
             functionNode->AddChild(MakeOutputNode(function->ID, output.id, output.name));
     }
 
+    for (const ScriptClassPtr& scriptClass : m_script.classes)
+        m_scriptTreeView.AddChild(MakeClassNode(scriptClass));
+
     for (const ScriptPropertyPtr& variable : m_script.variables)
         m_scriptTreeView.AddChild(MakeVariableNode(variable->ID, variable->Name));
+
+    std::stack<TreeNode*> rebuiltNodes;
+    rebuiltNodes.push(&m_scriptTreeView);
+    while (!rebuiltNodes.empty())
+    {
+        TreeNode* current = rebuiltNodes.top();
+        rebuiltNodes.pop();
+        if (current != &m_scriptTreeView)
+            current->isOpen = openItems.count(current->id) != 0;
+        for (TreeNode& child : current->children)
+            rebuiltNodes.push(&child);
+    }
+
+    if (!FindNodeByID(m_selectedItemId))
+        m_selectedItemId = m_script.main ? m_script.main->ID.id : m_script.ID.id;
+    if (m_editingItemId > 0 && !FindNodeByID(m_editingItemId))
+        m_editingItemId = -1;
+}
+
+TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
+{
+    TreeNode node;
+    node.id = scriptClass->ID.id;
+    node.label = scriptClass->Name;
+    node.icon = m_ClassIcon;
+    node.pElement = std::static_pointer_cast<IScriptElement>(scriptClass);
+    node.onRename = [this, id = scriptClass->ID.id](std::string name)
+    {
+        pendingActions.push_back(std::make_shared<DeferredAction>([this, id, name]()
+        {
+            const OperationResult result = m_operations->RenameClass(id, name);
+            m_fileStatusIsError = !result;
+            if (!result) m_fileStatus = result.error;
+            else RebuildScriptTree();
+        }));
+    };
+    node.contextMenu = [this, id = scriptClass->ID.id]()
+    {
+        if (!ImGui::BeginPopupContextItem("ClassPopup")) return;
+        if (ImGui::MenuItem("Add Property"))
+        {
+            const int propertyId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, id, propertyId]()
+            {
+                const OperationResult result = m_operations->AddClassProperty(id, propertyId, "Property");
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        }
+        if (ImGui::MenuItem("Add Method"))
+        {
+            const int methodId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, id, methodId]()
+            {
+                const OperationResult result = m_operations->AddClassMethod(id, methodId, "Method");
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        }
+        ScriptClassPtr current = ScriptUtils::FindClassById(m_script, id);
+        if (current && !current->constructor && ImGui::MenuItem("Add Constructor"))
+        {
+            const int constructorId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, id, constructorId]()
+            {
+                const OperationResult result = m_operations->AddClassConstructor(id, constructorId);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        }
+        if (ImGui::MenuItem("Rename")) m_editingItemId = id;
+        if (ImGui::MenuItem("Delete"))
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, id]()
+            {
+                if (m_graphView.m_pScriptFunction && ScriptUtils::FindOwningClass(m_script,
+                        m_graphView.m_pScriptFunction->ID.id) == ScriptUtils::FindClassById(m_script, id))
+                    ChangeGraph(m_script.main);
+                const OperationResult result = m_operations->RemoveClass(id);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        ImGui::EndPopup();
+    };
+
+    if (scriptClass->constructor)
+        node.AddChild(MakeConstructorNode(scriptClass->ID.id, scriptClass->constructor));
+    for (const ScriptFunctionPtr& method : scriptClass->methods)
+        node.AddChild(MakeClassMethodNode(scriptClass->ID.id, method));
+    for (const ScriptPropertyPtr& property : scriptClass->properties)
+        node.AddChild(MakeClassPropertyNode(scriptClass->ID.id, property));
+    return node;
+}
+
+TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& method)
+{
+    TreeNode node;
+    node.id = method->ID.id;
+    node.label = method->functionDef->name;
+    node.icon = m_FunctionIcon;
+    node.pElement = std::static_pointer_cast<IScriptElement>(method);
+    node.onclick = [this, method]() { ed::ClearSelection(); ChangeGraph(method); };
+    node.onRename = [this, id = method->ID.id](std::string name)
+    {
+        pendingActions.push_back(std::make_shared<DeferredAction>([this, id, name]()
+        {
+            const OperationResult result = m_operations->RenameFunction(id, name);
+            m_fileStatusIsError = !result;
+            if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+        }));
+    };
+    node.contextMenu = [this, classId, id = method->ID.id]()
+    {
+        if (!ImGui::BeginPopupContextItem("MethodPopup")) return;
+        if (ImGui::MenuItem("Add Input"))
+            pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem("Add Output"))
+            pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, id, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem("Rename")) m_editingItemId = id;
+        if (ImGui::MenuItem("Delete"))
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
+            {
+                if (m_graphView.m_pScriptFunction && m_graphView.m_pScriptFunction->ID == id)
+                    ChangeGraph(m_script.main);
+                const OperationResult result = m_operations->RemoveClassMethod(classId, id);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        ImGui::EndPopup();
+    };
+    for (const auto& input : method->functionDef->inputs)
+        node.AddChild(MakeInputNode(method->ID.id, input.id, input.name));
+    for (const auto& output : method->functionDef->outputs)
+        node.AddChild(MakeOutputNode(method->ID.id, output.id, output.name));
+    return node;
+}
+
+TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& constructor)
+{
+    TreeNode node;
+    node.id = constructor->ID.id;
+    node.label = "Constructor";
+    node.icon = m_FunctionIcon;
+    node.pElement = std::static_pointer_cast<IScriptElement>(constructor);
+    node.onclick = [this, constructor]() { ed::ClearSelection(); ChangeGraph(constructor); };
+    node.contextMenu = [this, classId, id = constructor->ID.id]()
+    {
+        if (!ImGui::BeginPopupContextItem("ConstructorPopup")) return;
+        if (ImGui::MenuItem("Add Input"))
+            pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem("Delete"))
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
+            {
+                if (m_graphView.m_pScriptFunction && m_graphView.m_pScriptFunction->ID == id)
+                    ChangeGraph(m_script.main);
+                const OperationResult result = m_operations->RemoveClassConstructor(classId);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+        ImGui::EndPopup();
+    };
+    for (const auto& input : constructor->functionDef->inputs)
+        node.AddChild(MakeInputNode(constructor->ID.id, input.id, input.name));
+    return node;
+}
+
+TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& property)
+{
+    TreeNode node;
+    node.id = property->ID.id;
+    node.label = property->Name;
+    node.icon = m_VariableIcon;
+    node.pElement = std::static_pointer_cast<IScriptElement>(property);
+    node.onRename = [this, classId, id = property->ID.id](std::string name)
+    {
+        pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, name]()
+        {
+            const OperationResult result = m_operations->RenameClassProperty(classId, id, name);
+            m_fileStatusIsError = !result;
+            if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+        }));
+    };
+    node.contextMenu = [this, classId, id = property->ID.id]()
+    {
+        ScriptPropertyPtr current = ScriptUtils::FindClassPropertyById(m_script, id);
+        if (!current) return;
+        if (ImGui::BeginPopupContextItem("ClassPropertyPopup"))
+        {
+            if (ImGui::MenuItem("Rename")) m_editingItemId = id;
+            if (ImGui::MenuItem("Delete"))
+                pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
+                {
+                    const OperationResult result = m_operations->RemoveClassProperty(classId, id);
+                    m_fileStatusIsError = !result;
+                    if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+                }));
+            ImGui::EndPopup();
+        }
+
+        ImGui::PushID(id);
+        ImGui::SameLine();
+        Value value = current->defaultValue;
+        if (GraphViewUtils::DrawTypeInput(TypeOfValue(value), value))
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, value]()
+            {
+                const OperationResult result = m_operations->ChangeClassPropertyValue(classId, id, value);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error;
+            }));
+        ImGui::SameLine();
+        GraphViewUtils::DrawTypeSelection(current->defaultValue, [this, classId, id](PinType type)
+        {
+            Value value = MakeValueFromType(type);
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, value]()
+            {
+                const OperationResult result = m_operations->ChangeClassPropertyValue(classId, id, value);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error;
+            }));
+        });
+        ImGui::PopID();
+    };
+    return node;
 }
 
 void Example::SaveScript(const std::string& path)

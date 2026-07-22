@@ -7,6 +7,7 @@
 #include "../utilities/utils.h"
 
 #include <algorithm>
+#include <set>
 
 namespace
 {
@@ -255,11 +256,17 @@ OperationResult DocumentOperations::RemoveDynamicInput(int functionId, ed::NodeI
     if (!node->CanRemoveInput(pinId)) return OperationResult::Fail("This node input cannot be removed.");
     return Apply("Delete node input", [&]
     {
+        std::set<int> pinsBefore;
+        for (const Pin& pin : node->Inputs) pinsBefore.insert(pin.ID.Get());
+        for (const Pin& pin : node->Outputs) pinsBefore.insert(pin.ID.Get());
+        node->RemoveInput(pinId);
+        for (const Pin& pin : node->Inputs) pinsBefore.erase(pin.ID.Get());
+        for (const Pin& pin : node->Outputs) pinsBefore.erase(pin.ID.Get());
         std::vector<ed::LinkId> links;
         for (const Link& link : function->Graph.GetLinks())
-            if (link.StartPinID == pinId || link.EndPinID == pinId) links.push_back(link.ID);
+            if (pinsBefore.count(link.StartPinID.Get()) || pinsBefore.count(link.EndPinID.Get()))
+                links.push_back(link.ID);
         for (ed::LinkId link : links) function->Graph.DeleteLink(link);
-        node->RemoveInput(pinId);
         NodeUtils::BuildNode(node);
         return OperationResult::Ok();
     });
@@ -503,6 +510,169 @@ OperationResult DocumentOperations::RenameFunction(int id, const std::string& na
     {
         function->functionDef->name = name;
         ScriptUtils::RefreshFunctionRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddClass(int id, const std::string& name)
+{
+    if (ScriptUtils::FindClassById(m_script, id))
+        return OperationResult::Fail("A class with this ID already exists.");
+    return Apply("Add class", [&]
+    {
+        m_script.classes.push_back(std::make_shared<ScriptClass>(id, name.c_str()));
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RemoveClass(int id)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, id);
+    if (!scriptClass) return Missing("Class", id);
+    std::vector<int> references{ id };
+    for (const ScriptPropertyPtr& property : scriptClass->properties) references.push_back(property->ID.id);
+    for (const ScriptFunctionPtr& method : scriptClass->methods) references.push_back(method->ID.id);
+    if (scriptClass->constructor) references.push_back(scriptClass->constructor->ID.id);
+    return Apply("Delete class", [&]
+    {
+        stl::erase_if(m_script.classes, [&](const ScriptClassPtr& item) { return item->ID == id; });
+        for (int reference : references)
+            ScriptUtils::RefreshFunctionRefs(m_script, reference, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RenameClass(int id, const std::string& name)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, id);
+    if (!scriptClass) return Missing("Class", id);
+    return Apply("Rename class", [&]
+    {
+        scriptClass->Name = name;
+        ScriptUtils::RefreshFunctionRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddClassProperty(int classId, int propertyId,
+                                                       const std::string& name, const Value& value)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (ScriptUtils::FindClassPropertyById(m_script, propertyId))
+        return OperationResult::Fail("A class property with this ID already exists.");
+    return Apply("Add class property", [&]
+    {
+        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(propertyId, name.c_str());
+        property->defaultValue = value;
+        scriptClass->properties.push_back(property);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RemoveClassProperty(int classId, int propertyId)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (!ScriptUtils::FindClassPropertyById(m_script, propertyId)) return Missing("Class property", propertyId);
+    return Apply("Delete class property", [&]
+    {
+        stl::erase_if(scriptClass->properties,
+            [&](const ScriptPropertyPtr& item) { return item->ID == propertyId; });
+        ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RenameClassProperty(int classId, int propertyId,
+                                                          const std::string& name)
+{
+    if (!ScriptUtils::FindClassById(m_script, classId)) return Missing("Class", classId);
+    ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(m_script, propertyId);
+    if (!property) return Missing("Class property", propertyId);
+    return Apply("Rename class property", [&]
+    {
+        property->Name = name;
+        ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeClassPropertyValue(int classId, int propertyId,
+                                                               const Value& value)
+{
+    if (!ScriptUtils::FindClassById(m_script, classId)) return Missing("Class", classId);
+    ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(m_script, propertyId);
+    if (!property) return Missing("Class property", propertyId);
+    return Apply("Change class property value", [&]
+    {
+        property->defaultValue = value;
+        ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddClassMethod(int classId, int methodId, const std::string& name)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (ScriptUtils::FindFunctionById(m_script, methodId))
+        return OperationResult::Fail("A function with this ID already exists.");
+    return Apply("Add class method", [&]
+    {
+        ScriptFunctionPtr method = std::make_shared<ScriptFunction>(methodId, name.c_str());
+        NodePtr begin = BuildBeginNode(m_ids, method);
+        NodeUtils::BuildNode(begin);
+        method->Graph.AddNode(begin);
+        scriptClass->methods.push_back(method);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RemoveClassMethod(int classId, int methodId)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    const auto found = std::find_if(scriptClass->methods.begin(), scriptClass->methods.end(),
+        [&](const ScriptFunctionPtr& item) { return item->ID == methodId; });
+    if (found == scriptClass->methods.end()) return Missing("Class method", methodId);
+    return Apply("Delete class method", [&]
+    {
+        stl::erase_if(scriptClass->methods,
+            [&](const ScriptFunctionPtr& item) { return item->ID == methodId; });
+        ScriptUtils::RefreshFunctionRefs(m_script, methodId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddClassConstructor(int classId, int constructorId)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (scriptClass->constructor)
+        return OperationResult::Fail("This class already has a constructor.");
+    return Apply("Add class constructor", [&]
+    {
+        scriptClass->constructor = std::make_shared<ScriptFunction>(constructorId, "init");
+        NodePtr begin = BuildBeginNode(m_ids, scriptClass->constructor);
+        NodeUtils::BuildNode(begin);
+        scriptClass->constructor->Graph.AddNode(begin);
+        ScriptUtils::RefreshFunctionRefs(m_script, classId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RemoveClassConstructor(int classId)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (!scriptClass->constructor) return OperationResult::Fail("This class has no constructor.");
+    const int constructorId = scriptClass->constructor->ID.id;
+    return Apply("Delete class constructor", [&]
+    {
+        scriptClass->constructor.reset();
+        ScriptUtils::RefreshFunctionRefs(m_script, constructorId, m_ids);
+        ScriptUtils::RefreshFunctionRefs(m_script, classId, m_ids);
         return OperationResult::Ok();
     });
 }

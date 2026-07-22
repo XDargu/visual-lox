@@ -14,7 +14,7 @@ bool ConstantFolder::IsSafeConstant(const Value& value)
 {
     // Lists and callable objects are intentionally excluded: embedding mutable
     // objects would share optimizer state between executions of the script.
-    return isNil(value) || isBoolean(value) || isNumber(value) || isString(value);
+    return isNil(value) || isBoolean(value) || isNumber(value) || isString(value) || isRange(value);
 }
 
 bool ConstantFolder::Evaluate(VM& vm, const Graph& graph, const NodePtr& node, Value& result)
@@ -83,6 +83,15 @@ ConstantFoldingResult ConstantFolder::Fold(VM& vm, const Script& script)
     for (const ScriptFunctionPtr& function : script.functions)
         if (function)
             graphs.push_back({ function.get(), &function->Graph });
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (!scriptClass) continue;
+        if (scriptClass->constructor)
+            graphs.push_back({ scriptClass->constructor.get(), &scriptClass->constructor->Graph });
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (method)
+                graphs.push_back({ method.get(), &method->Graph });
+    }
 
     for (const auto& entry : graphs)
     {

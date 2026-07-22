@@ -7,6 +7,20 @@
 
 #include <utility>
 
+namespace
+{
+void EmitPropertyInitializer(Compiler& compiler, const ScriptProperty& property)
+{
+    static constexpr char thisName[] = "this";
+    compiler.namedVariable(Token(TokenType::THIS, thisName, 4, 0), false);
+    compiler.emitConstant(property.defaultValue);
+    const Token propertyToken(TokenType::IDENTIFIER, property.Name.c_str(), property.Name.length(), 0);
+    compiler.emitOpWithValue(OpCode::OP_SET_PROPERTY, OpCode::OP_SET_PROPERTY_LONG,
+                             compiler.identifierConstant(propertyToken));
+    compiler.emitByte(OpByte(OpCode::OP_POP));
+}
+}
+
 void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
                                  const std::vector<Value>& foldedValues,
                                  const std::vector<ed::NodeId>& foldedNodeIds)
@@ -84,6 +98,40 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     compiler.parser.hadError = false;
     compiler.parser.panicMode = false;
 
+    auto compileClosure = [&](const ScriptFunctionPtr& scriptFunction, FunctionType type,
+                              const ScriptClassPtr& propertyOwner = nullptr)
+    {
+        Token functionToken(TokenType::IDENTIFIER, scriptFunction->functionDef->name.c_str(),
+                            scriptFunction->functionDef->name.length(), 0);
+        CompilerScope functionScope(type, compiler.current, &functionToken);
+        compiler.current = &functionScope;
+        compiler.beginScope();
+
+        for (const BasicFunctionDef::Input& input : scriptFunction->functionDef->inputs)
+        {
+            const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
+            ++compiler.current->function->arity;
+            if (compiler.current->function->arity > 255)
+                compiler.errorAtCurrent("Can't have more than 255 parameters.");
+            compiler.defineVariable(compiler.parseVariableDirectly(false, inputToken));
+        }
+
+        if (propertyOwner)
+            for (const ScriptPropertyPtr& property : propertyOwner->properties)
+                EmitPropertyInitializer(compiler, *property);
+
+        CompileGraph(scriptFunction->Graph, compiler, folding.values, folding.nodeIds);
+        ObjFunction* function = compiler.endCompiler();
+        const uint32_t constant = compiler.makeConstant(Value(function));
+        compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
+        for (int i = 0; i < function->upvalueCount; ++i)
+        {
+            compiler.emitByte(functionScope.upvalues[i].isLocal ? 1 : 0);
+            compiler.emitByte(functionScope.upvalues[i].index);
+        }
+        return function;
+    };
+
     for (const ScriptPropertyPtr& property : script.variables)
     {
         compiler.emitConstant(property->defaultValue);
@@ -98,29 +146,40 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
         const uint32_t global = compiler.parseVariableDirectly(false, functionToken);
         compiler.markInitialized();
 
-        CompilerScope functionScope(FunctionType::FUNCTION, compiler.current, &functionToken);
-        compiler.current = &functionScope;
-        compiler.beginScope();
-
-        for (const BasicFunctionDef::Input& input : scriptFunction->functionDef->inputs)
-        {
-            const Token inputToken(TokenType::IDENTIFIER, input.name.c_str(), input.name.length(), 0);
-            ++compiler.current->function->arity;
-            if (compiler.current->function->arity > 255)
-                compiler.errorAtCurrent("Can't have more than 255 parameters.");
-            compiler.defineVariable(compiler.parseVariableDirectly(false, inputToken));
-        }
-
-        CompileGraph(scriptFunction->Graph, compiler, folding.values, folding.nodeIds);
-        ObjFunction* function = compiler.endCompiler();
-        const uint32_t constant = compiler.makeConstant(Value(function));
-        compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
-        for (int i = 0; i < function->upvalueCount; ++i)
-        {
-            compiler.emitByte(functionScope.upvalues[i].isLocal ? 1 : 0);
-            compiler.emitByte(functionScope.upvalues[i].index);
-        }
+        compileClosure(scriptFunction, FunctionType::FUNCTION);
         compiler.defineVariable(global);
+    }
+
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        Token classToken(TokenType::IDENTIFIER, scriptClass->Name.c_str(), scriptClass->Name.length(), 0);
+        const uint32_t global = compiler.parseVariableDirectly(false, classToken);
+        compiler.markInitialized();
+        const uint32_t className = compiler.identifierConstant(classToken);
+        compiler.emitOpWithValue(OpCode::OP_CLASS, OpCode::OP_CLASS_LONG, className);
+        compiler.defineVariable(global);
+        compiler.namedVariable(classToken, false);
+
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+        {
+            compileClosure(method, FunctionType::METHOD);
+            const Token methodToken(TokenType::IDENTIFIER, method->functionDef->name.c_str(),
+                                    method->functionDef->name.length(), 0);
+            compiler.emitOpWithValue(OpCode::OP_METHOD, OpCode::OP_METHOD_LONG,
+                                     compiler.identifierConstant(methodToken));
+        }
+
+        if (scriptClass->constructor || !scriptClass->properties.empty())
+        {
+            ScriptFunctionPtr constructor = scriptClass->constructor;
+            if (!constructor)
+                constructor = std::make_shared<ScriptFunction>(ScriptElementID::Invalid, "init");
+            compileClosure(constructor, FunctionType::INITIALIZER, scriptClass);
+            const Token initToken(TokenType::IDENTIFIER, "init", 4, 0);
+            compiler.emitOpWithValue(OpCode::OP_METHOD, OpCode::OP_METHOD_LONG,
+                                     compiler.identifierConstant(initToken));
+        }
+        compiler.emitByte(OpByte(OpCode::OP_POP));
     }
 
     compiler.beginScope();

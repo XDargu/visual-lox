@@ -155,7 +155,8 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
                 return;
             }
 
-            if (pOutput->Node->Category == NodeCategory::Variable)
+            if (pOutput->Node->Category == NodeCategory::Variable &&
+                pOutput->Node->SerializationType == "variable.get")
             {
                 // We can load the variable directly
                 GetVariableNode* pGetVar = static_cast<GetVariableNode*>(pOutput->Node.get());

@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 struct ScriptFunction;
 using ScriptFunctionPtr = std::shared_ptr<ScriptFunction>;
@@ -24,6 +25,14 @@ namespace Editor
     };
 
     using IActionPtr = std::shared_ptr<IAction>;
+
+    struct DeferredAction : public IAction
+    {
+        explicit DeferredAction(std::function<void()> action) : m_action(std::move(action)) {}
+        void Run() override { m_action(); }
+        void Revert() override {}
+        std::function<void()> m_action;
+    };
 
     struct AddFunctionAction : public IAction
     {

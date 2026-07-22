@@ -26,7 +26,8 @@ bool HasFlowPins(const Node& node)
 }
 
 void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
-                   std::set<RawId>& documentIds)
+                   std::set<RawId>& documentIds, bool isClassFunction = false,
+                   bool isConstructor = false)
 {
     const Graph& graph = function.Graph;
     const std::string graphName = function.functionDef ? function.functionDef->name : "<unnamed>";
@@ -81,6 +82,12 @@ void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
         if (HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
             add(DiagnosticSeverity::Error, "invalid-reference",
                 node->Error.empty() ? "Node contains an invalid reference." : node->Error, node->ID);
+        if (node->SerializationType == "class.this" && !isClassFunction)
+            add(DiagnosticSeverity::Error, "this-outside-class",
+                "The This node can only be used inside a class method or constructor.", node->ID);
+        if (isConstructor && node->Category == NodeCategory::Return)
+            add(DiagnosticSeverity::Error, "constructor-return",
+                "Constructors return their instance implicitly and cannot contain Return nodes.", node->ID);
         for (const Pin& pin : node->Inputs)
         {
             claimId(IdValue(pin.ID), "Input pin", node->ID, pin.ID);
@@ -271,7 +278,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             addScriptError("duplicate-variable", "Duplicate variable name '" + variable->Name + "'.");
     }
 
-    const auto validateFunction = [&](const ScriptFunctionPtr& function, bool isMain)
+    const auto validateFunction = [&](const ScriptFunctionPtr& function, bool isMain,
+                                      bool isClassFunction = false, bool isConstructor = false)
     {
         if (!function || !function->functionDef)
         {
@@ -279,9 +287,9 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             return;
         }
         claimScriptId(function->ID.id, isMain ? "Main function" : "Function");
-        if (!isMain && !functionNames.insert(function->functionDef->name).second)
+        if (!isMain && !isClassFunction && !functionNames.insert(function->functionDef->name).second)
             addScriptError("duplicate-function", "Duplicate function name '" + function->functionDef->name + "'.");
-        if (!isMain && variableNames.count(function->functionDef->name) != 0)
+        if (!isMain && !isClassFunction && variableNames.count(function->functionDef->name) != 0)
             addScriptError("symbol-conflict", "Function and variable share the global name '" +
                 function->functionDef->name + "'.");
         std::set<std::string> inputNames;
@@ -300,13 +308,60 @@ ValidationReport ScriptValidator::Validate(const Script& script)
                 addScriptError("duplicate-output", "Function '" + function->functionDef->name +
                     "' has duplicate output name '" + output.name + "'.");
         }
-        ValidateGraph(*function, report, documentIds);
+        if (isConstructor && !function->functionDef->outputs.empty())
+            addScriptError("constructor-output", "Constructors cannot declare output values.");
+        ValidateGraph(*function, report, documentIds, isClassFunction, isConstructor);
     };
 
     if (script.main)
         validateFunction(script.main, true);
     for (const ScriptFunctionPtr& function : script.functions)
         validateFunction(function, false);
+
+    std::set<std::string> classNames;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (!scriptClass)
+        {
+            addScriptError("null-class", "Script contains a null class definition.");
+            continue;
+        }
+        claimScriptId(scriptClass->ID.id, "Class");
+        if (!classNames.insert(scriptClass->Name).second)
+            addScriptError("duplicate-class", "Duplicate class name '" + scriptClass->Name + "'.");
+        if (variableNames.count(scriptClass->Name) || functionNames.count(scriptClass->Name))
+            addScriptError("symbol-conflict", "Class name '" + scriptClass->Name +
+                "' conflicts with another script-level symbol.");
+
+        std::set<std::string> propertyNames;
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+        {
+            if (!property)
+            {
+                addScriptError("null-property", "Class '" + scriptClass->Name +
+                    "' contains a null property definition.");
+                continue;
+            }
+            claimScriptId(property->ID.id, "Class property");
+            if (!propertyNames.insert(property->Name).second)
+                addScriptError("duplicate-property", "Class '" + scriptClass->Name +
+                    "' has duplicate property '" + property->Name + "'.");
+        }
+
+        std::set<std::string> methodNames;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+        {
+            if (method && method->functionDef && !methodNames.insert(method->functionDef->name).second)
+                addScriptError("duplicate-method", "Class '" + scriptClass->Name +
+                    "' has duplicate method '" + method->functionDef->name + "'.");
+            if (method && method->functionDef && propertyNames.count(method->functionDef->name))
+                addScriptError("member-conflict", "Class '" + scriptClass->Name +
+                    "' has a property and method named '" + method->functionDef->name + "'.");
+            validateFunction(method, false, true, false);
+        }
+        if (scriptClass->constructor)
+            validateFunction(scriptClass->constructor, false, true, true);
+    }
 
     return report;
 }

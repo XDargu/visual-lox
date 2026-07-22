@@ -6,7 +6,9 @@
 #include "../native/nodes/for-in.h"
 #include "../native/nodes/list.h"
 #include "../native/nodes/math.h"
+#include "../native/nodes/match.h"
 #include "../native/nodes/print.h"
+#include "../native/nodes/range.h"
 
 void RegisterStandardLibrary(NodeRegistry& registry)
 {
@@ -26,6 +28,13 @@ void RegisterStandardLibrary(NodeRegistry& registry)
     registry.RegisterCompiledNode("Math::Less Than", &CreateLessNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } }, NodeDefinitionFlags::Pure);
     registry.RegisterCompiledNode("Math::Equals", &CreateEqualsNode, { { "Value", Value(0.0) } }, { { "Value", Value(false) } }, NodeDefinitionFlags::Pure);
     registry.RegisterCompiledNode("Math::Modulo", &CreateModuloNode, { { "Value", Value(0.0) } }, { { "Value", Value(0.0) } }, NodeDefinitionFlags::Pure);
+
+    registry.RegisterCompiledNode("Flow::Match", &BuildMatchFlowNode,
+        { { "Value", Value() }, { "Pattern 1", Value(0.0) } }, {},
+        NodeDefinitionFlags::DynamicInputs);
+    registry.RegisterCompiledNode("Range::Make", &BuildRangeNode,
+        { { "From", Value(0.0) }, { "To", Value(1.0) } },
+        { { "Range", Value(newRange(0.0, 1.0)) } }, NodeDefinitionFlags::Pure);
     registry.RegisterCompiledNode("List::Get By Index", &BuildListGetByIndexNode,
         { { "List", Value(newList()) }, { "Index", Value(0.0) } },
         { { "Value", Value() } }, NodeDefinitionFlags::Pure);

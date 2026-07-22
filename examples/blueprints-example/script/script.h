@@ -23,9 +23,14 @@ struct ScriptUtils
 {
     static ScriptPropertyPtr FindVariableById(Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(Script& script, int funId);
+    static ScriptClassPtr FindClassById(Script& script, int classId);
+    static ScriptPropertyPtr FindClassPropertyById(Script& script, int propertyId);
+    static ScriptClassPtr FindOwningClass(const Script& script, int elementId);
 
     static ScriptPropertyPtr FindVariableById(const Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(const Script& script, int funId);
+    static ScriptClassPtr FindClassById(const Script& script, int classId);
+    static ScriptPropertyPtr FindClassPropertyById(const Script& script, int propertyId);
 
     static std::vector<NodePtr> FindFunctionReferences(Script& script, int funId);
     static std::vector<NodePtr> FindVariableReferences(Script& script, int varId);

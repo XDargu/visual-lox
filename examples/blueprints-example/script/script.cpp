@@ -21,6 +21,31 @@ ScriptFunctionPtr ScriptUtils::FindFunctionById(Script& script, int funId)
         return (*it);
     }
 
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor && scriptClass->constructor->ID == funId)
+            return scriptClass->constructor;
+        auto method = std::find_if(scriptClass->methods.begin(), scriptClass->methods.end(),
+            [funId](const ScriptFunctionPtr& value) { return value->ID == funId; });
+        if (method != scriptClass->methods.end())
+            return *method;
+    }
+    return nullptr;
+}
+
+ScriptClassPtr ScriptUtils::FindClassById(Script& script, int classId)
+{
+    auto it = std::find_if(script.classes.begin(), script.classes.end(),
+        [classId](const ScriptClassPtr& value) { return value->ID == classId; });
+    return it == script.classes.end() ? nullptr : *it;
+}
+
+ScriptPropertyPtr ScriptUtils::FindClassPropertyById(Script& script, int propertyId)
+{
+    for (const ScriptClassPtr& scriptClass : script.classes)
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property->ID == propertyId)
+                return property;
     return nullptr;
 }
 
@@ -43,6 +68,48 @@ ScriptFunctionPtr ScriptUtils::FindFunctionById(const Script& script, int funId)
         return (*it);
     }
 
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor && scriptClass->constructor->ID == funId)
+            return scriptClass->constructor;
+        auto method = std::find_if(scriptClass->methods.begin(), scriptClass->methods.end(),
+            [funId](const ScriptFunctionPtr& value) { return value->ID == funId; });
+        if (method != scriptClass->methods.end())
+            return *method;
+    }
+    return nullptr;
+}
+
+ScriptClassPtr ScriptUtils::FindClassById(const Script& script, int classId)
+{
+    auto it = std::find_if(script.classes.begin(), script.classes.end(),
+        [classId](const ScriptClassPtr& value) { return value->ID == classId; });
+    return it == script.classes.end() ? nullptr : *it;
+}
+
+ScriptPropertyPtr ScriptUtils::FindClassPropertyById(const Script& script, int propertyId)
+{
+    for (const ScriptClassPtr& scriptClass : script.classes)
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property->ID == propertyId)
+                return property;
+    return nullptr;
+}
+
+ScriptClassPtr ScriptUtils::FindOwningClass(const Script& script, int elementId)
+{
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->ID == elementId ||
+            (scriptClass->constructor && scriptClass->constructor->ID == elementId))
+            return scriptClass;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (method->ID == elementId)
+                return scriptClass;
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property->ID == elementId)
+                return scriptClass;
+    }
     return nullptr;
 }
 
@@ -63,6 +130,12 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
 
     for (auto& scriptClass : script.classes)
     {
+        if (scriptClass->constructor)
+        {
+            for (auto& node : scriptClass->constructor->Graph.GetNodes())
+                if (node->refId == funId)
+                    nodeRefs.push_back(node);
+        }
         for (auto& method : scriptClass->methods)
         {
             for (auto& node : method->Graph.GetNodes())
@@ -75,7 +148,7 @@ std::vector<NodePtr> ScriptUtils::FindFunctionReferences(Script& script, int fun
         }
     }
 
-    for (auto& node : script.main->Graph.GetNodes())
+    if (script.main) for (auto& node : script.main->Graph.GetNodes())
     {
         if (node->refId == funId)
         {
@@ -103,6 +176,12 @@ std::vector<NodePtr> ScriptUtils::FindVariableReferences(Script& script, int var
 
     for (auto& scriptClass : script.classes)
     {
+        if (scriptClass->constructor)
+        {
+            for (auto& node : scriptClass->constructor->Graph.GetNodes())
+                if (node->refId == varId)
+                    nodeRefs.push_back(node);
+        }
         for (auto& method : scriptClass->methods)
         {
             for (auto& node : method->Graph.GetNodes())
@@ -115,7 +194,7 @@ std::vector<NodePtr> ScriptUtils::FindVariableReferences(Script& script, int var
         }
     }
 
-    for (auto& node : script.main->Graph.GetNodes())
+    if (script.main) for (auto& node : script.main->Graph.GetNodes())
     {
         if (node->refId == varId)
         {
@@ -153,6 +232,16 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
         node->Refresh(script, IDGenerator);
         NodeUtils::BuildNode(node);
     }
+
+    ScriptClassPtr owner = ScriptUtils::FindOwningClass(script, funId);
+    if (owner && owner->constructor && owner->constructor->ID == funId)
+    {
+        for (NodePtr& node : ScriptUtils::FindFunctionReferences(script, owner->ID))
+        {
+            node->Refresh(script, IDGenerator);
+            NodeUtils::BuildNode(node);
+        }
+    }
 }
 
 void ScriptUtils::RefreshVariableRefs(Script& script, int varId, IDGenerator& IDGenerator)
@@ -173,6 +262,7 @@ void ScriptUtils::MarkScriptRoots(Script& script)
 
     for (const ScriptClassPtr& scriptClass : script.classes)
     {
+        MarkFunctionRoots(scriptClass->constructor);
         for (const ScriptFunctionPtr& scriptFunction : scriptClass->methods)
         {
             MarkFunctionRoots(scriptFunction);

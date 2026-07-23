@@ -5,12 +5,14 @@
 
 #include <Vm.h>
 
+#include <string>
 #include <vector>
 
 struct ScriptCompileOptions
 {
     bool enableConstantFolding = true;
     bool disassemble = false;
+    std::vector<std::string> programArguments;
 };
 
 struct ScriptCompileResult

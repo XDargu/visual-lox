@@ -343,6 +343,58 @@ void ForInKeepsConstantStackFootprint()
             "List::Length should execute through the graph compiler.");
 }
 
+void MainReceivesProgramArgumentsAsAStringList()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(
+        fixture.ids.GetNextId(), "Main");
+    script.main->functionDef->inputs.push_back(
+        { "Arguments", Value(newList()), fixture.ids.GetNextId() });
+
+    ScriptPropertyPtr observed = std::make_shared<ScriptProperty>(
+        fixture.ids.GetNextId(), "ArgumentCount");
+    observed->defaultValue = Value(-1.0);
+    script.variables.push_back(observed);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr listLength =
+        fixture.registry.FindNative("List::Length")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    NodePtr storeCount = BuildSetVariableNode(fixture.ids, observed);
+    AttachNode(script.main->Graph, begin);
+    AttachNode(script.main->Graph, listLength);
+    AttachNode(script.main->Graph, storeCount);
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[0].ID, storeCount->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[1].ID, listLength->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), listLength->Outputs[0].ID, storeCount->Inputs[1].ID));
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    ScriptCompileOptions options;
+    options.programArguments = { "first", "second", "third" };
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(static_cast<bool>(compiled),
+            "A Main graph using Arguments should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "A Main graph using Arguments should execute.");
+
+    Value count;
+    Require(fixture.vm.globalTable().get(
+                copyString("ArgumentCount", 13), &count) &&
+            isNumber(count) && asNumber(count) == 3.0,
+            "Main did not receive program arguments as a three-item string list.");
+}
+
 Script BuildClassRangeMatchScript(IDGenerator& ids, NodeRegistry& registry)
 {
     Script script;
@@ -550,6 +602,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("repeated interpretation releases the stack", RepeatedInterpretationReleasesStack);
         runner.Test("large list literals preserve their items", LargeListLiteralsPreserveItems);
         runner.Test("Flow For In keeps a constant stack footprint", ForInKeepsConstantStackFootprint);
+        runner.Test("Main receives program arguments as a string list",
+            MainReceivesProgramArgumentsAsAStringList);
     });
     runner.Group("Runtime / validation and compilation", [&]()
     {

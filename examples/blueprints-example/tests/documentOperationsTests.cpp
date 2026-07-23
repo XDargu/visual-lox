@@ -78,6 +78,26 @@ void RequiredBeginCannotBeDeleted()
             "Deleting a protected node changed the graph.");
 }
 
+void MainSignatureCannotBeEdited()
+{
+    OperationsFixture fixture;
+    fixture.script.main->functionDef->inputs.push_back(
+        { "Arguments", Value(newList()), fixture.ids.GetNextId() });
+    const int inputId = fixture.script.main->functionDef->inputs.front().id;
+    Require(!fixture.operations->AddFunctionInput(
+                fixture.script.main->ID.id, fixture.ids.GetNextId(), "Other"),
+            "Main accepted an additional input.");
+    Require(!fixture.operations->RemoveFunctionInput(
+                fixture.script.main->ID.id, inputId),
+            "Main allowed its Arguments input to be removed.");
+    Require(!fixture.operations->ChangeFunctionInputValue(
+                fixture.script.main->ID.id, inputId, Value(false)),
+            "Main allowed its Arguments input type to be changed.");
+    Require(!fixture.operations->AddFunctionOutput(
+                fixture.script.main->ID.id, fixture.ids.GetNextId(), "Result"),
+            "Main accepted a configurable output.");
+}
+
 void NodeStateCanBeUndoneAndRedone()
 {
     OperationsFixture fixture;
@@ -317,6 +337,7 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
     runner.Group("Document operations / history", [&]()
     {
         runner.Test("required Begin node cannot be deleted", RequiredBeginCannotBeDeleted);
+        runner.Test("Main signature cannot be edited", MainSignatureCannotBeEdited);
         runner.Test("node state can be undone and redone", NodeStateCanBeUndoneAndRedone);
         runner.Test("function changes can be undone and redone", FunctionChangesCanBeUndoneAndRedone);
         runner.Test("a transaction is one undo step", TransactionIsOneUndoStep);

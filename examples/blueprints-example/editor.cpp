@@ -435,6 +435,7 @@ void Example::OnStart()
 
     // Add begin to main function
     m_script.main = std::make_shared<ScriptFunction>(m_IDGenerator.GetNextId(), "Main");
+    EnsureMainSignature();
 
     // Start with main graph
     m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
@@ -612,6 +613,7 @@ void Example::SaveLayoutSettings() const
 void Example::ChangeGraph(const ScriptFunctionPtr& scriptFunction)
 {
     m_graphView.SetGraph(&m_script, scriptFunction, &scriptFunction->Graph);
+    ApplyEditorTheme();
 }
 
 void Example::ShowStyleEditor(bool* show)
@@ -1079,7 +1081,9 @@ void Example::ShowScriptExplorer()
             ImGui::Separator();
         }
 
-        if (selectedFunction)
+        const bool selectedMain =
+            selectedFunction && m_script.main == selectedFunction;
+        if (selectedFunction && !selectedMain)
         {
             ImGui::TextDisabled("%s ports",
                                 selectedFunction->functionDef->name.c_str());
@@ -1121,18 +1125,6 @@ void Example::ShowScriptExplorer()
     ImGui::Spacing();
     RenderTreeNode(m_scriptTreeView, m_selectedItemId, m_editingItemId,
                    m_scriptFilter.c_str());
-
-    if (ImGui::BeginPopupContextWindow("Explorer context",
-                                       ImGuiPopupFlags_MouseButtonRight))
-    {
-        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Function"))
-            pendingActions.push_back(std::make_shared<AddFunctionAction>(
-                this, m_IDGenerator.GetNextId()));
-        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Variable"))
-            pendingActions.push_back(std::make_shared<AddVariableAction>(
-                this, m_IDGenerator.GetNextId()));
-        ImGui::EndPopup();
-    }
 }
 
 void Example::ShowInspector()
@@ -1278,6 +1270,41 @@ void Example::ShowInspector()
         scriptClass = std::dynamic_pointer_cast<ScriptClass>(ancestor->pElement);
     }
 
+    if (selected->id == m_script.ID.id)
+    {
+        ImGui::TextDisabled("SCRIPT");
+        ImGui::PushFont(HeaderFont());
+        ImGui::TextUnformatted("Visual Lox Script");
+        ImGui::PopFont();
+        ImGui::Text("%zu function%s", m_script.functions.size(),
+                    m_script.functions.size() == 1 ? "" : "s");
+        ImGui::Text("%zu variable%s", m_script.variables.size(),
+                    m_script.variables.size() == 1 ? "" : "s");
+        ImGui::Text("%zu class%s", m_script.classes.size(),
+                    m_script.classes.size() == 1 ? "" : "es");
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("ADD SCRIPT ITEM");
+        if (ImGui::Button(ICON_FA_DIAGRAM_PROJECT " Function", ImVec2(-1, 0)))
+            pendingActions.push_back(std::make_shared<AddFunctionAction>(
+                this, m_IDGenerator.GetNextId()));
+        if (ImGui::Button(ICON_FA_DATABASE " Variable", ImVec2(-1, 0)))
+            pendingActions.push_back(std::make_shared<AddVariableAction>(
+                this, m_IDGenerator.GetNextId()));
+        if (ImGui::Button(ICON_FA_CUBES " Class", ImVec2(-1, 0)))
+        {
+            const int classId = m_IDGenerator.GetNextId();
+            queueOperation("Class added",
+                [this, classId]()
+                {
+                    const std::string name =
+                        Utils::FindValidName("Class", m_scriptTreeView);
+                    return m_operations->AddClass(classId, name);
+                }, true);
+        }
+        return;
+    }
+
     if (scriptClass && !function && !property)
     {
         ImGui::TextDisabled("CLASS");
@@ -1340,6 +1367,23 @@ void Example::ShowInspector()
                     scriptClass->properties.size() == 1 ? "y" : "ies");
         ImGui::Text("%zu method%s", scriptClass->methods.size(),
                     scriptClass->methods.size() == 1 ? "" : "s");
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::Button(ICON_FA_TRASH_CAN " Delete class", ImVec2(-1, 0)))
+        {
+            const int classId = scriptClass->ID.id;
+            queueOperation("Class deleted",
+                [this, classId]()
+                {
+                    const ScriptClassPtr current =
+                        ScriptUtils::FindClassById(m_script, classId);
+                    if (m_graphView.m_pScriptFunction && current &&
+                        ScriptUtils::FindOwningClass(
+                            m_script, m_graphView.m_pScriptFunction->ID.id) == current)
+                        ChangeGraph(m_script.main);
+                    return m_operations->RemoveClass(classId);
+                }, true);
+        }
         return;
     }
 
@@ -1405,6 +1449,33 @@ void Example::ShowInspector()
                     });
             }
         }
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::Button(
+                isClassProperty ? ICON_FA_TRASH_CAN " Delete property"
+                                : ICON_FA_TRASH_CAN " Delete variable",
+                ImVec2(-1, 0)))
+        {
+            const int propertyId = property->ID.id;
+            if (owner)
+            {
+                const int classId = owner->ID.id;
+                queueOperation("Property deleted",
+                    [this, classId, propertyId]()
+                    {
+                        return m_operations->RemoveClassProperty(
+                            classId, propertyId);
+                    }, true);
+            }
+            else
+            {
+                queueOperation("Variable deleted",
+                    [this, propertyId]()
+                    {
+                        return m_operations->RemoveVariable(propertyId);
+                    }, true);
+            }
+        }
         return;
     }
 
@@ -1413,14 +1484,39 @@ void Example::ShowInspector()
         const ScriptClassPtr owner =
             ScriptUtils::FindOwningClass(m_script, function->ID.id);
         const bool isConstructor = owner && owner->constructor == function;
-        ImGui::TextDisabled(isConstructor ? "CONSTRUCTOR"
-                                          : owner ? "METHOD" : "FUNCTION");
+        const bool isMain = m_script.main == function;
+        ImGui::TextDisabled(isMain ? "MAIN GRAPH"
+                                  : isConstructor ? "CONSTRUCTOR"
+                                                  : owner ? "METHOD" : "FUNCTION");
         ImGui::PushFont(HeaderFont());
         ImGui::TextWrapped("%s", isConstructor ? owner->Name.c_str()
                                                 : function->functionDef->name.c_str());
         ImGui::PopFont();
         if (owner)
             ImGui::TextDisabled("Class: %s", owner->Name.c_str());
+
+        if (isMain)
+        {
+            ImGui::Spacing();
+            ImGui::TextDisabled("PROGRAM INPUT");
+            ImGui::TextUnformatted(ICON_FA_LIST "  Arguments");
+            ImGui::SameLine();
+            ImGui::TextDisabled("String List");
+            ImGui::TextWrapped(
+                "Main has a fixed Arguments input containing the command-line "
+                "arguments passed to the program.");
+            ImGui::Spacing();
+            ImGui::TextDisabled("CURRENT LAUNCH");
+            const std::vector<std::string>& arguments = GetArguments();
+            if (arguments.empty())
+                ImGui::TextDisabled("No program arguments.");
+            else
+                for (size_t i = 0; i < arguments.size(); ++i)
+                    ImGui::BulletText("[%zu] %s", i, arguments[i].c_str());
+            ImGui::Spacing();
+            ImGui::TextDisabled("Main does not expose configurable outputs.");
+            return;
+        }
 
         if (!isConstructor)
         {
@@ -1531,6 +1627,52 @@ void Example::ShowInspector()
                         }, true);
                 }
                 ImGui::PopID();
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::Button(
+                isConstructor ? ICON_FA_TRASH_CAN " Delete constructor"
+                              : owner ? ICON_FA_TRASH_CAN " Delete method"
+                                      : ICON_FA_TRASH_CAN " Delete function",
+                ImVec2(-1, 0)))
+        {
+            if (isConstructor)
+            {
+                const int classId = owner->ID.id;
+                queueOperation("Constructor deleted",
+                    [this, classId, functionId]()
+                    {
+                        if (m_graphView.m_pScriptFunction &&
+                            m_graphView.m_pScriptFunction->ID == functionId)
+                            ChangeGraph(m_script.main);
+                        return m_operations->RemoveClassConstructor(classId);
+                    }, true);
+            }
+            else if (owner)
+            {
+                const int classId = owner->ID.id;
+                queueOperation("Method deleted",
+                    [this, classId, functionId]()
+                    {
+                        if (m_graphView.m_pScriptFunction &&
+                            m_graphView.m_pScriptFunction->ID == functionId)
+                            ChangeGraph(m_script.main);
+                        return m_operations->RemoveClassMethod(
+                            classId, functionId);
+                    }, true);
+            }
+            else
+            {
+                queueOperation("Function deleted",
+                    [this, functionId]()
+                    {
+                        if (m_graphView.m_pScriptFunction &&
+                            m_graphView.m_pScriptFunction->ID == functionId)
+                            ChangeGraph(m_script.main);
+                        return m_operations->RemoveFunction(functionId);
+                    }, true);
             }
         }
         return;
@@ -1706,6 +1848,7 @@ void Example::CompileScript(bool runAfterCompile)
     ScriptCompileOptions compileOptions;
     compileOptions.enableConstantFolding = m_isConstFoldingEnabled;
     compileOptions.disassemble = m_showDeveloperTools;
+    compileOptions.programArguments = GetArguments();
     const ScriptCompileResult compileResult =
         ScriptRuntime::Compile(vm, m_script, compileOptions);
 
@@ -1859,6 +2002,7 @@ void Example::DrawMenuBar()
                 ImGui::BulletText("Select a function or method before opening + to add inputs and outputs.");
                 ImGui::BulletText("Open a graph, then press Space or right-click the canvas to add nodes.");
                 ImGui::BulletText("Drag from an output pin to a compatible input pin to connect nodes.");
+                ImGui::BulletText("Main exposes a fixed Arguments string list containing the program arguments.");
             }
 
             if (ImGui::CollapsingHeader("Inspector", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1867,6 +2011,7 @@ void Example::DrawMenuBar()
                 ImGui::BulletText("Variable or property: edit its name, type, and default value.");
                 ImGui::BulletText("Function or method: edit its name, inputs, outputs, and defaults.");
                 ImGui::BulletText("Lists and long strings use expanded editors that do not need to fit on a node.");
+                ImGui::BulletText("Use the delete action in an item's Inspector or its Explorer context menu.");
             }
 
             if (ImGui::CollapsingHeader("Classes"))
@@ -2291,29 +2436,20 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
     };
     funcNode.contextMenu = [this, funId]()
     {
-        if (ImGui::BeginPopupContextItem("FuncPopup"))
+        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
+            pendingActions.push_back(std::make_shared<AddFunctionInputAction>(
+                this, funId, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Output"))
+            pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(
+                this, funId, m_IDGenerator.GetNextId()));
+        ImGui::Separator();
+        if (ImGui::MenuItem("Rename"))
+            m_editingItemId = funId;
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
         {
-            // Menu options
-            if (ImGui::MenuItem("Add Input"))
-            {
-                pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, funId, m_IDGenerator.GetNextId()));
-            }
-            if (ImGui::MenuItem("Add Output"))
-            {
-                pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, funId, m_IDGenerator.GetNextId()));
-            }
-            if (ImGui::MenuItem("Rename"))
-            {
-                m_editingItemId = funId;
-            }
-            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
-            {
-                if (ImGui::MenuItem("Delete"))
-                {
-                    pendingActions.push_back(std::make_shared<DeleteFunctionAction>(this, pFun));
-                }
-            }
-            ImGui::EndPopup();
+            if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
+                pendingActions.push_back(
+                    std::make_shared<DeleteFunctionAction>(this, pFun));
         }
     };
 
@@ -2341,21 +2477,17 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     {
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
-            if (ImGui::BeginPopupContextItem("VarPopup"))
-            {
-                // Menu options
-                if (ImGui::MenuItem("Rename"))
-                {
-                    m_editingItemId = varId;
-                }
-                if (ImGui::MenuItem("Delete"))
-                {
-                    pendingActions.push_back(std::make_shared<DeleteVariableAction>(this, pVar));
-                }
-                ImGui::EndPopup();
-            }
-
-            ImGui::PushID(varId);
+            if (ImGui::MenuItem("Rename"))
+                m_editingItemId = varId;
+            if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
+                pendingActions.push_back(
+                    std::make_shared<DeleteVariableAction>(this, pVar));
+        }
+    };
+    varNode.afterLabel = [this, varId]()
+    {
+        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+        {
             ImGui::SameLine();
             ImGui::SetItemAllowOverlap();
             Value tmp = pVar->defaultValue;
@@ -2374,7 +2506,6 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
             {
                 pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, MakeValueFromType(newType)));
             });
-            ImGui::PopID();
         }
     };
     if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
@@ -2403,43 +2534,45 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
         {
             if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
             {
-                if (ImGui::BeginPopupContextItem("InputPopup"))
-                {
-                    // Menu options
-                    if (ImGui::MenuItem("Delete"))
-                    {
-                        pendingActions.push_back(std::make_shared<DeleteFunctionInputAction>(this, funId, inputId, pInput->name.c_str(), pInput->value));
-                    }
-                    if (ImGui::MenuItem("Rename"))
-                    {
-                        m_editingItemId = inputId;
-                    }
-                    ImGui::EndPopup();
-                }
-
+                if (ImGui::MenuItem("Rename"))
+                    m_editingItemId = inputId;
+                if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
+                    pendingActions.push_back(
+                        std::make_shared<DeleteFunctionInputAction>(
+                            this, funId, inputId, pInput->name.c_str(), pInput->value));
+            }
+        }
+    };
+    inputNode.afterLabel = [this, funId, inputId]()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        {
+            if (BasicFunctionDef::Input* pInput =
+                    pFun->functionDef->FindInputByID(inputId))
+            {
                 Value& inputValue = pInput->value;
-                ImGui::PushID(funId);
-                ImGui::PushID(inputId);
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 Value tmp = inputValue;
-                const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
+                const bool valueChanged =
+                    GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
                 if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
                     m_operations->BeginTransaction("Edit function input value");
                 if (valueChanged)
-                {
-                    pendingActions.push_back(std::make_shared<ChangeFunctionInputValueAction>(this, funId, inputId, tmp));
-                }
+                    pendingActions.push_back(
+                        std::make_shared<ChangeFunctionInputValueAction>(
+                            this, funId, inputId, tmp));
                 if (ImGui::IsItemDeactivatedAfterEdit())
                     m_commitPendingEdit = true;
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
                 GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
                 {
-                    pendingActions.push_back(std::make_shared<ChangeFunctionInputValueAction>(this, funId, inputId, MakeValueFromType(newType)));
+                    Value value = MakeValueFromType(newType);
+                    pendingActions.push_back(
+                        std::make_shared<ChangeFunctionInputValueAction>(
+                            this, funId, inputId, value));
                 });
-                ImGui::PopID();
-                ImGui::PopID();
             }
         }
     };
@@ -2465,43 +2598,45 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
         {
             if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
             {
-                if (ImGui::BeginPopupContextItem("OutputPopup"))
-                {
-                    // Menu options
-                    if (ImGui::MenuItem("Delete"))
-                    {
-                        pendingActions.push_back(std::make_shared<DeleteFunctionOutputAction>(this, funId, outputId, pOutput->name.c_str(), pOutput->value));
-                    }
-                    if (ImGui::MenuItem("Rename"))
-                    {
-                        m_editingItemId = outputId;
-                    }
-                    ImGui::EndPopup();
-                }
-
-                Value& inputValue = pOutput->value;
-                ImGui::PushID(funId);
-                ImGui::PushID(outputId);
+                if (ImGui::MenuItem("Rename"))
+                    m_editingItemId = outputId;
+                if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
+                    pendingActions.push_back(
+                        std::make_shared<DeleteFunctionOutputAction>(
+                            this, funId, outputId, pOutput->name.c_str(), pOutput->value));
+            }
+        }
+    };
+    outputNode.afterLabel = [this, funId, outputId]()
+    {
+        if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(m_script, funId))
+        {
+            if (BasicFunctionDef::Input* pOutput =
+                    pFun->functionDef->FindOutputByID(outputId))
+            {
+                Value& outputValue = pOutput->value;
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
-                Value tmp = inputValue;
-                const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
+                Value tmp = outputValue;
+                const bool valueChanged =
+                    GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
                 if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
                     m_operations->BeginTransaction("Edit function output value");
                 if (valueChanged)
-                {
-                    pendingActions.push_back(std::make_shared<ChangeFunctionOutputValueAction>(this, funId, outputId, tmp));
-                }
+                    pendingActions.push_back(
+                        std::make_shared<ChangeFunctionOutputValueAction>(
+                            this, funId, outputId, tmp));
                 if (ImGui::IsItemDeactivatedAfterEdit())
                     m_commitPendingEdit = true;
                 ImGui::SameLine();
                 ImGui::SetItemAllowOverlap();
-                GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
+                GraphViewUtils::DrawTypeSelection(outputValue, [&](PinType newType)
                 {
-                    pendingActions.push_back(std::make_shared<ChangeFunctionOutputValueAction>(this, funId, outputId, MakeValueFromType(newType)));
+                    Value value = MakeValueFromType(newType);
+                    pendingActions.push_back(
+                        std::make_shared<ChangeFunctionOutputValueAction>(
+                            this, funId, outputId, value));
                 });
-                ImGui::PopID();
-                ImGui::PopID();
             }
         }
     };
@@ -2738,6 +2873,7 @@ void Example::PasteClipboard()
             ScriptFunctionPtr function = functionId == m_script.main->ID.id
                 ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
             m_graphView.SetGraph(&m_script, function, &function->Graph);
+            ApplyEditorTheme();
             bool append = false;
             for (int id : pasted)
             {
@@ -2788,6 +2924,7 @@ void Example::UndoLastAction()
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
     m_graphView.SetGraph(&m_script, function, &function->Graph);
+    ApplyEditorTheme();
 }
 
 void Example::RedoLastAction()
@@ -2802,6 +2939,7 @@ void Example::RedoLastAction()
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
     m_graphView.SetGraph(&m_script, function, &function->Graph);
+    ApplyEditorTheme();
 }
 
 bool Example::CanUndo() const
@@ -2822,29 +2960,86 @@ void Example::InitializeScriptTree()
     m_scriptTreeView.icon = m_ScriptIcon;
     m_scriptTreeView.iconText = ICON_FA_FILE_CODE;
     m_scriptTreeView.id = m_script.ID;
+    m_scriptTreeView.onclick = []() { ed::ClearSelection(); };
     m_scriptTreeView.contextMenu = [this]()
     {
-        if (ImGui::BeginPopupContextItem("SelectablePopup"))
+        if (ImGui::MenuItem(ICON_FA_DIAGRAM_PROJECT "  Add Function"))
+            pendingActions.push_back(std::make_shared<AddFunctionAction>(
+                this, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Variable"))
+            pendingActions.push_back(std::make_shared<AddVariableAction>(
+                this, m_IDGenerator.GetNextId()));
+        if (ImGui::MenuItem(ICON_FA_CUBES "  Add Class"))
         {
-            if (ImGui::MenuItem("Add Function"))
-                pendingActions.push_back(std::make_shared<AddFunctionAction>(this, m_IDGenerator.GetNextId()));
-            if (ImGui::MenuItem("Add Variable"))
-                pendingActions.push_back(std::make_shared<AddVariableAction>(this, m_IDGenerator.GetNextId()));
-            if (ImGui::MenuItem("Add Class"))
+            const int id = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, id]()
             {
-                const int id = m_IDGenerator.GetNextId();
-                pendingActions.push_back(std::make_shared<DeferredAction>([this, id]()
-                {
-                    const std::string name = Utils::FindValidName("Class", m_scriptTreeView);
-                    const OperationResult result = m_operations->AddClass(id, name);
-                    m_fileStatusIsError = !result;
-                    m_fileStatus = result ? "Class added" : result.error;
-                    if (result) RebuildScriptTree();
-                }));
-            }
-            ImGui::EndPopup();
+                const std::string name = Utils::FindValidName("Class", m_scriptTreeView);
+                const OperationResult result = m_operations->AddClass(id, name);
+                m_fileStatusIsError = !result;
+                m_fileStatus = result ? "Class added" : result.error;
+                if (result) RebuildScriptTree();
+            }));
         }
     };
+}
+
+void Example::EnsureMainSignature()
+{
+    if (!m_script.main)
+        return;
+
+    BasicFunctionDef& definition = *m_script.main->functionDef;
+    const int argumentsId = definition.inputs.empty()
+        ? m_IDGenerator.GetNextId() : definition.inputs.front().id;
+    definition.inputs = {
+        { "Arguments", Value(newList()), argumentsId }
+    };
+    definition.outputs.clear();
+
+    NodePtr begin = m_script.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->Category == NodeCategory::Begin; });
+    if (!begin)
+        return;
+
+    Pin* argumentsPin = nullptr;
+    std::vector<ed::PinId> removedPins;
+    for (Pin& output : begin->Outputs)
+    {
+        if (output.Type == PinType::Flow)
+            continue;
+        if (!argumentsPin)
+            argumentsPin = &output;
+        else
+            removedPins.push_back(output.ID);
+    }
+
+    if (argumentsPin)
+    {
+        argumentsPin->Name = "Arguments";
+        argumentsPin->Type = PinType::List;
+    }
+    else
+    {
+        begin->Outputs.emplace_back(
+            m_IDGenerator.GetNextId(), "Arguments", PinType::List);
+    }
+
+    for (const ed::PinId pinId : removedPins)
+    {
+        std::vector<ed::LinkId> links;
+        for (const Link& link : m_script.main->Graph.GetLinks())
+            if (link.StartPinID == pinId || link.EndPinID == pinId)
+                links.push_back(link.ID);
+        for (const ed::LinkId linkId : links)
+            m_script.main->Graph.DeleteLink(linkId);
+    }
+    stl::erase_if(begin->Outputs, [&](const Pin& output)
+    {
+        return std::find(removedPins.begin(), removedPins.end(), output.ID) !=
+               removedPins.end();
+    });
+    NodeUtils::BuildNode(begin);
 }
 
 void Example::RebuildScriptTree()
@@ -2873,6 +3068,16 @@ void Example::RebuildScriptTree()
         mainNode.iconText = ICON_FA_PLAY;
         mainNode.pElement = std::static_pointer_cast<IScriptElement>(m_script.main);
         mainNode.onclick = [this]() { ed::ClearSelection(); ChangeGraph(m_script.main); };
+        if (!m_script.main->functionDef->inputs.empty())
+        {
+            TreeNode argumentsNode;
+            argumentsNode.id = m_script.main->functionDef->inputs.front().id;
+            argumentsNode.label = "Arguments  (String List)";
+            argumentsNode.icon = m_InputIcon;
+            argumentsNode.iconText = ICON_FA_LIST;
+            argumentsNode.onclick = []() { ed::ClearSelection(); };
+            mainNode.AddChild(argumentsNode);
+        }
         m_scriptTreeView.AddChild(mainNode);
     }
 
@@ -2920,6 +3125,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
     node.icon = m_ClassIcon;
     node.iconText = ICON_FA_CUBES;
     node.pElement = std::static_pointer_cast<IScriptElement>(scriptClass);
+    node.onclick = []() { ed::ClearSelection(); };
     node.onRename = [this, id = scriptClass->ID.id](std::string name)
     {
         pendingActions.push_back(std::make_shared<DeferredAction>([this, id, name]()
@@ -2932,8 +3138,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
     };
     node.contextMenu = [this, id = scriptClass->ID.id]()
     {
-        if (!ImGui::BeginPopupContextItem("ClassPopup")) return;
-        if (ImGui::MenuItem("Add Property"))
+        if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Property"))
         {
             const int propertyId = m_IDGenerator.GetNextId();
             pendingActions.push_back(std::make_shared<DeferredAction>([this, id, propertyId]()
@@ -2943,7 +3148,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
                 if (!result) m_fileStatus = result.error; else RebuildScriptTree();
             }));
         }
-        if (ImGui::MenuItem("Add Method"))
+        if (ImGui::MenuItem(ICON_FA_DIAGRAM_PROJECT "  Add Method"))
         {
             const int methodId = m_IDGenerator.GetNextId();
             pendingActions.push_back(std::make_shared<DeferredAction>([this, id, methodId]()
@@ -2954,7 +3159,8 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
             }));
         }
         ScriptClassPtr current = ScriptUtils::FindClassById(m_script, id);
-        if (current && !current->constructor && ImGui::MenuItem("Add Constructor"))
+        if (current && !current->constructor &&
+            ImGui::MenuItem(ICON_FA_WAND_MAGIC_SPARKLES "  Add Constructor"))
         {
             const int constructorId = m_IDGenerator.GetNextId();
             pendingActions.push_back(std::make_shared<DeferredAction>([this, id, constructorId]()
@@ -2964,8 +3170,10 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
                 if (!result) m_fileStatus = result.error; else RebuildScriptTree();
             }));
         }
-        if (ImGui::MenuItem("Rename")) m_editingItemId = id;
-        if (ImGui::MenuItem("Delete"))
+        ImGui::Separator();
+        if (ImGui::MenuItem("Rename"))
+            m_editingItemId = id;
+        if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
             pendingActions.push_back(std::make_shared<DeferredAction>([this, id]()
             {
                 if (m_graphView.m_pScriptFunction && ScriptUtils::FindOwningClass(m_script,
@@ -2975,7 +3183,6 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
                 m_fileStatusIsError = !result;
                 if (!result) m_fileStatus = result.error; else RebuildScriptTree();
             }));
-        ImGui::EndPopup();
     };
 
     if (scriptClass->constructor)
@@ -3007,13 +3214,14 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
     };
     node.contextMenu = [this, classId, id = method->ID.id]()
     {
-        if (!ImGui::BeginPopupContextItem("MethodPopup")) return;
-        if (ImGui::MenuItem("Add Input"))
+        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
-        if (ImGui::MenuItem("Add Output"))
+        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Output"))
             pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, id, m_IDGenerator.GetNextId()));
-        if (ImGui::MenuItem("Rename")) m_editingItemId = id;
-        if (ImGui::MenuItem("Delete"))
+        ImGui::Separator();
+        if (ImGui::MenuItem("Rename"))
+            m_editingItemId = id;
+        if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
             pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
             {
                 if (m_graphView.m_pScriptFunction && m_graphView.m_pScriptFunction->ID == id)
@@ -3022,7 +3230,6 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
                 m_fileStatusIsError = !result;
                 if (!result) m_fileStatus = result.error; else RebuildScriptTree();
             }));
-        ImGui::EndPopup();
     };
     for (const auto& input : method->functionDef->inputs)
         node.AddChild(MakeInputNode(method->ID.id, input.id, input.name));
@@ -3042,10 +3249,10 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
     node.onclick = [this, constructor]() { ed::ClearSelection(); ChangeGraph(constructor); };
     node.contextMenu = [this, classId, id = constructor->ID.id]()
     {
-        if (!ImGui::BeginPopupContextItem("ConstructorPopup")) return;
-        if (ImGui::MenuItem("Add Input"))
+        if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
-        if (ImGui::MenuItem("Delete"))
+        ImGui::Separator();
+        if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
             pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
             {
                 if (m_graphView.m_pScriptFunction && m_graphView.m_pScriptFunction->ID == id)
@@ -3054,7 +3261,6 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
                 m_fileStatusIsError = !result;
                 if (!result) m_fileStatus = result.error; else RebuildScriptTree();
             }));
-        ImGui::EndPopup();
     };
     for (const auto& input : constructor->functionDef->inputs)
         node.AddChild(MakeInputNode(constructor->ID.id, input.id, input.name));
@@ -3069,6 +3275,7 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
     node.icon = m_VariableIcon;
     node.iconText = ICON_FA_DATABASE;
     node.pElement = std::static_pointer_cast<IScriptElement>(property);
+    node.onclick = []() { ed::ClearSelection(); };
     node.onRename = [this, classId, id = property->ID.id](std::string name)
     {
         pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, name]()
@@ -3082,20 +3289,21 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
     {
         ScriptPropertyPtr current = ScriptUtils::FindClassPropertyById(m_script, id);
         if (!current) return;
-        if (ImGui::BeginPopupContextItem("ClassPropertyPopup"))
-        {
-            if (ImGui::MenuItem("Rename")) m_editingItemId = id;
-            if (ImGui::MenuItem("Delete"))
-                pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
-                {
-                    const OperationResult result = m_operations->RemoveClassProperty(classId, id);
-                    m_fileStatusIsError = !result;
-                    if (!result) m_fileStatus = result.error; else RebuildScriptTree();
-                }));
-            ImGui::EndPopup();
-        }
-
-        ImGui::PushID(id);
+        if (ImGui::MenuItem("Rename"))
+            m_editingItemId = id;
+        if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
+            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id]()
+            {
+                const OperationResult result =
+                    m_operations->RemoveClassProperty(classId, id);
+                m_fileStatusIsError = !result;
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+            }));
+    };
+    node.afterLabel = [this, classId, id = property->ID.id]()
+    {
+        ScriptPropertyPtr current = ScriptUtils::FindClassPropertyById(m_script, id);
+        if (!current) return;
         ImGui::SameLine();
         Value value = current->defaultValue;
         if (GraphViewUtils::DrawTypeInput(TypeOfValue(value), value))
@@ -3116,7 +3324,6 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
                 if (!result) m_fileStatus = result.error;
             }));
         });
-        ImGui::PopID();
     };
     return node;
 }
@@ -3151,6 +3358,7 @@ void Example::LoadScript(const std::string& path)
     m_graphView.Destroy();
     m_script = std::move(loadedScript);
     m_IDGenerator = loadedIds;
+    EnsureMainSignature();
     pendingActions.clear();
     m_commitPendingEdit = false;
     actionStack.clear();
@@ -3162,6 +3370,7 @@ void Example::LoadScript(const std::string& path)
     m_editingItemId = 0;
     RebuildScriptTree();
     m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
+    ApplyEditorTheme();
 
     m_currentScriptPath = path;
     m_fileStatus = "Opened " + std::filesystem::path(path).filename().string();

@@ -21,6 +21,9 @@ Application::Application(const char* name, int argc, char** argv)
     , m_Platform(CreatePlatform(*this))
     , m_Renderer(CreateRenderer())
 {
+    for (int i = 1; i < argc; ++i)
+        if (argv && argv[i])
+            m_Arguments.emplace_back(argv[i]);
     m_Platform->ApplicationStart(argc, argv);
 }
 
@@ -35,6 +38,11 @@ Application::~Application()
         ImGui::DestroyContext(m_Context);
         m_Context= nullptr;
     }
+}
+
+const std::vector<std::string>& Application::GetArguments() const
+{
+    return m_Arguments;
 }
 
 bool Application::Create(int width /*= -1*/, int height /*= -1*/, bool startMaximized /*= false*/)

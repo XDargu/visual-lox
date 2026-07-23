@@ -131,8 +131,22 @@ namespace Editor
             if (node.onclick)
                 node.onclick();
         }
-        if (node.contextMenu)
+
+        const bool rowHovered = ImGui::IsItemHovered();
+        if (rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            selectedItem = node.id;
+            if (node.onclick)
+                node.onclick();
+            ImGui::OpenPopup("##TreeNodeContextMenu");
+        }
+        if (node.contextMenu && ImGui::BeginPopup("##TreeNodeContextMenu"))
+        {
             node.contextMenu();
+            ImGui::EndPopup();
+        }
+        if (node.afterLabel)
+            node.afterLabel();
 
         ImGui::PopID();
 

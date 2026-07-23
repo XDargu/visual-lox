@@ -194,6 +194,14 @@ void GraphView::setDocumentOperations(DocumentOperations& operations)
 
 void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph)
 {
+    const bool preserveStyle = m_Editor != nullptr;
+    ed::Style preservedStyle;
+    if (preserveStyle)
+    {
+        ed::SetCurrentEditor(m_Editor);
+        preservedStyle = ed::GetStyle();
+    }
+
     // Destroying the old context flushes its latest node positions through the
     // SaveNodeSettings callback while m_pGraph still points at the old graph.
     Destroy();
@@ -254,6 +262,8 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
 
     m_Editor = ed::CreateEditor(&config);
     ed::SetCurrentEditor(m_Editor);
+    if (preserveStyle)
+        ed::GetStyle() = preservedStyle;
 
     // We should add the nodes here in a better wya
     // TODO: Improve this. This calls IMGUI!

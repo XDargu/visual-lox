@@ -728,6 +728,8 @@ OperationResult DocumentOperations::ChangeVariableValue(int id, const Value& val
 OperationResult DocumentOperations::AddFunctionInput(int functionId, int inputId, const std::string& name,
                                                       const Value& value)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
     ScriptFunctionPtr function = FindFunction(functionId);
     if (!function) return Missing("Function", functionId);
     return Apply("Add function input", [&]
@@ -740,6 +742,8 @@ OperationResult DocumentOperations::AddFunctionInput(int functionId, int inputId
 
 OperationResult DocumentOperations::RemoveFunctionInput(int functionId, int inputId)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
     ScriptFunctionPtr function = FindFunction(functionId);
     if (!function) return Missing("Function", functionId);
     if (!function->functionDef->FindInputByID(inputId)) return Missing("Function input", inputId);
@@ -753,6 +757,8 @@ OperationResult DocumentOperations::RemoveFunctionInput(int functionId, int inpu
 
 OperationResult DocumentOperations::RenameFunctionInput(int functionId, int inputId, const std::string& name)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
     ScriptFunctionPtr function = FindFunction(functionId);
     BasicFunctionDef::Input* port = function ? function->functionDef->FindInputByID(inputId) : nullptr;
     if (!port) return Missing("Function input", inputId);
@@ -766,6 +772,8 @@ OperationResult DocumentOperations::RenameFunctionInput(int functionId, int inpu
 
 OperationResult DocumentOperations::ChangeFunctionInputValue(int functionId, int inputId, const Value& value)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
     ScriptFunctionPtr function = FindFunction(functionId);
     BasicFunctionDef::Input* port = function ? function->functionDef->FindInputByID(inputId) : nullptr;
     if (!port) return Missing("Function input", inputId);
@@ -780,6 +788,8 @@ OperationResult DocumentOperations::ChangeFunctionInputValue(int functionId, int
 OperationResult DocumentOperations::AddFunctionOutput(int functionId, int outputId, const std::string& name,
                                                        const Value& value)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
     ScriptFunctionPtr function = FindFunction(functionId);
     if (!function) return Missing("Function", functionId);
     return Apply("Add function output", [&]
@@ -792,6 +802,8 @@ OperationResult DocumentOperations::AddFunctionOutput(int functionId, int output
 
 OperationResult DocumentOperations::RemoveFunctionOutput(int functionId, int outputId)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
     ScriptFunctionPtr function = FindFunction(functionId);
     if (!function) return Missing("Function", functionId);
     if (!function->functionDef->FindOutputByID(outputId)) return Missing("Function output", outputId);
@@ -805,6 +817,8 @@ OperationResult DocumentOperations::RemoveFunctionOutput(int functionId, int out
 
 OperationResult DocumentOperations::RenameFunctionOutput(int functionId, int outputId, const std::string& name)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
     ScriptFunctionPtr function = FindFunction(functionId);
     BasicFunctionDef::Input* port = function ? function->functionDef->FindOutputByID(outputId) : nullptr;
     if (!port) return Missing("Function output", outputId);
@@ -818,6 +832,8 @@ OperationResult DocumentOperations::RenameFunctionOutput(int functionId, int out
 
 OperationResult DocumentOperations::ChangeFunctionOutputValue(int functionId, int outputId, const Value& value)
 {
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
     ScriptFunctionPtr function = FindFunction(functionId);
     BasicFunctionDef::Input* port = function ? function->functionDef->FindOutputByID(outputId) : nullptr;
     if (!port) return Missing("Function output", outputId);

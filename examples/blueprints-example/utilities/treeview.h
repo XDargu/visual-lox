@@ -21,6 +21,7 @@ namespace Editor
         std::function<void()> onclick;
         std::function<void(std::string)> onRename;
         std::function<void()> contextMenu;
+        std::function<void()> afterLabel;
         ImTextureID icon = nullptr;
         std::string iconText;
         std::shared_ptr<IScriptElement> pElement;

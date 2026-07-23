@@ -1,6 +1,7 @@
 # pragma once
 # include <imgui.h>
 # include <string>
+# include <vector>
 # include <memory>
 
 struct Platform;
@@ -22,6 +23,7 @@ struct Application
     void Quit();
 
     const std::string& GetName() const;
+    const std::vector<std::string>& GetArguments() const;
 
     ImFont* DefaultFont() const;
     ImFont* HeaderFont() const;
@@ -47,6 +49,7 @@ private:
     void Frame();
 
     std::string                 m_Name;
+    std::vector<std::string>    m_Arguments;
     std::string                 m_IniFilename;
     std::unique_ptr<Platform>   m_Platform;
     std::unique_ptr<Renderer>   m_Renderer;

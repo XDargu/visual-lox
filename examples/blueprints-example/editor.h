@@ -98,6 +98,7 @@ struct Example :
     ImGuiWindowFlags GetWindowFlags() const override;
 
     void InitializeScriptTree();
+    void EnsureMainSignature();
     void RebuildScriptTree();
     void SaveScript(const std::string& path);
     void LoadScript(const std::string& path);

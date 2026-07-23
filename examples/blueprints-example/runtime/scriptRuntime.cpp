@@ -91,6 +91,12 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
         return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
 
     vm.resetStack();
+    ObjList* programArguments = newList();
+    const Value programArgumentsValue(programArguments);
+    vm.push(programArgumentsValue);
+    for (const std::string& argument : options.programArguments)
+        programArguments->append(
+            Value(copyString(argument.c_str(), static_cast<int>(argument.size()))));
     for (Value& value : folding.values)
         vm.push(value);
     Compiler& compiler = vm.getCompiler();
@@ -183,6 +189,11 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     }
 
     compiler.beginScope();
+    const Token argumentsToken(
+        TokenType::IDENTIFIER, "Arguments", 9, 0);
+    compiler.emitConstant(programArgumentsValue);
+    compiler.addLocal(argumentsToken, true);
+    compiler.emitVariable(argumentsToken, true, true);
     CompileGraph(script.main->Graph, compiler, folding.values, folding.nodeIds);
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();

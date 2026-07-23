@@ -11,6 +11,7 @@ Value sizeOf(int argCount, Value* args, VM* vm);
 
 // Types
 Value isList(int argCount, Value* args, VM* vm);
+Value lengthOfIterable(int argCount, Value* args, VM* vm);
 Value inBounds(int argCount, Value* args, VM* vm);
 
 // IO

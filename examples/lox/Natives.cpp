@@ -28,6 +28,23 @@ Value isList(int argCount, Value* args, VM* vm)
     return Value(isList(args[0]));
 }
 
+Value lengthOfIterable(int argCount, Value* args, VM* vm)
+{
+    if (isList(args[0]))
+        return Value(static_cast<double>(asList(args[0])->items.size()));
+
+    if (isRange(args[0]))
+    {
+        const ObjRange* range = asRange(args[0]);
+        return Value(std::floor(std::fabs(range->max - range->min)) + 1.0);
+    }
+
+    if (isString(args[0]))
+        return Value(static_cast<double>(asString(args[0])->length));
+
+    return Value();
+}
+
 Value inBounds(int argCount, Value* args, VM* vm)
 {
     if (!isNumber(args[1]))
@@ -120,7 +137,7 @@ Value pop(int argCount, Value* args, VM* vm)
         return Value();
     }
 
-    Value value = *list->items.end();
+    Value value = list->items.back();
     list->items.pop_back();
     return value;
 }
@@ -180,7 +197,7 @@ Value contains(int argCount, Value* args, VM* vm)
         for (int idx = 0; range->isInBounds(idx); ++idx)
         {
             if (asNumber(args[1]) == range->getValue(idx))
-                return Value(false);
+                return Value(true);
         }
     }
     else if (isList(args[0]))

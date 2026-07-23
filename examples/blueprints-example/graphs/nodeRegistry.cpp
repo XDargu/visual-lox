@@ -268,6 +268,13 @@ void NodeRegistry::RegisterDefinitions()
         NodeDefinitionFlags::ReadOnly
     );
 
+    RegisterNativeFunc("String::Length",
+        { { "Value", Value(copyString("", 0)) } },
+        { { "Length", Value(0.0) } },
+        &lengthOfIterable,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
     RegisterNativeFunc("String::Split",
         { { "String", Value(copyString("", 0)) }, { "Separator", Value(copyString("", 0))} },
         { { "List", Value(newList()) } },
@@ -315,6 +322,20 @@ void NodeRegistry::RegisterDefinitions()
         {
             1, 16, PinType::Any, Value(0.0)
         }
+    );
+
+    RegisterNativeFunc("List::Length",
+        { { "List", Value(newList()) } },
+        { { "Length", Value(0.0) } },
+        &lengthOfIterable,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
+    RegisterNativeFunc("List::In Bounds",
+        { { "List", Value(newList()) }, { "Index", Value(0.0) } },
+        { { "Result", Value(false) } },
+        &inBounds,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::Concat",
@@ -375,6 +396,34 @@ void NodeRegistry::RegisterDefinitions()
 
     RegisterNativeFunc("List::IndexOf",
         { { "List", Value(newList()) }, { "Value", Value() } },
+        { { "Result", Value(0.0) } },
+        &indexOf,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
+    RegisterNativeFunc("Range::Length",
+        { { "Range", Value(newRange(0.0, 0.0)) } },
+        { { "Length", Value(0.0) } },
+        &lengthOfIterable,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
+    RegisterNativeFunc("Range::In Bounds",
+        { { "Range", Value(newRange(0.0, 0.0)) }, { "Index", Value(0.0) } },
+        { { "Result", Value(false) } },
+        &inBounds,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
+    RegisterNativeFunc("Range::Contains",
+        { { "Range", Value(newRange(0.0, 0.0)) }, { "Value", Value(0.0) } },
+        { { "Result", Value(false) } },
+        &contains,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+    );
+
+    RegisterNativeFunc("Range::IndexOf",
+        { { "Range", Value(newRange(0.0, 0.0)) }, { "Value", Value(0.0) } },
         { { "Result", Value(0.0) } },
         &indexOf,
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure

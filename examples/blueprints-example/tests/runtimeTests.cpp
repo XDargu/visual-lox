@@ -18,6 +18,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -77,6 +78,72 @@ int RunRuntimeTests()
                 "File::FileExists depends on external state and must not be pure.");
         Require(!HasFlag(registry.FindNative("Functional::Map")->functionDef->flags, NodeDefinitionFlags::Pure),
                 "Higher-order functions cannot be pure without a pure callable contract.");
+
+        IDGenerator collectionNodeIds;
+        auto callCollectionNode = [&](const char* name, std::vector<Value> arguments)
+        {
+            const NativeFunctionDef* definition = registry.FindNative(name);
+            Require(definition != nullptr, "Expected collection node to be registered.");
+            Require(HasFlag(definition->functionDef->flags, NodeDefinitionFlags::ReadOnly) &&
+                    HasFlag(definition->functionDef->flags, NodeDefinitionFlags::Pure),
+                    "Collection query nodes should be read-only and pure.");
+            NodePtr node = definition->functionDef->MakeNode(
+                collectionNodeIds, ScriptElementID::Invalid);
+            Require(node && node->DefinitionId == name,
+                    "Collection query definitions should construct callable nodes.");
+            return definition->nativeFun(
+                static_cast<int>(arguments.size()), arguments.data(), &vm);
+        };
+
+        ObjList* collectionList = newList();
+        collectionList->append(Value(10.0));
+        collectionList->append(Value(20.0));
+        collectionList->append(Value(30.0));
+        Value listLength = callCollectionNode("List::Length", { Value(collectionList) });
+        Value listIndexInBounds =
+            callCollectionNode("List::In Bounds", { Value(collectionList), Value(2.0) });
+        Value listIndexOutOfBounds =
+            callCollectionNode("List::In Bounds", { Value(collectionList), Value(3.0) });
+        Require(isNumber(listLength) && asNumber(listLength) == 3.0,
+                "List::Length should return the number of list items.");
+        Require(isBoolean(listIndexInBounds) && asBoolean(listIndexInBounds) &&
+                isBoolean(listIndexOutOfBounds) && !asBoolean(listIndexOutOfBounds),
+                "List::In Bounds should distinguish valid and invalid indices.");
+        const NativeFunctionDef* popDefinition = registry.FindNative("List::Pop");
+        Require(popDefinition != nullptr, "List::Pop should be registered.");
+        Value popArguments[] = { Value(collectionList) };
+        Value poppedValue = popDefinition->nativeFun(1, popArguments, &vm);
+        Require(isNumber(poppedValue) && asNumber(poppedValue) == 30.0 &&
+                collectionList->items.size() == 2,
+                "List::Pop should return and remove the final list item.");
+
+        ObjRange* ascendingRange = newRange(2.0, 4.0);
+        ObjRange* descendingRange = newRange(4.0, 2.0);
+        Value ascendingLength =
+            callCollectionNode("Range::Length", { Value(ascendingRange) });
+        Value descendingLength =
+            callCollectionNode("Range::Length", { Value(descendingRange) });
+        Value rangeIndexInBounds =
+            callCollectionNode("Range::In Bounds", { Value(ascendingRange), Value(2.0) });
+        Value rangeIndexOutOfBounds =
+            callCollectionNode("Range::In Bounds", { Value(ascendingRange), Value(3.0) });
+        Value rangeContains =
+            callCollectionNode("Range::Contains", { Value(descendingRange), Value(3.0) });
+        Value rangeDoesNotContain =
+            callCollectionNode("Range::Contains", { Value(descendingRange), Value(5.0) });
+        Value rangeIndex =
+            callCollectionNode("Range::IndexOf", { Value(descendingRange), Value(2.0) });
+        Require(isNumber(ascendingLength) && asNumber(ascendingLength) == 3.0 &&
+                isNumber(descendingLength) && asNumber(descendingLength) == 3.0,
+                "Range::Length should support ascending and descending inclusive ranges.");
+        Require(isBoolean(rangeIndexInBounds) && asBoolean(rangeIndexInBounds) &&
+                isBoolean(rangeIndexOutOfBounds) && !asBoolean(rangeIndexOutOfBounds),
+                "Range::In Bounds should distinguish valid and invalid indices.");
+        Require(isBoolean(rangeContains) && asBoolean(rangeContains) &&
+                isBoolean(rangeDoesNotContain) && !asBoolean(rangeDoesNotContain),
+                "Range::Contains should find values in ascending or descending ranges.");
+        Require(isNumber(rangeIndex) && asNumber(rangeIndex) == 2.0,
+                "Range::IndexOf should return the zero-based range index.");
 
         // A completed top-level interpretation must release its closure. This
         // also exercises textual for-in repeatedly beyond the 256-slot limit
@@ -177,24 +244,39 @@ int RunRuntimeTests()
             std::make_shared<ScriptProperty>(forInIds.GetNextId(), "ForInResult");
         forInResult->defaultValue = Value(-1.0);
         forInScript.variables.push_back(forInResult);
+        ScriptPropertyPtr collectionLength =
+            std::make_shared<ScriptProperty>(forInIds.GetNextId(), "CollectionLength");
+        collectionLength->defaultValue = Value(-1.0);
+        forInScript.variables.push_back(collectionLength);
 
         NodePtr forInBegin = BuildBeginNode(forInIds, forInScript.main);
         NodePtr forIn = registry.FindCompiled("Flow::For In")->MakeNode(forInIds);
         NodePtr storeForInResult = BuildSetVariableNode(forInIds, forInResult);
+        NodePtr listLengthNode = registry.FindNative("List::Length")->functionDef->MakeNode(
+            forInIds, ScriptElementID::Invalid);
+        NodePtr storeCollectionLength = BuildSetVariableNode(forInIds, collectionLength);
         ObjList* largeList = newList();
         for (int value = 0; value < 1000; ++value)
             largeList->append(Value(static_cast<double>(value)));
         forIn->InputValues[1] = Value(largeList);
+        listLengthNode->InputValues[0] = Value(largeList);
 
         AttachNode(forInScript.main->Graph, forInBegin);
         AttachNode(forInScript.main->Graph, forIn);
         AttachNode(forInScript.main->Graph, storeForInResult);
+        AttachNode(forInScript.main->Graph, listLengthNode);
+        AttachNode(forInScript.main->Graph, storeCollectionLength);
         forInScript.main->Graph.AddLink(
             Link(forInIds.GetNextId(), forInBegin->Outputs[0].ID, forIn->Inputs[0].ID));
         forInScript.main->Graph.AddLink(
             Link(forInIds.GetNextId(), forIn->Outputs[0].ID, storeForInResult->Inputs[0].ID));
         forInScript.main->Graph.AddLink(
             Link(forInIds.GetNextId(), forIn->Outputs[1].ID, storeForInResult->Inputs[1].ID));
+        forInScript.main->Graph.AddLink(
+            Link(forInIds.GetNextId(), forIn->Outputs[2].ID, storeCollectionLength->Inputs[0].ID));
+        forInScript.main->Graph.AddLink(
+            Link(forInIds.GetNextId(), listLengthNode->Outputs[0].ID,
+                 storeCollectionLength->Inputs[1].ID));
 
         vm.setExternalMarkingFunc([&]()
         {
@@ -208,9 +290,14 @@ int RunRuntimeTests()
         Require(vm.getStackSize() == 0,
                 "Flow::For In should release all loop values after execution.");
         Value observedForInResult;
+        Value observedCollectionLength;
         Require(vm.globalTable().get(copyString("ForInResult", 11), &observedForInResult) &&
                 isNumber(observedForInResult) && asNumber(observedForInResult) == 999.0,
                 "Flow::For In should expose every list value through its Value output.");
+        Require(vm.globalTable().get(copyString("CollectionLength", 16),
+                    &observedCollectionLength) &&
+                isNumber(observedCollectionLength) && asNumber(observedCollectionLength) == 1000.0,
+                "List::Length should execute through the graph compiler.");
 
         // Ranges, matching, classes, constructor arguments, properties and
         // method invocation all participate in the same graph/runtime pipeline.

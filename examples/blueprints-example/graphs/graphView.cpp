@@ -145,11 +145,11 @@ void GraphView::setNodeRegistry(NodeRegistry& nodeRegistry)
 
 namespace
 {
-void DrawNodeDiagnosticBox(ed::NodeId nodeId,
+bool DrawNodeDiagnosticBox(ed::NodeId nodeId,
                            const std::vector<const ValidationDiagnostic*>& diagnostics,
                            bool hasError)
 {
-    if (diagnostics.empty()) return;
+    if (diagnostics.empty()) return false;
 
     const ValidationDiagnostic* primary = diagnostics.front();
     if (hasError)
@@ -181,14 +181,9 @@ void DrawNodeDiagnosticBox(ed::NodeId nodeId,
     const ImVec2 textMax = max - ImVec2(5.0f, 2.0f);
     ImGui::RenderTextEllipsis(drawList, textMin, textMax, textMax.x, textMax.x,
                               message.c_str(), message.c_str() + message.size(), nullptr);
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        for (const ValidationDiagnostic* diagnostic : diagnostics)
-            ImGui::TextWrapped("%s", diagnostic->message.c_str());
-        ImGui::EndTooltip();
-    }
+    const bool hovered = ImGui::IsItemHovered();
     ImGui::PopID();
+    return hovered;
 }
 }
 
@@ -313,6 +308,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 {
     if (!operationError.empty())
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", operationError.c_str());
+
+    std::vector<const ValidationDiagnostic*> hoveredDiagnostics;
     ed::Begin("Node editor");
 
     {
@@ -454,7 +451,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             if (!nodeDiagnostics.empty())
             {
                 builder.Footer();
-                DrawNodeDiagnosticBox(node->ID, nodeDiagnostics, hasDiagnosticError);
+                if (DrawNodeDiagnosticBox(node->ID, nodeDiagnostics, hasDiagnosticError))
+                    hoveredDiagnostics = nodeDiagnostics;
             }
 
             builder.End();
@@ -664,6 +662,19 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         m_NavigateToContentOnNextFrame = false;
     }
     ed::End();
+
+    // Render after the node editor has restored normal screen coordinates.
+    // Suspending while a node is being built disrupts the builder's draw-list
+    // channels and can corrupt the rest of that node's layout.
+    if (!hoveredDiagnostics.empty())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        for (const ValidationDiagnostic* diagnostic : hoveredDiagnostics)
+            ImGui::TextUnformatted(diagnostic->message.c_str());
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
 }
 
 void GraphView::DrawContextMenu()

@@ -1,0 +1,98 @@
+{
+  "format": "visual-lox",
+  "format_version": 2,
+  "script": {
+    "classes": [],
+    "functions": [],
+    "id": 1,
+    "main": {
+      "graph": {
+        "links": [
+          {
+            "end_pin_id": 10,
+            "id": 13,
+            "start_pin_id": 5
+          },
+          {
+            "end_pin_id": 11,
+            "id": 14,
+            "start_pin_id": 6
+          }
+        ],
+        "nodes": [
+          {
+            "definition": "",
+            "id": 4,
+            "input_values": [],
+            "inputs": [],
+            "kind": "begin",
+            "outputs": [
+              {
+                "id": 5,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "id": 6,
+                "name": "Arguments",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": ""
+          },
+          {
+            "definition": "Debug::Print",
+            "id": 9,
+            "input_values": [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": ""
+              }
+            ],
+            "inputs": [
+              {
+                "id": 10,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "id": 11,
+                "name": "Content",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs": [
+              {
+                "id": 12,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": ""
+          }
+        ]
+      },
+      "id": 2,
+      "inputs": [
+        {
+          "default": {
+            "items": [],
+            "type": "list"
+          },
+          "id": 3,
+          "name": "Arguments"
+        }
+      ],
+      "name": "Main",
+      "outputs": [],
+      "variables": []
+    },
+    "variables": []
+  }
+}

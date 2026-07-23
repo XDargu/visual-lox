@@ -91,7 +91,10 @@ set(_VisualLoxEditorSources
 
 add_example_executable(visual-lox-editor ${_VisualLoxEditorSources})
 target_link_libraries(visual-lox-editor PRIVATE visual-lox-core)
-set_property(TARGET visual-lox-editor PROPERTY FOLDER "visual-lox")
+set_target_properties(visual-lox-editor PROPERTIES
+    FOLDER      "visual-lox"
+    OUTPUT_NAME "vlox-editor"
+)
 
 if (WIN32)
     target_link_libraries(visual-lox-editor PRIVATE comdlg32)
@@ -101,6 +104,7 @@ add_executable(visual-lox-cli cli/main.cpp)
 target_link_libraries(visual-lox-cli PRIVATE visual-lox-core)
 set_target_properties(visual-lox-cli PROPERTIES
     FOLDER "visual-lox"
+    OUTPUT_NAME                            "vlox"
     RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
@@ -141,5 +145,15 @@ if (BUILD_TESTING)
         NAME visual-lox-cli-smoke
         COMMAND $<TARGET_FILE:visual-lox-cli>
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/hello.vlox
+    )
+
+    add_test(
+        NAME visual-lox-cli-arguments
+        COMMAND $<TARGET_FILE:visual-lox-cli>
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/arguments.vlox
+                first --disassemble --help
+    )
+    set_tests_properties(visual-lox-cli-arguments PROPERTIES
+        PASS_REGULAR_EXPRESSION "\\[first, --disassemble, --help\\]"
     )
 endif()

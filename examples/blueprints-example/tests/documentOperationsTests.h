@@ -1,4 +1,5 @@
 #pragma once
 
-int RunDocumentOperationsTests();
+namespace Tests { class Runner; }
 
+void AddDocumentOperationsTests(Tests::Runner& runner);

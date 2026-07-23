@@ -1,3 +1,5 @@
 #pragma once
 
-int RunRuntimeTests();
+namespace Tests { class Runner; }
+
+void AddRuntimeTests(Tests::Runner& runner);

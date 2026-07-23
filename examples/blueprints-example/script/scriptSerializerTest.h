@@ -2,4 +2,6 @@
 
 #include <string>
 
-int RunScriptSerializerRoundTripTest(const std::string& outputPath);
+namespace Tests { class Runner; }
+
+void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPath);

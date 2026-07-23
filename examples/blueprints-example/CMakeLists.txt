@@ -112,6 +112,7 @@ set_target_properties(visual-lox-cli PROPERTIES
 if (BUILD_TESTING)
     add_executable(visual-lox-tests
         tests/main.cpp
+        tests/testFramework.h
         tests/runtimeTests.h
         tests/runtimeTests.cpp
         tests/documentOperationsTests.h

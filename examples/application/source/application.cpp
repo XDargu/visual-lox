@@ -2,6 +2,7 @@
 # include "setup.h"
 # include "platform.h"
 # include "renderer.h"
+# include "IconsFontAwesome6.h"
 
 extern "C" {
 #define STB_IMAGE_IMPLEMENTATION
@@ -98,9 +99,38 @@ void Application::RecreateFontAtlas()
     config.OversampleV = 4;
     config.PixelSnapH = false;
 
+    auto mergeFontAwesome = [&io](float baseFontSize)
+    {
+        static const ImWchar iconRanges[] = {
+            ICON_MIN_FA,
+            ICON_MAX_16_FA,
+            0
+        };
+
+        const float iconFontSize = baseFontSize * 2.0f / 3.0f;
+
+        ImFontConfig iconConfig;
+        iconConfig.MergeMode = true;
+        iconConfig.PixelSnapH = true;
+        iconConfig.GlyphMinAdvanceX = iconFontSize;
+
+        auto* mergedFont = io.Fonts->AddFontFromFileTTF(
+            "data/" FONT_ICON_FILE_NAME_FAS,
+            iconFontSize,
+            &iconConfig,
+            iconRanges);
+
+        IM_ASSERT(mergedFont != nullptr);
+    };
+
     m_DefaultFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 18.0f, &config);
+    mergeFontAwesome(18.0f);
+
     m_HeaderFont = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf", 20.0f, &config);
+    mergeFontAwesome(20.0f);
+
     m_LargeNodeFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf",  48.0f, &config);
+    mergeFontAwesome(48.0f);
 
     io.Fonts->Build();
 }

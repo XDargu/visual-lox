@@ -2,6 +2,7 @@ project(application)
 
 set(_Application_Sources
     include/application.h
+    include/IconsFontAwesome6.h
     source/application.cpp
     source/entry_point.cpp
     source/imgui_extra_keys.h

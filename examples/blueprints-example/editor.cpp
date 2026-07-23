@@ -1,6 +1,8 @@
 #include "editor.h"
 
 #include "native/nodes/begin.h"
+#include "IconsFontAwesome6.h"
+
 
 #include "utilities/utils.h"
 
@@ -576,7 +578,7 @@ void Example::ShowCompilerInfo(float paneWidth)
     VM& vm = VM::getInstance();
 
     const bool pressedCompile = ImGui::Button("Compile") || m_isRealTimeCompilationEnabled;
-    const bool pressedRun = ImGui::Button("Run");
+    const bool pressedRun = ImGui::Button(ICON_FA_PLAY " Run");
 
     if (pressedCompile || pressedRun)
     {

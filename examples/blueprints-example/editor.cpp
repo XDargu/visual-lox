@@ -394,16 +394,6 @@ void Example::OnStart()
     m_graphView.Init(LargeNodeFont());
     m_graphView.setNodeRegistry(m_NodeRegistry);
 
-    m_SaveIcon = LoadTexture("data/ic_save_white_24dp.png");
-    m_RestoreIcon = LoadTexture("data/ic_restore_white_24dp.png");
-
-    m_ScriptIcon = LoadTexture("data/ic_script.png");
-    m_ClassIcon = LoadTexture("data/ic_class.png");
-    m_FunctionIcon = LoadTexture("data/ic_function.png");
-    m_VariableIcon = LoadTexture("data/ic_variable.png");
-    m_InputIcon = LoadTexture("data/ic_input.png");
-    m_OutputIcon = LoadTexture("data/ic_output.png");
-
     VM& vm = VM::getInstance();
     vm.setExternalMarkingFunc([&]()
     {
@@ -449,12 +439,17 @@ void Example::OnStart()
 
     RebuildScriptTree();
     ApplyEditorTheme();
-    SetTitle("Visual Lox - Untitled");
+    MarkDocumentSaved();
+    m_recoveryAvailable = std::filesystem::exists(m_recoveryPath);
+    if (m_recoveryAvailable)
+        ShowToast("Recovery autosave available in File");
+    RefreshWindowTitle();
 }
 
 void Example::OnStop()
 {
     SaveLayoutSettings();
+    m_graphView.Destroy();
     auto releaseTexture = [this](ImTextureID& id)
     {
         if (id)
@@ -464,16 +459,7 @@ void Example::OnStop()
         }
     };
 
-    releaseTexture(m_RestoreIcon);
-    releaseTexture(m_SaveIcon);
     releaseTexture(m_HeaderBackground);
-
-    releaseTexture(m_ScriptIcon);
-    releaseTexture(m_ClassIcon);
-    releaseTexture(m_FunctionIcon);
-    releaseTexture(m_VariableIcon);
-    releaseTexture(m_InputIcon);
-    releaseTexture(m_OutputIcon);
 
 }
 
@@ -584,6 +570,8 @@ void Example::LoadLayoutSettings()
             else if (key == "showInspector") m_showInspector = std::stoi(value) != 0;
             else if (key == "showBottomPanel") m_showBottomPanel = std::stoi(value) != 0;
             else if (key == "showDeveloperTools") m_showDeveloperTools = std::stoi(value) != 0;
+            else if (key == "recent" && std::filesystem::exists(value))
+                m_recentFiles.push_back(value);
         }
         catch (...)
         {
@@ -608,12 +596,42 @@ void Example::SaveLayoutSettings() const
     file << "showInspector=" << (m_showInspector ? 1 : 0) << '\n';
     file << "showBottomPanel=" << (m_showBottomPanel ? 1 : 0) << '\n';
     file << "showDeveloperTools=" << (m_showDeveloperTools ? 1 : 0) << '\n';
+    for (const std::string& recent : m_recentFiles)
+        file << "recent=" << recent << '\n';
 }
 
-void Example::ChangeGraph(const ScriptFunctionPtr& scriptFunction)
+void Example::ChangeGraph(const ScriptFunctionPtr& scriptFunction, bool recordHistory)
 {
+    if (!scriptFunction || scriptFunction == m_graphView.m_pScriptFunction)
+        return;
+    if (recordHistory && m_graphView.m_pScriptFunction)
+    {
+        m_graphBackHistory.push_back(m_graphView.m_pScriptFunction->ID.id);
+        if (m_graphBackHistory.size() > 64)
+            m_graphBackHistory.erase(m_graphBackHistory.begin());
+        m_graphForwardHistory.clear();
+    }
     m_graphView.SetGraph(&m_script, scriptFunction, &scriptFunction->Graph);
     ApplyEditorTheme();
+}
+
+void Example::NavigateGraphHistory(bool forward)
+{
+    std::vector<int>& source = forward ? m_graphForwardHistory : m_graphBackHistory;
+    std::vector<int>& destination = forward ? m_graphBackHistory : m_graphForwardHistory;
+    while (!source.empty())
+    {
+        const int targetId = source.back();
+        source.pop_back();
+        ScriptFunctionPtr target = m_script.main && m_script.main->ID.id == targetId
+            ? m_script.main : ScriptUtils::FindFunctionById(m_script, targetId);
+        if (!target)
+            continue;
+        if (m_graphView.m_pScriptFunction)
+            destination.push_back(m_graphView.m_pScriptFunction->ID.id);
+        ChangeGraph(target, false);
+        return;
+    }
 }
 
 void Example::ShowStyleEditor(bool* show)
@@ -707,10 +725,10 @@ void Example::ShowNodeSelection(float paneWidth)
     selectedNodes.resize(nodeCount);
     selectedLinks.resize(linkCount);
 
-    int saveIconWidth = GetTextureWidth(m_SaveIcon);
-    int saveIconHeight = GetTextureWidth(m_SaveIcon);
-    int restoreIconWidth = GetTextureWidth(m_RestoreIcon);
-    int restoreIconHeight = GetTextureWidth(m_RestoreIcon);
+    const int saveIconWidth = static_cast<int>(ImGui::GetFrameHeight());
+    const int saveIconHeight = saveIconWidth;
+    const int restoreIconWidth = saveIconWidth;
+    const int restoreIconHeight = saveIconWidth;
 
     ImGui::GetWindowDrawList()->AddRectFilled(
         ImGui::GetCursorScreenPos(),
@@ -762,7 +780,6 @@ void Example::ShowNodeSelection(float paneWidth)
             ImVec2(iconPanelPos.x - textSize.x - ImGui::GetStyle().ItemInnerSpacing.x, start.y),
             IM_COL32(255, 255, 255, 255), id.c_str(), nullptr);
 
-        auto drawList = ImGui::GetWindowDrawList();
         ImGui::SetCursorScreenPos(iconPanelPos);
 # if IMGUI_VERSION_NUM < 18967
         ImGui::SetItemAllowOverlap();
@@ -771,21 +788,12 @@ void Example::ShowNodeSelection(float paneWidth)
 # endif
         if (node->SavedState.empty())
         {
-            if (ImGui::InvisibleButton("save", ImVec2((float)saveIconWidth, (float)saveIconHeight)))
+            if (ImGui::SmallButton(ICON_FA_FLOPPY_DISK "##save"))
                 node->SavedState = node->State;
-
-            if (ImGui::IsItemActive())
-                drawList->AddImage(m_SaveIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 96));
-            else if (ImGui::IsItemHovered())
-                drawList->AddImage(m_SaveIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 255));
-            else
-                drawList->AddImage(m_SaveIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 160));
+            Tooltip("Save this node's diagnostic state");
         }
         else
-        {
             ImGui::Dummy(ImVec2((float)saveIconWidth, (float)saveIconHeight));
-            drawList->AddImage(m_SaveIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 32));
-        }
 
         ImGui::SameLine(0, ImGui::GetStyle().ItemInnerSpacing.x);
 # if IMGUI_VERSION_NUM < 18967
@@ -795,25 +803,16 @@ void Example::ShowNodeSelection(float paneWidth)
 # endif
         if (!node->SavedState.empty())
         {
-            if (ImGui::InvisibleButton("restore", ImVec2((float)restoreIconWidth, (float)restoreIconHeight)))
+            if (ImGui::SmallButton(ICON_FA_CLOCK_ROTATE_LEFT "##restore"))
             {
                 node->State = node->SavedState;
                 ed::RestoreNodeState(node->ID);
                 node->SavedState.clear();
             }
-
-            if (ImGui::IsItemActive())
-                drawList->AddImage(m_RestoreIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 96));
-            else if (ImGui::IsItemHovered())
-                drawList->AddImage(m_RestoreIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 255));
-            else
-                drawList->AddImage(m_RestoreIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 160));
+            Tooltip("Restore this node's diagnostic state");
         }
         else
-        {
             ImGui::Dummy(ImVec2((float)restoreIconWidth, (float)restoreIconHeight));
-            drawList->AddImage(m_RestoreIcon, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 255, 255, 32));
-        }
 
         ImGui::SameLine(0, 0);
 # if IMGUI_VERSION_NUM < 18967
@@ -947,7 +946,11 @@ void Example::ShowCompilerInfo(float paneWidth)
     }
 
     if (ImGui::CollapsingHeader("Compiled output"))
+    {
+        if (MonoFont()) ImGui::PushFont(MonoFont());
         ImGui::TextUnformatted(m_compileOutput.c_str());
+        if (MonoFont()) ImGui::PopFont();
+    }
 
     if (ImGui::CollapsingHeader("String table"))
     {
@@ -1769,7 +1772,11 @@ void Example::ShowOutputPanel()
     if (m_runOutput.empty())
         ImGui::TextDisabled("No output.");
     else
+    {
+        if (MonoFont()) ImGui::PushFont(MonoFont());
         ImGui::TextUnformatted(m_runOutput.c_str());
+        if (MonoFont()) ImGui::PopFont();
+    }
 }
 
 void Example::ShowDeveloperPanel()
@@ -1906,10 +1913,10 @@ void Example::DrawMenuBar()
 
     if (ImGui::BeginMenu("File"))
     {
+        if (ImGui::MenuItem(ICON_FA_FILE_CIRCLE_PLUS "  New", "Ctrl+N"))
+            RequestNew();
         if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN "  Open...", "Ctrl+O"))
-            if (const std::optional<std::string> path =
-                    SelectVloxFile(false, m_currentScriptPath))
-                LoadScript(*path);
+            RequestOpenDialog();
         if (ImGui::MenuItem(ICON_FA_FLOPPY_DISK "  Save", "Ctrl+S"))
         {
             if (!m_currentScriptPath.empty())
@@ -1926,9 +1933,39 @@ void Example::DrawMenuBar()
                     SelectVloxFile(true, suggested))
                 SaveScript(*path);
         }
+        if (ImGui::BeginMenu(ICON_FA_CLOCK_ROTATE_LEFT "  Recent Files"))
+        {
+            if (m_recentFiles.empty())
+                ImGui::MenuItem("No recent files", nullptr, false, false);
+            for (const std::string& recent : m_recentFiles)
+            {
+                const std::string label = std::filesystem::path(recent).filename().string() +
+                    "##" + recent;
+                if (ImGui::MenuItem(label.c_str()))
+                    RequestOpen(recent);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("%s", recent.c_str());
+            }
+            ImGui::EndMenu();
+        }
+        if (m_recoveryAvailable &&
+            ImGui::MenuItem(ICON_FA_CLOCK_ROTATE_LEFT "  Recover autosave"))
+        {
+            m_pendingDocumentAction = PendingDocumentAction::Recover;
+            if (m_documentDirty)
+                m_openUnsavedDialog = true;
+            else
+            {
+                LoadScript(m_recoveryPath);
+                m_currentScriptPath.clear();
+                m_savedDocumentSnapshot.clear();
+                m_documentDirty = true;
+                RefreshWindowTitle();
+            }
+        }
         ImGui::Separator();
         if (ImGui::MenuItem("Exit"))
-            Quit();
+            RequestExit();
         ImGui::EndMenu();
     }
 
@@ -2001,8 +2038,10 @@ void Example::DrawMenuBar()
                 ImGui::BulletText("Select a class before opening + to add properties, methods, or its constructor.");
                 ImGui::BulletText("Select a function or method before opening + to add inputs and outputs.");
                 ImGui::BulletText("Open a graph, then press Space or right-click the canvas to add nodes.");
+                ImGui::BulletText("The node palette supports fuzzy search, arrow keys, Enter, favorites, and recent nodes.");
                 ImGui::BulletText("Drag from an output pin to a compatible input pin to connect nodes.");
                 ImGui::BulletText("Main exposes a fixed Arguments string list containing the program arguments.");
+                ImGui::BulletText("Changed scripts autosave to a recovery file every 20 seconds.");
             }
 
             if (ImGui::CollapsingHeader("Inspector", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2038,6 +2077,9 @@ void Example::DrawMenuBar()
                     const std::pair<const char*, const char*> shortcuts[] = {
                         { "Space / right-click", "Add a node on the canvas" },
                         { "Home", "Frame all nodes" },
+                        { "F", "Frame selected nodes" },
+                        { "Alt+Left / Alt+Right", "Move through graph history" },
+                        { "Ctrl+N", "Create a new script" },
                         { "Ctrl+Enter", "Compile" },
                         { "F5", "Run" },
                         { "Ctrl+S", "Save" },
@@ -2088,9 +2130,7 @@ void Example::DrawToolbar()
     ImGui::PopStyleColor();
 
     if (ImGui::Button(ICON_FA_FOLDER_OPEN " Open"))
-        if (const std::optional<std::string> path =
-                SelectVloxFile(false, m_currentScriptPath))
-            LoadScript(*path);
+        RequestOpenDialog();
     Tooltip("Open a Visual Lox script (Ctrl+O)");
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save"))
@@ -2110,13 +2150,13 @@ void Example::DrawToolbar()
     if (ImGui::Button(ICON_FA_ROTATE_LEFT "##undo"))
         UndoLastAction();
     ImGuiUtils::EndDisabled();
-    Tooltip("Undo (Ctrl+Z)");
+    Tooltip(CanUndo() ? "Undo (Ctrl+Z)" : "Nothing to undo");
     ImGui::SameLine();
     ImGuiUtils::BeginDisabled(!CanRedo());
     if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##redo"))
         RedoLastAction();
     ImGuiUtils::EndDisabled();
-    Tooltip("Redo (Ctrl+Y)");
+    Tooltip(CanRedo() ? "Redo (Ctrl+Y)" : "Nothing to redo");
     ImGui::SameLine();
     if (ImGui::Button(ICON_FA_CROSSHAIRS "##frameAll"))
         ed::NavigateToContent();
@@ -2161,7 +2201,7 @@ void Example::DrawStatusBar()
     const std::string documentName = m_currentScriptPath.empty()
         ? "Untitled.vlox"
         : std::filesystem::path(m_currentScriptPath).filename().string();
-    ImGui::TextDisabled("%s", documentName.c_str());
+    ImGui::TextDisabled("%s%s", documentName.c_str(), m_documentDirty ? "  *" : "");
     if (!m_fileStatus.empty())
     {
         ImGui::SameLine();
@@ -2186,6 +2226,82 @@ void Example::DrawStatusBar()
     ImGui::EndChild();
 }
 
+void Example::HandleShortcuts()
+{
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImGuiID activeId = ImGui::GetActiveID();
+    const bool editingText = GImGui && activeId != 0 &&
+        GImGui->InputTextState.ID == activeId;
+    const bool popupOpen = ImGui::IsPopupOpen(
+        nullptr, ImGuiPopupFlags_AnyPopup);
+
+    // Function keys are application commands and remain available regardless
+    // of which editor panel owns keyboard focus.
+    if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
+        CompileScript(true);
+    if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F1), false))
+        m_showHelp = true;
+
+    // Text fields retain their native copy/paste and undo behavior. The old
+    // implementation only checked whether InputTextState had ever been used,
+    // which left almost every shortcut permanently disabled after one edit.
+    if (editingText || popupOpen)
+        return;
+
+    if (io.KeyCtrl)
+    {
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C), false))
+            CopySelection();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V), false))
+            PasteClipboard();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z), false))
+        {
+            if (io.KeyShift)
+            {
+                if (CanRedo()) RedoLastAction();
+            }
+            else if (CanUndo())
+                UndoLastAction();
+        }
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y), false) && CanRedo())
+            RedoLastAction();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_S), false))
+        {
+            if (io.KeyShift)
+            {
+                const std::string suggested =
+                    m_currentScriptPath.empty() ? "Untitled.vlox" : m_currentScriptPath;
+                if (const std::optional<std::string> path =
+                        SelectVloxFile(true, suggested))
+                    SaveScript(*path);
+            }
+            else if (!m_currentScriptPath.empty())
+                SaveScript(m_currentScriptPath);
+            else if (const std::optional<std::string> path =
+                    SelectVloxFile(true, "Untitled.vlox"))
+                SaveScript(*path);
+        }
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_O), false))
+            RequestOpenDialog();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_N), false))
+            RequestNew();
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter), false))
+            CompileScript(false);
+        return;
+    }
+
+    if (io.KeyAlt &&
+        ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_LeftArrow), false))
+        NavigateGraphHistory(false);
+    if (io.KeyAlt &&
+        ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_RightArrow), false))
+        NavigateGraphHistory(true);
+    if (!io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home), false))
+        ed::NavigateToContent();
+    if (!io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F), false))
+        ed::NavigateToSelection(false);
+}
+
 void Example::OnFrame(float deltaTime)
 {
     // Pending actions
@@ -2207,57 +2323,9 @@ void Example::OnFrame(float deltaTime)
     }
 
     m_graphView.OnFrame(deltaTime);
-
-    const bool editingText = GImGui && GImGui->InputTextState.ID != 0;
-    if (!editingText && ImGui::GetIO().KeyCtrl)
-    {
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C), false))
-            CopySelection();
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V), false))
-            PasteClipboard();
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z), false))
-        {
-            if (ImGui::GetIO().KeyShift)
-            {
-                if (CanRedo()) RedoLastAction();
-            }
-            else if (CanUndo())
-            {
-                UndoLastAction();
-            }
-        }
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Y), false) && CanRedo())
-            RedoLastAction();
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_S), false))
-        {
-            if (ImGui::GetIO().KeyShift)
-            {
-                const std::string suggested =
-                    m_currentScriptPath.empty() ? "Untitled.vlox" : m_currentScriptPath;
-                if (const std::optional<std::string> path =
-                        SelectVloxFile(true, suggested))
-                    SaveScript(*path);
-            }
-            else if (!m_currentScriptPath.empty())
-                SaveScript(m_currentScriptPath);
-            else if (const std::optional<std::string> path =
-                    SelectVloxFile(true, "Untitled.vlox"))
-                SaveScript(*path);
-        }
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_O), false))
-            if (const std::optional<std::string> path =
-                    SelectVloxFile(false, m_currentScriptPath))
-                LoadScript(*path);
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter), false))
-            CompileScript(false);
-    }
-
-    if (!editingText && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
-        CompileScript(true);
-    if (!editingText && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F1), false))
-        m_showHelp = true;
-    if (!editingText && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Home), false))
-        ed::NavigateToContent();
+    HandleShortcuts();
+    UpdateDocumentState(deltaTime);
+    m_toastTime = ImMax(0.0f, m_toastTime - deltaTime);
 
     m_validationReport = ScriptValidator::Validate(m_script);
     m_graphView.validationReport = &m_validationReport;
@@ -2322,10 +2390,56 @@ void Example::OnFrame(float deltaTime)
         remainingWidth - (m_showInspector ? m_rightPaneWidth + 5.0f : 0.0f));
     ImGui::BeginChild("Graph Canvas Panel", ImVec2(centerWidth, mainHeight), true,
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-    const char* graphTitle = m_graphView.m_pScriptFunction
-        ? m_graphView.m_pScriptFunction->functionDef->name.c_str()
-        : "Graph";
-    PanelHeading(HeaderFont(), ICON_FA_DIAGRAM_PROJECT, graphTitle);
+    ImGuiUtils::BeginDisabled(m_graphBackHistory.empty());
+    if (ImGui::SmallButton(ICON_FA_ARROW_LEFT "##graphBack"))
+        NavigateGraphHistory(false);
+    ImGuiUtils::EndDisabled();
+    Tooltip(m_graphBackHistory.empty() ? "No previous graph" : "Back to previous graph");
+    ImGui::SameLine();
+    ImGuiUtils::BeginDisabled(m_graphForwardHistory.empty());
+    if (ImGui::SmallButton(ICON_FA_ARROW_RIGHT "##graphForward"))
+        NavigateGraphHistory(true);
+    ImGuiUtils::EndDisabled();
+    Tooltip(m_graphForwardHistory.empty() ? "No next graph" : "Forward to next graph");
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Text, kMuted);
+    ImGui::TextUnformatted(ICON_FA_FILE_CODE " Script");
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    ImGui::TextDisabled(ICON_FA_CHEVRON_RIGHT);
+
+    ScriptClassPtr graphClass = m_graphView.m_pScriptFunction
+        ? ScriptUtils::FindOwningClass(m_script, m_graphView.m_pScriptFunction->ID.id)
+        : nullptr;
+    if (graphClass)
+    {
+        ImGui::SameLine();
+        ImGui::TextUnformatted(graphClass->Name.c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled(ICON_FA_CHEVRON_RIGHT);
+    }
+    ImGui::SameLine();
+    if (HeaderFont()) ImGui::PushFont(HeaderFont());
+    ImGui::TextUnformatted(m_graphView.m_pScriptFunction
+        ? m_graphView.m_pScriptFunction->functionDef->name.c_str() : "Graph");
+    if (HeaderFont()) ImGui::PopFont();
+
+    ImGui::SameLine(ImMax(ImGui::GetCursorPosX() + 16.0f,
+                          ImGui::GetWindowContentRegionMax().x - 225.0f));
+    if (ImGui::SmallButton(ICON_FA_CROSSHAIRS "##frameSelection"))
+        ed::NavigateToSelection(false);
+    Tooltip("Frame selection (F)");
+    ImGui::SameLine();
+    if (ImGui::SmallButton(ICON_FA_MAXIMIZE "##frameAllGraph"))
+        ed::NavigateToContent();
+    Tooltip("Frame all nodes (Home)");
+    ImGui::SameLine();
+    char zoomLabel[32];
+    snprintf(zoomLabel, sizeof(zoomLabel), "%.0f%%##zoomReset", ed::GetCurrentZoom() * 100.0f);
+    if (ImGui::SmallButton(zoomLabel))
+        ed::NavigateToContent();
+    Tooltip("Reset the view and frame all nodes");
+    ImGui::Separator();
 
     m_graphView.DrawNodeEditor(m_HeaderBackground, 0, 0);
 
@@ -2411,8 +2525,8 @@ void Example::OnFrame(float deltaTime)
     }
 
     DrawStatusBar();
-
-
+    ShowDocumentDialogs();
+    DrawToasts();
 }
 
 TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
@@ -2847,12 +2961,14 @@ void Example::CopySelection()
         const OperationResult result = m_operations->CopyNodes(m_graphView.m_pScriptFunction->ID.id, ids);
         m_fileStatusIsError = !result;
         m_fileStatus = result ? "Copied nodes" : result.error;
+        if (result) ShowToast("Copied");
         return;
     }
 
     const OperationResult result = m_operations->CopyScriptElement(m_selectedItemId);
     m_fileStatusIsError = !result;
     m_fileStatus = result ? "Copied script data" : result.error;
+    if (result) ShowToast("Copied");
 }
 
 void Example::PasteClipboard()
@@ -2864,6 +2980,9 @@ void Example::PasteClipboard()
     {
         if (!m_graphView.m_pScriptFunction) return;
         const int functionId = m_graphView.m_pScriptFunction->ID.id;
+        const ImVec2 pasteAnchor = m_graphView.hasCanvasMousePosition
+            ? m_graphView.lastCanvasMousePosition
+            : ed::ScreenToCanvas(ImGui::GetMousePos());
         std::vector<int> pasted;
         const OperationResult result = m_operations->PasteNodes(functionId, pasted);
         m_fileStatusIsError = !result;
@@ -2872,8 +2991,36 @@ void Example::PasteClipboard()
         {
             ScriptFunctionPtr function = functionId == m_script.main->ID.id
                 ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
-            m_graphView.SetGraph(&m_script, function, &function->Graph);
-            ApplyEditorTheme();
+            std::vector<std::pair<NodePtr, ImVec2>> pastedNodes;
+            pastedNodes.reserve(pasted.size());
+            for (const int id : pasted)
+            {
+                NodePtr pastedNode = function->Graph.FindNode(ed::NodeId(id));
+                if (!pastedNode)
+                    continue;
+                m_graphView.RegisterNode(pastedNode);
+                pastedNodes.emplace_back(pastedNode, ed::GetNodePosition(pastedNode->ID));
+            }
+
+            if (!pastedNodes.empty())
+            {
+                const auto leftmost = std::min_element(
+                    pastedNodes.begin(), pastedNodes.end(),
+                    [](const auto& left, const auto& right)
+                    {
+                        if (left.second.x != right.second.x)
+                            return left.second.x < right.second.x;
+                        return left.second.y < right.second.y;
+                    });
+                const ImVec2 offset = pasteAnchor - leftmost->second;
+                for (const auto& [pastedNode, originalPosition] : pastedNodes)
+                {
+                    m_graphView.amendNextNodePosition.insert(
+                        static_cast<int>(pastedNode->ID.Get()));
+                    ed::SetNodePosition(pastedNode->ID, originalPosition + offset);
+                }
+            }
+
             bool append = false;
             for (int id : pasted)
             {
@@ -2923,7 +3070,7 @@ void Example::UndoLastAction()
     ScriptFunctionPtr function = functionId == m_script.main->ID.id
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
-    m_graphView.SetGraph(&m_script, function, &function->Graph);
+    m_graphView.SetGraph(&m_script, function, &function->Graph, false);
     ApplyEditorTheme();
 }
 
@@ -2938,7 +3085,7 @@ void Example::RedoLastAction()
     ScriptFunctionPtr function = functionId == m_script.main->ID.id
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
-    m_graphView.SetGraph(&m_script, function, &function->Graph);
+    m_graphView.SetGraph(&m_script, function, &function->Graph, false);
     ApplyEditorTheme();
 }
 
@@ -3328,6 +3475,279 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
     return node;
 }
 
+void Example::RefreshWindowTitle()
+{
+    const std::string documentName = m_currentScriptPath.empty()
+        ? "Untitled.vlox"
+        : std::filesystem::path(m_currentScriptPath).filename().string();
+    SetTitle(("Visual Lox - " + documentName + (m_documentDirty ? " *" : "")).c_str());
+}
+
+void Example::MarkDocumentSaved()
+{
+    std::string snapshot;
+    if (ScriptSerializer::SerializeToString(m_script, snapshot))
+        m_savedDocumentSnapshot = std::move(snapshot);
+    m_lastObservedRevision = m_operations ? m_operations->Revision() : 0;
+    m_documentDirty = false;
+    m_autosaveElapsed = 0.0f;
+    RefreshWindowTitle();
+}
+
+void Example::UpdateDocumentState(float deltaTime)
+{
+    if (!m_operations)
+        return;
+
+    const std::uint64_t revision = m_operations->Revision();
+    if (revision != m_lastObservedRevision)
+    {
+        m_lastObservedRevision = revision;
+        std::string snapshot;
+        if (ScriptSerializer::SerializeToString(m_script, snapshot))
+        {
+            const bool wasDirty = m_documentDirty;
+            m_documentDirty = snapshot != m_savedDocumentSnapshot;
+            if (wasDirty != m_documentDirty)
+                RefreshWindowTitle();
+        }
+    }
+
+    if (!m_documentDirty)
+    {
+        m_autosaveElapsed = 0.0f;
+        return;
+    }
+
+    m_autosaveElapsed += deltaTime;
+    if (m_autosaveElapsed >= 20.0f)
+    {
+        const SerializationResult recovery = ScriptSerializer::Save(m_script, m_recoveryPath);
+        if (recovery)
+        {
+            m_recoveryAvailable = true;
+            m_autosaveElapsed = 0.0f;
+        }
+        else
+        {
+            m_fileStatus = "Autosave failed: " + recovery.error;
+            m_fileStatusIsError = true;
+            m_autosaveElapsed = 0.0f;
+        }
+    }
+}
+
+void Example::ShowToast(const std::string& message)
+{
+    m_toastMessage = message;
+    m_toastTime = 2.5f;
+}
+
+void Example::DrawToasts()
+{
+    if (m_toastTime <= 0.0f || m_toastMessage.empty())
+        return;
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(
+        ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - 18.0f,
+               viewport->WorkPos.y + 62.0f),
+        ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowBgAlpha(0.96f);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
+    if (ImGui::Begin("##editorToast", nullptr, flags))
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, kSuccess);
+        ImGui::TextUnformatted(ICON_FA_CIRCLE_CHECK);
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::TextUnformatted(m_toastMessage.c_str());
+    }
+    ImGui::End();
+}
+
+void Example::AddRecentFile(const std::string& path)
+{
+    if (path.empty() || path == m_recoveryPath)
+        return;
+    const std::string normalized = std::filesystem::absolute(path).lexically_normal().string();
+    m_recentFiles.erase(
+        std::remove(m_recentFiles.begin(), m_recentFiles.end(), normalized),
+        m_recentFiles.end());
+    m_recentFiles.insert(m_recentFiles.begin(), normalized);
+    if (m_recentFiles.size() > 8)
+        m_recentFiles.resize(8);
+}
+
+void Example::NewScript()
+{
+    m_graphView.Destroy();
+    m_script = Script();
+    m_IDGenerator.Reset();
+    m_script.ID = m_IDGenerator.GetNextId();
+    m_script.main = std::make_shared<ScriptFunction>(m_IDGenerator.GetNextId(), "Main");
+    EnsureMainSignature();
+    NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
+    NodeUtils::BuildNode(beginMain);
+    m_script.main->Graph.AddNode(beginMain);
+
+    m_operations = std::make_unique<DocumentOperations>(m_script, m_IDGenerator, m_NodeRegistry);
+    m_graphView.setDocumentOperations(*m_operations);
+    pendingActions.clear();
+    actionStack.clear();
+    undoDepth = 0;
+    m_selectedItemId = m_script.main->ID.id;
+    m_editingItemId = 0;
+    m_graphBackHistory.clear();
+    m_graphForwardHistory.clear();
+    RebuildScriptTree();
+    m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
+    ApplyEditorTheme();
+    m_currentScriptPath.clear();
+    m_fileStatus = "New script";
+    m_fileStatusIsError = false;
+    MarkDocumentSaved();
+}
+
+void Example::RequestOpen(const std::string& path)
+{
+    if (!m_documentDirty)
+    {
+        LoadScript(path);
+        return;
+    }
+    m_pendingDocumentAction = PendingDocumentAction::Open;
+    m_pendingDocumentPath = path;
+    m_openUnsavedDialog = true;
+}
+
+void Example::RequestOpenDialog()
+{
+    if (m_documentDirty)
+    {
+        m_pendingDocumentAction = PendingDocumentAction::OpenDialog;
+        m_pendingDocumentPath.clear();
+        m_openUnsavedDialog = true;
+        return;
+    }
+
+    if (const std::optional<std::string> path =
+            SelectVloxFile(false, m_currentScriptPath))
+        LoadScript(*path);
+}
+
+void Example::RequestNew()
+{
+    if (!m_documentDirty)
+    {
+        NewScript();
+        return;
+    }
+    m_pendingDocumentAction = PendingDocumentAction::New;
+    m_openUnsavedDialog = true;
+}
+
+void Example::RequestExit()
+{
+    if (!m_documentDirty)
+    {
+        m_allowClose = true;
+        Quit();
+        return;
+    }
+    m_pendingDocumentAction = PendingDocumentAction::Exit;
+    m_openUnsavedDialog = true;
+}
+
+bool Example::CanClose()
+{
+    if (m_allowClose || !m_documentDirty)
+        return true;
+    m_pendingDocumentAction = PendingDocumentAction::Exit;
+    m_openUnsavedDialog = true;
+    return false;
+}
+
+void Example::ShowDocumentDialogs()
+{
+    if (m_openUnsavedDialog)
+    {
+        ImGui::OpenPopup("Unsaved changes");
+        m_openUnsavedDialog = false;
+    }
+
+    if (!ImGui::BeginPopupModal("Unsaved changes", nullptr,
+                                ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+
+    ImGui::PushStyleColor(ImGuiCol_Text, kWarning);
+    ImGui::TextUnformatted(ICON_FA_TRIANGLE_EXCLAMATION "  Save changes?");
+    ImGui::PopStyleColor();
+    ImGui::TextWrapped("Your current script has unsaved changes. Save them before continuing.");
+    ImGui::Spacing();
+
+    auto continuePendingAction = [this]()
+    {
+        const PendingDocumentAction action = m_pendingDocumentAction;
+        const std::string path = m_pendingDocumentPath;
+        m_pendingDocumentAction = PendingDocumentAction::None;
+        m_pendingDocumentPath.clear();
+        if (action == PendingDocumentAction::New)
+            NewScript();
+        else if (action == PendingDocumentAction::OpenDialog)
+        {
+            if (const std::optional<std::string> selected =
+                    SelectVloxFile(false, m_currentScriptPath))
+                LoadScript(*selected);
+        }
+        else if (action == PendingDocumentAction::Open)
+            LoadScript(path);
+        else if (action == PendingDocumentAction::Exit)
+        {
+            m_allowClose = true;
+            Quit();
+        }
+        else if (action == PendingDocumentAction::Recover)
+        {
+            LoadScript(m_recoveryPath);
+            m_currentScriptPath.clear();
+            m_savedDocumentSnapshot.clear();
+            m_documentDirty = true;
+            RefreshWindowTitle();
+        }
+    };
+
+    if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save", ImVec2(110.0f, 0)))
+    {
+        if (!m_currentScriptPath.empty())
+            SaveScript(m_currentScriptPath);
+        else if (const std::optional<std::string> path =
+                     SelectVloxFile(true, "Untitled.vlox"))
+            SaveScript(*path);
+        if (!m_fileStatusIsError && !m_documentDirty)
+        {
+            ImGui::CloseCurrentPopup();
+            continuePendingAction();
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Discard", ImVec2(110.0f, 0)))
+    {
+        ImGui::CloseCurrentPopup();
+        continuePendingAction();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel", ImVec2(110.0f, 0)))
+    {
+        m_pendingDocumentAction = PendingDocumentAction::None;
+        m_pendingDocumentPath.clear();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+}
+
 void Example::SaveScript(const std::string& path)
 {
     const SerializationResult result = ScriptSerializer::Save(m_script, path);
@@ -3340,7 +3760,13 @@ void Example::SaveScript(const std::string& path)
 
     m_currentScriptPath = path;
     m_fileStatus = "Saved " + std::filesystem::path(path).filename().string();
-    SetTitle(("Visual Lox - " + std::filesystem::path(path).filename().string()).c_str());
+    m_fileStatusIsError = false;
+    AddRecentFile(path);
+    MarkDocumentSaved();
+    std::error_code removeError;
+    std::filesystem::remove(m_recoveryPath, removeError);
+    m_recoveryAvailable = false;
+    ShowToast("Saved");
 }
 
 void Example::LoadScript(const std::string& path)
@@ -3374,16 +3800,17 @@ void Example::LoadScript(const std::string& path)
 
     m_currentScriptPath = path;
     m_fileStatus = "Opened " + std::filesystem::path(path).filename().string();
-    SetTitle(("Visual Lox - " + std::filesystem::path(path).filename().string()).c_str());
+    m_fileStatusIsError = false;
+    m_graphBackHistory.clear();
+    m_graphForwardHistory.clear();
+    AddRecentFile(path);
+    MarkDocumentSaved();
 }
 
 void Example::ShowFileControls()
 {
     if (ImGui::Button("Open"))
-    {
-        if (const std::optional<std::string> path = SelectVloxFile(false, m_currentScriptPath))
-            LoadScript(*path);
-    }
+        RequestOpenDialog();
     ImGui::SameLine();
     if (ImGui::Button("Save"))
     {

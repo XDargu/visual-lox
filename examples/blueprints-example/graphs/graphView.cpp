@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphView.h"
+#include "IconsFontAwesome6.h"
 
 #include "nodeRegistry.h"
 
@@ -22,6 +23,9 @@
 
 #include <string_view>
 #include <stack>
+#include <algorithm>
+#include <limits>
+#include <fstream>
 
 namespace Utils
 {
@@ -29,7 +33,15 @@ namespace Utils
     {
         if (filter.empty()) return true;
 
-        return target.find(filter) != std::string::npos;
+        // Fuzzy subsequence matching keeps palette searches useful when users
+        // type abbreviated intents such as "gvar" for "Get Variable".
+        size_t cursor = 0;
+        for (const char character : target)
+        {
+            if (cursor < filter.size() && character == filter[cursor])
+                ++cursor;
+        }
+        return cursor == filter.size();
     }
 }
 
@@ -42,6 +54,15 @@ int GraphView::GetNextId()
 void GraphView::Init(ImFont* largeNodeFont)
 {
     m_largeNodeFont = largeNodeFont;
+    std::ifstream preferences("VisualLoxPalette.ini");
+    std::string line;
+    while (std::getline(preferences, line))
+    {
+        if (line.rfind("favorite=", 0) == 0)
+            favoriteNodeTypes.insert(line.substr(9));
+        else if (line.rfind("recent=", 0) == 0 && recentNodeTypes.size() < 8)
+            recentNodeTypes.push_back(line.substr(7));
+    }
 }
 
 void GraphView::TouchNode(ed::NodeId id)
@@ -192,7 +213,8 @@ void GraphView::setDocumentOperations(DocumentOperations& operations)
     m_pOperations = &operations;
 }
 
-void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph)
+void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
+                         Graph* pTargetGraph, bool navigateToContent)
 {
     const bool preserveStyle = m_Editor != nullptr;
     ed::Style preservedStyle;
@@ -209,6 +231,7 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     m_pGraph = pTargetGraph;
     m_pScript = pTargetScript;
     m_pScriptFunction = pScriptFunction;
+    hasCanvasMousePosition = false;
 
     ed::Config config;
 
@@ -264,32 +287,58 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     ed::SetCurrentEditor(m_Editor);
     if (preserveStyle)
         ed::GetStyle() = preservedStyle;
+    if (!navigateToContent && m_HasPreservedView)
+    {
+        auto* internalEditor =
+            reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(m_Editor);
+        internalEditor->SetView(m_PreservedViewOrigin, m_PreservedViewScale);
+    }
 
     // We should add the nodes here in a better wya
     // TODO: Improve this. This calls IMGUI!
     // I might need to manually expose this
     for (auto& node : m_pGraph->GetNodes())
-    {
-        // Creating a node can initialize settings from Blueprints.json. Keep
-        // the graph-owned state authoritative so loading a .vlox file cannot
-        // be overwritten by those defaults before RestoreNodeState runs.
-        const std::string persistedState = node->State;
-        ed::BeginNode(node->ID);
-        ed::EndNode();
-        node->State = persistedState;
-        if (!node->State.empty())
-            ed::RestoreNodeState(node->ID);
-    }
+        RegisterNode(node);
 
     // Restoration is applied when nodes are drawn on the next frame. Frame the
     // content afterwards, once the restored bounds are available.
-    m_NavigateToContentOnNextFrame = true;
+    m_NavigateToContentOnNextFrame = navigateToContent;
+}
+
+void GraphView::RegisterNode(const NodePtr& node)
+{
+    if (!node)
+        return;
+    // Creating a node can initialize settings from Blueprints.json. Keep the
+    // graph-owned state authoritative so loading or pasting cannot be
+    // overwritten by defaults before RestoreNodeState runs.
+    const std::string persistedState = node->State;
+    ed::BeginNode(node->ID);
+    ed::EndNode();
+    node->State = persistedState;
+    if (!node->State.empty())
+        ed::RestoreNodeState(node->ID);
 }
 
 void GraphView::Destroy()
 {
+    std::ofstream preferences("VisualLoxPalette.ini", std::ios::trunc);
+    if (preferences)
+    {
+        for (const std::string& favorite : favoriteNodeTypes)
+            preferences << "favorite=" << favorite << '\n';
+        for (const std::string& recent : recentNodeTypes)
+            preferences << "recent=" << recent << '\n';
+    }
+
     if (m_Editor)
     {
+        auto* internalEditor =
+            reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(m_Editor);
+        const ImGuiEx::CanvasView view = internalEditor->GetView();
+        m_PreservedViewOrigin = view.Origin;
+        m_PreservedViewScale = view.Scale;
+        m_HasPreservedView = true;
         recordNodeStateHistory = false;
         ed::DestroyEditor(m_Editor);
         recordNodeStateHistory = true;
@@ -671,6 +720,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ed::NavigateToContent(0.0f);
         m_NavigateToContentOnNextFrame = false;
     }
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+    {
+        lastCanvasMousePosition = ed::ScreenToCanvas(ImGui::GetMousePos());
+        hasCanvasMousePosition = true;
+    }
     ed::End();
 
     // Render after the node editor has restored normal screen coordinates.
@@ -693,6 +747,7 @@ void GraphView::DrawContextMenu()
     static std::string searchFilterLower = "";
 
     static bool addNodePopupOpened = false;
+    static bool focusPaletteSearch = false;
     static ImVec2 openPopupPosition;
 
     if (!addNodePopupOpened)
@@ -719,6 +774,8 @@ void GraphView::DrawContextMenu()
     else if (ed::ShowBackgroundContextMenu() || openPaletteFromKeyboard)
     {
         addNodePopupOpened = true;
+        focusPaletteSearch = true;
+        paletteSelection = 0;
         ImGui::OpenPopup("Create New Node");
         newNodeLinkPin = nullptr;
         searchFilter = "";
@@ -732,19 +789,7 @@ void GraphView::DrawContextMenu()
     {
         NodePtr node = m_pGraph->FindNode(contextNodeId);
 
-        ImGui::TextUnformatted("Node Context Menu");
-        ImGui::Separator();
-        if (node)
-        {
-            ImGui::Text("ID: %p", node->ID.AsPointer());
-            ImGui::Text("Type: %s", node->Type == NodeType::Blueprint ? "Blueprint" : "Comment");
-            ImGui::Text("Inputs: %d", (int)node->Inputs.size());
-            ImGui::Text("Outputs: %d", (int)node->Outputs.size());
-        }
-        else
-            ImGui::Text("Unknown node: %p", contextNodeId.AsPointer());
-        ImGui::Separator();
-        if (node && ImGui::MenuItem("Copy"))
+        if (node && ImGui::MenuItem(ICON_FA_COPY "  Copy", "Ctrl+C"))
         {
             std::vector<ed::NodeId> selected(ed::GetSelectedObjectCount());
             int count = ed::GetSelectedNodes(selected.data(), static_cast<int>(selected.size()));
@@ -762,14 +807,22 @@ void GraphView::DrawContextMenu()
             }
             ReportOperation(m_pOperations->CopyNodes(m_pScriptFunction->ID.id, ids));
         }
-        if (m_pOperations->ClipboardContainsNodes() && ImGui::MenuItem("Paste"))
+        if (node && ImGui::MenuItem(ICON_FA_CLONE "  Duplicate", "Ctrl+D"))
         {
+            ReportOperation(m_pOperations->CopyNodes(
+                m_pScriptFunction->ID.id, { static_cast<int>(contextNodeId.Get()) }));
             std::vector<int> pasted;
             ReportOperation(m_pOperations->PasteNodes(m_pScriptFunction->ID.id, pasted));
+            bool append = false;
+            for (const int id : pasted)
+            {
+                ed::SelectNode(ed::NodeId(id), append);
+                append = true;
+            }
         }
         const bool canDelete = node &&
             !HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected);
-        if (ImGui::MenuItem("Delete", nullptr, false, canDelete))
+        if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete", "Delete", false, canDelete))
             ed::DeleteNode(contextNodeId);
         ImGui::EndPopup();
     }
@@ -778,21 +831,9 @@ void GraphView::DrawContextMenu()
     {
         Pin* pin = m_pGraph->FindPin(contextPinId);
 
-        ImGui::TextUnformatted("Pin Context Menu");
-        ImGui::Separator();
-        if (pin)
-        {
-            ImGui::Text("ID: %p", pin->ID.AsPointer());
-            if (pin->Node)
-                ImGui::Text("Node: %p", pin->Node->ID.AsPointer());
-            else
-                ImGui::Text("Node: %s", "<none>");
-        }
-        else
-            ImGui::Text("Unknown pin: %p", contextPinId.AsPointer());
-
         if (pin && pin->Type == PinType::Any)
         {
+            ImGui::TextDisabled(ICON_FA_WAND_MAGIC_SPARKLES "  Convert type");
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
             Value inputValue = pin->Node->InputValues[inputIdx];
 
@@ -815,13 +856,35 @@ void GraphView::DrawContextMenu()
             });
         }
 
+        bool hasConnections = false;
+        if (pin)
+        {
+            for (const Link& link : m_pGraph->GetLinks())
+            {
+                if (link.StartPinID == pin->ID || link.EndPinID == pin->ID)
+                {
+                    hasConnections = true;
+                    break;
+                }
+            }
+        }
+        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", nullptr, false, hasConnections))
+        {
+            std::vector<ed::LinkId> links;
+            for (const Link& link : m_pGraph->GetLinks())
+                if (link.StartPinID == contextPinId || link.EndPinID == contextPinId)
+                    links.push_back(link.ID);
+            for (const ed::LinkId linkId : links)
+                ReportOperation(m_pOperations->Disconnect(m_pScriptFunction->ID.id, linkId));
+        }
+
         if (pin && pin->Node &&
             HasFlag(pin->Node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) &&
             pin->Kind == PinKind::Input)
         {
             if (pin->Node->CanRemoveInput(pin->ID))
             {
-                if (ImGui::MenuItem("Remove Pin"))
+                if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove pin"))
                 {
                     OperationResult operation = m_pOperations->RemoveDynamicInput(
                         m_pScriptFunction->ID.id, pin->Node->ID, pin->ID);
@@ -837,36 +900,61 @@ void GraphView::DrawContextMenu()
     {
         Link* link = m_pGraph->FindLink(contextLinkId);
 
-        ImGui::TextUnformatted("Link Context Menu");
-        ImGui::Separator();
-        if (link)
-        {
-            ImGui::Text("ID: %p", link->ID.AsPointer());
-            ImGui::Text("From: %p", link->StartPinID.AsPointer());
-            ImGui::Text("To: %p", link->EndPinID.AsPointer());
-        }
-        else
-            ImGui::Text("Unknown link: %p", contextLinkId.AsPointer());
-        ImGui::Separator();
-        if (ImGui::MenuItem("Delete"))
+        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", "Delete", false, link != nullptr))
             ed::DeleteLink(contextLinkId);
         ImGui::EndPopup();
     }
 
-    ImGui::SetNextWindowSizeConstraints(ImVec2(300, 0), ImGui::GetWindowSize() * 0.5f);
-    if (ImGui::BeginPopup("Create New Node"))
+    const ImVec2 paletteSize(520.0f, 560.0f);
+    ImGui::SetNextWindowSize(paletteSize, ImGuiCond_Always);
+    ImGui::SetNextWindowSizeConstraints(paletteSize, paletteSize);
+    if (ImGui::BeginPopup("Create New Node",
+                          ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         addNodePopupOpened = true;
-        bool searchChanged = false;
+        ImGui::TextDisabled(ICON_FA_BOLT "  Add node");
+        ImGui::SameLine();
+        if (newNodeLinkPin)
+            ImGui::TextColored(ImVec4(0.42f, 0.72f, 1.0f, 1.0f),
+                               ICON_FA_FILTER "  Compatible results");
+        else
+            ImGui::TextDisabled("Type to search all nodes");
 
-        if (ImGui::InputText("##search", &searchFilter))
+        const bool requestSearchFocus = focusPaletteSearch || ImGui::IsWindowAppearing();
+        if (requestSearchFocus)
+            ImGui::SetKeyboardFocusHere();
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::InputTextWithHint("##search",
+                                     ICON_FA_MAGNIFYING_GLASS " Search nodes...",
+                                     &searchFilter))
         {
-            searchChanged = true;
             searchFilterLower = Utils::to_lower(searchFilter);
+            paletteSelection = 0;
+        }
+        if (requestSearchFocus)
+        {
+            // SetKeyboardFocusHere() is occasionally overridden by the popup's
+            // own appearing-frame navigation setup. Reassert focus on the item
+            // that was just submitted so typing works immediately.
+            ImGui::SetItemDefaultFocus();
+            ImGui::SetKeyboardFocusHere(-1);
+            focusPaletteSearch = false;
+            paletteSelection = 0;
         }
 
         static bool contextualSearch = true;
-        ImGui::Checkbox("Contextual", &contextualSearch);
+        static bool favoritesOnly = false;
+        if (newNodeLinkPin)
+        {
+            ImGui::Checkbox("Only show compatible nodes", &contextualSearch);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Rank and filter results for the pin that opened this palette");
+            ImGui::SameLine();
+        }
+        if (ImGui::Checkbox(ICON_FA_STAR " Favorites only", &favoritesOnly))
+            paletteSelection = 0;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Only search nodes marked as favorites");
 
         const bool isInput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Input;
         const bool isOutput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Output;
@@ -1263,130 +1351,187 @@ void GraphView::DrawContextMenu()
         }
 
         NodePtr node = nullptr;
+        std::string createdNodeKey;
         bool creationTransactionStarted = false;
         auto newNodePostion = openPopupPosition;
 
-        std::stack<const Data*> stack;
-        stack.push(&root);
-
-        int currentDepth = 0;
-
-        while (!stack.empty())
+        std::vector<const Data*> results;
+        std::function<void(const Data&)> collectResults = [&](const Data& entry)
         {
-            const Data* top = stack.top();
-            stack.pop();
+            if (entry.creationFun &&
+                (!favoritesOnly || favoriteNodeTypes.count(entry.fullName) != 0))
+                results.push_back(&entry);
+            for (const auto& [_, child] : entry.children)
+                collectResults(child);
+        };
+        collectResults(root);
 
-            if (top->depth > currentDepth)
-            {
-                const int depthDiff = top->depth - currentDepth;
-                for (int i = 0; i < depthDiff; ++i)
-                    ImGui::Indent();
-            }
+        auto recentRank = [&](const std::string& key)
+        {
+            const auto it = std::find(recentNodeTypes.begin(), recentNodeTypes.end(), key);
+            return it == recentNodeTypes.end()
+                ? std::numeric_limits<int>::max()
+                : static_cast<int>(std::distance(recentNodeTypes.begin(), it));
+        };
 
-            if (top->depth < currentDepth)
-            {
-                const int depthDiff = currentDepth - top->depth;
-                for (int i = 0; i < depthDiff; ++i)
-                    ImGui::Unindent();
-            }
+        auto palettePresentation = [](const std::string& fullName)
+        {
+            std::pair<const char*, const char*> presentation = {
+                ICON_FA_CUBE, "Create a graph node."
+            };
+            if (fullName.rfind("Flow::", 0) == 0)
+                presentation = { ICON_FA_CODE_BRANCH, "Control the order in which the graph executes." };
+            else if (fullName.rfind("Variables::", 0) == 0)
+                presentation = { ICON_FA_DATABASE, "Read or update script-level data." };
+            else if (fullName.rfind("Functions::", 0) == 0 ||
+                     fullName.rfind("Get::", 0) == 0)
+                presentation = { ICON_FA_CODE, "Call a function or store it as a value." };
+            else if (fullName.rfind("Classes::", 0) == 0)
+                presentation = { ICON_FA_CUBES, "Construct an object or access one of its members." };
+            return presentation;
+        };
 
-            bool isSelected = false;
-            if (ImGui::Selectable((top->fullName + "##" + top->fullName).c_str(), &isSelected))
+        if (results.empty())
+        {
+            paletteSelection = 0;
+            ImGui::Spacing();
+            ImGui::TextDisabled("No matching nodes");
+            ImGui::TextDisabled("Try fewer characters or disable compatibility filtering.");
+        }
+        else
+        {
+            paletteSelection = ImClamp(paletteSelection, 0, static_cast<int>(results.size()) - 1);
+            if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow), false))
+                paletteSelection = ImMin(paletteSelection + 1, static_cast<int>(results.size()) - 1);
+            if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow), false))
+                paletteSelection = ImMax(paletteSelection - 1, 0);
+
+            const bool createSelected =
+                ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter), false);
+            const float descriptionHeight =
+                ImGui::GetTextLineHeightWithSpacing() * 3.4f +
+                ImGui::GetStyle().ItemSpacing.y * 2.0f;
+            ImGui::BeginChild("##paletteTree",
+                              ImVec2(0, -descriptionHeight), false,
+                              ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+            std::function<void(const Data&, int)> drawTree =
+                [&](const Data& parent, int depth)
             {
-                if (top->children.empty())
+                for (const auto& [_, child] : parent.children)
                 {
-                    OperationResult begun = m_pOperations->BeginTransaction("Create node");
-                    ReportOperation(begun);
-                    if (begun)
+                    std::function<bool(const Data&)> containsVisibleNode =
+                        [&](const Data& candidate)
                     {
-                        creationTransactionStarted = true;
-                        node = SpawnNode(top->creationFun(*m_pIDGenerator));
+                        if (candidate.creationFun &&
+                            (!favoritesOnly ||
+                             favoriteNodeTypes.count(candidate.fullName) != 0))
+                            return true;
+                        for (const auto& [ignoredName, descendant] : candidate.children)
+                        {
+                            (void)ignoredName;
+                            if (containsVisibleNode(descendant))
+                                return true;
+                        }
+                        return false;
+                    };
+                    if (!containsVisibleNode(child))
+                        continue;
+
+                    const bool hasChildren = !child.children.empty();
+                    if (hasChildren)
+                    {
+                        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
+                        if (!searchFilter.empty())
+                            ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+                        else if (depth == 0)
+                            flags |= ImGuiTreeNodeFlags_DefaultOpen;
+                        const std::string groupLabel =
+                            std::string(ICON_FA_FOLDER) + "  " + child.name +
+                            "##group-" + child.fullName + "-" + std::to_string(depth);
+                        const bool open = ImGui::TreeNodeEx(groupLabel.c_str(), flags);
+                        if (open)
+                        {
+                            drawTree(child, depth + 1);
+                            ImGui::TreePop();
+                        }
+                        continue;
                     }
+                    if (!child.creationFun)
+                        continue;
+
+                    const auto resultIt = std::find(results.begin(), results.end(), &child);
+                    if (resultIt == results.end())
+                        continue;
+                    const int index = static_cast<int>(std::distance(results.begin(), resultIt));
+                    const bool favorite = favoriteNodeTypes.count(child.fullName) != 0;
+                    const bool recent =
+                        recentRank(child.fullName) != std::numeric_limits<int>::max();
+                    const auto [icon, description] = palettePresentation(child.fullName);
+                    (void)description;
+
+                    ImGui::PushID(child.fullName.c_str());
+                    ImGui::PushStyleColor(ImGuiCol_Text, favorite
+                        ? ImVec4(0.96f, 0.72f, 0.24f, 1.0f)
+                        : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+                    if (ImGui::SmallButton(ICON_FA_STAR "##favorite"))
+                    {
+                        if (favorite)
+                            favoriteNodeTypes.erase(child.fullName);
+                        else
+                            favoriteNodeTypes.insert(child.fullName);
+                    }
+                    ImGui::PopStyleColor();
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip(favorite
+                            ? "Remove from favorites" : "Add to favorites");
+                    ImGui::SameLine();
+
+                    const std::string label = std::string(icon) + "  " + child.name +
+                        (recent ? "   " ICON_FA_CLOCK_ROTATE_LEFT : "") +
+                        "##node-" + child.fullName;
+                    const bool activated = ImGui::Selectable(
+                        label.c_str(), paletteSelection == index,
+                        ImGuiSelectableFlags_AllowDoubleClick);
+                    if (ImGui::IsItemHovered() || activated)
+                        paletteSelection = index;
+
+                    if (activated || (createSelected && paletteSelection == index))
+                    {
+                        OperationResult begun = m_pOperations->BeginTransaction("Create node");
+                        ReportOperation(begun);
+                        if (begun)
+                        {
+                            creationTransactionStarted = true;
+                            node = SpawnNode(child.creationFun(*m_pIDGenerator));
+                            createdNodeKey = child.fullName;
+                        }
+                    }
+                    ImGui::PopID();
                 }
-            }
+            };
+            drawTree(root, 0);
+            ImGui::EndChild();
 
-            currentDepth = top->depth;
-
-            for (const auto& [name, child] : top->children)
-            {
-                stack.push(&child);
-            }
+            const Data* selected = results[paletteSelection];
+            const auto [selectedIcon, selectedDescription] =
+                palettePresentation(selected->fullName);
+            ImGui::Separator();
+            ImGui::Text("%s  %s", selectedIcon, selected->fullName.c_str());
+            ImGui::TextWrapped("%s", selectedDescription);
+            ImGui::SameLine();
+            ImGui::TextDisabled("Enter to create");
         }
-
-        /*static std::string searchFilter = "";
-        static int selectedNodeIdx = 0;
-
-        if (addNodePopupOpened)
-            searchFilter = "";
-
-        bool searchChanged = false;
-
-        if (ImGui::InputText("##search", &searchFilter))
-        {
-            searchChanged = true;
-        }
-
-        if (addNodePopupOpened)
-            ImGui::SetKeyboardFocusHere(0);
-
-        auto newNodePostion = openPopupPosition;
-        //ImGui::SetCursorScreenPos(ImGui::GetMousePosOnOpeningCurrentPopup());
-
-        //auto drawList = ImGui::GetWindowDrawList();
-        //drawList->AddCircleFilled(ImGui::GetMousePosOnOpeningCurrentPopup(), 10.0f, 0xFFFF00FF);
-
-        const int total = m_pNodeRegistry->compiledDefinitions.size() + m_pNodeRegistry->nativeDefinitions.size();
-
-        if (ImGui::IsKeyDown(ImGuiKey_UpArrow))
-        {
-            selectedNodeIdx--;
-            if (selectedNodeIdx < 0) selectedNodeIdx = 0;
-        }
-        else if (ImGui::IsKeyDown(ImGuiKey_DownArrow))
-        {
-            selectedNodeIdx++;
-            if (selectedNodeIdx >= total) selectedNodeIdx = total - 1;
-        }
-
-        NodePtr node = nullptr;
-
-        int idx = 0;
-
-        const bool isEnterDown = ImGui::IsKeyDown(ImGuiKey_Enter);
-        
-        for (auto& def : m_pNodeRegistry->compiledDefinitions)
-        {
-            if (Utils::FilterString(def->name, searchFilter))
-            {
-                if (searchChanged)
-                {
-                    selectedNodeIdx = idx;
-                    searchChanged = false;
-                }
-
-                bool isSelected = selectedNodeIdx == idx;
-                if (ImGui::Selectable(def->name.c_str(), &isSelected) || (isSelected && isEnterDown))
-                {
-                    node = SpawnNode(def->MakeNode(*m_pIDGenerator));
-                }
-            }
-
-            ++idx;
-        }
-
-        for (auto& def : m_pNodeRegistry->nativeDefinitions)
-        {
-            if (Utils::FilterString(def->name, searchFilter))
-            {
-                if (ImGui::MenuItem(def->name.c_str()))
-                {
-                    node = SpawnNode(def->MakeNode(*m_pIDGenerator));
-                }
-            }
-        }*/
 
         if (node)
         {
+            recentNodeTypes.erase(
+                std::remove(recentNodeTypes.begin(), recentNodeTypes.end(), createdNodeKey),
+                recentNodeTypes.end());
+            recentNodeTypes.insert(recentNodeTypes.begin(), createdNodeKey);
+            if (recentNodeTypes.size() > 8)
+                recentNodeTypes.resize(8);
+
             NodeUtils::BuildNode(node);
 
             createNewNode = false;
@@ -1416,6 +1561,8 @@ void GraphView::DrawContextMenu()
 
             if (m_pOperations->IsTransactionActive())
                 ReportOperation(m_pOperations->CommitTransaction());
+
+            ImGui::CloseCurrentPopup();
         }
 
         if (creationTransactionStarted && m_pOperations->IsTransactionActive())

@@ -36,6 +36,7 @@
 #include <utility>
 #include <sstream>
 #include <memory>
+#include <cstdint>
 
 namespace ed = ax::NodeEditor;
 namespace util = ax::NodeEditor::Utilities;
@@ -64,7 +65,8 @@ struct Example :
     void OnStart() override;
     void OnStop() override;
 
-    void ChangeGraph(const ScriptFunctionPtr& scriptFunction);
+    void ChangeGraph(const ScriptFunctionPtr& scriptFunction, bool recordHistory = true);
+    void NavigateGraphHistory(bool forward);
 
     void ShowStyleEditor(bool* show = nullptr);
     void ShowNodeSelection(float paneWidth);
@@ -87,6 +89,7 @@ struct Example :
     void DrawMenuBar();
     void DrawToolbar();
     void DrawStatusBar();
+    void HandleShortcuts();
     void CompileScript(bool runAfterCompile);
     void FocusDiagnostic(const ValidationDiagnostic& diagnostic);
     void ApplyEditorTheme();
@@ -103,6 +106,19 @@ struct Example :
     void SaveScript(const std::string& path);
     void LoadScript(const std::string& path);
     void ShowFileControls();
+    void NewScript();
+    void RequestOpenDialog();
+    void RequestOpen(const std::string& path);
+    void RequestNew();
+    void RequestExit();
+    void ShowDocumentDialogs();
+    void UpdateDocumentState(float deltaTime);
+    void RefreshWindowTitle();
+    void MarkDocumentSaved();
+    void AddRecentFile(const std::string& path);
+    void ShowToast(const std::string& message);
+    void DrawToasts();
+    bool CanClose() override;
 
     // Tree Node Handling TODO: Move somewhere else
     TreeNode MakeFunctionNode(int funId, const std::string& name);
@@ -192,6 +208,23 @@ struct Example :
     std::string m_currentScriptPath;
     std::string m_fileStatus;
     bool m_fileStatusIsError = false;
+    std::string m_savedDocumentSnapshot;
+    std::uint64_t m_lastObservedRevision = 0;
+    bool m_documentDirty = false;
+    float m_autosaveElapsed = 0.0f;
+    const std::string m_recoveryPath = ".visual-lox-recovery.vlox";
+    bool m_recoveryAvailable = false;
+    std::vector<std::string> m_recentFiles;
+    std::vector<int> m_graphBackHistory;
+    std::vector<int> m_graphForwardHistory;
+
+    enum class PendingDocumentAction { None, New, OpenDialog, Open, Exit, Recover };
+    PendingDocumentAction m_pendingDocumentAction = PendingDocumentAction::None;
+    std::string m_pendingDocumentPath;
+    bool m_openUnsavedDialog = false;
+    bool m_allowClose = false;
+    std::string m_toastMessage;
+    float m_toastTime = 0.0f;
     ValidationReport m_validationReport;
 
     std::string m_scriptFilter;

@@ -98,12 +98,12 @@ bool    ImGui_ImplWin32_Init(void* hwnd)
 # else
     io.KeyMap[ImGuiKey_KeyPadEnter] = VK_RETURN;
 # endif
-    io.KeyMap[ImGuiKey_A] = 'A';
-    io.KeyMap[ImGuiKey_C] = 'C';
-    io.KeyMap[ImGuiKey_V] = 'V';
-    io.KeyMap[ImGuiKey_X] = 'X';
-    io.KeyMap[ImGuiKey_Y] = 'Y';
-    io.KeyMap[ImGuiKey_Z] = 'Z';
+    for (int index = 0; index < 10; ++index)
+        io.KeyMap[ImGuiKey_0 + index] = '0' + index;
+    for (int index = 0; index < 26; ++index)
+        io.KeyMap[ImGuiKey_A + index] = 'A' + index;
+    for (int index = 0; index < 12; ++index)
+        io.KeyMap[ImGuiKey_F1 + index] = VK_F1 + index;
 
     int f_index = GetEnumValueForF();
     int d_index = GetEnumValueForD();

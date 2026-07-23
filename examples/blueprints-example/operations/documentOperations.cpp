@@ -312,7 +312,9 @@ OperationResult DocumentOperations::SetNodeState(int functionId, ed::NodeId node
     // position callbacks into one transaction until another operation occurs.
     static const std::string label = "Move nodes";
     if (amendPreviousTransaction && m_historyCursor == m_history.size() &&
-        !m_history.empty() && m_history.back().label == "Create node")
+        !m_history.empty() &&
+        (m_history.back().label == "Create node" ||
+         m_history.back().label == "Paste nodes"))
     {
         m_history.back().after = std::move(after);
     }

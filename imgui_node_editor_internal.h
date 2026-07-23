@@ -1315,6 +1315,7 @@ struct EditorContext
     ShortcutAction& GetShortcut() { return m_ShortcutAction; }
 
     const ImGuiEx::CanvasView& GetView() const { return m_Canvas.View(); }
+    void SetView(const ImVec2& origin, float scale) { m_Canvas.SetView(origin, scale); }
     const ImRect& GetViewRect() const { return m_Canvas.ViewRect(); }
     const ImRect& GetRect() const { return m_Canvas.Rect(); }
 

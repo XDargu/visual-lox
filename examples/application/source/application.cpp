@@ -132,14 +132,42 @@ void Application::RecreateFontAtlas()
         IM_ASSERT(mergedFont != nullptr);
     };
 
-    m_DefaultFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 16.0f, &config);
+    auto loadInterfaceFont = [&io](float size, ImFontConfig* fontConfig, bool semibold = false)
+    {
+        ImFont* font = nullptr;
+#ifdef _WIN32
+        font = io.Fonts->AddFontFromFileTTF(
+            semibold ? "C:/Windows/Fonts/seguisb.ttf" : "C:/Windows/Fonts/segoeui.ttf",
+            size, fontConfig);
+#else
+        (void)semibold;
+#endif
+        if (!font)
+            font = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", size, fontConfig);
+        return font;
+    };
+
+    m_DefaultFont = loadInterfaceFont(16.0f, &config);
     mergeFontAwesome(16.0f);
 
-    m_HeaderFont = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf", 18.0f, &config);
+    // Keep the entire editor on one restrained interface family.  The larger
+    // size and weight communicate hierarchy without mixing display faces.
+    ImFontConfig headerConfig = config;
+    headerConfig.RasterizerMultiply = 1.15f;
+    m_HeaderFont = loadInterfaceFont(18.0f, &headerConfig, true);
     mergeFontAwesome(18.0f);
 
-    m_LargeNodeFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 32.0f, &config);
+    m_LargeNodeFont = loadInterfaceFont(32.0f, &config);
     mergeFontAwesome(32.0f);
+
+    // Consolas is available on the supported Windows editor target.  Retain a
+    // bundled-font fallback so a GLFW build remains usable elsewhere.
+    m_MonoFont = nullptr;
+#ifdef _WIN32
+    m_MonoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", 15.0f, &config);
+#endif
+    if (!m_MonoFont)
+        m_MonoFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 15.0f, &config);
 
     io.Fonts->Build();
 }
@@ -241,6 +269,11 @@ ImFont* Application::HeaderFont() const
 ImFont* Application::LargeNodeFont() const
 {
     return m_LargeNodeFont;
+}
+
+ImFont* Application::MonoFont() const
+{
+    return m_MonoFont;
 }
 
 

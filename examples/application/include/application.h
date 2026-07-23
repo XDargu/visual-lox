@@ -28,6 +28,7 @@ struct Application
     ImFont* DefaultFont() const;
     ImFont* HeaderFont() const;
     ImFont* LargeNodeFont() const;
+    ImFont* MonoFont() const;
 
     ImTextureID LoadTexture(const char* path);
     ImTextureID CreateTexture(const void* data, int width, int height);
@@ -57,6 +58,7 @@ private:
     ImFont*                     m_DefaultFont = nullptr;
     ImFont*                     m_HeaderFont = nullptr;
     ImFont*                     m_LargeNodeFont = nullptr;
+    ImFont*                     m_MonoFont = nullptr;
     bool                        m_StartMaximized = false;
 };
 

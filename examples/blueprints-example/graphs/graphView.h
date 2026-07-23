@@ -20,6 +20,8 @@
 #include <map>
 #include <set>
 #include <functional>
+#include <string>
+#include <vector>
 
 class NodeRegistry;
 class DocumentOperations;
@@ -63,7 +65,9 @@ struct GraphView
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
     void setDocumentOperations(DocumentOperations& operations);
-    void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction, Graph* pTargetGraph);
+    void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
+                  Graph* pTargetGraph, bool navigateToContent = true);
+    void RegisterNode(const NodePtr& node);
 
     void Destroy();
 
@@ -75,6 +79,9 @@ struct GraphView
 
     ed::EditorContext* m_Editor = nullptr;
     bool m_NavigateToContentOnNextFrame = false;
+    ImVec2 m_PreservedViewOrigin = ImVec2(0, 0);
+    float m_PreservedViewScale = 1.0f;
+    bool m_HasPreservedView = false;
     Graph* m_pGraph = nullptr;
     ScriptFunctionPtr m_pScriptFunction = nullptr;
     Script* m_pScript = nullptr;
@@ -108,6 +115,11 @@ struct GraphView
     bool recordNodeStateHistory = true;
     bool nodePositionDragActive = false;
     std::set<int> amendNextNodePosition;
+    ImVec2 lastCanvasMousePosition = ImVec2(0, 0);
+    bool hasCanvasMousePosition = false;
+    std::vector<std::string> recentNodeTypes;
+    std::set<std::string> favoriteNodeTypes;
+    int paletteSelection = 0;
 };
 
 struct GraphViewUtils

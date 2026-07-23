@@ -16,7 +16,7 @@ struct Platform
     virtual bool CloseMainWindow() = 0;
     virtual void* GetMainWindowHandle() const = 0;
     virtual void SetMainWindowTitle(const char* title) = 0;
-    virtual void ShowMainWindow() = 0;
+    virtual void ShowMainWindow(bool maximized) = 0;
     virtual bool ProcessMainWindowEvents() = 0;
     virtual bool IsMainWindowVisible() const = 0;
 

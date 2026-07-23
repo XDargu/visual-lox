@@ -22,6 +22,7 @@ namespace Editor
         std::function<void(std::string)> onRename;
         std::function<void()> contextMenu;
         ImTextureID icon = nullptr;
+        std::string iconText;
         std::shared_ptr<IScriptElement> pElement;
 
         void AddChild(const TreeNode& node)
@@ -31,5 +32,6 @@ namespace Editor
         }
     };
 
-    void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem);
+    void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem,
+                        const char* filter = nullptr);
 }

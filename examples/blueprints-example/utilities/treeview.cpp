@@ -2,8 +2,30 @@
 
 # include <imgui_internal.h>
 
+# include <algorithm>
+# include <cctype>
+
 namespace Editor
 {
+    namespace
+    {
+        std::string Lowercase(std::string value)
+        {
+            std::transform(value.begin(), value.end(), value.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return value;
+        }
+
+        bool MatchesFilter(const TreeNode& node, const std::string& filter)
+        {
+            if (filter.empty() || Lowercase(node.label).find(filter) != std::string::npos)
+                return true;
+
+            return std::any_of(node.children.begin(), node.children.end(),
+                [&](const TreeNode& child) { return MatchesFilter(child, filter); });
+        }
+    }
+
     bool RenamableSelectable(TreeNode& node, bool isSelected, int& editingItem)
     {
         bool clicked = false;
@@ -46,7 +68,8 @@ namespace Editor
         else
         {
             // View mode: Render the selectable
-            if (ImGui::Selectable(node.label.c_str(), isSelected))
+            if (ImGui::Selectable(node.label.c_str(), isSelected,
+                                  ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, 26)))
             {
                 clicked = true;
             }
@@ -65,8 +88,15 @@ namespace Editor
         return clicked;
     }
 
-    void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem)
+    void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem,
+                        const char* filter)
     {
+        const std::string normalizedFilter = filter ? Lowercase(filter) : std::string();
+        if (!MatchesFilter(node, normalizedFilter))
+            return;
+
+        const bool filtering = !normalizedFilter.empty();
+
         // Render expand/collapse button
         ImGui::PushID(node.id); // Ensure unique ID for the arrow button
         if (node.children.empty())
@@ -80,7 +110,20 @@ namespace Editor
         
         // Render the selectable label
         ImGui::SameLine();
-        ImGui::Image(node.icon, ImVec2(24, 24));
+        if (!node.iconText.empty())
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.42f, 0.67f, 0.96f, 1.0f));
+            ImGui::TextUnformatted(node.iconText.c_str());
+            ImGui::PopStyleColor();
+        }
+        else if (node.icon)
+        {
+            ImGui::Image(node.icon, ImVec2(20, 20));
+        }
+        else
+        {
+            ImGui::Dummy(ImVec2(16, 20));
+        }
         ImGui::SameLine();
         if (RenamableSelectable(node, selectedItem == node.id, editingItem))
         {
@@ -94,12 +137,12 @@ namespace Editor
         ImGui::PopID();
 
         // Render children if node is expanded
-        if (node.isOpen && !node.children.empty())
+        if ((node.isOpen || filtering) && !node.children.empty())
         {
             ImGui::Indent(); // Indent for child nodes
             for (auto& child : node.children)
             {
-                RenderTreeNode(child, selectedItem, editingItem);
+                RenderTreeNode(child, selectedItem, editingItem, filter);
             }
             ImGui::Unindent(); // Unindent after finishing children
         }

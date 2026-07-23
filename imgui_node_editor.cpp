@@ -3524,6 +3524,18 @@ void ed::NavigateAction::NavigateTo(const ImRect& bounds, ZoomMode zoomMode, flo
             rect.Expand(extend * c_NavigationZoomMargin * 0.5f);
         }
 
+        // Fitting a tiny graph (especially the initial Begin node) should
+        // never magnify it into a full-screen object. Keep navigation
+        // comfortably centered while leaving deliberate user zoom untouched.
+        constexpr float maxNavigationZoom = 1.0f;
+        const auto fittedView = m_Canvas.CalcCenterView(rect);
+        if (fittedView.Scale > maxNavigationZoom)
+        {
+            const auto center = rect.GetCenter();
+            const auto halfSize = rect.GetSize() * 0.5f * (fittedView.Scale / maxNavigationZoom);
+            rect = ImRect(center - halfSize, center + halfSize);
+        }
+
         NavigateTo(rect, duration, reason);
     }
 }

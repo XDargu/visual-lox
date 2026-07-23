@@ -49,6 +49,13 @@ static ed::EditorContext* m_Editor = nullptr;
 namespace Editor
 {
 
+enum class BottomPanelTab
+{
+    Problems,
+    Output,
+    Developer,
+};
+
 struct Example :
     public Application
 {
@@ -71,8 +78,24 @@ struct Example :
     void ContextMenu();
 
     void ShowLeftPane(float paneWidth);
+    void ShowScriptExplorer();
+    void ShowInspector();
+    void ShowBottomPanel();
+    void ShowProblemsPanel();
+    void ShowOutputPanel();
+    void ShowDeveloperPanel();
+    void DrawMenuBar();
+    void DrawToolbar();
+    void DrawStatusBar();
+    void CompileScript(bool runAfterCompile);
+    void FocusDiagnostic(const ValidationDiagnostic& diagnostic);
+    void ApplyEditorTheme();
+    void LoadLayoutSettings();
+    void SaveLayoutSettings() const;
+    void SetBottomPanel(BottomPanelTab tab);
 
     void OnFrame(float deltaTime) override;
+    ImGuiWindowFlags GetWindowFlags() const override;
 
     void InitializeScriptTree();
     void RebuildScriptTree();
@@ -169,6 +192,21 @@ struct Example :
     std::string m_fileStatus;
     bool m_fileStatusIsError = false;
     ValidationReport m_validationReport;
+
+    std::string m_scriptFilter;
+    std::string m_compileOutput = "Compile output will appear here.";
+    std::string m_runOutput = "Run the script to see its output.";
+    bool m_showScriptExplorer = true;
+    bool m_showInspector = true;
+    bool m_showBottomPanel = true;
+    bool m_showDeveloperTools = false;
+    bool m_showHelp = false;
+    bool m_showAbout = false;
+    float m_leftPaneWidth = 290.0f;
+    float m_rightPaneWidth = 300.0f;
+    float m_bottomPaneHeight = 240.0f;
+    BottomPanelTab m_bottomPanelTab = BottomPanelTab::Problems;
+    bool m_selectBottomPanelTab = true;
 };
 
 }

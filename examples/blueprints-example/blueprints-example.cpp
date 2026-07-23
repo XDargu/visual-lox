@@ -18,7 +18,7 @@ int Main(int argc, char** argv)
 {
     Editor::Example exampe("VisualLox", argc, argv);
 
-    if (exampe.Create())
+    if (exampe.Create(1440, 900, true))
         return exampe.Run();
 
     return 0;

@@ -37,12 +37,13 @@ Application::~Application()
     }
 }
 
-bool Application::Create(int width /*= -1*/, int height /*= -1*/)
+bool Application::Create(int width /*= -1*/, int height /*= -1*/, bool startMaximized /*= false*/)
 {
     m_Context = ImGui::CreateContext();
     ImGui::SetCurrentContext(m_Context);
+    m_StartMaximized = startMaximized;
 
-    if (!m_Platform->OpenMainWindow("Application", width, height))
+    if (!m_Platform->OpenMainWindow(m_Name.c_str(), width, height))
         return false;
 
     if (!m_Renderer->Create(*m_Platform))
@@ -71,7 +72,7 @@ bool Application::Create(int width /*= -1*/, int height /*= -1*/)
 
 int Application::Run()
 {
-    m_Platform->ShowMainWindow();
+    m_Platform->ShowMainWindow(m_StartMaximized);
 
     while (m_Platform->ProcessMainWindowEvents())
     {
@@ -123,14 +124,14 @@ void Application::RecreateFontAtlas()
         IM_ASSERT(mergedFont != nullptr);
     };
 
-    m_DefaultFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 18.0f, &config);
+    m_DefaultFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 16.0f, &config);
+    mergeFontAwesome(16.0f);
+
+    m_HeaderFont = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf", 18.0f, &config);
     mergeFontAwesome(18.0f);
 
-    m_HeaderFont = io.Fonts->AddFontFromFileTTF("data/Cuprum-Bold.ttf", 20.0f, &config);
-    mergeFontAwesome(20.0f);
-
-    m_LargeNodeFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf",  48.0f, &config);
-    mergeFontAwesome(48.0f);
+    m_LargeNodeFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 32.0f, &config);
+    mergeFontAwesome(32.0f);
 
     io.Fonts->Build();
 }

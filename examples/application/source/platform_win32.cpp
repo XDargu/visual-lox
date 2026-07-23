@@ -45,7 +45,7 @@ struct PlatformWin32 final
     bool CloseMainWindow() override;
     void* GetMainWindowHandle() const override;
     void SetMainWindowTitle(const char* title) override;
-    void ShowMainWindow() override;
+    void ShowMainWindow(bool maximized) override;
     bool ProcessMainWindowEvents() override;
     bool IsMainWindowVisible() const override;
     void SetRenderer(Renderer* renderer) override;
@@ -179,13 +179,12 @@ void PlatformWin32::SetMainWindowTitle(const char* title)
     SetWindowText(m_MainWindowHandle, Utf8ToNative(title).c_str());
 }
 
-void PlatformWin32::ShowMainWindow()
+void PlatformWin32::ShowMainWindow(bool maximized)
 {
     if (m_MainWindowHandle == nullptr)
         return;
 
-    //ShowWindow(m_MainWindowHandle, SW_SHOWMAXIMIZED);
-    ShowWindow(m_MainWindowHandle, SW_SHOW);
+    ShowWindow(m_MainWindowHandle, maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     UpdateWindow(m_MainWindowHandle);
 }
 
@@ -205,9 +204,6 @@ bool PlatformWin32::ProcessMainWindowEvents()
     MSG msg = {};
     while (fetchMessage(&msg))
     {
-        if (msg.message == WM_KEYDOWN && (msg.wParam == VK_ESCAPE))
-            PostQuitMessage(0);
-
         if (msg.message == WM_QUIT)
             return false;
 

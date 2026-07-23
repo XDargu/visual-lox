@@ -688,6 +688,11 @@ void GraphView::DrawContextMenu()
     if (!addNodePopupOpened)
         openPopupPosition = ImGui::GetMousePos();
 
+    const bool openPaletteFromKeyboard =
+        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+        !ImGui::GetIO().WantTextInput &&
+        ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space), false);
+
     ed::Suspend();
     if (ed::ShowNodeContextMenu(&contextNodeId))
     {
@@ -701,7 +706,7 @@ void GraphView::DrawContextMenu()
     {
         ImGui::OpenPopup("Link Context Menu");
     }
-    else if (ed::ShowBackgroundContextMenu())
+    else if (ed::ShowBackgroundContextMenu() || openPaletteFromKeyboard)
     {
         addNodePopupOpened = true;
         ImGui::OpenPopup("Create New Node");

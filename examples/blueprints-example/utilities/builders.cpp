@@ -55,22 +55,43 @@ void util::BlueprintNodeBuilder::End()
 
         const auto halfBorderWidth = ed::GetStyle().NodeBorderWidth * 0.5f;
 
-        auto headerColor = IM_COL32(0, 0, 0, alpha) | (HeaderColor & IM_COL32(255, 255, 255, 0));
-        if ((HeaderMax.x > HeaderMin.x) && (HeaderMax.y > HeaderMin.y) && HeaderTextureId)
+        const ImVec4 sourceColor = ImGui::ColorConvertU32ToFloat4(HeaderColor);
+        const ImVec4 tonedColor(
+            sourceColor.x * 0.38f + 0.035f,
+            sourceColor.y * 0.38f + 0.040f,
+            sourceColor.z * 0.38f + 0.055f,
+            alpha / 255.0f);
+        const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(tonedColor);
+        if ((HeaderMax.x > HeaderMin.x) && (HeaderMax.y > HeaderMin.y))
         {
-            const auto uv = ImVec2(
-                (HeaderMax.x - HeaderMin.x) / (float)(4.0f * HeaderTextureWidth),
-                (HeaderMax.y - HeaderMin.y) / (float)(4.0f * HeaderTextureHeight));
+            const auto headerMin = HeaderMin - ImVec2(8 - halfBorderWidth, 4 - halfBorderWidth);
+            const auto headerMax = HeaderMax + ImVec2(8 - halfBorderWidth, 0);
 
-            drawList->AddImageRounded(HeaderTextureId,
-                HeaderMin - ImVec2(8 - halfBorderWidth, 4 - halfBorderWidth),
-                HeaderMax + ImVec2(8 - halfBorderWidth, 0),
-                ImVec2(0.0f, 0.0f), uv,
+            if (HeaderTextureId && HeaderTextureWidth > 0 && HeaderTextureHeight > 0)
+            {
+                const auto uv = ImVec2(
+                    (HeaderMax.x - HeaderMin.x) / (float)(4.0f * HeaderTextureWidth),
+                    (HeaderMax.y - HeaderMin.y) / (float)(4.0f * HeaderTextureHeight));
+
+                drawList->AddImageRounded(HeaderTextureId,
+                    headerMin,
+                    headerMax,
+                    ImVec2(0.0f, 0.0f), uv,
 #if IMGUI_VERSION_NUM > 18101
-                headerColor, GetStyle().NodeRounding, ImDrawFlags_RoundCornersTop);
+                    headerColor, GetStyle().NodeRounding, ImDrawFlags_RoundCornersTop);
 #else
-                headerColor, GetStyle().NodeRounding, 1 | 2);
+                    headerColor, GetStyle().NodeRounding, 1 | 2);
 #endif
+            }
+            else
+            {
+                drawList->AddRectFilled(
+                    headerMin,
+                    headerMax,
+                    headerColor,
+                    GetStyle().NodeRounding,
+                    ImDrawFlags_RoundCornersTop);
+            }
 
             if (ContentMin.y > HeaderMax.y)
             {

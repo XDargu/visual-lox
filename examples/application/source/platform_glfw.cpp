@@ -29,7 +29,7 @@ struct PlatformGLFW final
     bool CloseMainWindow() override;
     void* GetMainWindowHandle() const override;
     void SetMainWindowTitle(const char* title) override;
-    void ShowMainWindow() override;
+    void ShowMainWindow(bool maximized) override;
     bool ProcessMainWindowEvents() override;
     bool IsMainWindowVisible() const override;
     void SetRenderer(Renderer* renderer) override;
@@ -193,11 +193,13 @@ void PlatformGLFW::SetMainWindowTitle(const char* title)
     glfwSetWindowTitle(m_Window, title);
 }
 
-void PlatformGLFW::ShowMainWindow()
+void PlatformGLFW::ShowMainWindow(bool maximized)
 {
     if (m_Window == nullptr)
         return;
 
+    if (maximized)
+        glfwMaximizeWindow(m_Window);
     glfwShowWindow(m_Window);
 }
 

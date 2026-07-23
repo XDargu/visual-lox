@@ -12,7 +12,7 @@ struct Application
     Application(const char* name, int argc, char** argv);
     ~Application();
 
-    bool Create(int width = -1, int height = -1);
+    bool Create(int width = -1, int height = -1, bool startMaximized = false);
 
     int Run();
 
@@ -54,6 +54,7 @@ private:
     ImFont*                     m_DefaultFont = nullptr;
     ImFont*                     m_HeaderFont = nullptr;
     ImFont*                     m_LargeNodeFont = nullptr;
+    bool                        m_StartMaximized = false;
 };
 
 int Main(int argc, char** argv);

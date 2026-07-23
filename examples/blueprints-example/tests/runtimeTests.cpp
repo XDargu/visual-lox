@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 namespace
 {
@@ -36,6 +37,19 @@ bool HasCode(const ValidationReport& report, const char* code)
 {
     return std::any_of(report.diagnostics.begin(), report.diagnostics.end(),
         [&](const ValidationDiagnostic& diagnostic) { return diagnostic.code == code; });
+}
+
+std::string MakeListLiteralSource(int itemCount)
+{
+    std::string source = "var boundaryList = [";
+    for (int i = 0; i < itemCount; ++i)
+    {
+        if (i > 0)
+            source += ", ";
+        source += std::to_string(i);
+    }
+    source += "];";
+    return source;
 }
 }
 
@@ -63,6 +77,33 @@ int RunRuntimeTests()
                 "File::FileExists depends on external state and must not be pure.");
         Require(!HasFlag(registry.FindNative("Functional::Map")->functionDef->flags, NodeDefinitionFlags::Pure),
                 "Higher-order functions cannot be pure without a pure callable contract.");
+
+        // A completed top-level interpretation must release its closure. This
+        // also exercises textual for-in repeatedly beyond the 256-slot limit
+        // that used to be reached after one leaked slot per invocation.
+        for (int iteration = 0; iteration < 300; ++iteration)
+        {
+            Require(vm.interpret("for value in [1, 2, 3] {}") == InterpretResult::INTERPRET_OK,
+                    "Repeated textual for-in execution should succeed.");
+            Require(vm.getStackSize() == 0,
+                    "VM::interpret should leave the stack empty after successful execution.");
+        }
+
+        // List literals are built incrementally and therefore keep a constant
+        // stack footprint even when their size exceeds one-byte limits.
+        Require(vm.interpret(MakeListLiteralSource(1000)) == InterpretResult::INTERPRET_OK,
+                "A 1000-item list literal should execute successfully.");
+        Require(vm.getStackSize() == 0,
+                "List literal construction should leave the stack empty after execution.");
+        Value largeLiteralValue;
+        Require(vm.globalTable().get(copyString("boundaryList", 12), &largeLiteralValue) &&
+                isList(largeLiteralValue) && asList(largeLiteralValue)->items.size() == 1000 &&
+                isNumber(asList(largeLiteralValue)->getValue(0)) &&
+                isNumber(asList(largeLiteralValue)->getValue(999)) &&
+                asNumber(asList(largeLiteralValue)->getValue(0)) == 0.0 &&
+                asNumber(asList(largeLiteralValue)->getValue(999)) == 999.0,
+                "Large list literals should preserve every item in source order.");
+
         IDGenerator invalidIds;
         NodePtr flagSeparationNode = addDefinition->MakeNode(invalidIds);
         flagSeparationNode->InstanceFlags |= NodeInstanceFlags::Error;
@@ -125,6 +166,51 @@ int RunRuntimeTests()
                 "Constant folding should preserve the Add result.");
         Require(ScriptRuntime::Execute(vm, compiled.function) == InterpretResult::INTERPRET_OK,
                 "The folded script should execute successfully.");
+
+        // Flow::For In must keep a constant stack footprint regardless of
+        // iterable length, including when its Value output is consumed.
+        IDGenerator forInIds;
+        Script forInScript;
+        forInScript.ID = forInIds.GetNextId();
+        forInScript.main = std::make_shared<ScriptFunction>(forInIds.GetNextId(), "ForInMain");
+        ScriptPropertyPtr forInResult =
+            std::make_shared<ScriptProperty>(forInIds.GetNextId(), "ForInResult");
+        forInResult->defaultValue = Value(-1.0);
+        forInScript.variables.push_back(forInResult);
+
+        NodePtr forInBegin = BuildBeginNode(forInIds, forInScript.main);
+        NodePtr forIn = registry.FindCompiled("Flow::For In")->MakeNode(forInIds);
+        NodePtr storeForInResult = BuildSetVariableNode(forInIds, forInResult);
+        ObjList* largeList = newList();
+        for (int value = 0; value < 1000; ++value)
+            largeList->append(Value(static_cast<double>(value)));
+        forIn->InputValues[1] = Value(largeList);
+
+        AttachNode(forInScript.main->Graph, forInBegin);
+        AttachNode(forInScript.main->Graph, forIn);
+        AttachNode(forInScript.main->Graph, storeForInResult);
+        forInScript.main->Graph.AddLink(
+            Link(forInIds.GetNextId(), forInBegin->Outputs[0].ID, forIn->Inputs[0].ID));
+        forInScript.main->Graph.AddLink(
+            Link(forInIds.GetNextId(), forIn->Outputs[0].ID, storeForInResult->Inputs[0].ID));
+        forInScript.main->Graph.AddLink(
+            Link(forInIds.GetNextId(), forIn->Outputs[1].ID, storeForInResult->Inputs[1].ID));
+
+        vm.setExternalMarkingFunc([&]()
+        {
+            MarkNodeRegistryRoots(registry, vm);
+            ScriptUtils::MarkScriptRoots(forInScript);
+        });
+        const ScriptCompileResult forInCompilation = ScriptRuntime::Compile(vm, forInScript);
+        Require(static_cast<bool>(forInCompilation), "A large Flow::For In script should compile.");
+        Require(ScriptRuntime::Execute(vm, forInCompilation.function) == InterpretResult::INTERPRET_OK,
+                "Flow::For In should iterate over more than 256 list items.");
+        Require(vm.getStackSize() == 0,
+                "Flow::For In should release all loop values after execution.");
+        Value observedForInResult;
+        Require(vm.globalTable().get(copyString("ForInResult", 11), &observedForInResult) &&
+                isNumber(observedForInResult) && asNumber(observedForInResult) == 999.0,
+                "Flow::For In should expose every list value through its Value output.");
 
         // Ranges, matching, classes, constructor arguments, properties and
         // method invocation all participate in the same graph/runtime pipeline.

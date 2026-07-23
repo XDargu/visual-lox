@@ -561,7 +561,11 @@ void Compiler::funExpr(bool canAssign)
 
 inline void Compiler::list(bool canAssign)
 {
-    int itemCount = 0;
+    // Keep the list rooted on the stack and append each element as it is
+    // evaluated. This gives list literals constant stack usage and avoids
+    // encoding their length in a single-byte operand.
+    emitByte(OpByte(OpCode::OP_BUILD_LIST));
+
     if (!check(TokenType::RIGHT_BRACKET))
     {
         do {
@@ -572,19 +576,11 @@ inline void Compiler::list(bool canAssign)
             }
 
             parsePrecedence(Precedence::OR);
-
-            if (itemCount == UINT8_COUNT) {
-                error("Cannot have more than 256 items in a list literal.");
-            }
-            itemCount++;
+            emitByte(OpByte(OpCode::OP_APPEND_LIST));
         } while (match(TokenType::COMMA));
     }
 
     consume(TokenType::RIGHT_BRACKET, "Expect ']' after list literal.");
-
-    emitByte(OpByte(OpCode::OP_BUILD_LIST));
-    emitByte(itemCount);
-    return;
 }
 
 void Compiler::parsePrecedence(Precedence precedence)

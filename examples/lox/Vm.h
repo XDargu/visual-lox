@@ -91,6 +91,7 @@ public:
     InterpretResult run(int depth);
 
     size_t getFrameCount() const { return frameCount; }
+    size_t getStackSize() const { return static_cast<size_t>(stackTop - stack.data()); }
 
     void defineNative(const char* name, uint8_t arity, NativeFn function);
     void defineNativeClass(const char* name, std::vector<NativeMethodDef>&& methods);

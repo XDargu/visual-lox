@@ -109,6 +109,7 @@ struct SetVariableNode : public Node
 
             Token varToken(TokenType::VAR, pPropertyDef->Name.c_str(), pPropertyDef->Name.length(), 0);
             compiler.emitVariable(varToken, true);
+            compiler.emitByte(OpByte(OpCode::OP_POP));
         }
     }
 

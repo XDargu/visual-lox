@@ -53,23 +53,31 @@ struct FunctionNode : public Node
             // Load named variable (native func)
             compiler.namedVariable(Token(TokenType::STRING, Name.c_str(), Name.length(), 10), false);
 
+            const bool hasDynamicInputs =
+                HasFlag(DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
             int argCount = 0;
-            // Gather Inputs normally
+
+            if (hasDynamicInputs)
+            {
+                // Dynamic arguments are passed as a single list. Build it
+                // incrementally so the number of inputs is not byte-limited.
+                compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
+            }
+
             for (int i = 0; i < Inputs.size(); ++i)
             {
                 if (Inputs[i].Type != PinType::Flow)
                 {
                     GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
-                    argCount++;
+                    if (hasDynamicInputs)
+                        compiler.emitByte(OpByte(OpCode::OP_APPEND_LIST));
+                    else
+                        argCount++;
                 }
             }
 
-            if (HasFlag(DefinitionFlags, NodeDefinitionFlags::DynamicInputs))
+            if (hasDynamicInputs)
             {
-                // Get all inputs on a list first
-                compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
-                compiler.emitByte(argCount);
-
                 // We will only call the function with the list!
                 argCount = 1;
             }

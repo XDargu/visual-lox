@@ -193,7 +193,9 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
     case OpCode::OP_BUILD_RANGE:
         return simpleInstruction("OP_BUILD_RANGE", offset);
     case OpCode::OP_BUILD_LIST:
-        return byteInstruction("OP_BUILD_LIST", chunk, offset);
+        return simpleInstruction("OP_BUILD_LIST", offset);
+    case OpCode::OP_APPEND_LIST:
+        return simpleInstruction("OP_APPEND_LIST", offset);
     case OpCode::OP_INDEX_SUBSCR:
         return simpleInstruction("OP_INDEX_SUBSCR", offset);
     case OpCode::OP_STORE_SUBSCR:
@@ -276,5 +278,5 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return offset + 1;
     }
 
-    static_assert(static_cast<int>(OpCode::COUNT) == 54, "Missing operations in the Debug");
+    static_assert(static_cast<int>(OpCode::COUNT) == 55, "Missing operations in the Debug");
 }

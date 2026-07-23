@@ -43,6 +43,7 @@ enum class OpCode : uint8_t
     OP_INCREMENT,
     OP_BUILD_RANGE,
     OP_BUILD_LIST,
+    OP_APPEND_LIST,
     OP_INDEX_SUBSCR,
     OP_STORE_SUBSCR,
     OP_RANGE_IN_BOUNDS,

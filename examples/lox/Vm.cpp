@@ -75,7 +75,15 @@ InterpretResult VM::interpret(const std::string& source)
     push(Value(closure));
     call(closure, 0);
 
-    return run(0);
+    const InterpretResult result = run(0);
+    if (result == InterpretResult::INTERPRET_OK)
+    {
+        // OP_RETURN leaves the top-level closure in its slot. Match the
+        // ScriptRuntime::Execute() cleanup so repeated interpret() calls do
+        // not consume one stack entry each.
+        pop();
+    }
+    return result;
 }
 
 void VM::addObject(Obj* obj)
@@ -719,25 +727,19 @@ InterpretResult VM::run(int depth)
             }
             case OpCode::OP_BUILD_LIST:
             {
-                // Stack before: [item1, item2, ..., itemN] and after: [list]
-                ObjList* list = newList();
-                uint8_t itemCount = readByte();
-
-                // Add items to list
-                push(Value(list)); // So list isn't sweeped by GC in appendToList
-                for (int i = itemCount; i > 0; --i)
+                push(Value(newList()));
+                break;
+            }
+            case OpCode::OP_APPEND_LIST:
+            {
+                // Stack before: [..., list, item] and after: [..., list].
+                const Value item = pop();
+                if (!isList(peek(0)))
                 {
-                    list->append(peek(i));
+                    runtimeError("Can only append list literal items to a list.");
+                    return InterpretResult::INTERPRET_RUNTIME_ERROR;
                 }
-                pop();
-
-                // Pop items from stack
-                while (itemCount-- > 0)
-                {
-                    pop();
-                }
-
-                push(Value(list));
+                asList(peek(0))->append(item);
                 break;
             }
             case OpCode::OP_INDEX_SUBSCR:
@@ -1088,7 +1090,7 @@ InterpretResult VM::run(int depth)
                 defineMethod(readStringLong());
                 break;
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 54, "Missing operations in the VM");
+        static_assert(static_cast<int>(OpCode::COUNT) == 55, "Missing operations in the VM");
     }
 }
 

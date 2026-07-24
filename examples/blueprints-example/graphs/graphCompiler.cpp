@@ -27,29 +27,53 @@ void GraphCompiler::CompileBackwardsRecursive(const Graph& graph, const NodePtr&
     {
         const Pin& inputPin = startNode->Inputs[i];
 
-        if (inputPin.Type != PinType::Flow)
-        {
-            if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, inputPin))
-            {
-                NodePtr prevNode = pOutput->Node;
-                if (prevNode && GraphUtils::IsNodeImplicit(prevNode))
-                {
-                    const int constFoldIdx = context.FindConstFoldedIdx(prevNode);
-                    if (constFoldIdx >= 0)
-                    {
-                        callback(prevNode, graph, CompilationStage::ConstFoldedInputs, constFoldIdx);
-                    }
-                    else
-                    {
-                        callback(prevNode, graph, CompilationStage::BeforeInput, -1);
-                        const int nodeOutputIdx = GraphUtils::FindNodeOutputIdx(*pOutput);
-                        CompileBackwardsRecursive(graph, prevNode, -1, nodeOutputIdx, callback);
+        if (inputPin.Type != PinType::Flow && !startNode->IsInputDeferred(i))
+            CompileInputDependency(graph, startNode, i, callback);
+    }
+}
 
-                        callback(prevNode, graph, CompilationStage::PullOutput, -1);
-                    }
-                }
-            }
+void GraphCompiler::CompileInputDependency(const Graph& graph, const NodePtr& node,
+                                           int inputIndex, const Callback& callback)
+{
+    if (inputIndex < 0 || inputIndex >= static_cast<int>(node->Inputs.size()))
+        return;
+
+    const Pin& inputPin = node->Inputs[inputIndex];
+    if (const Pin* pOutput = GraphUtils::FindConnectedOutput(graph, inputPin))
+    {
+        NodePtr previousNode = pOutput->Node;
+        if (!previousNode || !GraphUtils::IsNodeImplicit(previousNode))
+            return;
+
+        const int constFoldIdx = context.FindConstFoldedIdx(previousNode);
+        if (constFoldIdx >= 0)
+        {
+            callback(previousNode, graph, CompilationStage::ConstFoldedInputs,
+                     constFoldIdx);
+            return;
         }
+
+        callback(previousNode, graph, CompilationStage::BeforeInput, -1);
+        CompileBackwardsRecursive(graph, previousNode, -1,
+                                  GraphUtils::FindNodeOutputIdx(*pOutput), callback);
+        CompileDeferredInputs(graph, previousNode, -1, callback);
+        callback(previousNode, graph, CompilationStage::PullOutput, -1);
+    }
+}
+
+void GraphCompiler::CompileDeferredInputs(const Graph& graph, const NodePtr& node,
+                                          int outputIndex, const Callback& callback)
+{
+    for (int inputIndex = 0;
+         inputIndex < static_cast<int>(node->Inputs.size()); ++inputIndex)
+    {
+        if (!node->IsInputDeferred(inputIndex) ||
+            !node->ShouldCompileDeferredInput(inputIndex, outputIndex))
+            continue;
+
+        callback(node, graph, CompilationStage::BeforeDeferredInput, inputIndex);
+        CompileInputDependency(graph, node, inputIndex, callback);
+        callback(node, graph, CompilationStage::AfterDeferredInput, inputIndex);
     }
 }
 
@@ -72,6 +96,8 @@ void GraphCompiler::CompileRecursive(const Graph& graph, const NodePtr& startNod
     if (outputIdx != -1)
     {
         // Compile one specific output. We assume it's a flow output.
+        callback(startNode, graph, CompilationStage::BeforeOutput, outputIdx);
+        CompileDeferredInputs(graph, startNode, outputIdx, callback);
         callback(startNode, graph, CompilationStage::BeginOutput, outputIdx);
 
         const Pin& currentOutput = startNode->Outputs[outputIdx];
@@ -94,6 +120,8 @@ void GraphCompiler::CompileRecursive(const Graph& graph, const NodePtr& startNod
 
             if (outputPin.Type == PinType::Flow)
             {
+                callback(startNode, graph, CompilationStage::BeforeOutput, i);
+                CompileDeferredInputs(graph, startNode, i, callback);
                 callback(startNode, graph, CompilationStage::BeginOutput, i);
 
                 const std::vector<const Pin*> inputPins = GraphUtils::FindConnectedInputs(graph, outputPin);
@@ -119,6 +147,7 @@ void GraphCompiler::CompileSingle(const Graph& graph, const NodePtr& startNode, 
     if (GraphUtils::IsNodeImplicit(startNode))
     {
         CompileBackwardsRecursive(graph, startNode, -1, outputIdx, callback);
+        CompileDeferredInputs(graph, startNode, -1, callback);
         callback(startNode, graph, CompilationStage::PullOutput, outputIdx);
     }
     else

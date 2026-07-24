@@ -36,7 +36,7 @@ Value lengthOfIterable(int argCount, Value* args, VM* vm)
     if (isRange(args[0]))
     {
         const ObjRange* range = asRange(args[0]);
-        return Value(std::floor(std::fabs(range->max - range->min)) + 1.0);
+        return Value(static_cast<double>(range->length()));
     }
 
     if (isString(args[0]))

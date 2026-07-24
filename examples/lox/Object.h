@@ -3,6 +3,7 @@
 
 #include <string>
 #include <iostream>
+#include <cmath>
 
 #include "Common.h"
 #include "Chunk.h"
@@ -187,32 +188,67 @@ struct ObjNative : Obj
 
 struct ObjRange : Obj
 {
-    ObjRange(double min, double max)
+    ObjRange(double min, double max, double requestedStep = 1.0,
+             bool includeStart = true, bool includeEnd = true)
         : Obj(ObjType::RANGE)
         , min(min)
         , max(max)
-    {}
-
-    bool contains(double value)
+        , step(min <= max ? std::fabs(requestedStep) : -std::fabs(requestedStep))
+        , includeStart(includeStart)
+        , includeEnd(includeEnd)
     {
-        if (min < max) return value >= min && value<= max; // 1..5
-        return value <= min && value >= max; // 5..1
+        if (step == 0.0)
+            step = min <= max ? 1.0 : -1.0;
     }
 
-    bool isInBounds(int idx)
+    double firstValue() const
     {
-        if (min < max) return idx >= 0 && idx <= max - min; // 1..5
-        return idx >= 0 && idx <= min - max; // 5..1
+        return includeStart ? min : min + step;
     }
 
-    double getValue(int idx)
+    bool isInBounds(int idx) const
     {
-        if (min < max) return min + idx; // 1..5
-        return min - idx; // 5..1
+        if (idx < 0)
+            return false;
+        const double value = getValue(idx);
+        constexpr double epsilon = 1e-12;
+        if (step > 0.0)
+            return includeEnd ? value <= max + epsilon : value < max - epsilon;
+        return includeEnd ? value >= max - epsilon : value > max + epsilon;
+    }
+
+    double getValue(int idx) const
+    {
+        return firstValue() + static_cast<double>(idx) * step;
+    }
+
+    size_t length() const
+    {
+        if (!isInBounds(0))
+            return 0;
+        const double distance = std::fabs(max - firstValue());
+        const double stride = std::fabs(step);
+        constexpr double epsilon = 1e-12;
+        if (includeEnd)
+            return static_cast<size_t>(std::floor(distance / stride + epsilon)) + 1;
+        return static_cast<size_t>(std::ceil(distance / stride - epsilon));
+    }
+
+    bool contains(double value) const
+    {
+        if (!isInBounds(0))
+            return false;
+        const double index = (value - firstValue()) / step;
+        const double rounded = std::round(index);
+        return std::fabs(index - rounded) < 1e-10 &&
+               rounded >= 0.0 && isInBounds(static_cast<int>(rounded));
     }
 
     double min;
     double max;
+    double step;
+    bool includeStart;
+    bool includeEnd;
 };
 
 struct ObjList : Obj
@@ -288,7 +324,8 @@ ObjClosure* newClosure(ObjFunction* function);
 ObjFunction* newFunction();
 ObjNative* newNative(uint8_t arity, NativeFn function, bool isMethod);
 
-ObjRange* newRange(double min, double max);
+ObjRange* newRange(double min, double max, double step = 1.0,
+                   bool includeStart = true, bool includeEnd = true);
 ObjList* newList();
 
 void printObject(const Value& value);

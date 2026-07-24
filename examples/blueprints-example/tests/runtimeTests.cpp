@@ -16,6 +16,10 @@
 #include <Vm.h>
 
 #include <algorithm>
+#include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -79,11 +83,70 @@ struct RuntimeFixture
         return definition->nativeFun(static_cast<int>(arguments.size()), arguments.data(), &vm);
     }
 
+    Value CallNative(const char* name, std::vector<Value> arguments)
+    {
+        const NativeFunctionDef* definition = registry.FindNative(name);
+        Require(definition != nullptr, "Expected native node to be registered.");
+        return definition->nativeFun(
+            static_cast<int>(arguments.size()), arguments.data(), &vm);
+    }
+
     VM& vm;
     bool wasGcAllowed;
     NodeRegistry registry;
     IDGenerator ids;
 };
+
+Value StringValue(const std::string& text)
+{
+    return Value(copyString(text.c_str(), static_cast<int>(text.size())));
+}
+
+Value ReadGlobal(VM& vm, const char* name)
+{
+    Value value;
+    const std::string key(name);
+    Require(vm.globalTable().get(
+                copyString(key.c_str(), static_cast<int>(key.size())), &value),
+            "Expected a script global to exist.");
+    return value;
+}
+
+ObjList* MakeList(std::initializer_list<Value> values)
+{
+    ObjList* list = newList();
+    for (const Value& value : values)
+        list->append(value);
+    return list;
+}
+
+NodePtr BuildFailingExpressionNode(IDGenerator& ids, PinType outputType)
+{
+    struct FailingExpressionNode : Node
+    {
+        explicit FailingExpressionNode(int id)
+            : Node(id, "Must Not Execute", ImColor(230, 230, 0))
+        {
+            Category = NodeCategory::Function;
+        }
+
+        void Compile(CompilerContext& context, const Graph& graph,
+                     CompilationStage stage, int) const override
+        {
+            if (stage != CompilationStage::PullOutput)
+                return;
+            context.compiler.emitConstant(StringValue("not a number"));
+            context.compiler.emitByte(OpByte(OpCode::OP_NEGATE));
+            GraphCompiler::CompileOutput(context, graph, Outputs[0]);
+        }
+    };
+
+    NodePtr node =
+        std::make_shared<FailingExpressionNode>(ids.GetNextId());
+    node->SerializationType = "test.failing-expression";
+    node->Outputs.emplace_back(ids.GetNextId(), "Result", outputType);
+    return node;
+}
 
 void StandardLibraryDeclaresCapabilities()
 {
@@ -697,6 +760,411 @@ void ClassesRangesAndMatchingRoundTripAndExecute()
             "Flow Match should execute the first matching case and skip Default.");
 }
 
+void CompleteExpressionNodesCompileAndExecute()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "ExpressionMain");
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    AttachNode(script.main->Graph, begin);
+    ed::PinId previousFlow = begin->Outputs[0].ID;
+
+    const auto addExpression =
+        [&](const char* definitionName, const char* variableName,
+            const Value& first, const Value& second, bool hasSecond,
+            const Value& resultDefault)
+    {
+        const CompiledNodeDefPtr definition =
+            fixture.registry.FindCompiled(definitionName);
+        Require(definition != nullptr, "Expected expression node to be registered.");
+        NodePtr expression = definition->MakeNode(fixture.ids);
+        expression->InputValues[0] = first;
+        if (hasSecond)
+            expression->InputValues[1] = second;
+
+        ScriptPropertyPtr result = std::make_shared<ScriptProperty>(
+            fixture.ids.GetNextId(), variableName);
+        result->defaultValue = resultDefault;
+        script.variables.push_back(result);
+        NodePtr setter = BuildSetVariableNode(fixture.ids, result);
+        AttachNode(script.main->Graph, expression);
+        AttachNode(script.main->Graph, setter);
+        script.main->Graph.AddLink(Link(
+            fixture.ids.GetNextId(), previousFlow, setter->Inputs[0].ID));
+        script.main->Graph.AddLink(Link(
+            fixture.ids.GetNextId(), expression->Outputs[0].ID,
+            setter->Inputs[1].ID));
+        previousFlow = setter->Outputs[0].ID;
+        return expression;
+    };
+
+    addExpression("Logic::Not", "ExprNot", Value(true), Value(), false,
+                  Value(false));
+    addExpression("Math::Negate", "ExprNegate", Value(5.0), Value(), false,
+                  Value(0.0));
+    addExpression("Math::Not Equals", "ExprNotEquals",
+                  StringValue("left"), StringValue("right"), true, Value(false));
+    addExpression("Math::Greater Or Equal", "ExprGreaterEqual",
+                  Value(4.0), Value(4.0), true, Value(false));
+    addExpression("Math::Less Or Equal", "ExprLessEqual",
+                  Value(3.0), Value(4.0), true, Value(false));
+    addExpression("Math::Equals", "ExprAnyEquals",
+                  StringValue("same"), StringValue("same"), true, Value(false));
+    addExpression("Value::Is Nil", "ExprIsNil", Value(), Value(), false,
+                  Value(false));
+    addExpression("Logic::And", "ExprAnd", Value(true), Value(true), true,
+                  Value(false));
+    NodePtr shortAnd = addExpression(
+        "Logic::And", "ExprAndShort", Value(false), Value(true), true, Value(true));
+    addExpression("Logic::Or", "ExprOr", Value(false), Value(true), true,
+                  Value(false));
+    NodePtr shortOr = addExpression(
+        "Logic::Or", "ExprOrShort", Value(true), Value(false), true, Value(false));
+    addExpression("Value::Coalesce", "ExprCoalesce",
+                  Value(), StringValue("fallback"), true, StringValue(""));
+    NodePtr shortCoalesce = addExpression(
+        "Value::Coalesce", "ExprCoalesceKeep", StringValue("left"),
+        StringValue("right"), true, StringValue(""));
+
+    for (const NodePtr& expression : { shortAnd, shortOr, shortCoalesce })
+    {
+        NodePtr failing = BuildFailingExpressionNode(
+            fixture.ids, expression->Inputs[1].Type);
+        AttachNode(script.main->Graph, failing);
+        script.main->Graph.AddLink(Link(
+            fixture.ids.GetNextId(), failing->Outputs[0].ID,
+            expression->Inputs[1].ID));
+    }
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    ScriptCompileOptions options;
+    options.enableConstantFolding = false;
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(static_cast<bool>(compiled),
+            "The complete expression graph should compile without folding.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "The complete expression graph should execute.");
+
+    Require(isBoolean(ReadGlobal(fixture.vm, "ExprNot")) &&
+            !asBoolean(ReadGlobal(fixture.vm, "ExprNot")),
+            "Logic::Not should invert its input.");
+    Require(asNumber(ReadGlobal(fixture.vm, "ExprNegate")) == -5.0,
+            "Math::Negate should negate its input.");
+    for (const char* name : { "ExprNotEquals", "ExprGreaterEqual",
+             "ExprLessEqual", "ExprAnyEquals", "ExprIsNil", "ExprAnd",
+             "ExprOr", "ExprOrShort" })
+        Require(isBoolean(ReadGlobal(fixture.vm, name)) &&
+                asBoolean(ReadGlobal(fixture.vm, name)),
+                "Expected expression result to be true.");
+    Require(isBoolean(ReadGlobal(fixture.vm, "ExprAndShort")) &&
+            !asBoolean(ReadGlobal(fixture.vm, "ExprAndShort")),
+            "Logic::And should preserve a false left operand.");
+    Require(isString(ReadGlobal(fixture.vm, "ExprCoalesce")) &&
+            asString(ReadGlobal(fixture.vm, "ExprCoalesce"))->chars == "fallback",
+            "Value::Coalesce should use its fallback for nil.");
+    Require(isString(ReadGlobal(fixture.vm, "ExprCoalesceKeep")) &&
+            asString(ReadGlobal(fixture.vm, "ExprCoalesceKeep"))->chars == "left",
+            "Value::Coalesce should preserve a non-nil left operand.");
+}
+
+void WhileAndRepeatNodesCompileAndExecute()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "LoopMain");
+
+    const auto addVariable = [&](const char* name, const Value& initial)
+    {
+        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(
+            fixture.ids.GetNextId(), name);
+        property->defaultValue = initial;
+        script.variables.push_back(property);
+        return property;
+    };
+    ScriptPropertyPtr counter = addVariable("LoopCounter", Value(0.0));
+    ScriptPropertyPtr whileDone = addVariable("WhileCompleted", Value(false));
+    ScriptPropertyPtr repeatSum = addVariable("RepeatSum", Value(0.0));
+    ScriptPropertyPtr repeatDone = addVariable("RepeatCompleted", Value(false));
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr whileNode =
+        fixture.registry.FindCompiled("Flow::While")->MakeNode(fixture.ids);
+    NodePtr condition =
+        fixture.registry.FindCompiled("Math::Less Than")->MakeNode(fixture.ids);
+    NodePtr conditionCounter = BuildGetVariableNode(fixture.ids, counter);
+    condition->InputValues[1] = Value(3.0);
+    NodePtr increment =
+        fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
+    NodePtr bodyCounter = BuildGetVariableNode(fixture.ids, counter);
+    increment->InputValues[1] = Value(1.0);
+    NodePtr setCounter = BuildSetVariableNode(fixture.ids, counter);
+    NodePtr setWhileDone = BuildSetVariableNode(fixture.ids, whileDone);
+    setWhileDone->InputValues[1] = Value(true);
+
+    NodePtr repeat =
+        fixture.registry.FindCompiled("Flow::Repeat")->MakeNode(fixture.ids);
+    repeat->InputValues[1] = Value(3.0);
+    NodePtr sum =
+        fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
+    NodePtr currentSum = BuildGetVariableNode(fixture.ids, repeatSum);
+    NodePtr setSum = BuildSetVariableNode(fixture.ids, repeatSum);
+    NodePtr setRepeatDone = BuildSetVariableNode(fixture.ids, repeatDone);
+    setRepeatDone->InputValues[1] = Value(true);
+
+    for (const NodePtr& node : { begin, whileNode, condition, conditionCounter,
+             increment, bodyCounter, setCounter, setWhileDone, repeat, sum,
+             currentSum, setSum, setRepeatDone })
+        AttachNode(script.main->Graph, node);
+
+    const auto link = [&](const Pin& output, const Pin& input)
+    {
+        script.main->Graph.AddLink(
+            Link(fixture.ids.GetNextId(), output.ID, input.ID));
+    };
+    link(begin->Outputs[0], whileNode->Inputs[0]);
+    link(conditionCounter->Outputs[0], condition->Inputs[0]);
+    link(condition->Outputs[0], whileNode->Inputs[1]);
+    link(whileNode->Outputs[0], setCounter->Inputs[0]);
+    link(bodyCounter->Outputs[0], increment->Inputs[0]);
+    link(increment->Outputs[0], setCounter->Inputs[1]);
+    link(whileNode->Outputs[1], setWhileDone->Inputs[0]);
+    link(setWhileDone->Outputs[0], repeat->Inputs[0]);
+    link(repeat->Outputs[0], setSum->Inputs[0]);
+    link(currentSum->Outputs[0], sum->Inputs[0]);
+    link(repeat->Outputs[1], sum->Inputs[1]);
+    link(sum->Outputs[0], setSum->Inputs[1]);
+    link(repeat->Outputs[2], setRepeatDone->Inputs[0]);
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    ScriptCompileOptions options;
+    options.enableConstantFolding = false;
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(static_cast<bool>(compiled),
+            "While and Repeat graphs should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "While and Repeat graphs should execute.");
+    Require(isNumber(ReadGlobal(fixture.vm, "LoopCounter")) &&
+            asNumber(ReadGlobal(fixture.vm, "LoopCounter")) == 3.0,
+            "While should re-evaluate its condition and execute three times.");
+    Require(isBoolean(ReadGlobal(fixture.vm, "WhileCompleted")) &&
+            asBoolean(ReadGlobal(fixture.vm, "WhileCompleted")),
+            "While should continue through Completed.");
+    Require(isNumber(ReadGlobal(fixture.vm, "RepeatSum")) &&
+            asNumber(ReadGlobal(fixture.vm, "RepeatSum")) == 3.0,
+            "Repeat should expose indices 0, 1, and 2.");
+    Require(isBoolean(ReadGlobal(fixture.vm, "RepeatCompleted")) &&
+            asBoolean(ReadGlobal(fixture.vm, "RepeatCompleted")),
+            "Repeat should continue through Completed.");
+}
+
+void ExpandedMathAndStringNodesOperate()
+{
+    RuntimeFixture fixture;
+    const auto number = [&](const char* name, std::vector<Value> arguments)
+    {
+        const Value result = fixture.CallNative(name, std::move(arguments));
+        Require(isNumber(result), "Expected a numeric native result.");
+        return asNumber(result);
+    };
+    Require(number("Math::Abs", { Value(-4.0) }) == 4.0,
+            "Math::Abs should return magnitude.");
+    Require(number("Math::Min", { Value(2.0), Value(5.0) }) == 2.0 &&
+            number("Math::Max", { Value(2.0), Value(5.0) }) == 5.0,
+            "Math::Min and Math::Max should select endpoints.");
+    Require(number("Math::Clamp",
+                { Value(7.0), Value(1.0), Value(5.0) }) == 5.0,
+            "Math::Clamp should constrain values.");
+    Require(number("Math::Power", { Value(2.0), Value(3.0) }) == 8.0 &&
+            number("Math::Sqrt", { Value(9.0) }) == 3.0,
+            "Power and square root should calculate expected values.");
+    Require(number("Math::Floor", { Value(2.8) }) == 2.0 &&
+            number("Math::Ceil", { Value(2.2) }) == 3.0 &&
+            number("Math::Round", { Value(2.6) }) == 3.0,
+            "Rounding nodes should use their documented direction.");
+    const double random =
+        number("Math::Random", { Value(-2.0), Value(2.0) });
+    Require(random >= -2.0 && random <= 2.0,
+            "Math::Random should stay within its requested bounds.");
+
+    const auto string = [&](const char* name, std::vector<Value> arguments)
+    {
+        const Value result = fixture.CallNative(name, std::move(arguments));
+        Require(isString(result), "Expected a string native result.");
+        return asString(result)->chars;
+    };
+    Require(string("String::Trim", { StringValue("  hello \n") }) == "hello",
+            "String::Trim should remove surrounding whitespace.");
+    Require(string("String::Replace",
+                { StringValue("a-b-a"), StringValue("a"), StringValue("x") }) ==
+                "x-b-x",
+            "String::Replace should replace every match.");
+    Require(string("String::Join",
+                { Value(MakeList({ StringValue("a"), StringValue("b") })),
+                  StringValue(",") }) == "a,b",
+            "String::Join should join list items.");
+    Require(asBoolean(fixture.CallNative("String::Starts With",
+                { StringValue("visual-lox"), StringValue("visual") })) &&
+            asBoolean(fixture.CallNative("String::Ends With",
+                { StringValue("visual-lox"), StringValue("lox") })),
+            "Prefix and suffix nodes should match boundaries.");
+    Require(string("String::Format",
+                { StringValue("{0}:{1}"),
+                  Value(MakeList({ StringValue("value"), Value(3.0) })) }) ==
+                "value:3.000000",
+            "String::Format should replace indexed placeholders.");
+
+    const Value parsedNumber = fixture.CallNative(
+        "String::Parse Number", { StringValue(" 12.5 ") });
+    const Value parsedBool = fixture.CallNative(
+        "String::Parse Bool", { StringValue("TRUE") });
+    Require(isList(parsedNumber) && asList(parsedNumber)->items.size() == 2 &&
+            asNumber(asList(parsedNumber)->items[0]) == 12.5 &&
+            asBoolean(asList(parsedNumber)->items[1]),
+            "String::Parse Number should package the value and success flag.");
+    Require(isList(parsedBool) && asList(parsedBool)->items.size() == 2 &&
+            asBoolean(asList(parsedBool)->items[0]) &&
+            asBoolean(asList(parsedBool)->items[1]),
+            "String::Parse Bool should package the value and success flag.");
+}
+
+void ExpandedListAndRangeNodesOperate()
+{
+    RuntimeFixture fixture;
+    ObjList* source =
+        MakeList({ Value(3.0), Value(1.0), Value(3.0), Value(2.0) });
+    const Value inserted = fixture.CallNative(
+        "List::Insert", { Value(source), Value(1.0), Value(9.0) });
+    Require(isNumber(inserted) && asNumber(inserted) == 5.0 &&
+            asNumber(source->items[1]) == 9.0,
+            "List::Insert should mutate the list and return its new length.");
+    source->items.erase(source->items.begin() + 1);
+
+    const Value slice = fixture.CallNative(
+        "List::Slice", { Value(source), Value(1.0), Value(2.0) });
+    const Value reversed = fixture.CallNative("List::Reverse", { Value(source) });
+    const Value sorted = fixture.CallNative("List::Sort", { Value(source) });
+    const Value distinct = fixture.CallNative("List::Distinct", { Value(source) });
+    const Value enumerated =
+        fixture.CallNative("List::Enumerate", { Value(source) });
+    const Value zipped = fixture.CallNative(
+        "List::Zip",
+        { Value(source), Value(MakeList({ StringValue("a"), StringValue("b") })) });
+    Require(isList(slice) && asList(slice)->items.size() == 2 &&
+            asNumber(asList(slice)->items[0]) == 1.0 &&
+            asNumber(asList(slice)->items[1]) == 3.0,
+            "List::Slice should return the selected window.");
+    Require(isList(reversed) && asNumber(asList(reversed)->items[0]) == 2.0 &&
+            asNumber(asList(reversed)->items[3]) == 3.0,
+            "List::Reverse should return reverse order.");
+    Require(isList(sorted) && asNumber(asList(sorted)->items[0]) == 1.0 &&
+            asNumber(asList(sorted)->items[3]) == 3.0,
+            "List::Sort should return ascending order.");
+    Require(isList(distinct) && asList(distinct)->items.size() == 3 &&
+            asNumber(asList(distinct)->items[0]) == 3.0 &&
+            asNumber(asList(distinct)->items[2]) == 2.0,
+            "List::Distinct should preserve first occurrences.");
+    Require(isList(enumerated) && isList(asList(enumerated)->items[0]) &&
+            asNumber(asList(asList(enumerated)->items[0])->items[0]) == 0.0 &&
+            asNumber(asList(asList(enumerated)->items[0])->items[1]) == 3.0,
+            "List::Enumerate should pair each value with its index.");
+    Require(isList(zipped) && asList(zipped)->items.size() == 2 &&
+            isList(asList(zipped)->items[1]) &&
+            asString(asList(asList(zipped)->items[1])->items[1])->chars == "b",
+            "List::Zip should pair inputs up to the shorter length.");
+
+    ObjList* clearTarget = MakeList({ Value(1.0), Value(2.0) });
+    const Value cleared =
+        fixture.CallNative("List::Clear", { Value(clearTarget) });
+    Require(isNumber(cleared) && asNumber(cleared) == 0.0 &&
+            clearTarget->items.empty(),
+            "List::Clear should empty the list.");
+
+    const Value rangeValue = fixture.CallNative("Range::Make Advanced",
+        { Value(0.0), Value(6.0), Value(2.0), Value(false), Value(false) });
+    Require(isRange(rangeValue), "Range::Make Advanced should return a range.");
+    ObjRange* range = asRange(rangeValue);
+    Require(range->length() == 2 && range->getValue(0) == 2.0 &&
+            range->getValue(1) == 4.0 && range->contains(4.0) &&
+            !range->contains(6.0),
+            "Advanced ranges should honor step and endpoint inclusion.");
+}
+
+void FilePathAndConsoleNodesOperate()
+{
+    RuntimeFixture fixture;
+    const auto unique =
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    const std::filesystem::path directory =
+        std::filesystem::temp_directory_path() /
+        ("visual-lox-tests-" + std::to_string(unique));
+    std::error_code error;
+    std::filesystem::create_directories(directory, error);
+    Require(!error, "Expected to create a standard-library test directory.");
+    const std::filesystem::path file = directory / "sample.txt";
+    const std::string fileText = file.string();
+
+    const Value write = fixture.CallNative(
+        "File::Write Text", { StringValue(fileText), StringValue("first") });
+    const Value append = fixture.CallNative(
+        "File::Append Text", { StringValue(fileText), StringValue("-second") });
+    const Value read =
+        fixture.CallNative("File::Read Text", { StringValue(fileText) });
+    const Value listing = fixture.CallNative(
+        "File::List Directory", { StringValue(directory.string()) });
+    Require(isList(write) && asBoolean(asList(write)->items[0]) &&
+            isList(append) && asBoolean(asList(append)->items[0]),
+            "File write and append should return structured success results.");
+    Require(isList(read) && asString(asList(read)->items[0])->chars ==
+                "first-second" && asBoolean(asList(read)->items[1]),
+            "File::Read Text should return content, success, and error outputs.");
+    Require(isList(listing) && isList(asList(listing)->items[0]) &&
+            asList(asList(listing)->items[0])->items.size() == 1 &&
+            asBoolean(asList(listing)->items[1]),
+            "File::List Directory should return entries and status.");
+
+    const Value combined = fixture.CallNative("Path::Combine",
+        { StringValue(directory.string()), StringValue("sample.txt") });
+    const Value extension =
+        fixture.CallNative("Path::Extension", { StringValue(fileText) });
+    const Value filename =
+        fixture.CallNative("Path::Filename", { StringValue(fileText) });
+    const Value parent =
+        fixture.CallNative("Path::Parent", { StringValue(fileText) });
+    Require(isString(combined) &&
+            std::filesystem::path(asString(combined)->chars) == file &&
+            asString(extension)->chars == ".txt" &&
+            asString(filename)->chars == "sample.txt" &&
+            std::filesystem::path(asString(parent)->chars) == directory,
+            "Path nodes should expose combine, extension, filename, and parent.");
+
+    std::istringstream input("typed input\n");
+    std::streambuf* originalInput = std::cin.rdbuf(input.rdbuf());
+    const Value console = fixture.CallNative("Console::Read Input", {});
+    std::cin.rdbuf(originalInput);
+    std::cin.clear();
+    Require(isString(console) && asString(console)->chars == "typed input",
+            "Console::Read Input should return one line.");
+
+    std::filesystem::remove_all(directory, error);
+    Require(!error, "Expected to clean up the standard-library test directory.");
+}
+
 void NewLinksReplaceOccupiedConnections()
 {
     RuntimeFixture fixture;
@@ -745,9 +1213,15 @@ void AddRuntimeTests(Tests::Runner& runner)
 {
     runner.Group("Runtime / standard library", [&]()
     {
+        runner.Test("file, path, and console nodes operate",
+            FilePathAndConsoleNodesOperate);
         runner.Test("node definitions declare their capabilities", StandardLibraryDeclaresCapabilities);
         runner.Test("list native nodes operate on lists", ListNativeNodesOperateOnLists);
         runner.Test("range native nodes support both directions", RangeNativeNodesSupportBothDirections);
+        runner.Test("expanded math and string nodes operate",
+            ExpandedMathAndStringNodesOperate);
+        runner.Test("expanded list and range nodes operate",
+            ExpandedListAndRangeNodesOperate);
     });
     runner.Group("Runtime / VM boundaries", [&]()
     {
@@ -766,6 +1240,10 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("a missing Begin node is rejected", MissingBeginIsRejected);
         runner.Test("dependency cycles are rejected", DependencyCyclesAreRejected);
         runner.Test("pure nodes are constant folded", PureNodesAreConstantFolded);
+        runner.Test("complete expression nodes compile and execute",
+            CompleteExpressionNodesCompileAndExecute);
+        runner.Test("While and Repeat nodes compile and execute",
+            WhileAndRepeatNodesCompileAndExecute);
         runner.Test("classes, ranges, and matching round-trip and execute",
             ClassesRangesAndMatchingRoundTripAndExecute);
     });

@@ -55,15 +55,20 @@ struct BinaryOpNode : public Node
 };
 
 template<class Node>
-static NodePtr CreateBinaryNode(IDGenerator& IDGenerator, const char* name, const char* inputA, const char* inputB, const char* output, PinType outputType = PinType::Float)
+static NodePtr CreateBinaryNode(IDGenerator& IDGenerator, const char* name, const char* inputA,
+                                const char* inputB, const char* output,
+                                PinType outputType = PinType::Float,
+                                PinType inputType = PinType::Float)
 {
     NodePtr node = std::make_shared<Node>(IDGenerator.GetNextId(), name);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), inputA, PinType::Float);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), inputB, PinType::Float);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), inputA, inputType);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), inputB, inputType);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), output, outputType);
 
-    node->InputValues.emplace_back(Value(0.0f));
-    node->InputValues.emplace_back(Value(0.0f));
+    node->InputValues.emplace_back(
+        inputType == PinType::Any ? Value() : Value(0.0));
+    node->InputValues.emplace_back(
+        inputType == PinType::Any ? Value() : Value(0.0));
     return node;
 }
 
@@ -82,5 +87,5 @@ static NodePtr CreateMultiplyNode(IDGenerator& IDGenerator) { return CreateBinar
 static NodePtr CreateDivideNode(IDGenerator& IDGenerator) { return CreateBinaryNode<DivideNode>(IDGenerator, "/", "", "", ""); }
 static NodePtr CreateGreaterNode(IDGenerator& IDGenerator) { return CreateBinaryNode<GreaterNode>(IDGenerator, ">", "", "", "", PinType::Bool); }
 static NodePtr CreateLessNode(IDGenerator& IDGenerator) { return CreateBinaryNode<LessNode>(IDGenerator, "<", "", "", "", PinType::Bool); }
-static NodePtr CreateEqualsNode(IDGenerator& IDGenerator) { return CreateBinaryNode<EqualsNode>(IDGenerator, "=", "", "", "", PinType::Bool); }
+static NodePtr CreateEqualsNode(IDGenerator& IDGenerator) { return CreateBinaryNode<EqualsNode>(IDGenerator, "=", "", "", "", PinType::Bool, PinType::Any); }
 static NodePtr CreateModuloNode(IDGenerator& IDGenerator) { return CreateBinaryNode<ModuloNode>(IDGenerator, "Mod", "Dividend", "Modulus", "Remainder"); }

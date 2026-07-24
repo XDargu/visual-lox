@@ -950,6 +950,11 @@ InterpretResult VM::run(int depth)
                 push(Value(isFalsey(pop())));
                 break;
             }
+            case OpCode::OP_IS_NIL:
+            {
+                push(Value(isNil(pop())));
+                break;
+            }
             case OpCode::OP_PRINT:
             {
                 if (isInstance(peek(0)))
@@ -1090,7 +1095,7 @@ InterpretResult VM::run(int depth)
                 defineMethod(readStringLong());
                 break;
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 55, "Missing operations in the VM");
+        static_assert(static_cast<int>(OpCode::COUNT) == 56, "Missing operations in the VM");
     }
 }
 

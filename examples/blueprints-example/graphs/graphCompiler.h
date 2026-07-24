@@ -58,6 +58,10 @@ struct GraphCompiler
 
     void CompileGraph(const Graph& graph, const NodePtr& startNode, int outputIdx, const Callback& callback);
     void CompileBackwardsRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
+    void CompileInputDependency(const Graph& graph, const NodePtr& node, int inputIndex,
+                                const Callback& callback);
+    void CompileDeferredInputs(const Graph& graph, const NodePtr& node, int outputIndex,
+                               const Callback& callback);
     void CompileRecursive(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
     void CompileSingle(const Graph& graph, const NodePtr& startNode, int inputIdx, int outputIdx, const Callback& callback);
 

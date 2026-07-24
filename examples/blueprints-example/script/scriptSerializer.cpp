@@ -179,6 +179,9 @@ Json SerializeValue(const Value& value, int depth = 0)
         result["type"] = "range";
         result["min"] = asRange(value)->min;
         result["max"] = asRange(value)->max;
+        result["step"] = asRange(value)->step;
+        result["include_start"] = asRange(value)->includeStart;
+        result["include_end"] = asRange(value)->includeEnd;
     }
     else if (isFunction(value) || isClosure(value))
     {
@@ -226,9 +229,32 @@ Value DeserializeValue(const Json& json, int depth = 0)
     {
         const double min = Field(json, "min", crude_json::type_t::number).get<crude_json::number>();
         const double max = Field(json, "max", crude_json::type_t::number).get<crude_json::number>();
-        if (!std::isfinite(min) || !std::isfinite(max))
-            throw SerializationError("Range bounds must be finite.");
-        return Value(newRange(min, max));
+        const Object& object = json.get<Object>();
+        double step = 1.0;
+        bool includeStart = true;
+        bool includeEnd = true;
+        if (const auto it = object.find("step"); it != object.end())
+        {
+            if (!it->second.is_number())
+                throw SerializationError("Range step must be a number.");
+            step = it->second.get<crude_json::number>();
+        }
+        if (const auto it = object.find("include_start"); it != object.end())
+        {
+            if (!it->second.is_boolean())
+                throw SerializationError("Range include_start must be a boolean.");
+            includeStart = it->second.get<crude_json::boolean>();
+        }
+        if (const auto it = object.find("include_end"); it != object.end())
+        {
+            if (!it->second.is_boolean())
+                throw SerializationError("Range include_end must be a boolean.");
+            includeEnd = it->second.get<crude_json::boolean>();
+        }
+        if (!std::isfinite(min) || !std::isfinite(max) ||
+            !std::isfinite(step) || step == 0.0)
+            throw SerializationError("Range bounds and non-zero step must be finite.");
+        return Value(newRange(min, max, step, includeStart, includeEnd));
     }
     if (type == "function") return Value(newFunction());
     throw SerializationError("Unknown value type '" + type + "'.");

@@ -22,6 +22,8 @@ set(_VisualLoxCoreSources
     native/nodes/append.cpp
     native/nodes/branch.h
     native/nodes/branch.cpp
+    native/nodes/expressions.h
+    native/nodes/expressions.cpp
     native/nodes/for-in.h
     native/nodes/for-in.cpp
     native/nodes/print.h
@@ -32,6 +34,10 @@ set(_VisualLoxCoreSources
     native/nodes/match.cpp
     native/nodes/range.h
     native/nodes/range.cpp
+    native/nodes/repeat.h
+    native/nodes/repeat.cpp
+    native/nodes/while.h
+    native/nodes/while.cpp
     native/nodes/object.h
     native/nodes/object.cpp
     native/nodes/list.h
@@ -53,6 +59,8 @@ set(_VisualLoxCoreSources
     script/function.cpp
     runtime/standardLibrary.h
     runtime/standardLibrary.cpp
+    runtime/standardLibraryFunctions.h
+    runtime/standardLibraryFunctions.cpp
     runtime/constantFolder.h
     runtime/constantFolder.cpp
     runtime/scriptRuntime.h

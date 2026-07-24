@@ -108,9 +108,10 @@ ObjNative* newNative(uint8_t arity, NativeFn function, bool isMethod)
     return allocate<ObjNative>(arity, function, isMethod);
 }
 
-ObjRange* newRange(double min, double max)
+ObjRange* newRange(double min, double max, double step,
+                   bool includeStart, bool includeEnd)
 {
-    return allocate<ObjRange>(min, max);
+    return allocate<ObjRange>(min, max, step, includeStart, includeEnd);
 }
 
 ObjList* newList()

@@ -5,6 +5,7 @@
 #include "graph.h"
 #include "graphCompiler.h"
 #include "../utilities/utils.h"
+#include "../runtime/standardLibraryFunctions.h"
 
 #include <Natives.h>
 #include <VMUtils.h>
@@ -252,6 +253,43 @@ void NodeRegistry::RegisterDefinitions()
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
+    RegisterNativeFunc("Math::Abs",
+        { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
+        &MathAbs, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Min",
+        { { "A", Value(0.0) }, { "B", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        &MathMin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Max",
+        { { "A", Value(0.0) }, { "B", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        &MathMax, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Clamp",
+        { { "Value", Value(0.0) }, { "Min", Value(0.0) },
+          { "Max", Value(1.0) } },
+        { { "Result", Value(0.0) } },
+        &MathClamp, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Power",
+        { { "Base", Value(0.0) }, { "Exponent", Value(1.0) } },
+        { { "Result", Value(0.0) } },
+        &MathPower, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Sqrt",
+        { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
+        &MathSqrt, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Floor",
+        { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
+        &MathFloor, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Ceil",
+        { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
+        &MathCeil, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Round",
+        { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
+        &MathRound, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Math::Random",
+        { { "Min", Value(0.0) }, { "Max", Value(1.0) } },
+        { { "Result", Value(0.0) } },
+        &MathRandom, NodeDefinitionFlags::ReadOnly);
+
     RegisterNativeFunc("File::FileExists",
         { { "File", Value(copyString("", 0))}},
         { { "Exists", Value(false) } },
@@ -366,6 +404,41 @@ void NodeRegistry::RegisterDefinitions()
         NodeDefinitionFlags::None
     );
 
+    RegisterNativeFunc("List::Insert",
+        { { "List", Value(newList()) }, { "Index", Value(0.0) },
+          { "Value", Value() } },
+        { { "Size", Value(0.0) } },
+        &ListInsert, NodeDefinitionFlags::None);
+    RegisterNativeFunc("List::Clear",
+        { { "List", Value(newList()) } },
+        { { "Size", Value(0.0) } },
+        &ListClear, NodeDefinitionFlags::None);
+    RegisterNativeFunc("List::Slice",
+        { { "List", Value(newList()) }, { "Start", Value(0.0) },
+          { "Count", Value(0.0) } },
+        { { "Result", Value(newList()) } },
+        &ListSlice, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("List::Reverse",
+        { { "List", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &ListReverse, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("List::Sort",
+        { { "List", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &ListSort, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("List::Distinct",
+        { { "List", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &ListDistinct, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("List::Enumerate",
+        { { "List", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &ListEnumerate, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("List::Zip",
+        { { "A", Value(newList()) }, { "B", Value(newList()) } },
+        { { "Result", Value(newList()) } },
+        &ListZip, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+
     RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
@@ -379,6 +452,47 @@ void NodeRegistry::RegisterDefinitions()
         &writeFile,
         NodeDefinitionFlags::None
     );
+
+    RegisterNativeFunc("File::Read Text",
+        { { "File", Value(copyString("", 0)) } },
+        { { "Content", Value(copyString("", 0)) }, { "Success", Value(false) },
+          { "Error", Value(copyString("", 0)) } },
+        &FileReadText, NodeDefinitionFlags::None);
+    RegisterNativeFunc("File::Write Text",
+        { { "File", Value(copyString("", 0)) },
+          { "Content", Value(copyString("", 0)) } },
+        { { "Success", Value(false) }, { "Error", Value(copyString("", 0)) } },
+        &FileWriteText, NodeDefinitionFlags::None);
+    RegisterNativeFunc("File::Append Text",
+        { { "File", Value(copyString("", 0)) },
+          { "Content", Value(copyString("", 0)) } },
+        { { "Success", Value(false) }, { "Error", Value(copyString("", 0)) } },
+        &FileAppendText, NodeDefinitionFlags::None);
+    RegisterNativeFunc("File::List Directory",
+        { { "Directory", Value(copyString("", 0)) } },
+        { { "Entries", Value(newList()) }, { "Success", Value(false) },
+          { "Error", Value(copyString("", 0)) } },
+        &FileListDirectory, NodeDefinitionFlags::None);
+    RegisterNativeFunc("Path::Combine",
+        { { "A", Value(copyString("", 0)) }, { "B", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &PathCombine, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Path::Extension",
+        { { "Path", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &PathExtension, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Path::Filename",
+        { { "Path", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &PathFilename, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Path::Parent",
+        { { "Path", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &PathParent, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("Console::Read Input",
+        {},
+        { { "Text", Value(copyString("", 0)) } },
+        &readInput, NodeDefinitionFlags::None);
 
     RegisterNativeFunc("List::Contains",
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
@@ -428,6 +542,14 @@ void NodeRegistry::RegisterDefinitions()
         &indexOf,
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
+
+    RegisterNativeFunc("Range::Make Advanced",
+        { { "From", Value(0.0) }, { "To", Value(1.0) },
+          { "Step", Value(1.0) }, { "Include Start", Value(true) },
+          { "Include End", Value(true) } },
+        { { "Range", Value(newRange(0.0, 1.0)) } },
+        &RangeMakeAdvanced,
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
 
     RegisterNativeFunc("String::IndexOf",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
@@ -528,6 +650,44 @@ void NodeRegistry::RegisterDefinitions()
         },
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
+
+    RegisterNativeFunc("String::Trim",
+        { { "Text", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &StringTrim, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Replace",
+        { { "Text", Value(copyString("", 0)) },
+          { "Search", Value(copyString("", 0)) },
+          { "Replacement", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &StringReplace, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Join",
+        { { "Values", Value(newList()) },
+          { "Separator", Value(copyString("", 0)) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &StringJoin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Starts With",
+        { { "Text", Value(copyString("", 0)) },
+          { "Prefix", Value(copyString("", 0)) } },
+        { { "Result", Value(false) } },
+        &StringStartsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Ends With",
+        { { "Text", Value(copyString("", 0)) },
+          { "Suffix", Value(copyString("", 0)) } },
+        { { "Result", Value(false) } },
+        &StringEndsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Format",
+        { { "Template", Value(copyString("", 0)) }, { "Values", Value(newList()) } },
+        { { "Result", Value(copyString("", 0)) } },
+        &StringFormat, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Parse Number",
+        { { "Text", Value(copyString("", 0)) } },
+        { { "Value", Value(0.0) }, { "Success", Value(false) } },
+        &StringParseNumber, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+    RegisterNativeFunc("String::Parse Bool",
+        { { "Text", Value(copyString("", 0)) } },
+        { { "Value", Value(false) }, { "Success", Value(false) } },
+        &StringParseBool, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
 
     RegisterNativeFunc("Functional::FindIf",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },

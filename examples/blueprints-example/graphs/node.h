@@ -148,9 +148,12 @@ enum class CompilationStage
     BeginInputs,
     EndInputs,
     PullOutput,
+    BeforeOutput,
     BeginOutput,
     EndOutput,
     BeginNode,
+    BeforeDeferredInput,
+    AfterDeferredInput,
 
     // Special cases
     ConstFoldedInputs,
@@ -204,6 +207,11 @@ struct Node
     virtual void RemoveInput(ed::PinId pinId) {};
     virtual bool CanRemoveInput(ed::PinId pinId) const { return false; };
     virtual bool CanAddInput() const { return false; };
+    virtual bool IsInputDeferred(int inputIndex) const { return false; }
+    virtual bool ShouldCompileDeferredInput(int inputIndex, int outputIndex) const
+    {
+        return false;
+    }
 
     Pin* FindOutputByName(const std::string& name);
     Pin* FindInputByName(const std::string& name);

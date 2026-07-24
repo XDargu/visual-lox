@@ -84,16 +84,9 @@ struct FunctionNode : public Node
 
             compiler.emitBytes(OpByte(OpCode::OP_CALL), argCount);
 
-            if (pFunctionDef->outputs.size() > 0)
-            {
-                // Set the output variable
-                const int dataOutputIdx = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
-                GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[dataOutputIdx]);
-            }
-            else
-            {
-                compiler.emitByte(OpByte(OpCode::OP_POP));
-            }
+            const size_t dataOutputStart = GraphUtils::IsNodeImplicit(this) ? 0 : 1;
+            GraphCompiler::CompileCallResult(
+                compilerCtx, graph, Outputs, dataOutputStart);
         }
     }
 

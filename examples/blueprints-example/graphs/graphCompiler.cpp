@@ -193,3 +193,39 @@ void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& gra
     //const uint32_t constant = compiler.identifierConstant(outputToken);
     //compiler.defineVariable(constant);
 }
+
+void GraphCompiler::CompileCallResult(CompilerContext& compilerCtx, const Graph& graph,
+                                      const std::vector<Pin>& outputs, size_t dataOutputStart)
+{
+    Compiler& compiler = compilerCtx.compiler;
+    if (dataOutputStart >= outputs.size())
+    {
+        compiler.emitByte(OpByte(OpCode::OP_POP));
+        return;
+    }
+
+    const size_t outputCount = outputs.size() - dataOutputStart;
+    if (outputCount == 1)
+    {
+        CompileOutput(compilerCtx, graph, outputs[dataOutputStart]);
+        return;
+    }
+
+    // Functions with multiple outputs return one list. Keep that package in a hidden local while 
+    // each item is copied into the local backing its pin.
+    const std::string packageName =
+        std::string(CompilerContext::tempVarPrefix) + "return_" +
+        std::to_string(outputs[dataOutputStart].ID.Get());
+
+    const Token packageToken = compilerCtx.StoreTempVariable(packageName);
+    compiler.addLocal(packageToken, true);
+    compiler.emitVariable(packageToken, true, true);
+
+    for (size_t outputIndex = 0; outputIndex < outputCount; ++outputIndex)
+    {
+        compiler.emitVariable(packageToken, false);
+        compiler.emitConstant(Value(static_cast<double>(outputIndex)));
+        compiler.emitByte(OpByte(OpCode::OP_INDEX_SUBSCR));
+        CompileOutput(compilerCtx, graph, outputs[dataOutputStart + outputIndex]);
+    }
+}

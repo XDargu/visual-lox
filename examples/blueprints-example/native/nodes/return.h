@@ -32,7 +32,28 @@ struct ReturnNode : public Node
         {
         case CompilationStage::BeginInputs:
         {
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            const size_t outputCount = pFunctionDef ? pFunctionDef->outputs.size() : 0;
+            if (outputCount == 0)
+            {
+                compiler.emitReturn();
+                break;
+            }
+
+            if (outputCount == 1)
+            {
+                GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+                compiler.emitByte(OpByte(OpCode::OP_RETURN));
+                break;
+            }
+
+            compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
+            for (size_t outputIndex = 0; outputIndex < outputCount; ++outputIndex)
+            {
+                const size_t inputIndex = outputIndex + 1;
+                GraphCompiler::CompileInput(
+                    compilerCtx, graph, Inputs[inputIndex], InputValues[inputIndex]);
+                compiler.emitByte(OpByte(OpCode::OP_APPEND_LIST));
+            }
             compiler.emitByte(OpByte(OpCode::OP_RETURN));
         }
         break;

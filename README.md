@@ -20,6 +20,10 @@ It is possible to create functions, that can of course be recursive. This is an 
 
 ![Fibonacci Function](https://github.com/XDargu/visual-lox/blob/main/resources/Visual%20Lox%20Fibonacci.png)
 
+Functions and class methods can declare multiple outputs. The runtime packages
+those values into a list when returning and restores them to their individual
+output pins at the call site.
+
 ### Higher-Order Functions
 
 Higher-Order functions are already supported, since they were part of the features supported by LoxCpp. Functions are first-citizens of the language, the same was as in LoxCpp.

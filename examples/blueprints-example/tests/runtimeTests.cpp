@@ -395,6 +395,158 @@ void MainReceivesProgramArgumentsAsAStringList()
             "Main did not receive program arguments as a three-item string list.");
 }
 
+void FunctionsAndMethodsSupportMultipleOutputs()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    const auto addVariable = [&](const char* name, const Value& defaultValue)
+    {
+        ScriptPropertyPtr variable =
+            std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), name);
+        variable->defaultValue = defaultValue;
+        script.variables.push_back(variable);
+        return variable;
+    };
+
+    ScriptPropertyPtr multiNumber = addVariable("MultiNumber", Value(0.0));
+    ScriptPropertyPtr multiText =
+        addVariable("MultiText", Value(takeString("", 0)));
+    ScriptPropertyPtr multiReady = addVariable("MultiReady", Value(false));
+    ScriptPropertyPtr methodNumber = addVariable("MethodNumber", Value(0.0));
+    ScriptPropertyPtr methodText =
+        addVariable("MethodText", Value(takeString("", 0)));
+
+    ScriptFunctionPtr noOutputs =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "NoOutputs");
+    NodePtr noOutputsBegin = BuildBeginNode(fixture.ids, noOutputs);
+    NodePtr noOutputsReturn = BuildReturnNode(fixture.ids, *noOutputs);
+    AttachNode(noOutputs->Graph, noOutputsBegin);
+    AttachNode(noOutputs->Graph, noOutputsReturn);
+    noOutputs->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        noOutputsBegin->Outputs[0].ID, noOutputsReturn->Inputs[0].ID));
+    script.functions.push_back(noOutputs);
+
+    ScriptFunctionPtr multiple =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Multiple");
+    multiple->functionDef->outputs.push_back(
+        { "Number", Value(0.0), fixture.ids.GetNextId() });
+    multiple->functionDef->outputs.push_back(
+        { "Text", Value(takeString("", 0)), fixture.ids.GetNextId() });
+    multiple->functionDef->outputs.push_back(
+        { "Ready", Value(false), fixture.ids.GetNextId() });
+    NodePtr multipleBegin = BuildBeginNode(fixture.ids, multiple);
+    NodePtr multipleReturn = BuildReturnNode(fixture.ids, *multiple);
+    multipleReturn->InputValues[1] = Value(42.0);
+    multipleReturn->InputValues[2] = Value(takeString("packed", 6));
+    multipleReturn->InputValues[3] = Value(true);
+    AttachNode(multiple->Graph, multipleBegin);
+    AttachNode(multiple->Graph, multipleReturn);
+    multiple->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        multipleBegin->Outputs[0].ID, multipleReturn->Inputs[0].ID));
+    script.functions.push_back(multiple);
+
+    ScriptClassPtr source =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "OutputSource");
+    ScriptFunctionPtr method =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "read");
+    method->functionDef->outputs.push_back(
+        { "Number", Value(0.0), fixture.ids.GetNextId() });
+    method->functionDef->outputs.push_back(
+        { "Text", Value(takeString("", 0)), fixture.ids.GetNextId() });
+    NodePtr methodBegin = BuildBeginNode(fixture.ids, method);
+    NodePtr methodReturn = BuildReturnNode(fixture.ids, *method);
+    methodReturn->InputValues[1] = Value(7.0);
+    methodReturn->InputValues[2] = Value(takeString("method", 6));
+    AttachNode(method->Graph, methodBegin);
+    AttachNode(method->Graph, methodReturn);
+    method->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        methodBegin->Outputs[0].ID, methodReturn->Inputs[0].ID));
+    source->methods.push_back(method);
+    script.classes.push_back(source);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr callNoOutputs =
+        noOutputs->functionDef->MakeNode(fixture.ids, noOutputs->ID);
+    NodePtr callMultiple =
+        multiple->functionDef->MakeNode(fixture.ids, multiple->ID);
+    NodePtr setMultiNumber = BuildSetVariableNode(fixture.ids, multiNumber);
+    NodePtr setMultiText = BuildSetVariableNode(fixture.ids, multiText);
+    NodePtr setMultiReady = BuildSetVariableNode(fixture.ids, multiReady);
+    NodePtr construct = BuildConstructObjectNode(fixture.ids, source);
+    NodePtr callMethod = BuildMethodCallNode(fixture.ids, method);
+    NodePtr setMethodNumber = BuildSetVariableNode(fixture.ids, methodNumber);
+    NodePtr setMethodText = BuildSetVariableNode(fixture.ids, methodText);
+    for (const NodePtr& node : { begin, callNoOutputs, callMultiple,
+             setMultiNumber, setMultiText, setMultiReady, construct, callMethod,
+             setMethodNumber, setMethodText })
+        AttachNode(script.main->Graph, node);
+
+    const auto connectFlow = [&](const NodePtr& from, const NodePtr& to)
+    {
+        script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+            from->Outputs[0].ID, to->Inputs[0].ID));
+    };
+    connectFlow(begin, callNoOutputs);
+    connectFlow(callNoOutputs, callMultiple);
+    connectFlow(callMultiple, setMultiNumber);
+    connectFlow(setMultiNumber, setMultiText);
+    connectFlow(setMultiText, setMultiReady);
+    connectFlow(setMultiReady, construct);
+    connectFlow(construct, callMethod);
+    connectFlow(callMethod, setMethodNumber);
+    connectFlow(setMethodNumber, setMethodText);
+
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callMultiple->Outputs[1].ID, setMultiNumber->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callMultiple->Outputs[2].ID, setMultiText->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callMultiple->Outputs[3].ID, setMultiReady->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        construct->Outputs[1].ID, callMethod->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callMethod->Outputs[1].ID, setMethodNumber->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callMethod->Outputs[2].ID, setMethodText->Inputs[1].ID));
+
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled),
+            "Functions with zero or multiple outputs should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "Functions and methods with multiple outputs should execute.");
+
+    const auto readGlobal = [&](const char* name)
+    {
+        Value value;
+        const std::string key(name);
+        Require(fixture.vm.globalTable().get(
+                    copyString(key.c_str(), static_cast<int>(key.size())), &value),
+                "Expected a multi-output result variable.");
+        return value;
+    };
+    const Value observedMultiNumber = readGlobal("MultiNumber");
+    const Value observedMultiText = readGlobal("MultiText");
+    const Value observedMultiReady = readGlobal("MultiReady");
+    const Value observedMethodNumber = readGlobal("MethodNumber");
+    const Value observedMethodText = readGlobal("MethodText");
+    Require(isNumber(observedMultiNumber) && asNumber(observedMultiNumber) == 42.0,
+            "The first function output was not unpacked correctly.");
+    Require(isString(observedMultiText) &&
+            asString(observedMultiText)->chars == "packed",
+            "The second function output was not unpacked correctly.");
+    Require(isBoolean(observedMultiReady) && asBoolean(observedMultiReady),
+            "The third function output was not unpacked correctly.");
+    Require(isNumber(observedMethodNumber) && asNumber(observedMethodNumber) == 7.0,
+            "The first method output was not unpacked correctly.");
+    Require(isString(observedMethodText) &&
+            asString(observedMethodText)->chars == "method",
+            "The second method output was not unpacked correctly.");
+}
+
 Script BuildClassRangeMatchScript(IDGenerator& ids, NodeRegistry& registry)
 {
     Script script;
@@ -604,6 +756,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("Flow For In keeps a constant stack footprint", ForInKeepsConstantStackFootprint);
         runner.Test("Main receives program arguments as a string list",
             MainReceivesProgramArgumentsAsAStringList);
+        runner.Test("functions and methods support multiple outputs",
+            FunctionsAndMethodsSupportMultipleOutputs);
     });
     runner.Group("Runtime / validation and compilation", [&]()
     {

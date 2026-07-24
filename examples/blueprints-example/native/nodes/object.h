@@ -6,6 +6,8 @@
 
 #include <Compiler.h>
 
+#include <algorithm>
+
 namespace ObjectNodeUtils
 {
 inline void EmitNamedOperation(Compiler& compiler, OpCode shortOp, OpCode longOp,
@@ -39,6 +41,37 @@ inline void RefreshCallInputs(Node& node, IDGenerator& ids,
     if (node.Inputs.size() > targetSize)
         node.Inputs.erase(node.Inputs.begin() + targetSize, node.Inputs.end());
     node.InputValues.resize(node.Inputs.size());
+}
+
+inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
+                               const std::vector<BasicFunctionDef::Input>& results,
+                               int fixedOutputs)
+{
+    std::vector<Pin> refreshed;
+    refreshed.reserve(static_cast<size_t>(fixedOutputs) + results.size());
+    for (int i = 0; i < fixedOutputs && i < static_cast<int>(node.Outputs.size()); ++i)
+        refreshed.push_back(node.Outputs[i]);
+
+    for (const BasicFunctionDef::Input& result : results)
+    {
+        const auto existing = std::find_if(
+            node.Outputs.begin() + std::min(
+                static_cast<size_t>(fixedOutputs), node.Outputs.size()),
+            node.Outputs.end(),
+            [&](const Pin& output) { return output.Name == result.name; });
+        if (existing != node.Outputs.end())
+        {
+            Pin output = *existing;
+            output.Type = TypeOfValue(result.value);
+            refreshed.push_back(std::move(output));
+        }
+        else
+        {
+            refreshed.emplace_back(
+                ids.GetNextId(), result.name.c_str(), TypeOfValue(result.value));
+        }
+    }
+    node.Outputs = std::move(refreshed);
 }
 }
 
@@ -268,10 +301,7 @@ struct MethodCallNode : public Node
         context.compiler.emitOpWithValue(OpCode::OP_INVOKE, OpCode::OP_INVOKE_LONG,
                                          context.compiler.identifierConstant(token));
         context.compiler.emitByte(static_cast<uint8_t>(Inputs.size() - 2));
-        if (Outputs.size() > 1)
-            GraphCompiler::CompileOutput(context, graph, Outputs[1]);
-        else
-            context.compiler.emitByte(OpByte(OpCode::OP_POP));
+        GraphCompiler::CompileCallResult(context, graph, Outputs, 1);
     }
 
     void Refresh(const Script& script, IDGenerator& ids) override
@@ -286,19 +316,8 @@ struct MethodCallNode : public Node
         }
         Name = methodDefinition->functionDef->name;
         ObjectNodeUtils::RefreshCallInputs(*this, ids, methodDefinition->functionDef->inputs, 2);
-        if (!methodDefinition->functionDef->outputs.empty())
-        {
-            const auto& output = methodDefinition->functionDef->outputs.front();
-            if (Outputs.size() == 1)
-                Outputs.emplace_back(ids.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
-            else
-            {
-                Outputs[1].Name = output.name;
-                Outputs[1].Type = TypeOfValue(output.value);
-            }
-        }
-        else if (Outputs.size() > 1)
-            Outputs.erase(Outputs.begin() + 1, Outputs.end());
+        ObjectNodeUtils::RefreshCallOutputs(
+            *this, ids, methodDefinition->functionDef->outputs, 1);
     }
 
     ScriptFunctionPtr methodDefinition;
@@ -320,10 +339,13 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
         node->InputValues.emplace_back(input.value);
     }
     node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    if (method && !method->functionDef->outputs.empty())
+    if (method)
     {
-        const auto& output = method->functionDef->outputs.front();
-        node->Outputs.emplace_back(ids.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+        for (const auto& output : method->functionDef->outputs)
+        {
+            node->Outputs.emplace_back(
+                ids.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+        }
     }
     return node;
 }

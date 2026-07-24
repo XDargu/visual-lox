@@ -663,6 +663,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     {
                         createNewNode = true;
                         newNodeLinkPin = m_pGraph->FindPin(pinId);
+                        paletteScriptItem = {};
                         newLinkPin = nullptr;
                         ed::Suspend();
                         ImGui::OpenPopup("Create New Node");
@@ -722,10 +723,30 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
     }
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
     {
-        lastCanvasMousePosition = ed::ScreenToCanvas(ImGui::GetMousePos());
+        // The node editor canvas has already transformed ImGui's input into
+        // local canvas space at this point.
+        lastCanvasMousePosition = ImGui::GetMousePos();
         hasCanvasMousePosition = true;
     }
     ed::End();
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload =
+                ImGui::AcceptDragDropPayload(Editor::ScriptItemDragPayloadType))
+        {
+            if (payload->DataSize == sizeof(Editor::TreeNodeDragPayload))
+            {
+                pendingScriptItemDrop =
+                    *static_cast<const Editor::TreeNodeDragPayload*>(payload->Data);
+                pendingScriptItemDropPosition = hasCanvasMousePosition
+                    ? lastCanvasMousePosition
+                    : ed::ScreenToCanvas(ImGui::GetMousePos());
+                openPaletteForScriptItem = true;
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
 
     // Render after the node editor has restored normal screen coordinates.
     // Suspending while a node is being built disrupts the builder's draw-list
@@ -750,7 +771,9 @@ void GraphView::DrawContextMenu()
     static bool focusPaletteSearch = false;
     static ImVec2 openPopupPosition;
 
-    if (!addNodePopupOpened)
+    if (!addNodePopupOpened && !openPaletteForScriptItem)
+        // DrawContextMenu runs inside the active canvas transform, so this is
+        // already the editor-space position expected by SetNodePosition.
         openPopupPosition = ImGui::GetMousePos();
 
     const bool openPaletteFromKeyboard =
@@ -759,7 +782,20 @@ void GraphView::DrawContextMenu()
         ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space), false);
 
     ed::Suspend();
-    if (ed::ShowNodeContextMenu(&contextNodeId))
+    if (openPaletteForScriptItem)
+    {
+        addNodePopupOpened = true;
+        focusPaletteSearch = true;
+        paletteSelection = 0;
+        openPopupPosition = pendingScriptItemDropPosition;
+        paletteScriptItem = pendingScriptItemDrop;
+        openPaletteForScriptItem = false;
+        newNodeLinkPin = nullptr;
+        searchFilter = "";
+        searchFilterLower = "";
+        ImGui::OpenPopup("Create New Node");
+    }
+    else if (ed::ShowNodeContextMenu(&contextNodeId))
     {
         ImGui::OpenPopup("Node Context Menu");
     }
@@ -778,6 +814,7 @@ void GraphView::DrawContextMenu()
         paletteSelection = 0;
         ImGui::OpenPopup("Create New Node");
         newNodeLinkPin = nullptr;
+        paletteScriptItem = {};
         searchFilter = "";
         searchFilterLower = "";
     }
@@ -912,15 +949,21 @@ void GraphView::DrawContextMenu()
                           ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
     {
         addNodePopupOpened = true;
+        const bool hasScriptItemContext =
+            paletteScriptItem.kind != Editor::TreeNodeKind::None;
         ImGui::TextDisabled(ICON_FA_BOLT "  Add node");
         ImGui::SameLine();
-        if (newNodeLinkPin)
+        if (hasScriptItemContext)
+            ImGui::TextColored(ImVec4(0.78f, 0.62f, 1.0f, 1.0f),
+                               ICON_FA_FILTER "  Related to dragged item");
+        else if (newNodeLinkPin)
             ImGui::TextColored(ImVec4(0.42f, 0.72f, 1.0f, 1.0f),
                                ICON_FA_FILTER "  Compatible results");
         else
             ImGui::TextDisabled("Type to search all nodes");
 
         const bool requestSearchFocus = focusPaletteSearch || ImGui::IsWindowAppearing();
+        const bool expandPaletteOnOpen = ImGui::IsWindowAppearing();
         if (requestSearchFocus)
             ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(-1.0f);
@@ -951,10 +994,17 @@ void GraphView::DrawContextMenu()
                 ImGui::SetTooltip("Rank and filter results for the pin that opened this palette");
             ImGui::SameLine();
         }
-        if (ImGui::Checkbox(ICON_FA_STAR " Favorites only", &favoritesOnly))
-            paletteSelection = 0;
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Only search nodes marked as favorites");
+        if (!hasScriptItemContext)
+        {
+            if (ImGui::Checkbox(ICON_FA_STAR " Favorites only", &favoritesOnly))
+                paletteSelection = 0;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Only search nodes marked as favorites");
+        }
+        else
+        {
+            ImGui::TextDisabled("Showing only graph nodes associated with this item");
+        }
 
         const bool isInput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Input;
         const bool isOutput = newNodeLinkPin && newNodeLinkPin->Kind == PinKind::Output;
@@ -1051,7 +1101,9 @@ void GraphView::DrawContextMenu()
         {
             // Call
             {
-                if (Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower) && FilterContext(def.functionDef))
+                if (!hasScriptItemContext &&
+                    Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower) &&
+                    FilterContext(def.functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1082,7 +1134,9 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getFuncName = "Get::" + def.functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) && FilterContextFuncGet(def.functionDef))
+                if (!hasScriptItemContext &&
+                    Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) &&
+                    FilterContextFuncGet(def.functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1116,7 +1170,9 @@ void GraphView::DrawContextMenu()
         for (auto& def : m_pNodeRegistry->compiledDefinitions)
         {
             // Call
-            if (Utils::FilterString(Utils::to_lower(def->name), searchFilterLower) && FilterContext(def->functionDef))
+            if (!hasScriptItemContext &&
+                Utils::FilterString(Utils::to_lower(def->name), searchFilterLower) &&
+                FilterContext(def->functionDef))
             {
                 Data* current = &root;
                 int depth = 1;
@@ -1148,11 +1204,16 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pScript->variables)
         {
+            const ScriptPropertyPtr capturedVariable = def;
             // Get
             {
                 const std::string getVar = "Variables::Get::" + def->Name;
 
-                if (Utils::FilterString(Utils::to_lower(getVar), searchFilterLower) && FilterContextVar(def))
+                if ((!hasScriptItemContext ||
+                     (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
+                      paletteScriptItem.id == def->ID.id)) &&
+                    Utils::FilterString(Utils::to_lower(getVar), searchFilterLower) &&
+                    FilterContextVar(def))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1170,9 +1231,9 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = getVar;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedVariable](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildGetVariableNode(IDGenerator, def);
+                                return BuildGetVariableNode(IDGenerator, capturedVariable);
                             };
                         }
 
@@ -1186,7 +1247,11 @@ void GraphView::DrawContextMenu()
             {
                 const std::string setVar = "Variables::Set::" + def->Name;
 
-                if (Utils::FilterString(Utils::to_lower(setVar), searchFilterLower) && FilterContextVar(def))
+                if ((!hasScriptItemContext ||
+                     (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
+                      paletteScriptItem.id == def->ID.id)) &&
+                    Utils::FilterString(Utils::to_lower(setVar), searchFilterLower) &&
+                    FilterContextVar(def))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1204,9 +1269,9 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = setVar;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedVariable](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildSetVariableNode(IDGenerator, def);
+                                return BuildSetVariableNode(IDGenerator, capturedVariable);
                             };
                         }
 
@@ -1219,11 +1284,16 @@ void GraphView::DrawContextMenu()
 
         for (auto& def : m_pScript->functions)
         {
+            const ScriptFunctionPtr capturedFunction = def;
             // Call
             {
                 const std::string fullFuncName = "Functions::" + def->functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower) && FilterContext(def->functionDef))
+                if ((!hasScriptItemContext ||
+                     (paletteScriptItem.kind == Editor::TreeNodeKind::Function &&
+                      paletteScriptItem.id == def->ID.id)) &&
+                    Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower) &&
+                    FilterContext(def->functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1241,9 +1311,10 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = fullFuncName;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedFunction](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return def->functionDef->MakeNode(IDGenerator, def->ID);
+                                return capturedFunction->functionDef->MakeNode(
+                                    IDGenerator, capturedFunction->ID);
                             };
                         }
 
@@ -1257,7 +1328,11 @@ void GraphView::DrawContextMenu()
             {
                 const std::string getFuncName = "Functions::Get::" + def->functionDef->name;
 
-                if (Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) && FilterContextFuncGet(def->functionDef))
+                if ((!hasScriptItemContext ||
+                     (paletteScriptItem.kind == Editor::TreeNodeKind::Function &&
+                      paletteScriptItem.id == def->ID.id)) &&
+                    Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) &&
+                    FilterContextFuncGet(def->functionDef))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1275,9 +1350,11 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = getFuncName;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedFunction](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildGetFunctionNode(IDGenerator, def->functionDef, def->ID);
+                                return BuildGetFunctionNode(
+                                    IDGenerator, capturedFunction->functionDef,
+                                    capturedFunction->ID);
                             };
                         }
 
@@ -1294,24 +1371,59 @@ void GraphView::DrawContextMenu()
         for (const ScriptClassPtr& scriptClass : m_pScript->classes)
         {
             const ScriptClassPtr capturedClass = scriptClass;
-            AddEntry("Classes::" + scriptClass->Name + "::Construct",
-                [capturedClass](IDGenerator& ids) { return BuildConstructObjectNode(ids, capturedClass); });
+            const bool wholeClassContext =
+                hasScriptItemContext &&
+                paletteScriptItem.kind == Editor::TreeNodeKind::Class &&
+                paletteScriptItem.id == scriptClass->ID.id;
+            const bool constructorContext =
+                hasScriptItemContext &&
+                paletteScriptItem.kind == Editor::TreeNodeKind::Constructor &&
+                paletteScriptItem.ownerId == scriptClass->ID.id;
+            if (!hasScriptItemContext || wholeClassContext || constructorContext)
+                AddEntry("Classes::" + scriptClass->Name + "::Construct",
+                    [capturedClass](IDGenerator& ids)
+                    {
+                        return BuildConstructObjectNode(ids, capturedClass);
+                    });
             for (const ScriptPropertyPtr& property : scriptClass->properties)
             {
                 const ScriptPropertyPtr capturedProperty = property;
-                AddEntry("Classes::" + scriptClass->Name + "::Properties::Get " + property->Name,
-                    [capturedProperty](IDGenerator& ids) { return BuildGetPropertyNode(ids, capturedProperty); });
-                AddEntry("Classes::" + scriptClass->Name + "::Properties::Set " + property->Name,
-                    [capturedProperty](IDGenerator& ids) { return BuildSetPropertyNode(ids, capturedProperty); });
+                const bool propertyContext =
+                    hasScriptItemContext &&
+                    paletteScriptItem.kind == Editor::TreeNodeKind::ClassProperty &&
+                    paletteScriptItem.id == property->ID.id;
+                if (!hasScriptItemContext || wholeClassContext || propertyContext)
+                {
+                    AddEntry("Classes::" + scriptClass->Name + "::Properties::Get " + property->Name,
+                        [capturedProperty](IDGenerator& ids)
+                        {
+                            return BuildGetPropertyNode(ids, capturedProperty);
+                        });
+                    AddEntry("Classes::" + scriptClass->Name + "::Properties::Set " + property->Name,
+                        [capturedProperty](IDGenerator& ids)
+                        {
+                            return BuildSetPropertyNode(ids, capturedProperty);
+                        });
+                }
             }
             for (const ScriptFunctionPtr& method : scriptClass->methods)
             {
                 const ScriptFunctionPtr capturedMethod = method;
-                AddEntry("Classes::" + scriptClass->Name + "::Methods::Call " + method->functionDef->name,
-                    [capturedMethod](IDGenerator& ids) { return BuildMethodCallNode(ids, capturedMethod); });
+                const bool methodContext =
+                    hasScriptItemContext &&
+                    paletteScriptItem.kind == Editor::TreeNodeKind::ClassMethod &&
+                    paletteScriptItem.id == method->ID.id;
+                if (!hasScriptItemContext || wholeClassContext || methodContext)
+                    AddEntry("Classes::" + scriptClass->Name + "::Methods::Call " +
+                        method->functionDef->name,
+                        [capturedMethod](IDGenerator& ids)
+                        {
+                            return BuildMethodCallNode(ids, capturedMethod);
+                        });
             }
         }
-        if (ScriptUtils::FindOwningClass(*m_pScript, m_pScriptFunction->ID.id))
+        if (!hasScriptItemContext &&
+            ScriptUtils::FindOwningClass(*m_pScript, m_pScriptFunction->ID.id))
             AddEntry("Classes::This", [](IDGenerator& ids) { return BuildThisNode(ids); });
 
         // TODO: Only show return if we can return!
@@ -1319,7 +1431,8 @@ void GraphView::DrawContextMenu()
             {
                 const std::string fullFuncName = "Flow::Return";
 
-                if (Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
+                if (!hasScriptItemContext &&
+                    Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower))
                 {
                     Data* current = &root;
                     int depth = 1;
@@ -1356,10 +1469,11 @@ void GraphView::DrawContextMenu()
         auto newNodePostion = openPopupPosition;
 
         std::vector<const Data*> results;
+        const bool applyFavoritesOnly = favoritesOnly && !hasScriptItemContext;
         std::function<void(const Data&)> collectResults = [&](const Data& entry)
         {
             if (entry.creationFun &&
-                (!favoritesOnly || favoriteNodeTypes.count(entry.fullName) != 0))
+                (!applyFavoritesOnly || favoriteNodeTypes.count(entry.fullName) != 0))
                 results.push_back(&entry);
             for (const auto& [_, child] : entry.children)
                 collectResults(child);
@@ -1424,7 +1538,7 @@ void GraphView::DrawContextMenu()
                         [&](const Data& candidate)
                     {
                         if (candidate.creationFun &&
-                            (!favoritesOnly ||
+                            (!applyFavoritesOnly ||
                              favoriteNodeTypes.count(candidate.fullName) != 0))
                             return true;
                         for (const auto& [ignoredName, descendant] : candidate.children)
@@ -1442,7 +1556,7 @@ void GraphView::DrawContextMenu()
                     if (hasChildren)
                     {
                         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_SpanAvailWidth;
-                        if (!searchFilter.empty())
+                        if (expandPaletteOnOpen || !searchFilter.empty())
                             ImGui::SetNextItemOpen(true, ImGuiCond_Always);
                         else if (depth == 0)
                             flags |= ImGuiTreeNodeFlags_DefaultOpen;
@@ -1576,6 +1690,7 @@ void GraphView::DrawContextMenu()
     {
         createNewNode = false;
         addNodePopupOpened = false;
+        paletteScriptItem = {};
     }
     ImGui::PopStyleVar();
     ed::Resume();

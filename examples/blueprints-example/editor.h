@@ -102,7 +102,7 @@ struct Example :
 
     void InitializeScriptTree();
     void EnsureMainSignature();
-    void RebuildScriptTree();
+    void RebuildScriptTree(int createdItemId = -1);
     void SaveScript(const std::string& path);
     void LoadScript(const std::string& path);
     void ShowFileControls();
@@ -134,7 +134,7 @@ struct Example :
     void EraseNodeByID(int id);
 
     // Script operations
-    void AddFunction(int id);
+    void AddFunction(int id, bool beginRename = true);
     void AddFunction(const ScriptFunctionPtr& pExistingFunction);
     void AddVariable(int id);
     void AddVariable(const ScriptPropertyPtr& pVariable);

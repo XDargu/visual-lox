@@ -1049,7 +1049,7 @@ void Example::ShowScriptExplorer()
                             m_operations->AddClassProperty(classId, propertyId, "Property");
                         m_fileStatusIsError = !result;
                         m_fileStatus = result ? "Class property added" : result.error;
-                        if (result) RebuildScriptTree();
+                        if (result) RebuildScriptTree(propertyId);
                     }));
             }
             if (ImGui::MenuItem(ICON_FA_DIAGRAM_PROJECT "  Method"))
@@ -1063,7 +1063,7 @@ void Example::ShowScriptExplorer()
                             m_operations->AddClassMethod(classId, methodId, "Method");
                         m_fileStatusIsError = !result;
                         m_fileStatus = result ? "Class method added" : result.error;
-                        if (result) RebuildScriptTree();
+                        if (result) RebuildScriptTree(methodId);
                     }));
             }
             if (!selectedClass->constructor &&
@@ -1078,7 +1078,7 @@ void Example::ShowScriptExplorer()
                             m_operations->AddClassConstructor(classId, constructorId);
                         m_fileStatusIsError = !result;
                         m_fileStatus = result ? "Class constructor added" : result.error;
-                        if (result) RebuildScriptTree();
+                        if (result) RebuildScriptTree(constructorId);
                     }));
             }
             ImGui::Separator();
@@ -1119,7 +1119,7 @@ void Example::ShowScriptExplorer()
                 const OperationResult result = m_operations->AddClass(id, name);
                 m_fileStatusIsError = !result;
                 m_fileStatus = result ? "Class added" : result.error;
-                if (result) RebuildScriptTree();
+                if (result) RebuildScriptTree(id);
             }));
         }
         ImGui::EndPopup();
@@ -1136,17 +1136,17 @@ void Example::ShowInspector()
 
     const auto queueOperation =
         [this](const char* successMessage, std::function<OperationResult()> operation,
-               bool rebuildTree = false)
+               bool rebuildTree = false, int createdItemId = -1)
         {
             pendingActions.push_back(std::make_shared<DeferredAction>(
                 [this, successMessage = std::string(successMessage),
-                 operation = std::move(operation), rebuildTree]()
+                 operation = std::move(operation), rebuildTree, createdItemId]()
                 {
                     const OperationResult result = operation();
                     m_fileStatusIsError = !result;
                     m_fileStatus = result ? successMessage : result.error;
                     if (result && rebuildTree)
-                        RebuildScriptTree();
+                        RebuildScriptTree(createdItemId);
                 }));
         };
 
@@ -1303,7 +1303,7 @@ void Example::ShowInspector()
                     const std::string name =
                         Utils::FindValidName("Class", m_scriptTreeView);
                     return m_operations->AddClass(classId, name);
-                }, true);
+                }, true, classId);
         }
         return;
     }
@@ -1338,7 +1338,7 @@ void Example::ShowInspector()
                 {
                     return m_operations->AddClassProperty(
                         classId, propertyId, "Property");
-                }, true);
+                }, true, propertyId);
         }
         if (ImGui::Button(ICON_FA_DIAGRAM_PROJECT " Method", ImVec2(-1, 0)))
         {
@@ -1348,7 +1348,7 @@ void Example::ShowInspector()
                 [this, classId, methodId]()
                 {
                     return m_operations->AddClassMethod(classId, methodId, "Method");
-                }, true);
+                }, true, methodId);
         }
         ImGuiUtils::BeginDisabled(scriptClass->constructor != nullptr);
         if (ImGui::Button(ICON_FA_WAND_MAGIC_SPARKLES " Constructor", ImVec2(-1, 0)))
@@ -1359,7 +1359,7 @@ void Example::ShowInspector()
                 [this, classId, constructorId]()
                 {
                     return m_operations->AddClassConstructor(classId, constructorId);
-                }, true);
+                }, true, constructorId);
         }
         ImGuiUtils::EndDisabled();
         if (scriptClass->constructor)
@@ -2087,6 +2087,7 @@ void Example::DrawMenuBar()
                         { "Ctrl+Z / Ctrl+Y", "Undo / redo" },
                         { "Ctrl+C / Ctrl+V", "Copy / paste" },
                         { "Delete", "Delete the selected graph item" },
+                        { "F2", "Rename the selected script element" },
                         { "F1", "Open this guide" },
                     };
                     for (const auto& shortcut : shortcuts)
@@ -2247,6 +2248,16 @@ void Example::HandleShortcuts()
     // which left almost every shortcut permanently disabled after one edit.
     if (editingText || popupOpen)
         return;
+
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F2), false) &&
+        ed::GetSelectedObjectCount() == 0)
+    {
+        if (TreeNode* selected = FindNodeByID(m_selectedItemId);
+            selected && selected->onRename)
+        {
+            m_editingItemId = selected->id;
+        }
+    }
 
     if (io.KeyCtrl)
     {
@@ -2533,6 +2544,8 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
 {
     TreeNode funcNode;
     funcNode.id = funId;
+    funcNode.kind = TreeNodeKind::Function;
+    funcNode.isDraggable = true;
     funcNode.icon = m_FunctionIcon;
     funcNode.iconText = ICON_FA_DIAGRAM_PROJECT;
     funcNode.label = name;
@@ -2578,6 +2591,8 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
 TreeNode Example::MakeVariableNode(int varId, const std::string& name)
 {
     TreeNode varNode;
+    varNode.kind = TreeNodeKind::Variable;
+    varNode.isDraggable = true;
     varNode.label = name;
     varNode.icon = m_VariableIcon;
     varNode.iconText = ICON_FA_DATABASE;
@@ -2634,6 +2649,7 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
 {
     TreeNode inputNode;
     inputNode.id = inputId;
+    inputNode.kind = TreeNodeKind::Input;
     inputNode.icon = m_InputIcon;
     inputNode.iconText = ICON_FA_ARROW_RIGHT_TO_BRACKET;
     inputNode.label = name;
@@ -2698,6 +2714,7 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
 {
     TreeNode outputNode;
     outputNode.id = outputId;
+    outputNode.kind = TreeNodeKind::Output;
     outputNode.icon = m_OutputIcon;
     outputNode.iconText = ICON_FA_ARROW_RIGHT_FROM_BRACKET;
     outputNode.label = name;
@@ -2793,19 +2810,19 @@ void Example::EraseNodeByID(int id)
     }
 }
 
-void Example::AddFunction(int funId)
+void Example::AddFunction(int funId, bool beginRename)
 {
     const std::string namestr = Utils::FindValidName("Func", m_scriptTreeView);
     const OperationResult result = m_operations->AddFunction(funId, namestr);
     m_fileStatusIsError = !result;
     m_fileStatus = result ? "Function added" : result.error;
-    if (result) RebuildScriptTree();
+    if (result) RebuildScriptTree(beginRename ? funId : -1);
 }
 
 void Example::AddFunction(const ScriptFunctionPtr& pExistingFunction)
 {
     if (pExistingFunction)
-        AddFunction(pExistingFunction->ID);
+        AddFunction(pExistingFunction->ID, false);
 }
 
 void Example::AddVariable(int varId)
@@ -2814,7 +2831,7 @@ void Example::AddVariable(int varId)
     const OperationResult result = m_operations->AddVariable(varId, namestr);
     m_fileStatusIsError = !result;
     m_fileStatus = result ? "Variable added" : result.error;
-    if (result) RebuildScriptTree();
+    if (result) RebuildScriptTree(varId);
 }
 
 void Example::AddVariable(const ScriptPropertyPtr& pVariable)
@@ -2856,7 +2873,7 @@ void Example::AddFunctionInput(int funId, int inputId)
     const OperationResult result = m_operations->AddFunctionInput(funId, inputId, namestr);
     m_fileStatusIsError = !result;
     if (!result) m_fileStatus = result.error;
-    else RebuildScriptTree();
+    else RebuildScriptTree(inputId);
 }
 
 void Example::AddFunctionInput(int funId, int inputId, const char* name, const Value& value)
@@ -2889,7 +2906,7 @@ void Example::AddFunctionOutput(int funId, int outputId)
     const OperationResult result = m_operations->AddFunctionOutput(funId, outputId, namestr);
     m_fileStatusIsError = !result;
     if (!result) m_fileStatus = result.error;
-    else RebuildScriptTree();
+    else RebuildScriptTree(outputId);
 }
 
 void Example::AddFunctionOutput(int funId, int outputId, const char* name, const Value& value)
@@ -3104,6 +3121,7 @@ void Example::InitializeScriptTree()
     m_scriptTreeView = TreeNode{};
     m_scriptTreeView.label = "Script";
     m_scriptTreeView.isOpen = true;
+    m_scriptTreeView.kind = TreeNodeKind::Script;
     m_scriptTreeView.icon = m_ScriptIcon;
     m_scriptTreeView.iconText = ICON_FA_FILE_CODE;
     m_scriptTreeView.id = m_script.ID;
@@ -3125,7 +3143,7 @@ void Example::InitializeScriptTree()
                 const OperationResult result = m_operations->AddClass(id, name);
                 m_fileStatusIsError = !result;
                 m_fileStatus = result ? "Class added" : result.error;
-                if (result) RebuildScriptTree();
+                if (result) RebuildScriptTree(id);
             }));
         }
     };
@@ -3189,7 +3207,7 @@ void Example::EnsureMainSignature()
     NodeUtils::BuildNode(begin);
 }
 
-void Example::RebuildScriptTree()
+void Example::RebuildScriptTree(int createdItemId)
 {
     std::set<int> openItems;
     std::stack<const TreeNode*> previousNodes;
@@ -3210,6 +3228,7 @@ void Example::RebuildScriptTree()
     {
         TreeNode mainNode;
         mainNode.id = m_script.main->ID;
+        mainNode.kind = TreeNodeKind::Function;
         mainNode.label = m_script.main->functionDef->name;
         mainNode.icon = m_FunctionIcon;
         mainNode.iconText = ICON_FA_PLAY;
@@ -3219,6 +3238,7 @@ void Example::RebuildScriptTree()
         {
             TreeNode argumentsNode;
             argumentsNode.id = m_script.main->functionDef->inputs.front().id;
+            argumentsNode.kind = TreeNodeKind::Input;
             argumentsNode.label = "Arguments  (String List)";
             argumentsNode.icon = m_InputIcon;
             argumentsNode.iconText = ICON_FA_LIST;
@@ -3262,12 +3282,32 @@ void Example::RebuildScriptTree()
         m_selectedItemId = m_script.main ? m_script.main->ID.id : m_script.ID.id;
     if (m_editingItemId > 0 && !FindNodeByID(m_editingItemId))
         m_editingItemId = -1;
+
+    if (createdItemId >= 0)
+    {
+        if (TreeNode* created = FindNodeByID(createdItemId))
+        {
+            m_scriptFilter.clear();
+            m_selectedItemId = createdItemId;
+            m_editingItemId = created->onRename ? createdItemId : -1;
+            for (TreeNode* parent = created->parentId >= 0
+                    ? FindNodeByID(created->parentId) : nullptr;
+                 parent;
+                 parent = parent->parentId >= 0
+                    ? FindNodeByID(parent->parentId) : nullptr)
+            {
+                parent->isOpen = true;
+            }
+        }
+    }
 }
 
 TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
 {
     TreeNode node;
     node.id = scriptClass->ID.id;
+    node.kind = TreeNodeKind::Class;
+    node.isDraggable = true;
     node.label = scriptClass->Name;
     node.icon = m_ClassIcon;
     node.iconText = ICON_FA_CUBES;
@@ -3292,7 +3332,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
             {
                 const OperationResult result = m_operations->AddClassProperty(id, propertyId, "Property");
                 m_fileStatusIsError = !result;
-                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree(propertyId);
             }));
         }
         if (ImGui::MenuItem(ICON_FA_DIAGRAM_PROJECT "  Add Method"))
@@ -3302,7 +3342,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
             {
                 const OperationResult result = m_operations->AddClassMethod(id, methodId, "Method");
                 m_fileStatusIsError = !result;
-                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree(methodId);
             }));
         }
         ScriptClassPtr current = ScriptUtils::FindClassById(m_script, id);
@@ -3314,7 +3354,7 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
             {
                 const OperationResult result = m_operations->AddClassConstructor(id, constructorId);
                 m_fileStatusIsError = !result;
-                if (!result) m_fileStatus = result.error; else RebuildScriptTree();
+                if (!result) m_fileStatus = result.error; else RebuildScriptTree(constructorId);
             }));
         }
         ImGui::Separator();
@@ -3345,6 +3385,9 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
 {
     TreeNode node;
     node.id = method->ID.id;
+    node.kind = TreeNodeKind::ClassMethod;
+    node.isDraggable = true;
+    node.dragOwnerId = classId;
     node.label = method->functionDef->name;
     node.icon = m_FunctionIcon;
     node.iconText = ICON_FA_DIAGRAM_PROJECT;
@@ -3389,6 +3432,9 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
 {
     TreeNode node;
     node.id = constructor->ID.id;
+    node.kind = TreeNodeKind::Constructor;
+    node.isDraggable = true;
+    node.dragOwnerId = classId;
     node.label = "Constructor";
     node.icon = m_FunctionIcon;
     node.iconText = ICON_FA_WAND_MAGIC_SPARKLES;
@@ -3418,6 +3464,9 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
 {
     TreeNode node;
     node.id = property->ID.id;
+    node.kind = TreeNodeKind::ClassProperty;
+    node.isDraggable = true;
+    node.dragOwnerId = classId;
     node.label = property->Name;
     node.icon = m_VariableIcon;
     node.iconText = ICON_FA_DATABASE;

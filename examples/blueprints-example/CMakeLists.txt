@@ -36,6 +36,8 @@ set(_VisualLoxCoreSources
     native/nodes/range.cpp
     native/nodes/repeat.h
     native/nodes/repeat.cpp
+    native/nodes/switch.h
+    native/nodes/switch.cpp
     native/nodes/while.h
     native/nodes/while.cpp
     native/nodes/object.h

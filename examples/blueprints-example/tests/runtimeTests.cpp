@@ -760,6 +760,154 @@ void ClassesRangesAndMatchingRoundTripAndExecute()
             "Flow Match should execute the first matching case and skip Default.");
 }
 
+void FlowSwitchEvaluatesConditionsInOrder()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "SwitchMain");
+
+    ScriptPropertyPtr selected = std::make_shared<ScriptProperty>(
+        fixture.ids.GetNextId(), "SwitchSelected");
+    selected->defaultValue = Value(0.0);
+    script.variables.push_back(selected);
+    ScriptPropertyPtr defaultSelected = std::make_shared<ScriptProperty>(
+        fixture.ids.GetNextId(), "SwitchDefaultSelected");
+    defaultSelected->defaultValue = Value(0.0);
+    script.variables.push_back(defaultSelected);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr firstSwitch =
+        fixture.registry.FindCompiled("Flow::Switch")->MakeNode(fixture.ids);
+    firstSwitch->AddInput(fixture.ids);
+    firstSwitch->AddInput(fixture.ids);
+    NodePtr falseCondition =
+        fixture.registry.FindCompiled("Logic::Not")->MakeNode(fixture.ids);
+    falseCondition->InputValues[0] = Value(true);
+    NodePtr trueCondition =
+        fixture.registry.FindCompiled("Logic::Not")->MakeNode(fixture.ids);
+    trueCondition->InputValues[0] = Value(false);
+
+    NodePtr firstCase = BuildSetVariableNode(fixture.ids, selected);
+    firstCase->InputValues[1] = Value(10.0);
+    NodePtr secondCase = BuildSetVariableNode(fixture.ids, selected);
+    secondCase->InputValues[1] = Value(20.0);
+    NodePtr thirdCase = BuildSetVariableNode(fixture.ids, selected);
+    thirdCase->InputValues[1] = Value(30.0);
+    NodePtr unexpectedDefault = BuildSetVariableNode(fixture.ids, selected);
+    unexpectedDefault->InputValues[1] = Value(99.0);
+
+    NodePtr defaultSwitch =
+        fixture.registry.FindCompiled("Flow::Switch")->MakeNode(fixture.ids);
+    defaultSwitch->AddInput(fixture.ids);
+    NodePtr unexpectedFirst = BuildSetVariableNode(fixture.ids, defaultSelected);
+    unexpectedFirst->InputValues[1] = Value(1.0);
+    NodePtr unexpectedSecond = BuildSetVariableNode(fixture.ids, defaultSelected);
+    unexpectedSecond->InputValues[1] = Value(2.0);
+    NodePtr defaultCase = BuildSetVariableNode(fixture.ids, defaultSelected);
+    defaultCase->InputValues[1] = Value(40.0);
+
+    NodePtr failingCondition =
+        BuildFailingExpressionNode(fixture.ids, PinType::Bool);
+
+    for (const NodePtr& node : {
+             begin, firstSwitch, falseCondition, trueCondition, firstCase,
+             secondCase, thirdCase, unexpectedDefault, defaultSwitch,
+             unexpectedFirst, unexpectedSecond, defaultCase, failingCondition })
+        AttachNode(script.main->Graph, node);
+
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[0].ID,
+        firstSwitch->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), falseCondition->Outputs[0].ID,
+        firstSwitch->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), trueCondition->Outputs[0].ID,
+        firstSwitch->Inputs[2].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), failingCondition->Outputs[0].ID,
+        firstSwitch->Inputs[3].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), firstSwitch->Outputs[0].ID,
+        firstCase->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), firstSwitch->Outputs[1].ID,
+        secondCase->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), firstSwitch->Outputs[2].ID,
+        thirdCase->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), firstSwitch->Outputs[3].ID,
+        unexpectedDefault->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), secondCase->Outputs[0].ID,
+        defaultSwitch->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), defaultSwitch->Outputs[0].ID,
+        unexpectedFirst->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), defaultSwitch->Outputs[1].ID,
+        unexpectedSecond->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), defaultSwitch->Outputs[2].ID,
+        defaultCase->Inputs[0].ID));
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    ScriptCompileOptions options;
+    options.enableConstantFolding = false;
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(static_cast<bool>(compiled),
+            "Flow::Switch should compile with dynamic condition pins.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "Flow::Switch should skip conditions after the first true one.");
+    Require(isNumber(ReadGlobal(fixture.vm, "SwitchSelected")) &&
+                asNumber(ReadGlobal(fixture.vm, "SwitchSelected")) == 20.0,
+            "Flow::Switch should run the first true condition's case.");
+    Require(isNumber(ReadGlobal(fixture.vm, "SwitchDefaultSelected")) &&
+                asNumber(ReadGlobal(fixture.vm, "SwitchDefaultSelected")) == 40.0,
+            "Flow::Switch should run Default when every condition is false.");
+
+    Script roundTrip;
+    roundTrip.ID = fixture.ids.GetNextId();
+    roundTrip.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "SwitchRoundTrip");
+    NodePtr roundTripBegin = BuildBeginNode(fixture.ids, roundTrip.main);
+    NodePtr roundTripSwitch =
+        fixture.registry.FindCompiled("Flow::Switch")->MakeNode(fixture.ids);
+    roundTripSwitch->AddInput(fixture.ids);
+    AttachNode(roundTrip.main->Graph, roundTripBegin);
+    AttachNode(roundTrip.main->Graph, roundTripSwitch);
+    roundTrip.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), roundTripBegin->Outputs[0].ID,
+        roundTripSwitch->Inputs[0].ID));
+
+    std::string document;
+    Require(static_cast<bool>(
+                ScriptSerializer::SerializeToString(roundTrip, document)),
+            "A dynamic Flow::Switch should serialize.");
+    Script restored;
+    IDGenerator restoredIds;
+    Require(static_cast<bool>(ScriptSerializer::DeserializeFromString(
+                document, fixture.registry, restored, restoredIds)),
+            "A dynamic Flow::Switch should deserialize.");
+    const NodePtr restoredSwitch = restored.main->Graph.FindNodeIf(
+        [](const NodePtr& node)
+        {
+            return node->DefinitionId == "Flow::Switch";
+        });
+    Require(restoredSwitch && restoredSwitch->Inputs.size() == 3 &&
+                restoredSwitch->Outputs.size() == 3,
+            "Flow::Switch should preserve its dynamic cases and Default output.");
+}
+
 void CompleteExpressionNodesCompileAndExecute()
 {
     RuntimeFixture fixture;
@@ -1246,6 +1394,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             WhileAndRepeatNodesCompileAndExecute);
         runner.Test("classes, ranges, and matching round-trip and execute",
             ClassesRangesAndMatchingRoundTripAndExecute);
+        runner.Test("Flow Switch evaluates conditions in order",
+            FlowSwitchEvaluatesConditionsInOrder);
     });
     runner.Group("Runtime / graph links", [&]()
     {

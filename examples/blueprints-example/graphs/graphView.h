@@ -10,6 +10,7 @@
 #include "../utilities/builders.h"
 #include "../utilities/widgets.h"
 #include "../utilities/drawing.h"
+#include "../utilities/treeview.h"
 
 #include "../script/function.h"
 #include "../validation/scriptValidator.h"
@@ -120,6 +121,10 @@ struct GraphView
     std::vector<std::string> recentNodeTypes;
     std::set<std::string> favoriteNodeTypes;
     int paletteSelection = 0;
+    Editor::TreeNodeDragPayload paletteScriptItem;
+    Editor::TreeNodeDragPayload pendingScriptItemDrop;
+    ImVec2 pendingScriptItemDropPosition = ImVec2(0, 0);
+    bool openPaletteForScriptItem = false;
 };
 
 struct GraphViewUtils

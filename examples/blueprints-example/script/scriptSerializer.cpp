@@ -476,8 +476,11 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
             node->Inputs.push_back(DeserializePin(pin, ids));
 
         const Array& outputs = Field(nodeJson, "outputs", crude_json::type_t::array).get<Array>();
-        const bool hasDynamicOutputs = node->DefinitionId == "Flow::Match";
-        const bool validDynamicOutputs = hasDynamicOutputs && outputs.size() == inputs.size() - 1;
+        const bool validDynamicOutputs =
+            (node->DefinitionId == "Flow::Match" &&
+                outputs.size() == inputs.size() - 1) ||
+            (node->DefinitionId == "Flow::Switch" &&
+                outputs.size() == inputs.size());
         if (!isMissingReference && !validDynamicOutputs && outputs.size() != node->Outputs.size())
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid output layout.");
         node->Outputs.clear();

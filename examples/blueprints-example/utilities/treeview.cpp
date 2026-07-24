@@ -9,6 +9,23 @@ namespace Editor
 {
     namespace
     {
+        ImVec4 ColorForKind(TreeNodeKind kind)
+        {
+            switch (kind)
+            {
+            case TreeNodeKind::Script:        return ImVec4(0.55f, 0.72f, 0.92f, 1.0f);
+            case TreeNodeKind::Function:      return ImVec4(0.30f, 0.78f, 0.96f, 1.0f);
+            case TreeNodeKind::Variable:      return ImVec4(0.94f, 0.70f, 0.28f, 1.0f);
+            case TreeNodeKind::Input:         return ImVec4(0.38f, 0.84f, 0.56f, 1.0f);
+            case TreeNodeKind::Output:        return ImVec4(0.96f, 0.52f, 0.38f, 1.0f);
+            case TreeNodeKind::Class:         return ImVec4(0.74f, 0.52f, 0.96f, 1.0f);
+            case TreeNodeKind::ClassMethod:   return ImVec4(0.48f, 0.66f, 1.00f, 1.0f);
+            case TreeNodeKind::Constructor:   return ImVec4(0.90f, 0.56f, 0.96f, 1.0f);
+            case TreeNodeKind::ClassProperty: return ImVec4(0.96f, 0.67f, 0.38f, 1.0f);
+            default:                          return ImGui::GetStyleColorVec4(ImGuiCol_Text);
+            }
+        }
+
         std::string Lowercase(std::string value)
         {
             std::transform(value.begin(), value.end(), value.begin(),
@@ -30,58 +47,63 @@ namespace Editor
     {
         bool clicked = false;
 
-        static char buffer[128] = "";      // Buffer for renaming (edit mode)
+        static char buffer[128] = "";
+        static int bufferItemId = -1;
 
         const bool isEditing = editingItem == node.id;
 
         if (isEditing)
         {
-            if (buffer[0] == '\0') // External edit request
+            if (bufferItemId != node.id)
             {
-                // Copy the current name to the buffer for editing
                 strncpy(buffer, node.label.c_str(), sizeof(buffer));
-                buffer[sizeof(buffer) - 1] = '\0'; // Ensure null termination
+                buffer[sizeof(buffer) - 1] = '\0';
+                bufferItemId = node.id;
                 ImGui::SetKeyboardFocusHere();
             }
 
-            // Edit mode: Render InputText for renaming
-            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x); // Full width
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
             const bool submitted = ImGui::InputText("##RenameInput", buffer, IM_ARRAYSIZE(buffer),
-                                                     ImGuiInputTextFlags_EnterReturnsTrue);
-            if (submitted || ImGui::IsItemDeactivatedAfterEdit())
+                ImGuiInputTextFlags_EnterReturnsTrue |
+                ImGuiInputTextFlags_AutoSelectAll);
+            const bool cancelled =
+                ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape), false);
+            if (cancelled)
             {
-                // Commit one rename when Enter is pressed or focus leaves the
-                // field. Keystrokes only update the local edit buffer.
+                editingItem = -1;
+                buffer[0] = '\0';
+                bufferItemId = -1;
+            }
+            else if (submitted || ImGui::IsItemDeactivatedAfterEdit())
+            {
                 if (node.onRename && node.label != buffer)
                     node.onRename(std::string(buffer));
                 editingItem = -1;
                 buffer[0] = '\0';
+                bufferItemId = -1;
             }
-
-            // Exit unchanged edits when the user clicks elsewhere.
             else if (!ImGui::IsItemActive() && ImGui::IsMouseClicked(0))
             {
                 editingItem = -1;
                 buffer[0] = '\0';
+                bufferItemId = -1;
             }
         }
         else
         {
-            // View mode: Render the selectable
+            ImGui::PushStyleColor(ImGuiCol_Text, ColorForKind(node.kind));
             if (ImGui::Selectable(node.label.c_str(), isSelected,
-                                  ImGuiSelectableFlags_AllowDoubleClick, ImVec2(0, 26)))
+                                  ImGuiSelectableFlags_AllowDoubleClick,
+                                  ImVec2(0, ImMax(18.0f, ImGui::GetTextLineHeight() + 2.0f))))
             {
                 clicked = true;
             }
+            ImGui::PopStyleColor();
 
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0) && isSelected && node.onRename)
             {
-                // Enter edit mode on click
                 editingItem = node.id;
-
-                // Copy the current name to the buffer for editing
-                strncpy(buffer, node.label.c_str(), sizeof(buffer));
-                buffer[sizeof(buffer) - 1] = '\0'; // Ensure null termination
+                bufferItemId = -1;
             }
         }
 
@@ -97,42 +119,94 @@ namespace Editor
 
         const bool filtering = !normalizedFilter.empty();
 
-        // Render expand/collapse button
-        ImGui::PushID(node.id); // Ensure unique ID for the arrow button
+        ImGui::PushID(node.id);
+        const float rowHeight = ImMax(18.0f, ImGui::GetTextLineHeight() + 2.0f);
+        const float toggleWidth = 11.0f;
         if (node.children.empty())
         {
-            ImGui::Dummy(ImVec2(16, 0)); // Empty space for alignment
+            ImGui::Dummy(ImVec2(toggleWidth, rowHeight));
         }
-        else if (ImGui::ArrowButton("##toggle", node.isOpen ? ImGuiDir_Down : ImGuiDir_Right))
+        else
         {
-            node.isOpen = !node.isOpen; // Toggle node open/close
+            const ImVec2 arrowMin = ImGui::GetCursorScreenPos();
+            ImGui::PushItemFlag(ImGuiItemFlags_NoNav, true);
+            if (ImGui::InvisibleButton("##toggle", ImVec2(toggleWidth, rowHeight)))
+                node.isOpen = !node.isOpen;
+            ImGui::PopItemFlag();
+
+            const ImU32 arrowColor = ImGui::GetColorU32(
+                ImGui::IsItemHovered() ? ImGuiCol_Text : ImGuiCol_TextDisabled);
+            const ImVec2 center = arrowMin + ImVec2(toggleWidth * 0.5f, rowHeight * 0.5f);
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            if (node.isOpen)
+            {
+                drawList->AddTriangleFilled(
+                    center + ImVec2(-3.5f, -1.5f),
+                    center + ImVec2(3.5f, -1.5f),
+                    center + ImVec2(0.0f, 2.5f), arrowColor);
+            }
+            else
+            {
+                drawList->AddTriangleFilled(
+                    center + ImVec2(-1.5f, -3.5f),
+                    center + ImVec2(-1.5f, 3.5f),
+                    center + ImVec2(2.5f, 0.0f), arrowColor);
+            }
         }
         
-        // Render the selectable label
-        ImGui::SameLine();
+        ImGui::SameLine(0.0f, 2.0f);
         if (!node.iconText.empty())
         {
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.42f, 0.67f, 0.96f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ColorForKind(node.kind));
             ImGui::TextUnformatted(node.iconText.c_str());
             ImGui::PopStyleColor();
         }
         else if (node.icon)
         {
-            ImGui::Image(node.icon, ImVec2(20, 20));
+            ImGui::Image(node.icon, ImVec2(16, 16));
         }
         else
         {
-            ImGui::Dummy(ImVec2(16, 20));
+            ImGui::Dummy(ImVec2(14, rowHeight));
         }
-        ImGui::SameLine();
-        if (RenamableSelectable(node, selectedItem == node.id, editingItem))
+        ImGui::SameLine(0.0f, 4.0f);
+        const bool rowActivated =
+            RenamableSelectable(node, selectedItem == node.id, editingItem);
+        const bool rowFocused = ImGui::IsItemFocused();
+        if (rowActivated)
         {
-            selectedItem = node.id; // Mark this node as selected
+            selectedItem = node.id;
             if (node.onclick)
                 node.onclick();
         }
 
+        if (editingItem != node.id && rowFocused && !node.children.empty() &&
+            GImGui->NavMoveRequest)
+        {
+            if (GImGui->NavMoveDir == ImGuiDir_Right && !node.isOpen)
+            {
+                node.isOpen = true;
+                ImGui::NavMoveRequestCancel();
+            }
+            else if (GImGui->NavMoveDir == ImGuiDir_Left && node.isOpen)
+            {
+                node.isOpen = false;
+                ImGui::NavMoveRequestCancel();
+            }
+        }
+
         const bool rowHovered = ImGui::IsItemHovered();
+        if (editingItem != node.id && node.isDraggable &&
+            ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+        {
+            const TreeNodeDragPayload payload{ node.kind, node.id, node.dragOwnerId };
+            ImGui::SetDragDropPayload(
+                ScriptItemDragPayloadType, &payload, sizeof(payload));
+            ImGui::TextColored(ColorForKind(node.kind), "%s  %s",
+                               node.iconText.c_str(), node.label.c_str());
+            ImGui::TextDisabled("Drop on the graph to show related nodes");
+            ImGui::EndDragDropSource();
+        }
         if (rowHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
         {
             selectedItem = node.id;
@@ -150,15 +224,14 @@ namespace Editor
 
         ImGui::PopID();
 
-        // Render children if node is expanded
         if ((node.isOpen || filtering) && !node.children.empty())
         {
-            ImGui::Indent(); // Indent for child nodes
+            ImGui::Indent(14.0f);
             for (auto& child : node.children)
             {
                 RenderTreeNode(child, selectedItem, editingItem, filter);
             }
-            ImGui::Unindent(); // Unindent after finishing children
+            ImGui::Unindent(14.0f);
         }
     }
 }

@@ -11,6 +11,7 @@
 #include "../native/nodes/print.h"
 #include "../native/nodes/range.h"
 #include "../native/nodes/repeat.h"
+#include "../native/nodes/switch.h"
 #include "../native/nodes/while.h"
 
 void RegisterStandardLibrary(NodeRegistry& registry)
@@ -67,6 +68,9 @@ void RegisterStandardLibrary(NodeRegistry& registry)
 
     registry.RegisterCompiledNode("Flow::Match", &BuildMatchFlowNode,
         { { "Value", Value() }, { "Pattern 1", Value(0.0) } }, {},
+        NodeDefinitionFlags::DynamicInputs);
+    registry.RegisterCompiledNode("Flow::Switch", &BuildSwitchFlowNode,
+        { { "Condition 1", Value(false) } }, {},
         NodeDefinitionFlags::DynamicInputs);
     registry.RegisterCompiledNode("Range::Make", &BuildRangeNode,
         { { "From", Value(0.0) }, { "To", Value(1.0) } },

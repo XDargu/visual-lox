@@ -1161,6 +1161,8 @@ void GraphView::DrawContextMenu()
         {
             // Call
             {
+                const std::string getFuncName = "Function::" + def.functionDef->name;
+
                 if (!hasScriptItemContext &&
                     (!pureGraph || HasFlag(def.functionDef->flags,
                                            NodeDefinitionFlags::Pure)) &&
@@ -1169,7 +1171,7 @@ void GraphView::DrawContextMenu()
                 {
                     Data* current = &root;
                     int depth = 1;
-                    const std::vector<std::string> tokens = Utils::split(def.functionDef->name, "::");
+                    const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
 
                     for (const std::string& token : tokens)
                     {
@@ -1239,6 +1241,10 @@ void GraphView::DrawContextMenu()
         for (auto& def : m_pNodeRegistry->compiledDefinitions)
         {
             // Call
+            const bool isFlow = def->name.find("Flow") != std::string::npos;
+
+            const std::string getFuncName = (!isFlow ? "Function::" : "") + def->name;
+
             if (!hasScriptItemContext &&
                 (!pureGraph || HasFlag(def->functionDef->flags,
                                        NodeDefinitionFlags::Pure)) &&
@@ -1247,7 +1253,7 @@ void GraphView::DrawContextMenu()
             {
                 Data* current = &root;
                 int depth = 1;
-                const std::vector<std::string> tokens = Utils::split(def->name, "::");
+                const std::vector<std::string> tokens = Utils::split(getFuncName, "::");
 
                 for (const std::string& token : tokens)
                 {

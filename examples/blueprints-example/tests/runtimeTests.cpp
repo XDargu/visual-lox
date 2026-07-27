@@ -975,6 +975,160 @@ void RuntimeListMutationDoesNotChangeDocumentDefaults()
             "A run that appends an instance must leave the document persistable and unchanged.");
 }
 
+void VisualClassesUseToStringWhenPrinted()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "ToStringMain");
+
+    ScriptClassPtr defaultClass =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "DefaultDisplay");
+    script.classes.push_back(defaultClass);
+
+    ScriptClassPtr customClass =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "CustomDisplay");
+    ScriptFunctionPtr toString =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "toString");
+    toString->functionDef->flags |= NodeDefinitionFlags::Pure;
+    toString->functionDef->outputs.push_back(
+        { "Text", StringValue("custom display"), fixture.ids.GetNextId(),
+          TypeRef(PinType::String) });
+    NodePtr methodBegin = BuildBeginNode(fixture.ids, toString);
+    NodePtr methodReturn = BuildReturnNode(fixture.ids, *toString);
+    methodReturn->InputValues[1] = StringValue("custom display");
+    AttachNode(toString->Graph, methodBegin);
+    AttachNode(toString->Graph, methodReturn);
+    toString->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        methodBegin->Outputs[0].ID, methodReturn->Inputs[0].ID));
+    customClass->methods.push_back(toString);
+    script.classes.push_back(customClass);
+
+    ScriptPropertyPtr concatenated =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "ConcatenatedDisplay");
+    concatenated->type = PinType::String;
+    concatenated->defaultValue = StringValue("");
+    script.variables.push_back(concatenated);
+
+    ScriptPropertyPtr displays =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Displays");
+    displays->type = TypeRef::List(
+        TypeRef::Object(customClass->ID.id, customClass->Name));
+    displays->defaultValue = Value(newList());
+    script.variables.push_back(displays);
+
+    ScriptPropertyPtr concatenatedList =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "ConcatenatedList");
+    concatenatedList->type = PinType::String;
+    concatenatedList->defaultValue = StringValue("");
+    script.variables.push_back(concatenatedList);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr constructDefault =
+        BuildConstructObjectNode(fixture.ids, defaultClass);
+    const CompiledNodeDefPtr printDefinition =
+        fixture.registry.FindCompiled("Debug::Print");
+    Require(printDefinition != nullptr, "Debug::Print should be registered.");
+    NodePtr printDefault = printDefinition->MakeNode(fixture.ids);
+    NodePtr constructCustom =
+        BuildConstructObjectNode(fixture.ids, customClass);
+    NodePtr getDisplays =
+        BuildGetVariableNode(fixture.ids, displays);
+    const NativeFunctionDef* pushDefinition =
+        fixture.registry.FindNative("List::Push");
+    Require(pushDefinition != nullptr, "List::Push should be registered.");
+    NodePtr pushDisplay = pushDefinition->functionDef->MakeNode(
+        fixture.ids, ScriptElementID::Invalid);
+    NodePtr printCustom = printDefinition->MakeNode(fixture.ids);
+    NodePtr printDisplays = printDefinition->MakeNode(fixture.ids);
+    NodePtr append =
+        fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
+    append->InputValues[0] = StringValue("prefix: ");
+    NodePtr storeConcatenated =
+        BuildSetVariableNode(fixture.ids, concatenated);
+    NodePtr appendList =
+        fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
+    appendList->InputValues[0] = StringValue("list: ");
+    NodePtr storeConcatenatedList =
+        BuildSetVariableNode(fixture.ids, concatenatedList);
+    for (const NodePtr& node :
+         { begin, constructDefault, printDefault, constructCustom, printCustom,
+           getDisplays, pushDisplay, printDisplays, append, storeConcatenated,
+           appendList, storeConcatenatedList })
+        AttachNode(script.main->Graph, node);
+
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        begin->Outputs[0].ID, constructDefault->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructDefault->Outputs[0].ID, printDefault->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructDefault->Outputs[1].ID, printDefault->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        printDefault->Outputs[0].ID, constructCustom->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructCustom->Outputs[0].ID, pushDisplay->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        getDisplays->Outputs[0].ID, pushDisplay->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructCustom->Outputs[1].ID, pushDisplay->Inputs[2].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        pushDisplay->Outputs[0].ID, printCustom->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructCustom->Outputs[1].ID, printCustom->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        printCustom->Outputs[0].ID, printDisplays->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        getDisplays->Outputs[0].ID, printDisplays->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        printDisplays->Outputs[0].ID, storeConcatenated->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        constructCustom->Outputs[1].ID, append->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        append->Outputs[0].ID, storeConcatenated->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        storeConcatenated->Outputs[0].ID, storeConcatenatedList->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        getDisplays->Outputs[0].ID, appendList->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        appendList->Outputs[0].ID, storeConcatenatedList->Inputs[1].ID));
+
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script);
+    if (!compiled)
+    {
+        std::string error = "The toString graph should compile.";
+        for (const ValidationDiagnostic& diagnostic :
+             compiled.validation.diagnostics)
+            error += "\n" + FormatDiagnostic(diagnostic);
+        throw std::runtime_error(error);
+    }
+
+    std::ostringstream captured;
+    std::streambuf* previous = std::cout.rdbuf(captured.rdbuf());
+    const InterpretResult result =
+        ScriptRuntime::Execute(fixture.vm, compiled.function);
+    std::cout.rdbuf(previous);
+
+    Require(result == InterpretResult::INTERPRET_OK,
+            "The toString graph should execute.");
+    if (captured.str() !=
+        "DefaultDisplay instance\ncustom display\n[custom display]\n")
+        throw std::runtime_error(
+            "Printing instances, including those in lists, should use the default text or a class toString override; got '" +
+            captured.str() + "'.");
+    const Value concatenatedValue =
+        ReadGlobal(fixture.vm, "ConcatenatedDisplay");
+    Require(isString(concatenatedValue) &&
+            asString(concatenatedValue)->chars == "prefix: custom display",
+            "String concatenation should use a class toString override without corrupting the stack.");
+    const Value concatenatedListValue =
+        ReadGlobal(fixture.vm, "ConcatenatedList");
+    Require(isString(concatenatedListValue) &&
+            asString(concatenatedListValue)->chars == "list: custom display",
+            "String concatenation should use class toString overrides for list elements.");
+}
+
 void FlowSwitchEvaluatesConditionsInOrder()
 {
     RuntimeFixture fixture;
@@ -1840,6 +1994,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             ClassesRangesAndMatchingRoundTripAndExecute);
         runner.Test("runtime list mutation does not change document defaults",
             RuntimeListMutationDoesNotChangeDocumentDefaults);
+        runner.Test("Visual classes use toString when printed",
+            VisualClassesUseToStringWhenPrinted);
         runner.Test("Flow Switch evaluates conditions in order",
             FlowSwitchEvaluatesConditionsInOrder);
     });

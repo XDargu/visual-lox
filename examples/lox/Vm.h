@@ -113,7 +113,9 @@ private:
     void closeUpvalues(Value* last);
     void defineMethod(ObjString* name);
 
-    Value instanceToString(Value& instanceVal);
+    Value instanceToString(const Value& instanceVal);
+    ObjString* valueToStringWithOverrides(const Value& value);
+    void printValueWithOverrides(const Value& value);
 
     static constexpr size_t STACK_MAX = 256;
     static constexpr size_t FRAMES_MAX = 255;

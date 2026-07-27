@@ -618,51 +618,24 @@ InterpretResult VM::run(int depth)
                 }
                 else if (isString(peek(0)))
                 {
-                    if (isInstance(peek(1)))
-                    {
-                        const Value str = instanceToString(peek(1));
-                        if (isString(str))
-                        {
-                            ObjString* a = asString(peek(0));
-                            ObjString* result = ::concatenate(asString(str), a);
-
-                            pop();
-                            push(Value(result));
-                            break;
-                        }
-                    }
-
                     ObjString* a = asString(peek(0));
-                    ObjString* val = valueAsString(peek(1));  // TODO: This allocates memory!
-                    
+                    ObjString* val = valueToStringWithOverrides(peek(1));
+                    push(Value(val));
                     ObjString* result = ::concatenate(val, a);
 
                     pop();
                     pop();
+                    pop();
                     push(Value(result));
-
                 }
                 else if (isString(peek(1)))
                 {
-                    if (isInstance(peek(0)))
-                    {
-                        const Value str = instanceToString(peek(0));
-                        if (isString(str))
-                        {
-                            ObjString* b = asString(peek(1));
-                            ObjString* result = ::concatenate(b, asString(str));
-
-                            pop();
-                            push(Value(result));
-                            break;
-                        }
-                    }
-
-                    ObjString* val = valueAsString(peek(0)); // TODO: This allocates memory!
                     ObjString* b = asString(peek(1));
-
+                    ObjString* val = valueToStringWithOverrides(peek(0));
+                    push(Value(val));
                     ObjString* result = ::concatenate(b, val);
 
+                    pop();
                     pop();
                     pop();
                     push(Value(result));
@@ -957,14 +930,10 @@ InterpretResult VM::run(int depth)
             }
             case OpCode::OP_PRINT:
             {
-                if (isInstance(peek(0)))
-                {
-                    const Value str = instanceToString(peek(0));
-                    push(str);
-                }
-
-                printValue(pop());
-                printf("\n");
+                const Value value = peek(0);
+                printValueWithOverrides(value);
+                pop();
+                std::cout << '\n';
                 break;
             }
             case OpCode::OP_JUMP:
@@ -1386,21 +1355,67 @@ void VM::defineMethod(ObjString* name)
     pop();
 }
 
-Value VM::instanceToString(Value& instanceVal)
+Value VM::instanceToString(const Value& instanceVal)
 {
-    // Consumes the instance!
     ObjInstance* instance = asInstance(instanceVal);
     ObjString* toStr = takeString("toString");
 
     Value method;
     if (instance->klass->methods.get(toStr, &method))
     {
-        // Bind method pops the instance, we need to push it again
+        // Bind and invoke a temporary copy, leaving the caller's stack intact.
         push(instanceVal);
         bindMethod(instance, toStr);
-        // Here stack is [instance, boundMethod]
-        return callFunction(this, pop());
+        const Value result = callFunction(this, pop());
+        if (isString(result))
+            return result;
     }
 
-    return Value();
+    return Value(objectAsString(instanceVal));
+}
+
+ObjString* VM::valueToStringWithOverrides(const Value& value)
+{
+    if (isInstance(value))
+        return asString(instanceToString(value));
+
+    if (isList(value))
+    {
+        std::string result;
+        const std::vector<Value>& items = asList(value)->items;
+        for (size_t i = 0; i < items.size(); ++i)
+        {
+            if (i > 0)
+                result += ",";
+            result += valueToStringWithOverrides(items[i])->chars;
+        }
+        return takeString(std::move(result));
+    }
+
+    return valueAsString(value);
+}
+
+void VM::printValueWithOverrides(const Value& value)
+{
+    if (isInstance(value))
+    {
+        printValue(instanceToString(value));
+        return;
+    }
+
+    if (isList(value))
+    {
+        std::cout << "[";
+        const std::vector<Value>& items = asList(value)->items;
+        for (size_t i = 0; i < items.size(); ++i)
+        {
+            if (i > 0)
+                std::cout << ", ";
+            printValueWithOverrides(items[i]);
+        }
+        std::cout << "]";
+        return;
+    }
+
+    printValue(value);
 }

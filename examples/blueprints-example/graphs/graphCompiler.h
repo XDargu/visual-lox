@@ -69,6 +69,7 @@ struct GraphCompiler
 
     CompilerContext context;
 
+    static void CompileLiteral(Compiler& compiler, const Value& value);
     static void CompileInput(CompilerContext& compilerCtx, const Graph& graph, const Pin& input, const Value& value);
     static void CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output);
     static void CompileCallResult(CompilerContext& compilerCtx, const Graph& graph,

@@ -910,6 +910,71 @@ void ClassesRangesAndMatchingRoundTripAndExecute()
             "Flow Match should execute the first matching case and skip Default.");
 }
 
+void RuntimeListMutationDoesNotChangeDocumentDefaults()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "ListIsolationMain");
+
+    ScriptClassPtr itemClass =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "ListItem");
+    script.classes.push_back(itemClass);
+
+    ScriptPropertyPtr items =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Items");
+    items->type = TypeRef::List(
+        TypeRef::Object(itemClass->ID.id, itemClass->Name));
+    items->defaultValue = Value(newList());
+    script.variables.push_back(items);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr construct =
+        BuildConstructObjectNode(fixture.ids, itemClass);
+    NodePtr getItems =
+        BuildGetVariableNode(fixture.ids, items);
+    const NativeFunctionDef* pushDefinition =
+        fixture.registry.FindNative("List::Push");
+    Require(pushDefinition != nullptr, "List::Push should be registered.");
+    NodePtr push = pushDefinition->functionDef->MakeNode(
+        fixture.ids, ScriptElementID::Invalid);
+
+    for (const NodePtr& node : { begin, construct, getItems, push })
+        AttachNode(script.main->Graph, node);
+
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        begin->Outputs[0].ID, construct->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        construct->Outputs[0].ID, push->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        getItems->Outputs[0].ID, push->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        construct->Outputs[1].ID, push->Inputs[2].ID));
+
+    std::string before;
+    Require(static_cast<bool>(
+                ScriptSerializer::SerializeToString(script, before)),
+            "The source document should serialize before execution.");
+
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled),
+            "The list-isolation graph should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "The list-isolation graph should execute.");
+
+    Require(isList(items->defaultValue) &&
+            asList(items->defaultValue)->items.empty(),
+            "Runtime list mutation must not change the document default.");
+    std::string after;
+    Require(static_cast<bool>(
+                ScriptSerializer::SerializeToString(script, after)) &&
+            after == before,
+            "A run that appends an instance must leave the document persistable and unchanged.");
+}
+
 void FlowSwitchEvaluatesConditionsInOrder()
 {
     RuntimeFixture fixture;
@@ -1773,6 +1838,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             WhileAndRepeatNodesCompileAndExecute);
         runner.Test("classes, ranges, and matching round-trip and execute",
             ClassesRangesAndMatchingRoundTripAndExecute);
+        runner.Test("runtime list mutation does not change document defaults",
+            RuntimeListMutationDoesNotChangeDocumentDefaults);
         runner.Test("Flow Switch evaluates conditions in order",
             FlowSwitchEvaluatesConditionsInOrder);
     });

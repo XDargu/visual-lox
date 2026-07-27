@@ -9,6 +9,7 @@
 #include "../native/nodes/variable.h"
 
 #include <Compiler.h>
+#include <Object.h>
 #include <Vm.h>
 
 std::list<std::string> CompilerContext::tempVarStorage;
@@ -161,6 +162,25 @@ void GraphCompiler::RegisterNatives(VM& vm)
     
 }
 
+void GraphCompiler::CompileLiteral(Compiler& compiler, const Value& value)
+{
+    if (!isList(value))
+    {
+        compiler.emitConstant(value);
+        return;
+    }
+
+    // Lists are mutable runtime values. Construct a fresh list whenever the
+    // literal is evaluated instead of putting the editor-owned ObjList pointer
+    // in the bytecode constant table.
+    compiler.emitByte(OpByte(OpCode::OP_BUILD_LIST));
+    for (const Value& item : asList(value)->items)
+    {
+        CompileLiteral(compiler, item);
+        compiler.emitByte(OpByte(OpCode::OP_APPEND_LIST));
+    }
+}
+
 void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& graph, const Pin& input, const Value& value)
 {
     Compiler& compiler = compilerCtx.compiler;
@@ -171,7 +191,7 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
         {
             if (HasFlag(pOutput->Node->InstanceFlags, NodeInstanceFlags::Error))
             {
-                compiler.emitConstant(value);
+                CompileLiteral(compiler, value);
                 return;
             }
 
@@ -205,7 +225,7 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
         }
     }
 
-    compiler.emitConstant(value);
+    CompileLiteral(compiler, value);
 }
 
 void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output)

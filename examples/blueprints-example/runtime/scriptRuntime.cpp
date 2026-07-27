@@ -13,7 +13,7 @@ void EmitPropertyInitializer(Compiler& compiler, const ScriptProperty& property)
 {
     static constexpr char thisName[] = "this";
     compiler.namedVariable(Token(TokenType::THIS, thisName, 4, 0), false);
-    compiler.emitConstant(property.defaultValue);
+    GraphCompiler::CompileLiteral(compiler, property.defaultValue);
     const Token propertyToken(TokenType::IDENTIFIER, property.Name.c_str(), property.Name.length(), 0);
     compiler.emitOpWithValue(OpCode::OP_SET_PROPERTY, OpCode::OP_SET_PROPERTY_LONG,
                              compiler.identifierConstant(propertyToken));
@@ -140,7 +140,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
 
     for (const ScriptPropertyPtr& property : script.variables)
     {
-        compiler.emitConstant(property->defaultValue);
+        GraphCompiler::CompileLiteral(compiler, property->defaultValue);
         const Token token(TokenType::VAR, property->Name.c_str(), property->Name.length(), 0);
         compiler.defineVariable(compiler.identifierConstant(token));
     }
@@ -191,7 +191,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     compiler.beginScope();
     const Token argumentsToken(
         TokenType::IDENTIFIER, "Arguments", 9, 0);
-    compiler.emitConstant(programArgumentsValue);
+    GraphCompiler::CompileLiteral(compiler, programArgumentsValue);
     compiler.addLocal(argumentsToken, true);
     compiler.emitVariable(argumentsToken, true, true);
     CompileGraph(script.main->Graph, compiler, folding.values, folding.nodeIds);

@@ -1027,8 +1027,11 @@ void NodeRegistry::RegisterDefinitions()
         });
 
     RegisterNativeFunc("Functional::FindIf",
-        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
-        { { "Result", Value() } },
+        { { "Iterable", Value(), -1,
+            TypeRef::Iterable(TypeRef::Variable("T")) },
+          { "Function", Value(newFunction()), -1,
+            TypeRef::Function({ TypeRef::Variable("T") }, { PinType::Bool }) } },
+        { { "Result", Value(), -1, TypeRef::Variable("T") } },
         &findIf,
         NodeDefinitionFlags::ReadOnly,
         NodeDocumentation{
@@ -1039,8 +1042,13 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("Functional::Map",
-        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
-        { { "Result", Value(newList()) } },
+        { { "Iterable", Value(), -1,
+            TypeRef::Iterable(TypeRef::Variable("T")) },
+          { "Function", Value(newFunction()), -1,
+            TypeRef::Function(
+                { TypeRef::Variable("T") }, { TypeRef::Variable("U") }) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("U")) } },
         &map,
         NodeDefinitionFlags::ReadOnly,
         NodeDocumentation{
@@ -1051,8 +1059,12 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("Functional::Filter",
-        { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
-        { { "Result", Value(newList()) } },
+        { { "Iterable", Value(), -1,
+            TypeRef::Iterable(TypeRef::Variable("T")) },
+          { "Function", Value(newFunction()), -1,
+            TypeRef::Function({ TypeRef::Variable("T") }, { PinType::Bool }) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &filter,
         NodeDefinitionFlags::ReadOnly,
         NodeDocumentation{
@@ -1063,8 +1075,14 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("Functional::Reduce",
-        { { "Iterable", Value() }, { "Function", Value(newFunction()) }, { "Init", Value() } },
-        { { "Result", Value(newList()) } },
+        { { "Iterable", Value(), -1,
+            TypeRef::Iterable(TypeRef::Variable("T")) },
+          { "Function", Value(newFunction()), -1,
+            TypeRef::Function(
+                { TypeRef::Variable("U"), TypeRef::Variable("T") },
+                { TypeRef::Variable("U") }) },
+          { "Init", Value(), -1, TypeRef::Variable("U") } },
+        { { "Result", Value(), -1, TypeRef::Variable("U") } },
         &reduce,
         NodeDefinitionFlags::ReadOnly,
         NodeDocumentation{

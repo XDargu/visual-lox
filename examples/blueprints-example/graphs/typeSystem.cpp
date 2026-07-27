@@ -249,7 +249,23 @@ bool CanAssign(const TypeRef& source, const TypeRef& destination, bool allowDyna
         if (source.functionInputCount < 0 ||
             destination.functionInputCount < 0)
             return true;
-        return source == destination;
+        if (source.functionInputCount != destination.functionInputCount ||
+            source.parameters.size() != destination.parameters.size())
+            return false;
+
+        const size_t inputCount =
+            static_cast<size_t>(source.functionInputCount);
+        // Function inputs are contravariant: a callable used by a node must
+        // accept every value the node can pass to it. Outputs are covariant.
+        for (size_t i = 0; i < inputCount; ++i)
+            if (!CanAssign(destination.parameters[i], source.parameters[i],
+                           allowDynamicCheck))
+                return false;
+        for (size_t i = inputCount; i < source.parameters.size(); ++i)
+            if (!CanAssign(source.parameters[i], destination.parameters[i],
+                           allowDynamicCheck))
+                return false;
+        return true;
     }
     return true;
 }

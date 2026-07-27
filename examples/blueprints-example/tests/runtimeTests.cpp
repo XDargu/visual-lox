@@ -1931,6 +1931,14 @@ void TypeDescriptorsAreDirectionalAndComposable()
                 TypeRef::Function({ PinType::String }, { PinType::Float })) &&
             CanAssign(signature, TypeRef(PinType::Function)),
             "Typed function signatures should be exact while bare Function remains dynamic.");
+    Require(CanAssign(
+                TypeRef::Function({ PinType::Any }, { PinType::String }),
+                TypeRef::Function({ PinType::String }, { PinType::Any })) &&
+            !CanAssign(
+                TypeRef::Function({ PinType::String }, { PinType::Any }),
+                TypeRef::Function({ PinType::Any }, { PinType::String }),
+                false),
+            "Function inputs should be contravariant and outputs covariant.");
 }
 
 void GenericNodesInferAcrossConnections()
@@ -2003,6 +2011,37 @@ void GenericNodesInferAcrossConnections()
     Require(equals->Inputs[0].Type == PinType::String &&
             equals->Inputs[1].Type == PinType::String,
             "A shared Equals<T> constraint should update both operands.");
+
+    NodePtr filter =
+        fixture.registry.FindNative("Functional::Filter")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    ScriptPropertyPtr predicate =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Predicate");
+    predicate->type =
+        TypeRef::Function({ PinType::String }, { PinType::Bool });
+    predicate->defaultValue = Value();
+    NodePtr predicateSource = BuildGetVariableNode(fixture.ids, predicate);
+    AttachNode(script.main->Graph, filter);
+    AttachNode(script.main->Graph, predicateSource);
+
+    Require(script.main->Graph.CanCreateLink(
+                &predicateSource->Outputs[0], &filter->Inputs[1], {}) ==
+                ELinkQueryResult::Possible,
+            "Filter should accept a typed predicate before its iterable is connected.");
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), predicateSource->Outputs[0].ID,
+        filter->Inputs[1].ID));
+    Require(filter->Inputs[0].Type == TypeRef::Iterable(PinType::String) &&
+            filter->Inputs[1].Type ==
+                TypeRef::Function({ PinType::String }, { PinType::Bool }) &&
+            filter->Outputs[0].Type == TypeRef::List(PinType::String),
+            "Filter should infer T from Function<(T) -> (Bool)>.");
+
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), source->Outputs[0].ID, filter->Inputs[0].ID));
+    Require(filter->Inputs[0].Type == TypeRef::List(PinType::String) &&
+            filter->Outputs[0].Type == TypeRef::List(PinType::String),
+            "Filter should preserve List<T> as its output type.");
 
     NodePtr numericEquals =
         fixture.registry.FindCompiled("Math::Equals")->MakeNode(fixture.ids);

@@ -45,7 +45,7 @@ struct TableCpp
     {
         if (index < entries.size())
         {
-            return &entries.at(index);
+            return &entries.at(static_cast<EntriesMap::key_type>(index));
         }
 
         return nullptr;

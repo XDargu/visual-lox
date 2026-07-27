@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../script/scriptElement.h"
+#include "typeSystem.h"
 
 #include "../utilities/drawing.h"
 
@@ -9,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 
 #include <Value.h>
 
@@ -39,6 +41,7 @@ constexpr inline NodeDefinitionFlags operator| (NodeDefinitionFlags a, NodeDefin
 constexpr inline NodeDefinitionFlags operator& (NodeDefinitionFlags a, NodeDefinitionFlags b) { return (NodeDefinitionFlags)((int)a & (int)b); }
 constexpr inline NodeDefinitionFlags& operator|= (NodeDefinitionFlags& a, NodeDefinitionFlags b) { return (NodeDefinitionFlags&)((int&)a |= (int)b); }
 constexpr inline bool HasFlag(NodeDefinitionFlags a, NodeDefinitionFlags b) { return (int)(a & b) != 0; }
+constexpr inline NodeDefinitionFlags ClearFlag(NodeDefinitionFlags a, NodeDefinitionFlags b) { return a & ~b; }
 
 constexpr inline NodeInstanceFlags operator~ (NodeInstanceFlags a) { return (NodeInstanceFlags)~(int)a; }
 constexpr inline NodeInstanceFlags operator| (NodeInstanceFlags a, NodeInstanceFlags b) { return (NodeInstanceFlags)((int)a | (int)b); }
@@ -47,27 +50,13 @@ constexpr inline NodeInstanceFlags& operator|= (NodeInstanceFlags& a, NodeInstan
 constexpr inline bool HasFlag(NodeInstanceFlags a, NodeInstanceFlags b) { return (int)(a & b) != 0; }
 constexpr inline NodeInstanceFlags ClearFlag(NodeInstanceFlags a, NodeInstanceFlags b) { return a & ~b; }
 
-enum class PinType
-{
-    Flow,
-    Bool,
-    Int,
-    Float,
-    String,
-    List,
-    Range,
-    Object,
-    Function,
-    Any,
-    Error
-};
-
 inline ImColor GetIconColor(PinType type)
 {
     switch (type)
     {
         default:
         case PinType::Flow:     return ImColor(255, 255, 255);
+        case PinType::Nil:      return ImColor(145, 145, 145);
         case PinType::Bool:     return ImColor(220, 48, 48);
         case PinType::Int:      return ImColor(68, 201, 156);
         case PinType::Float:    return ImColor(147, 226, 74);
@@ -76,6 +65,9 @@ inline ImColor GetIconColor(PinType type)
         case PinType::Range:    return ImColor(230, 153, 45);
         case PinType::Object:   return ImColor(51, 150, 215);
         case PinType::Function: return ImColor(218, 0, 183);
+        case PinType::Tuple:    return ImColor(90, 175, 205);
+        case PinType::Iterable: return ImColor(51, 150, 215);
+        case PinType::TypeVariable: return ImColor(200, 200, 200);
         case PinType::Any:      return ImColor(200, 200, 200);
         case PinType::Error:    return ImColor(0, 0, 0);
     }
@@ -86,6 +78,7 @@ inline ax::Drawing::IconType GetPinIcon(PinType type)
     switch (type)
     {
         case PinType::Flow:     return ax::Drawing::IconType::Flow;
+        case PinType::Nil:      return ax::Drawing::IconType::Circle;
         case PinType::Bool:     return ax::Drawing::IconType::Circle;
         case PinType::Int:      return ax::Drawing::IconType::Circle;
         case PinType::Float:    return ax::Drawing::IconType::Circle;
@@ -94,6 +87,9 @@ inline ax::Drawing::IconType GetPinIcon(PinType type)
         case PinType::Range:    return ax::Drawing::IconType::Square;
         case PinType::Object:   return ax::Drawing::IconType::Circle;
         case PinType::Function: return ax::Drawing::IconType::RoundSquare;
+        case PinType::Tuple:    return ax::Drawing::IconType::Square;
+        case PinType::Iterable: return ax::Drawing::IconType::Square;
+        case PinType::TypeVariable: return ax::Drawing::IconType::Circle;
         case PinType::Any:      return ax::Drawing::IconType::Circle;
         case PinType::Error:    return ax::Drawing::IconType::Circle;
         default:                return ax::Drawing::IconType::Circle;
@@ -122,11 +118,17 @@ struct Pin
     ed::PinId   ID;
     ::NodePtr   Node;
     std::string Name;
-    PinType     Type;
+    std::string Description;
+    TypeRef     Type;
+    // Generic node definitions keep their unresolved pattern here. For normal
+    // pins this is identical to Type.
+    TypeRef     DeclaredType;
     PinKind     Kind;
 
-    Pin(int id, const char* name, PinType type) :
-        ID(id), Node(nullptr), Name(name), Type(type), Kind(PinKind::Input)
+    Pin(int id, const char* name, TypeRef type, std::string description = {}) :
+        ID(id), Node(nullptr), Name(name), Description(std::move(description)),
+        Type(type), DeclaredType(std::move(type)),
+        Kind(PinKind::Input)
     {
     }
 };
@@ -167,6 +169,7 @@ struct Node
 {
     ed::NodeId       ID;
     std::string      Name;
+    std::string      Description;
     std::vector<Pin> Inputs;
     std::vector<Pin> Outputs;
     ImColor          Color;
@@ -191,8 +194,9 @@ struct Node
     // Reference to: functionId, variableId
     ScriptElementID refId;
 
-    Node(int id, const char* name, ImColor color = ImColor(255, 255, 255)) :
-        ID(id), Name(name), Color(color), Size(0, 0)
+    Node(int id, const char* name, ImColor color = ImColor(255, 255, 255),
+         std::string description = {}) :
+        ID(id), Name(name), Description(std::move(description)), Color(color), Size(0, 0)
     {
     }
 
@@ -207,6 +211,7 @@ struct Node
     virtual void RemoveInput(ed::PinId pinId) {};
     virtual bool CanRemoveInput(ed::PinId pinId) const { return false; };
     virtual bool CanAddInput() const { return false; };
+    virtual TypeRef DynamicInputType() const { return TypeRef(PinType::Any); }
     virtual bool IsInputDeferred(int inputIndex) const { return false; }
     virtual bool ShouldCompileDeferredInput(int inputIndex, int outputIndex) const
     {

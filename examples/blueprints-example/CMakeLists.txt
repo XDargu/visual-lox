@@ -2,6 +2,8 @@ set(_VisualLoxCoreSources
     utilities/utils.h
     utilities/utils.cpp
     graphs/idgeneration.h
+    graphs/typeSystem.h
+    graphs/typeSystem.cpp
     graphs/node.h
     graphs/node.cpp
     graphs/link.h

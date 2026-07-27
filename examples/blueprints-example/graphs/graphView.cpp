@@ -206,6 +206,36 @@ bool DrawNodeDiagnosticBox(ed::NodeId nodeId,
     ImGui::PopID();
     return hovered;
 }
+
+void DrawPinTooltip(const Pin& pin)
+{
+    ImGui::BeginTooltip();
+    if (!pin.Name.empty())
+        ImGui::TextUnformatted(pin.Name.c_str());
+    ImGui::TextDisabled("Type: %s", pin.Type.ToString().c_str());
+    ImGui::Separator();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(pin.Description.empty()
+        ? "No pin description has been provided."
+        : pin.Description.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+}
+
+void DrawNodeTooltip(const Node& node)
+{
+    ImGui::BeginTooltip();
+    ImGui::TextUnformatted(node.Name.c_str());
+    if (node.IsPure())
+        ImGui::TextDisabled("Pure");
+    ImGui::Separator();
+    ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+    ImGui::TextUnformatted(node.Description.empty()
+        ? "No node description has been provided."
+        : node.Description.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+}
 }
 
 void GraphView::setDocumentOperations(DocumentOperations& operations)
@@ -369,6 +399,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", operationError.c_str());
 
     std::vector<const ValidationDiagnostic*> hoveredDiagnostics;
+    const Pin* hoveredPin = nullptr;
     ed::Begin("Node editor");
 
     {
@@ -441,6 +472,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
                 ImGui::PopStyleVar();
                 builder.EndInput();
+                if (ImGui::IsItemHovered())
+                    hoveredPin = &input;
                 ++idx;
             }
 
@@ -505,6 +538,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 DrawPinIcon(output, m_pGraph->IsPinLinked(output.ID), (int)(alpha * 255));
                 ImGui::PopStyleVar();
                 builder.EndOutput();
+                if (ImGui::IsItemHovered())
+                    hoveredPin = &output;
             }
 
             if (!nodeDiagnostics.empty())
@@ -729,6 +764,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         hasCanvasMousePosition = true;
     }
     ed::End();
+    const NodePtr hoveredNode = m_pGraph->FindNode(ed::GetHoveredNode());
 
     if (ImGui::BeginDragDropTarget())
     {
@@ -751,7 +787,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
     // Render after the node editor has restored normal screen coordinates.
     // Suspending while a node is being built disrupts the builder's draw-list
     // channels and can corrupt the rest of that node's layout.
-    if (!hoveredDiagnostics.empty())
+    // Link creation draws its own contextual label next to the cursor.
+    if (!newLinkPin && !hoveredDiagnostics.empty())
     {
         ImGui::BeginTooltip();
         ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
@@ -760,6 +797,10 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ImGui::PopTextWrapPos();
         ImGui::EndTooltip();
     }
+    else if (!newLinkPin && hoveredPin)
+        DrawPinTooltip(*hoveredPin);
+    else if (!newLinkPin && hoveredNode)
+        DrawNodeTooltip(*hoveredNode);
 }
 
 void GraphView::DrawContextMenu()
@@ -951,6 +992,9 @@ void GraphView::DrawContextMenu()
         addNodePopupOpened = true;
         const bool hasScriptItemContext =
             paletteScriptItem.kind != Editor::TreeNodeKind::None;
+        const bool pureGraph = m_pScriptFunction &&
+            HasFlag(m_pScriptFunction->functionDef->flags,
+                    NodeDefinitionFlags::Pure);
         ImGui::TextDisabled(ICON_FA_BOLT "  Add node");
         ImGui::SameLine();
         if (hasScriptItemContext)
@@ -1019,7 +1063,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& otuput : functionDef->outputs)
                 {
-                    if (GraphUtils::AreTypesCompatible(TypeOfValue(otuput.value), newNodeLinkPin->Type))
+                    if (GraphUtils::AreTypesCompatible(otuput.type, newNodeLinkPin->Type))
                         return true;
                 }
 
@@ -1029,7 +1073,7 @@ void GraphView::DrawContextMenu()
             {
                 for (auto& input : functionDef->inputs)
                 {
-                    if (GraphUtils::AreTypesCompatible(TypeOfValue(input.value), newNodeLinkPin->Type))
+                    if (GraphUtils::AreTypesCompatible(newNodeLinkPin->Type, input.type))
                         return true;
                 }
 
@@ -1045,7 +1089,9 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return GraphUtils::AreTypesCompatible(TypeOfValue(propertyDef->defaultValue), newNodeLinkPin->Type);
+                return isInput
+                    ? GraphUtils::AreTypesCompatible(propertyDef->type, newNodeLinkPin->Type)
+                    : GraphUtils::AreTypesCompatible(newNodeLinkPin->Type, propertyDef->type);
 
             return true;
         };
@@ -1056,7 +1102,17 @@ void GraphView::DrawContextMenu()
             if (isFlow) return true;
 
             if (newNodeLinkPin)
-                return GraphUtils::AreTypesCompatible(newNodeLinkPin->Type, PinType::Function);
+            {
+                std::vector<TypeRef> inputs;
+                std::vector<TypeRef> outputs;
+                for (const auto& input : functionDef->inputs) inputs.push_back(input.type);
+                for (const auto& output : functionDef->outputs) outputs.push_back(output.type);
+                const TypeRef functionType =
+                    TypeRef::Function(std::move(inputs), std::move(outputs));
+                return isInput
+                    ? GraphUtils::AreTypesCompatible(functionType, newNodeLinkPin->Type)
+                    : GraphUtils::AreTypesCompatible(newNodeLinkPin->Type, functionType);
+            }
 
             return true;
         };
@@ -1102,6 +1158,8 @@ void GraphView::DrawContextMenu()
             // Call
             {
                 if (!hasScriptItemContext &&
+                    (!pureGraph || HasFlag(def.functionDef->flags,
+                                           NodeDefinitionFlags::Pure)) &&
                     Utils::FilterString(Utils::to_lower(def.functionDef->name), searchFilterLower) &&
                     FilterContext(def.functionDef))
                 {
@@ -1135,6 +1193,8 @@ void GraphView::DrawContextMenu()
                 const std::string getFuncName = "Get::" + def.functionDef->name;
 
                 if (!hasScriptItemContext &&
+                    (!pureGraph || HasFlag(def.functionDef->flags,
+                                           NodeDefinitionFlags::Pure)) &&
                     Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) &&
                     FilterContextFuncGet(def.functionDef))
                 {
@@ -1171,6 +1231,8 @@ void GraphView::DrawContextMenu()
         {
             // Call
             if (!hasScriptItemContext &&
+                (!pureGraph || HasFlag(def->functionDef->flags,
+                                       NodeDefinitionFlags::Pure)) &&
                 Utils::FilterString(Utils::to_lower(def->name), searchFilterLower) &&
                 FilterContext(def->functionDef))
             {
@@ -1247,7 +1309,8 @@ void GraphView::DrawContextMenu()
             {
                 const std::string setVar = "Variables::Set::" + def->Name;
 
-                if ((!hasScriptItemContext ||
+                if (!pureGraph &&
+                    (!hasScriptItemContext ||
                      (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
                       paletteScriptItem.id == def->ID.id)) &&
                     Utils::FilterString(Utils::to_lower(setVar), searchFilterLower) &&
@@ -1292,6 +1355,8 @@ void GraphView::DrawContextMenu()
                 if ((!hasScriptItemContext ||
                      (paletteScriptItem.kind == Editor::TreeNodeKind::Function &&
                       paletteScriptItem.id == def->ID.id)) &&
+                    (!pureGraph || HasFlag(def->functionDef->flags,
+                                           NodeDefinitionFlags::Pure)) &&
                     Utils::FilterString(Utils::to_lower(fullFuncName), searchFilterLower) &&
                     FilterContext(def->functionDef))
                 {
@@ -1331,6 +1396,8 @@ void GraphView::DrawContextMenu()
                 if ((!hasScriptItemContext ||
                      (paletteScriptItem.kind == Editor::TreeNodeKind::Function &&
                       paletteScriptItem.id == def->ID.id)) &&
+                    (!pureGraph || HasFlag(def->functionDef->flags,
+                                           NodeDefinitionFlags::Pure)) &&
                     Utils::FilterString(Utils::to_lower(getFuncName), searchFilterLower) &&
                     FilterContextFuncGet(def->functionDef))
                 {
@@ -1379,7 +1446,8 @@ void GraphView::DrawContextMenu()
                 hasScriptItemContext &&
                 paletteScriptItem.kind == Editor::TreeNodeKind::Constructor &&
                 paletteScriptItem.ownerId == scriptClass->ID.id;
-            if (!hasScriptItemContext || wholeClassContext || constructorContext)
+            if (!pureGraph &&
+                (!hasScriptItemContext || wholeClassContext || constructorContext))
                 AddEntry("Classes::" + scriptClass->Name + "::Construct",
                     [capturedClass](IDGenerator& ids)
                     {
@@ -1395,15 +1463,20 @@ void GraphView::DrawContextMenu()
                 if (!hasScriptItemContext || wholeClassContext || propertyContext)
                 {
                     AddEntry("Classes::" + scriptClass->Name + "::Properties::Get " + property->Name,
-                        [capturedProperty](IDGenerator& ids)
+                        [capturedProperty, capturedClass](IDGenerator& ids)
                         {
-                            return BuildGetPropertyNode(ids, capturedProperty);
+                            return BuildGetPropertyNode(
+                                ids, capturedProperty, ScriptElementID::Invalid,
+                                TypeRef::Object(capturedClass->ID.id, capturedClass->Name));
                         });
-                    AddEntry("Classes::" + scriptClass->Name + "::Properties::Set " + property->Name,
-                        [capturedProperty](IDGenerator& ids)
-                        {
-                            return BuildSetPropertyNode(ids, capturedProperty);
-                        });
+                    if (!pureGraph)
+                        AddEntry("Classes::" + scriptClass->Name + "::Properties::Set " + property->Name,
+                            [capturedProperty, capturedClass](IDGenerator& ids)
+                            {
+                                return BuildSetPropertyNode(
+                                    ids, capturedProperty, ScriptElementID::Invalid,
+                                    TypeRef::Object(capturedClass->ID.id, capturedClass->Name));
+                            });
                 }
             }
             for (const ScriptFunctionPtr& method : scriptClass->methods)
@@ -1413,18 +1486,33 @@ void GraphView::DrawContextMenu()
                     hasScriptItemContext &&
                     paletteScriptItem.kind == Editor::TreeNodeKind::ClassMethod &&
                     paletteScriptItem.id == method->ID.id;
-                if (!hasScriptItemContext || wholeClassContext || methodContext)
+                if ((!pureGraph ||
+                     HasFlag(method->functionDef->flags,
+                             NodeDefinitionFlags::Pure)) &&
+                    (!hasScriptItemContext || wholeClassContext || methodContext))
                     AddEntry("Classes::" + scriptClass->Name + "::Methods::Call " +
                         method->functionDef->name,
-                        [capturedMethod](IDGenerator& ids)
+                        [capturedMethod, capturedClass](IDGenerator& ids)
                         {
-                            return BuildMethodCallNode(ids, capturedMethod);
+                            return BuildMethodCallNode(
+                                ids, capturedMethod, ScriptElementID::Invalid,
+                                TypeRef::Object(capturedClass->ID.id, capturedClass->Name));
                         });
             }
         }
         if (!hasScriptItemContext &&
             ScriptUtils::FindOwningClass(*m_pScript, m_pScriptFunction->ID.id))
-            AddEntry("Classes::This", [](IDGenerator& ids) { return BuildThisNode(ids); });
+        {
+            const ScriptClassPtr ownerClass = m_pScriptFunction
+                ? ScriptUtils::FindOwningClass(*m_pScript, m_pScriptFunction->ID.id)
+                : nullptr;
+            AddEntry("Classes::This", [ownerClass](IDGenerator& ids)
+            {
+                return BuildThisNode(ids, ownerClass
+                    ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
+                    : TypeRef(PinType::Object));
+            });
+        }
 
         // TODO: Only show return if we can return!
         {
@@ -1836,4 +1924,152 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(Pin
             onChange(PinType::Any);
     }
     ImGui::PopItemWidth();
+}
+
+namespace
+{
+void DrawTypeRefEditor(const Script& script, TypeRef& type, bool& changed,
+                       int depth)
+{
+    if (depth > 8)
+    {
+        ImGui::TextDisabled("Maximum type nesting reached");
+        return;
+    }
+
+    std::vector<TypeRef> choices = {
+        TypeRef(PinType::Any),
+        TypeRef(PinType::Bool),
+        TypeRef(PinType::Float),
+        TypeRef(PinType::String),
+        TypeRef(PinType::Range),
+        TypeRef::List(PinType::Any),
+        TypeRef::Function({}, {}),
+    };
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        const TypeRef classType =
+            TypeRef::Object(scriptClass->ID.id, scriptClass->Name);
+        choices.push_back(classType);
+    }
+
+    const std::string preview = type.ToString();
+    ImGui::SetNextItemWidth(-1.0f);
+    if (ImGui::BeginCombo("##type-kind", preview.c_str()))
+    {
+        for (const TypeRef& choice : choices)
+        {
+            const std::string label = choice.ToString();
+            const bool selected = type.kind == choice.kind &&
+                (choice.kind != PinType::Object ||
+                 type.classId == choice.classId);
+            if (ImGui::Selectable(label.c_str(), selected))
+            {
+                type = choice;
+                changed = true;
+            }
+            if (selected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    if (type.kind == PinType::List)
+    {
+        if (type.parameters.size() != 1)
+        {
+            type = TypeRef::List(PinType::Any);
+            changed = true;
+        }
+        ImGui::Indent();
+        ImGui::TextDisabled("Element type");
+        ImGui::PushID("list-element");
+        DrawTypeRefEditor(script, type.parameters[0], changed, depth + 1);
+        ImGui::PopID();
+        ImGui::Unindent();
+    }
+    else if (type.kind == PinType::Function)
+    {
+        int inputCount = type.functionInputCount;
+        if (inputCount < 0 || static_cast<size_t>(inputCount) > type.parameters.size())
+        {
+            inputCount = 0;
+            type.functionInputCount = 0;
+            changed = true;
+        }
+
+        ImGui::Indent();
+        ImGui::TextDisabled("Signature inputs");
+        for (int i = 0; i < inputCount;)
+        {
+            ImGui::PushID(i);
+            ImGui::TextDisabled("%d", i + 1);
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            DrawTypeRefEditor(script, type.parameters[static_cast<size_t>(i)],
+                              changed, depth + 1);
+            ImGui::EndGroup();
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Remove"))
+            {
+                type.parameters.erase(type.parameters.begin() + i);
+                --type.functionInputCount;
+                --inputCount;
+                changed = true;
+                ImGui::PopID();
+                continue;
+            }
+            ImGui::PopID();
+            ++i;
+        }
+        if (ImGui::SmallButton("+ Input"))
+        {
+            type.parameters.insert(
+                type.parameters.begin() + inputCount, TypeRef(PinType::Any));
+            ++type.functionInputCount;
+            ++inputCount;
+            changed = true;
+        }
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("Signature outputs");
+        for (size_t i = static_cast<size_t>(inputCount);
+             i < type.parameters.size();)
+        {
+            ImGui::PushID(static_cast<int>(i) + 1000);
+            ImGui::TextDisabled("%zu", i - static_cast<size_t>(inputCount) + 1);
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            DrawTypeRefEditor(script, type.parameters[i], changed, depth + 1);
+            ImGui::EndGroup();
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Remove"))
+            {
+                type.parameters.erase(type.parameters.begin() + i);
+                changed = true;
+                ImGui::PopID();
+                continue;
+            }
+            ImGui::PopID();
+            ++i;
+        }
+        if (ImGui::SmallButton("+ Output"))
+        {
+            type.parameters.push_back(TypeRef(PinType::Any));
+            changed = true;
+        }
+        ImGui::Unindent();
+    }
+}
+}
+
+void GraphViewUtils::DrawDeclaredTypeSelection(
+    const Script& script, const TypeRef& current,
+    std::function<void(TypeRef type)> onChange)
+{
+    ImGui::TextDisabled("TYPE");
+    TypeRef edited = current;
+    bool changed = false;
+    DrawTypeRefEditor(script, edited, changed, 0);
+    if (changed && edited != current)
+        onChange(std::move(edited));
 }

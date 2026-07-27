@@ -107,12 +107,19 @@ struct ForInNode : public Node
 static NodePtr BuildForInNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<ForInNode>(IDGenerator.GetNextId(), "For In");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Any);
+    node->Description = "Iterates over every value in a list, range, or string.";
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+        "Starts the loop.");
+    const TypeRef element = TypeRef::Variable("T");
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Iterable",
+        TypeRef::Iterable(element), "The list, range, or string to iterate.");
 
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Loop", PinType::Flow);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Any);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "End", PinType::Flow);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Loop", PinType::Flow,
+        "Executes once for each value.");
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", element,
+        "The value at the current iteration.");
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "End", PinType::Flow,
+        "Executes after iteration finishes.");
 
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(newList()));

@@ -87,5 +87,13 @@ static NodePtr CreateMultiplyNode(IDGenerator& IDGenerator) { return CreateBinar
 static NodePtr CreateDivideNode(IDGenerator& IDGenerator) { return CreateBinaryNode<DivideNode>(IDGenerator, "/", "", "", ""); }
 static NodePtr CreateGreaterNode(IDGenerator& IDGenerator) { return CreateBinaryNode<GreaterNode>(IDGenerator, ">", "", "", "", PinType::Bool); }
 static NodePtr CreateLessNode(IDGenerator& IDGenerator) { return CreateBinaryNode<LessNode>(IDGenerator, "<", "", "", "", PinType::Bool); }
-static NodePtr CreateEqualsNode(IDGenerator& IDGenerator) { return CreateBinaryNode<EqualsNode>(IDGenerator, "=", "", "", "", PinType::Bool, PinType::Any); }
+static NodePtr CreateEqualsNode(IDGenerator& IDGenerator)
+{
+    NodePtr node = CreateBinaryNode<EqualsNode>(
+        IDGenerator, "=", "", "", "", PinType::Bool, PinType::Any);
+    const TypeRef comparable = TypeRef::Variable("T");
+    node->Inputs[0].Type = node->Inputs[0].DeclaredType = comparable;
+    node->Inputs[1].Type = node->Inputs[1].DeclaredType = comparable;
+    return node;
+}
 static NodePtr CreateModuloNode(IDGenerator& IDGenerator) { return CreateBinaryNode<ModuloNode>(IDGenerator, "Mod", "Dividend", "Modulus", "Remainder"); }

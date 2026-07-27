@@ -62,6 +62,7 @@ struct ReturnNode : public Node
 
     virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
+        Description = "Returns from '" + pFunctionDef->name + "'.";
         // Add missing inputs
         const int startingInput = 1;
 
@@ -71,11 +72,14 @@ struct ReturnNode : public Node
 
             if (Pin* existingInput = FindInputByName(output.name))
             {
-                existingInput->Type = TypeOfValue(output.value);
+                existingInput->Type = existingInput->DeclaredType = output.type;
+                existingInput->Description = output.description;
             }
             else
             {
-                Inputs.insert(Inputs.begin() + startingInput + i, { IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value) });
+                Inputs.insert(Inputs.begin() + startingInput + i,
+                    { IDGenerator.GetNextId(), output.name.c_str(), output.type,
+                      output.description });
             }
         }
 
@@ -103,13 +107,16 @@ static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& f
 {
     NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return", function.functionDef);
     node->SerializationType = "return";
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Description = "Returns from '" + function.functionDef->name + "'.";
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+        "Returns when execution reaches this pin.");
     node->InputValues.emplace_back(Value());
 
     for (int i = 0; i < function.functionDef->outputs.size(); ++i)
     {
         const BasicFunctionDef::Input& output = function.functionDef->outputs[i];
-        node->Inputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), output.type,
+            output.description);
         node->InputValues.emplace_back(output.value);
     }
 

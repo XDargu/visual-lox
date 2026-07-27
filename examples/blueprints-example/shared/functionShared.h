@@ -13,48 +13,6 @@
 #include <vector>
 #include <memory>
 
-// TODO: Move somewhere else
-inline PinType TypeOfValue(const Value& value)
-{
-    switch (value.type)
-    {
-    case ValueType::NIL: return PinType::Any;
-    case ValueType::BOOL: return PinType::Bool;
-    case ValueType::NUMBER: return PinType::Float;
-    case ValueType::OBJ:
-    {
-        switch (asObject(value)->type)
-        {
-        case ObjType::STRING: return PinType::String;
-        case ObjType::LIST: return PinType::List;
-        case ObjType::RANGE: return PinType::Range;
-        case ObjType::CLASS: return PinType::Object;
-        case ObjType::INSTANCE: return PinType::Object;
-        case ObjType::FUNCTION: return PinType::Function;
-        case ObjType::CLOSURE: return PinType::Function;
-        }
-    }
-    }
-
-    return PinType::Error;
-}
-
-inline Value MakeValueFromType(PinType type)
-{
-    switch (type)
-    {
-        case PinType::Bool:     return Value(false);
-        case PinType::Float:    return Value(0.0);
-        case PinType::String:   return Value(takeString("", 0));
-        case PinType::List:     return Value(newList());
-        case PinType::Range:    return Value(newRange(0.0, 0.0));
-        case PinType::Function: return Value(newFunction());
-        case PinType::Any:      return Value();
-    }
-
-    return Value();
-}
-
 struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 {
     struct Input
@@ -62,14 +20,33 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
         std::string name;
         Value value;
         int id = -1;
+        TypeRef type;
+        std::string description;
+
+        Input() = default;
+        Input(std::string portName, Value defaultValue, int portId = -1,
+              std::string portDescription = {})
+            : name(std::move(portName)), value(defaultValue), id(portId),
+              type(TypeOfValue(defaultValue)),
+              description(std::move(portDescription))
+        {
+            if (type == PinType::Nil) type = PinType::Any;
+        }
+        Input(std::string portName, Value defaultValue, int portId, TypeRef declaredType,
+              std::string portDescription = {})
+            : name(std::move(portName)), value(defaultValue), id(portId),
+              type(std::move(declaredType)),
+              description(std::move(portDescription))
+        {}
     };
 
     struct DynamicInputProps
     {
         int minInputs = 1;
         int maxInputs = 16;
-        PinType type = PinType::Any;
+        TypeRef type = PinType::Any;
         Value defaultValue;
+        std::string description;
     };
 
     std::vector<Input> inputs;
@@ -80,6 +57,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     DynamicInputProps dynamicInputProps;
 
     std::string name;
+    std::string description;
 
     NodePtr MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID);
 

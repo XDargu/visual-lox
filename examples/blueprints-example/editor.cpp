@@ -97,25 +97,13 @@ Value CloneInspectorValue(const Value& source)
     return Value(clone);
 }
 
-const char* InspectorTypeName(PinType type)
+std::string InspectorTypeName(const TypeRef& type)
 {
-    switch (type)
-    {
-    case PinType::Bool: return "Bool";
-    case PinType::Float: return "Number";
-    case PinType::String: return "String";
-    case PinType::List: return "List";
-    case PinType::Function: return "Function";
-    case PinType::Range: return "Range";
-    case PinType::Object: return "Object";
-    case PinType::Any: return "Any";
-    case PinType::Flow: return "Flow";
-    default: return "Unknown";
-    }
+    return type.ToString();
 }
 
 bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange = true,
-                              int depth = 0)
+                              int depth = 0, const TypeRef* declaredType = nullptr)
 {
     bool changed = false;
     ImGui::PushID(id);
@@ -204,7 +192,8 @@ bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange
         ImGui::SameLine();
         if (ImGui::SmallButton(ICON_FA_PLUS " Add item"))
         {
-            list->append(Value());
+            list->append(declaredType && declaredType->kind == PinType::List
+                ? MakeValueFromType(declaredType->ElementType()) : Value());
             changed = true;
         }
 
@@ -232,7 +221,13 @@ bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange
                     break;
                 }
                 Value item = CloneInspectorValue(list->items[i]);
-                if (DrawInspectorValueEditor("item", item, true, depth + 1))
+                const TypeRef* elementType =
+                    declaredType && declaredType->kind == PinType::List
+                    ? &declaredType->ElementType() : nullptr;
+                if (DrawInspectorValueEditor(
+                        "item", item,
+                        !elementType || elementType->kind == PinType::Any,
+                        depth + 1, elementType))
                 {
                     list->setValue(i, item);
                     changed = true;
@@ -1184,7 +1179,7 @@ void Example::ShowInspector()
                         ImGui::Separator();
                         ImGui::TextUnformatted(input.Name.empty() ? "Input" : input.Name.c_str());
                         ImGui::SameLine();
-                        ImGui::TextDisabled("%s", InspectorTypeName(input.Type));
+                        ImGui::TextDisabled("%s", InspectorTypeName(input.Type).c_str());
 
                         const bool linked = m_graphView.m_pGraph->IsPinLinked(input.ID);
                         if (input.Type == PinType::Flow)
@@ -1199,7 +1194,8 @@ void Example::ShowInspector()
                         {
                             Value value = CloneInspectorValue(node->InputValues[i]);
                             if (DrawInspectorValueEditor(
-                                    "node-input", value, input.Type == PinType::Any))
+                                    "node-input", value, input.Type == PinType::Any,
+                                    0, &input.Type))
                             {
                                 const int functionId =
                                     m_graphView.m_pScriptFunction->ID.id;
@@ -1229,7 +1225,7 @@ void Example::ShowInspector()
                         ImGui::BulletText("%s", output.Name.empty()
                             ? "Output" : output.Name.c_str());
                         ImGui::SameLine();
-                        ImGui::TextDisabled("%s", InspectorTypeName(output.Type));
+                        ImGui::TextDisabled("%s", InspectorTypeName(output.Type).c_str());
                     }
                 }
 
@@ -1427,10 +1423,63 @@ void Example::ShowInspector()
             }
         }
 
+        std::string description = property->Description;
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::InputTextMultiline(
+                "Description", &description, ImVec2(-1.0f, 72.0f)))
+        {
+            const int propertyId = property->ID.id;
+            if (owner)
+            {
+                const int classId = owner->ID.id;
+                queueOperation("Property description updated",
+                    [this, classId, propertyId, description]()
+                    {
+                        return m_operations->ChangeClassPropertyDescription(
+                            classId, propertyId, description);
+                    }, true);
+            }
+            else
+            {
+                queueOperation("Variable description updated",
+                    [this, propertyId, description]()
+                    {
+                        return m_operations->ChangeVariableDescription(
+                            propertyId, description);
+                    }, true);
+            }
+        }
+
+        ImGui::Spacing();
+        GraphViewUtils::DrawDeclaredTypeSelection(
+            m_script, property->type,
+            [this, owner, propertyId = property->ID.id, &queueOperation](TypeRef type)
+            {
+                if (owner)
+                {
+                    const int classId = owner->ID.id;
+                    queueOperation("Property type updated",
+                        [this, classId, propertyId, type]()
+                        {
+                            return m_operations->ChangeClassPropertyType(
+                                classId, propertyId, type);
+                        }, true);
+                }
+                else
+                {
+                    queueOperation("Variable type updated",
+                        [this, propertyId, type]()
+                        {
+                            return m_operations->ChangeVariableType(propertyId, type);
+                        }, true);
+                }
+            });
         ImGui::Spacing();
         ImGui::TextDisabled("DEFAULT VALUE");
         Value value = CloneInspectorValue(property->defaultValue);
-        if (DrawInspectorValueEditor("property-value", value))
+        if (DrawInspectorValueEditor(
+                "property-value", value, property->type == PinType::Any,
+                0, &property->type))
         {
             const int propertyId = property->ID.id;
             if (owner)
@@ -1498,6 +1547,20 @@ void Example::ShowInspector()
         if (owner)
             ImGui::TextDisabled("Class: %s", owner->Name.c_str());
 
+        const int functionId = function->ID.id;
+        std::string functionDescription = function->functionDef->description;
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::InputTextMultiline(
+                "Description", &functionDescription, ImVec2(-1.0f, 72.0f)))
+        {
+            queueOperation("Function description updated",
+                [this, functionId, functionDescription]()
+                {
+                    return m_operations->ChangeFunctionDescription(
+                        functionId, functionDescription);
+                }, true);
+        }
+
         if (isMain)
         {
             ImGui::Spacing();
@@ -1536,7 +1599,25 @@ void Example::ShowInspector()
             }
         }
 
-        const int functionId = function->ID.id;
+        if (!isConstructor)
+        {
+            bool pure = HasFlag(
+                function->functionDef->flags, NodeDefinitionFlags::Pure);
+            if (ImGui::Checkbox("Pure", &pure))
+            {
+                queueOperation(pure ? "Function marked pure"
+                                    : "Function marked impure",
+                    [this, functionId, pure]()
+                    {
+                        return m_operations->ChangeFunctionPurity(
+                            functionId, pure);
+                    }, true);
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(
+                    "Pure graphs can only contain pure nodes and call pure functions.");
+        }
+
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("Inputs", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -1562,15 +1643,42 @@ void Example::ShowInspector()
                                 functionId, inputId, inputName);
                         }, true);
                 }
+                GraphViewUtils::DrawDeclaredTypeSelection(
+                    m_script, input.type,
+                    [this, functionId, inputId = input.id, &queueOperation](TypeRef type)
+                    {
+                        queueOperation("Input type updated",
+                            [this, functionId, inputId, type]()
+                            {
+                                return m_operations->ChangeFunctionInputType(
+                                    functionId, inputId, type);
+                            }, true);
+                    });
                 Value value = CloneInspectorValue(input.value);
-                if (DrawInspectorValueEditor("input-default", value))
+                if (DrawInspectorValueEditor(
+                        "input-default", value, input.type == PinType::Any,
+                        0, &input.type))
                 {
                     queueOperation("Input default updated",
                         [this, functionId, inputId = input.id, value]()
                         {
                             return m_operations->ChangeFunctionInputValue(
                                 functionId, inputId, value);
-                        });
+                    });
+                }
+                std::string inputDescription = input.description;
+                ImGui::SetNextItemWidth(-1.0f);
+                if (ImGui::InputTextMultiline(
+                        "##input-description", &inputDescription,
+                        ImVec2(-1.0f, 54.0f)))
+                {
+                    queueOperation("Input description updated",
+                        [this, functionId, inputId = input.id,
+                         inputDescription]()
+                        {
+                            return m_operations->ChangeFunctionInputDescription(
+                                functionId, inputId, inputDescription);
+                        }, true);
                 }
                 if (ImGui::Button(ICON_FA_TRASH_CAN " Remove input"))
                 {
@@ -1610,15 +1718,42 @@ void Example::ShowInspector()
                                 functionId, outputId, outputName);
                         }, true);
                 }
+                GraphViewUtils::DrawDeclaredTypeSelection(
+                    m_script, output.type,
+                    [this, functionId, outputId = output.id, &queueOperation](TypeRef type)
+                    {
+                        queueOperation("Output type updated",
+                            [this, functionId, outputId, type]()
+                            {
+                                return m_operations->ChangeFunctionOutputType(
+                                    functionId, outputId, type);
+                            }, true);
+                    });
                 Value value = CloneInspectorValue(output.value);
-                if (DrawInspectorValueEditor("output-default", value))
+                if (DrawInspectorValueEditor(
+                        "output-default", value, output.type == PinType::Any,
+                        0, &output.type))
                 {
                     queueOperation("Output default updated",
                         [this, functionId, outputId = output.id, value]()
                         {
                             return m_operations->ChangeFunctionOutputValue(
                                 functionId, outputId, value);
-                        });
+                    });
+                }
+                std::string outputDescription = output.description;
+                ImGui::SetNextItemWidth(-1.0f);
+                if (ImGui::InputTextMultiline(
+                        "##output-description", &outputDescription,
+                        ImVec2(-1.0f, 54.0f)))
+                {
+                    queueOperation("Output description updated",
+                        [this, functionId, outputId = output.id,
+                         outputDescription]()
+                        {
+                            return m_operations->ChangeFunctionOutputDescription(
+                                functionId, outputId, outputDescription);
+                        }, true);
                 }
                 if (ImGui::Button(ICON_FA_TRASH_CAN " Remove output"))
                 {
@@ -2618,23 +2753,7 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
             ImGui::SameLine();
-            ImGui::SetItemAllowOverlap();
-            Value tmp = pVar->defaultValue;
-            const bool valueChanged = GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
-            if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
-                m_operations->BeginTransaction("Edit variable value");
-            if (valueChanged)
-            {
-                pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, tmp));
-            }
-            if (ImGui::IsItemDeactivatedAfterEdit())
-                m_commitPendingEdit = true;
-            ImGui::SameLine();
-            ImGui::SetItemAllowOverlap();
-            GraphViewUtils::DrawTypeSelection(pVar->defaultValue, [&](PinType newType)
-            {
-                pendingActions.push_back(std::make_shared<ChangeVariableValueAction>(this, varId, MakeValueFromType(newType)));
-            });
+            ImGui::TextDisabled("%s", pVar->type.ToString().c_str());
         }
     };
     if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
@@ -2680,29 +2799,8 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
             if (BasicFunctionDef::Input* pInput =
                     pFun->functionDef->FindInputByID(inputId))
             {
-                Value& inputValue = pInput->value;
                 ImGui::SameLine();
-                ImGui::SetItemAllowOverlap();
-                Value tmp = inputValue;
-                const bool valueChanged =
-                    GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
-                if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
-                    m_operations->BeginTransaction("Edit function input value");
-                if (valueChanged)
-                    pendingActions.push_back(
-                        std::make_shared<ChangeFunctionInputValueAction>(
-                            this, funId, inputId, tmp));
-                if (ImGui::IsItemDeactivatedAfterEdit())
-                    m_commitPendingEdit = true;
-                ImGui::SameLine();
-                ImGui::SetItemAllowOverlap();
-                GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
-                {
-                    Value value = MakeValueFromType(newType);
-                    pendingActions.push_back(
-                        std::make_shared<ChangeFunctionInputValueAction>(
-                            this, funId, inputId, value));
-                });
+                ImGui::TextDisabled("%s", pInput->type.ToString().c_str());
             }
         }
     };
@@ -2745,29 +2843,8 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
             if (BasicFunctionDef::Input* pOutput =
                     pFun->functionDef->FindOutputByID(outputId))
             {
-                Value& outputValue = pOutput->value;
                 ImGui::SameLine();
-                ImGui::SetItemAllowOverlap();
-                Value tmp = outputValue;
-                const bool valueChanged =
-                    GraphViewUtils::DrawTypeInput(TypeOfValue(tmp), tmp);
-                if (ImGui::IsItemActivated() && !m_operations->IsTransactionActive())
-                    m_operations->BeginTransaction("Edit function output value");
-                if (valueChanged)
-                    pendingActions.push_back(
-                        std::make_shared<ChangeFunctionOutputValueAction>(
-                            this, funId, outputId, tmp));
-                if (ImGui::IsItemDeactivatedAfterEdit())
-                    m_commitPendingEdit = true;
-                ImGui::SameLine();
-                ImGui::SetItemAllowOverlap();
-                GraphViewUtils::DrawTypeSelection(outputValue, [&](PinType newType)
-                {
-                    Value value = MakeValueFromType(newType);
-                    pendingActions.push_back(
-                        std::make_shared<ChangeFunctionOutputValueAction>(
-                            this, funId, outputId, value));
-                });
+                ImGui::TextDisabled("%s", pOutput->type.ToString().c_str());
             }
         }
     };
@@ -3158,7 +3235,8 @@ void Example::EnsureMainSignature()
     const int argumentsId = definition.inputs.empty()
         ? m_IDGenerator.GetNextId() : definition.inputs.front().id;
     definition.inputs = {
-        { "Arguments", Value(newList()), argumentsId }
+        { "Arguments", Value(newList()), argumentsId,
+          TypeRef::List(PinType::String) }
     };
     definition.outputs.clear();
 
@@ -3182,12 +3260,14 @@ void Example::EnsureMainSignature()
     if (argumentsPin)
     {
         argumentsPin->Name = "Arguments";
-        argumentsPin->Type = PinType::List;
+        argumentsPin->Type = argumentsPin->DeclaredType =
+            TypeRef::List(PinType::String);
     }
     else
     {
         begin->Outputs.emplace_back(
-            m_IDGenerator.GetNextId(), "Arguments", PinType::List);
+            m_IDGenerator.GetNextId(), "Arguments",
+            TypeRef::List(PinType::String));
     }
 
     for (const ed::PinId pinId : removedPins)
@@ -3501,25 +3581,7 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
         ScriptPropertyPtr current = ScriptUtils::FindClassPropertyById(m_script, id);
         if (!current) return;
         ImGui::SameLine();
-        Value value = current->defaultValue;
-        if (GraphViewUtils::DrawTypeInput(TypeOfValue(value), value))
-            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, value]()
-            {
-                const OperationResult result = m_operations->ChangeClassPropertyValue(classId, id, value);
-                m_fileStatusIsError = !result;
-                if (!result) m_fileStatus = result.error;
-            }));
-        ImGui::SameLine();
-        GraphViewUtils::DrawTypeSelection(current->defaultValue, [this, classId, id](PinType type)
-        {
-            Value value = MakeValueFromType(type);
-            pendingActions.push_back(std::make_shared<DeferredAction>([this, classId, id, value]()
-            {
-                const OperationResult result = m_operations->ChangeClassPropertyValue(classId, id, value);
-                m_fileStatusIsError = !result;
-                if (!result) m_fileStatus = result.error;
-            }));
-        });
+        ImGui::TextDisabled("%s", current->type.ToString().c_str());
     };
     return node;
 }

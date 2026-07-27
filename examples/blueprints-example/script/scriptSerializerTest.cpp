@@ -80,14 +80,37 @@ struct SerializerFixture
         mainBegin->State = "{\"location\": [20, 40]}";
         AttachNode(script.main->Graph, mainBegin);
 
+        ScriptClassPtr student =
+            std::make_shared<ScriptClass>(ids.GetNextId(), "Student");
+        script.classes.push_back(student);
+
         ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), "Samples");
+        property->Description = "Mixed sample values.";
         ObjList* nested = newList();
         nested->append(Value(true));
         nested->append(Value(42.5));
         nested->append(Value(copyString("hello", 5)));
+        property->type = TypeRef::List(PinType::Any);
         property->defaultValue = Value(nested);
         script.variables.push_back(property);
         AttachNode(script.main->Graph, BuildGetVariableNode(ids, property));
+        ScriptPropertyPtr advisor =
+            std::make_shared<ScriptProperty>(ids.GetNextId(), "Advisor");
+        advisor->Description = "A student advisor, or nil.";
+        advisor->type = TypeRef::Object(student->ID.id, student->Name);
+        advisor->defaultValue = Value();
+        script.variables.push_back(advisor);
+        ScriptPropertyPtr sorter =
+            std::make_shared<ScriptProperty>(ids.GetNextId(), "Sorter");
+        sorter->Description = "A typed higher-order sorting function.";
+        sorter->type = TypeRef::Function(
+            { TypeRef::List(PinType::String),
+              TypeRef::Function(
+                  { PinType::String, PinType::String },
+                  { PinType::Bool }) },
+            { TypeRef::List(PinType::String) });
+        sorter->defaultValue = Value();
+        script.variables.push_back(sorter);
 
         const CompiledNodeDefPtr addDefinition = registry.FindCompiled("Math::Add");
         Require(static_cast<bool>(addDefinition), "Compiled definition was not registered.");
@@ -103,10 +126,14 @@ struct SerializerFixture
         AttachNode(script.main->Graph, square);
 
         ScriptFunctionPtr function = std::make_shared<ScriptFunction>(ids.GetNextId(), "Echo");
+        function->functionDef->description = "Returns the supplied text.";
+        function->functionDef->flags |= NodeDefinitionFlags::Pure;
         function->functionDef->inputs.push_back(
-            { "Value", Value(copyString("default", 7)), ids.GetNextId() });
+            { "Value", Value(copyString("default", 7)), ids.GetNextId(),
+              "Text to return." });
         function->functionDef->outputs.push_back(
-            { "Result", Value(copyString("", 0)), ids.GetNextId() });
+            { "Result", Value(copyString("", 0)), ids.GetNextId(),
+              "The returned text." });
         NodePtr begin = BuildBeginNode(ids, function);
         NodePtr returnNode = BuildReturnNode(ids, *function);
         AttachNode(function->Graph, begin);
@@ -157,11 +184,44 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     Require(fixture.loaded.functions.size() == 1, "Function count changed.");
     Require(fixture.loaded.functions[0]->Graph.GetLinks().size() == 2,
             "Function graph links were not restored.");
-    Require(fixture.loaded.variables.size() == 1 &&
+    Require(fixture.loaded.variables.size() == 3 &&
             isList(fixture.loaded.variables[0]->defaultValue),
             "List property was not restored.");
     Require(asList(fixture.loaded.variables[0]->defaultValue)->items.size() == 3,
             "List property contents changed.");
+    Require(fixture.loaded.variables[0]->type == TypeRef::List(PinType::Any),
+            "The variable declaration type changed.");
+    Require(fixture.loaded.classes.size() == 1 &&
+            fixture.loaded.variables[1]->type ==
+                TypeRef::Object(
+                    fixture.loaded.classes[0]->ID.id, "Student") &&
+            isNil(fixture.loaded.variables[1]->defaultValue),
+            "Nil-capable script-class types changed.");
+    Require(fixture.loaded.variables[2]->type.kind == PinType::Function &&
+            fixture.loaded.variables[2]->type.parameters.size() == 3 &&
+            fixture.loaded.variables[2]->type.parameters[1].kind ==
+                PinType::Function,
+            "Nested function signatures changed.");
+    Require(fixture.loaded.variables[0]->Description ==
+                "Mixed sample values." &&
+            fixture.loaded.functions[0]->functionDef->description ==
+                "Returns the supplied text." &&
+            fixture.loaded.functions[0]->functionDef->inputs[0].description ==
+                "Text to return.",
+            "Script and port descriptions changed.");
+    Require(HasFlag(fixture.loaded.functions[0]->functionDef->flags,
+                    NodeDefinitionFlags::Pure),
+            "Script function purity changed.");
+    const NodePtr loadedVariable = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->SerializationType == "variable.get"; });
+    Require(loadedVariable && loadedVariable->Outputs[0].DeclaredType ==
+                TypeRef::List(PinType::Any),
+            "The pin declaration type changed.");
+    const NodePtr loadedFunction = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->SerializationType == "function.get"; });
+    Require(loadedFunction && loadedFunction->Outputs[0].Type.kind == PinType::Function &&
+            !loadedFunction->Outputs[0].Type.parameters.empty(),
+            "First-class function signatures were not restored.");
     Require(fixture.loadedIds.PeekNextId() == fixture.ids.PeekNextId(),
             "ID generator did not resume after the maximum persisted ID.");
 }

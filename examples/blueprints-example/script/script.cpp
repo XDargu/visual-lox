@@ -224,6 +224,7 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
                 NodeUtils::BuildNode(node);
             }
         }
+        pFunction->Graph.RefreshTypes();
     }
 
     std::vector<NodePtr> nodeRefs = ScriptUtils::FindFunctionReferences(script, funId);
@@ -242,6 +243,16 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
             NodeUtils::BuildNode(node);
         }
     }
+
+    if (script.main) script.main->Graph.RefreshTypes();
+    for (const ScriptFunctionPtr& function : script.functions)
+        function->Graph.RefreshTypes();
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor) scriptClass->constructor->Graph.RefreshTypes();
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            method->Graph.RefreshTypes();
+    }
 }
 
 void ScriptUtils::RefreshVariableRefs(Script& script, int varId, IDGenerator& IDGenerator)
@@ -251,6 +262,15 @@ void ScriptUtils::RefreshVariableRefs(Script& script, int varId, IDGenerator& ID
     {
         node->Refresh(script, IDGenerator);
         NodeUtils::BuildNode(node);
+    }
+    if (script.main) script.main->Graph.RefreshTypes();
+    for (const ScriptFunctionPtr& function : script.functions)
+        function->Graph.RefreshTypes();
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor) scriptClass->constructor->Graph.RefreshTypes();
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            method->Graph.RefreshTypes();
     }
 }
 

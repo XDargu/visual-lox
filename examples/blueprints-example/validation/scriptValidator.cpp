@@ -30,6 +30,8 @@ void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
                    bool isConstructor = false)
 {
     const Graph& graph = function.Graph;
+    const bool pureGraph = function.functionDef &&
+        HasFlag(function.functionDef->flags, NodeDefinitionFlags::Pure);
     const std::string graphName = function.functionDef ? function.functionDef->name : "<unnamed>";
     const auto add = [&](DiagnosticSeverity severity, const char* code, std::string message,
                          ed::NodeId nodeId = 0, ed::PinId pinId = 0, ed::LinkId linkId = 0)
@@ -88,6 +90,12 @@ void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
         if (isConstructor && node->Category == NodeCategory::Return)
             add(DiagnosticSeverity::Error, "constructor-return",
                 "Constructors return their instance implicitly and cannot contain Return nodes.", node->ID);
+        if (pureGraph && node->Category != NodeCategory::Begin &&
+            node->Category != NodeCategory::Return &&
+            node->Type != NodeType::Comment && !node->IsPure())
+            add(DiagnosticSeverity::Error, "impure-node",
+                "Pure graphs cannot contain the non-pure node '" +
+                node->Name + "'.", node->ID);
         for (const Pin& pin : node->Inputs)
         {
             claimId(IdValue(pin.ID), "Input pin", node->ID, pin.ID);
@@ -259,6 +267,35 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         else if (!documentIds.insert(static_cast<RawId>(id)).second)
             addScriptError("duplicate-id", std::string(kind) + " reuses document ID " + std::to_string(id) + ".");
     };
+    std::set<int> classIds;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+        if (scriptClass) classIds.insert(scriptClass->ID.id);
+    const auto validateDeclaredType = [&](const TypeRef& type, const std::string& owner,
+                                          const auto& self) -> void
+    {
+        if (type.kind == PinType::Flow || type.kind == PinType::Error ||
+            type.kind == PinType::TypeVariable)
+            addScriptError("invalid-type",
+                owner + " has invalid declared type '" + type.ToString() + "'.");
+        if (type.kind == PinType::Iterable)
+            addScriptError("invalid-type",
+                owner + " uses an internal iterable constraint as a declaration.");
+        if (type.kind == PinType::List && type.parameters.size() != 1)
+            addScriptError("invalid-type",
+                owner + " has a malformed " + type.ToString() + " declaration.");
+        if (type.kind == PinType::Object && type.classId >= 0 &&
+            classIds.count(type.classId) == 0)
+            addScriptError("missing-type",
+                owner + " references a class type that no longer exists.");
+        if (type.kind == PinType::Function &&
+            (type.functionInputCount < 0 ||
+             static_cast<size_t>(type.functionInputCount) > type.parameters.size()) &&
+            !type.parameters.empty())
+            addScriptError("invalid-type",
+                owner + " has a malformed function signature.");
+        for (const TypeRef& parameter : type.parameters)
+            self(parameter, owner, self);
+    };
 
     claimScriptId(script.ID.id, "Script");
     if (!script.main)
@@ -274,6 +311,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             continue;
         }
         claimScriptId(variable->ID.id, "Variable");
+        validateDeclaredType(variable->type, "Variable '" + variable->Name + "'",
+                             validateDeclaredType);
         if (!variableNames.insert(variable->Name).second)
             addScriptError("duplicate-variable", "Duplicate variable name '" + variable->Name + "'.");
     }
@@ -297,6 +336,9 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         for (const BasicFunctionDef::Input& input : function->functionDef->inputs)
         {
             claimScriptId(input.id, "Function input");
+            validateDeclaredType(input.type,
+                "Input '" + input.name + "' of function '" +
+                function->functionDef->name + "'", validateDeclaredType);
             if (!inputNames.insert(input.name).second)
                 addScriptError("duplicate-input", "Function '" + function->functionDef->name +
                     "' has duplicate input name '" + input.name + "'.");
@@ -304,12 +346,20 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         for (const BasicFunctionDef::Input& output : function->functionDef->outputs)
         {
             claimScriptId(output.id, "Function output");
+            validateDeclaredType(output.type,
+                "Output '" + output.name + "' of function '" +
+                function->functionDef->name + "'", validateDeclaredType);
             if (!outputNames.insert(output.name).second)
                 addScriptError("duplicate-output", "Function '" + function->functionDef->name +
                     "' has duplicate output name '" + output.name + "'.");
         }
         if (isConstructor && !function->functionDef->outputs.empty())
             addScriptError("constructor-output", "Constructors cannot declare output values.");
+        if ((isMain || isConstructor) &&
+            HasFlag(function->functionDef->flags, NodeDefinitionFlags::Pure))
+            addScriptError("invalid-purity",
+                std::string(isMain ? "Main" : "A constructor") +
+                " cannot be marked pure.");
         ValidateGraph(*function, report, documentIds, isClassFunction, isConstructor);
     };
 
@@ -343,6 +393,9 @@ ValidationReport ScriptValidator::Validate(const Script& script)
                 continue;
             }
             claimScriptId(property->ID.id, "Class property");
+            validateDeclaredType(property->type,
+                "Property '" + property->Name + "' of class '" +
+                scriptClass->Name + "'", validateDeclaredType);
             if (!propertyNames.insert(property->Name).second)
                 addScriptError("duplicate-property", "Class '" + scriptClass->Name +
                     "' has duplicate property '" + property->Name + "'.");

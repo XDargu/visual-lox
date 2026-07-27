@@ -516,6 +516,37 @@ OperationResult DocumentOperations::RenameFunction(int id, const std::string& na
     });
 }
 
+OperationResult DocumentOperations::ChangeFunctionDescription(
+    int id, const std::string& description)
+{
+    ScriptFunctionPtr function = FindFunction(id);
+    if (!function) return Missing("Function", id);
+    return Apply("Change function description", [&]
+    {
+        function->functionDef->description = description;
+        ScriptUtils::RefreshFunctionRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionPurity(int id, bool pure)
+{
+    ScriptFunctionPtr function = FindFunction(id);
+    if (!function) return Missing("Function", id);
+    if ((m_script.main && m_script.main->ID == id) ||
+        (ScriptUtils::FindOwningClass(m_script, id) &&
+         ScriptUtils::FindOwningClass(m_script, id)->constructor == function))
+        return OperationResult::Fail("Main and constructors cannot be marked pure.");
+    return Apply(pure ? "Mark function pure" : "Mark function impure", [&]
+    {
+        function->functionDef->flags = pure
+            ? function->functionDef->flags | NodeDefinitionFlags::Pure
+            : ClearFlag(function->functionDef->flags, NodeDefinitionFlags::Pure);
+        ScriptUtils::RefreshFunctionRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::AddClass(int id, const std::string& name)
 {
     if (ScriptUtils::FindClassById(m_script, id))
@@ -551,6 +582,48 @@ OperationResult DocumentOperations::RenameClass(int id, const std::string& name)
     return Apply("Rename class", [&]
     {
         scriptClass->Name = name;
+        const auto renameType = [&](TypeRef& root, const auto& self) -> void
+        {
+            if (root.kind == PinType::Object && root.classId == id)
+                root.name = name;
+            for (TypeRef& parameter : root.parameters)
+                self(parameter, self);
+        };
+        const auto renameProperty = [&](const ScriptPropertyPtr& property)
+        {
+            if (property) renameType(property->type, renameType);
+        };
+        for (const ScriptPropertyPtr& variable : m_script.variables)
+            renameProperty(variable);
+        const auto renameFunction = [&](const ScriptFunctionPtr& function)
+        {
+            if (!function) return;
+            for (auto& input : function->functionDef->inputs)
+                renameType(input.type, renameType);
+            for (auto& output : function->functionDef->outputs)
+                renameType(output.type, renameType);
+            for (const ScriptPropertyPtr& variable : function->variables)
+                renameProperty(variable);
+            for (const NodePtr& node : function->Graph.GetNodes())
+            {
+                for (Pin& input : node->Inputs)
+                    renameType(input.DeclaredType, renameType);
+                for (Pin& output : node->Outputs)
+                    renameType(output.DeclaredType, renameType);
+            }
+            function->Graph.RefreshTypes();
+        };
+        renameFunction(m_script.main);
+        for (const ScriptFunctionPtr& function : m_script.functions)
+            renameFunction(function);
+        for (const ScriptClassPtr& current : m_script.classes)
+        {
+            for (const ScriptPropertyPtr& property : current->properties)
+                renameProperty(property);
+            renameFunction(current->constructor);
+            for (const ScriptFunctionPtr& method : current->methods)
+                renameFunction(method);
+        }
         ScriptUtils::RefreshFunctionRefs(m_script, id, m_ids);
         return OperationResult::Ok();
     });
@@ -566,6 +639,8 @@ OperationResult DocumentOperations::AddClassProperty(int classId, int propertyId
     return Apply("Add class property", [&]
     {
         ScriptPropertyPtr property = std::make_shared<ScriptProperty>(propertyId, name.c_str());
+        property->type = TypeOfValue(value);
+        if (property->type == PinType::Nil) property->type = PinType::Any;
         property->defaultValue = value;
         scriptClass->properties.push_back(property);
         return OperationResult::Ok();
@@ -600,6 +675,20 @@ OperationResult DocumentOperations::RenameClassProperty(int classId, int propert
     });
 }
 
+OperationResult DocumentOperations::ChangeClassPropertyDescription(
+    int classId, int propertyId, const std::string& description)
+{
+    if (!ScriptUtils::FindClassById(m_script, classId)) return Missing("Class", classId);
+    ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(m_script, propertyId);
+    if (!property) return Missing("Class property", propertyId);
+    return Apply("Change class property description", [&]
+    {
+        property->Description = description;
+        ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::ChangeClassPropertyValue(int classId, int propertyId,
                                                                const Value& value)
 {
@@ -609,6 +698,21 @@ OperationResult DocumentOperations::ChangeClassPropertyValue(int classId, int pr
     return Apply("Change class property value", [&]
     {
         property->defaultValue = value;
+        ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeClassPropertyType(
+    int classId, int propertyId, const TypeRef& type)
+{
+    if (!ScriptUtils::FindClassById(m_script, classId)) return Missing("Class", classId);
+    ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(m_script, propertyId);
+    if (!property) return Missing("Class property", propertyId);
+    return Apply("Change class property type", [&]
+    {
+        property->type = type;
+        property->defaultValue = MakeValueFromType(type);
         ScriptUtils::RefreshVariableRefs(m_script, propertyId, m_ids);
         return OperationResult::Ok();
     });
@@ -686,6 +790,8 @@ OperationResult DocumentOperations::AddVariable(int id, const std::string& name,
     return Apply("Add variable", [&]
     {
         ScriptPropertyPtr variable = std::make_shared<ScriptProperty>(id, name.c_str());
+        variable->type = TypeOfValue(value);
+        if (variable->type == PinType::Nil) variable->type = PinType::Any;
         variable->defaultValue = value;
         m_script.variables.push_back(variable);
         return OperationResult::Ok();
@@ -715,6 +821,19 @@ OperationResult DocumentOperations::RenameVariable(int id, const std::string& na
     });
 }
 
+OperationResult DocumentOperations::ChangeVariableDescription(
+    int id, const std::string& description)
+{
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(m_script, id);
+    if (!variable) return Missing("Variable", id);
+    return Apply("Change variable description", [&]
+    {
+        variable->Description = description;
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::ChangeVariableValue(int id, const Value& value)
 {
     ScriptPropertyPtr variable = ScriptUtils::FindVariableById(m_script, id);
@@ -722,6 +841,19 @@ OperationResult DocumentOperations::ChangeVariableValue(int id, const Value& val
     return Apply("Change variable value", [&]
     {
         variable->defaultValue = value;
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeVariableType(int id, const TypeRef& type)
+{
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(m_script, id);
+    if (!variable) return Missing("Variable", id);
+    return Apply("Change variable type", [&]
+    {
+        variable->type = type;
+        variable->defaultValue = MakeValueFromType(type);
         ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
         return OperationResult::Ok();
     });
@@ -772,6 +904,23 @@ OperationResult DocumentOperations::RenameFunctionInput(int functionId, int inpu
     });
 }
 
+OperationResult DocumentOperations::ChangeFunctionInputDescription(
+    int functionId, int inputId, const std::string& description)
+{
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
+    ScriptFunctionPtr function = FindFunction(functionId);
+    BasicFunctionDef::Input* port =
+        function ? function->functionDef->FindInputByID(inputId) : nullptr;
+    if (!port) return Missing("Function input", inputId);
+    return Apply("Change function input description", [&]
+    {
+        port->description = description;
+        ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::ChangeFunctionInputValue(int functionId, int inputId, const Value& value)
 {
     if (m_script.main && m_script.main->ID == functionId)
@@ -782,6 +931,23 @@ OperationResult DocumentOperations::ChangeFunctionInputValue(int functionId, int
     return Apply("Change function input", [&]
     {
         port->value = value;
+        ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionInputType(
+    int functionId, int inputId, const TypeRef& type)
+{
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main inputs are fixed to the program arguments list.");
+    ScriptFunctionPtr function = FindFunction(functionId);
+    BasicFunctionDef::Input* port = function ? function->functionDef->FindInputByID(inputId) : nullptr;
+    if (!port) return Missing("Function input", inputId);
+    return Apply("Change function input type", [&]
+    {
+        port->type = type;
+        port->value = MakeValueFromType(type);
         ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
         return OperationResult::Ok();
     });
@@ -832,6 +998,23 @@ OperationResult DocumentOperations::RenameFunctionOutput(int functionId, int out
     });
 }
 
+OperationResult DocumentOperations::ChangeFunctionOutputDescription(
+    int functionId, int outputId, const std::string& description)
+{
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
+    ScriptFunctionPtr function = FindFunction(functionId);
+    BasicFunctionDef::Input* port =
+        function ? function->functionDef->FindOutputByID(outputId) : nullptr;
+    if (!port) return Missing("Function output", outputId);
+    return Apply("Change function output description", [&]
+    {
+        port->description = description;
+        ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::ChangeFunctionOutputValue(int functionId, int outputId, const Value& value)
 {
     if (m_script.main && m_script.main->ID == functionId)
@@ -842,6 +1025,23 @@ OperationResult DocumentOperations::ChangeFunctionOutputValue(int functionId, in
     return Apply("Change function output", [&]
     {
         port->value = value;
+        ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionOutputType(
+    int functionId, int outputId, const TypeRef& type)
+{
+    if (m_script.main && m_script.main->ID == functionId)
+        return OperationResult::Fail("Main does not expose configurable outputs.");
+    ScriptFunctionPtr function = FindFunction(functionId);
+    BasicFunctionDef::Input* port = function ? function->functionDef->FindOutputByID(outputId) : nullptr;
+    if (!port) return Missing("Function output", outputId);
+    return Apply("Change function output type", [&]
+    {
+        port->type = type;
+        port->value = MakeValueFromType(type);
         ScriptUtils::RefreshFunctionRefs(m_script, functionId, m_ids);
         return OperationResult::Ok();
     });

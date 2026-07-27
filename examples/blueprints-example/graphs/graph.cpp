@@ -5,6 +5,7 @@
 #include <Compiler.h>
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <utility>
 
@@ -130,13 +131,16 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
         return ELinkQueryResult::SelfConnection;
     }
 
-    if (!GraphUtils::AreTypesCompatible(a->Type, b->Type))
-    {
-        return ELinkQueryResult::IncompatibleType;
-    }
-
     const Pin& input = a->Kind == PinKind::Input ? *a : *b;
     const Pin& output = a->Kind == PinKind::Output ? *a : *b;
+
+    const bool replacesIterableConstraint =
+        input.DeclaredType.kind == PinType::Iterable &&
+        IsPinLinked(input.ID) &&
+        GraphUtils::AreTypesCompatible(output.Type, input.DeclaredType);
+    if (!GraphUtils::AreTypesCompatible(output.Type, input.Type) &&
+        !replacesIterableConstraint)
+        return ELinkQueryResult::IncompatibleType;
 
     auto aProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == a->Node->ID; });
     auto bProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == b->Node->ID; });
@@ -176,6 +180,7 @@ bool Graph::DeleteNode(ed::NodeId id)
         return pins.find(link.StartPinID.Get()) != pins.end() || pins.find(link.EndPinID.Get()) != pins.end();
     }), m_Links.end());
     m_Nodes.erase(nodeIt);
+    RefreshTypes();
     return true;
 }
 
@@ -183,12 +188,16 @@ void Graph::DeleteLink(ed::LinkId id)
 {
     auto linkIt = std::find_if(m_Links.begin(), m_Links.end(), [id](auto& link) { return link.ID == id; });
     if (linkIt != m_Links.end())
+    {
         m_Links.erase(linkIt);
+        RefreshTypes();
+    }
 }
 
 NodePtr Graph::AddNode(const NodePtr& node)
 {
     m_Nodes.push_back(node);
+    RefreshTypes();
     return m_Nodes.back();
 }
 
@@ -205,8 +214,161 @@ NodePtr Graph::AddNode(const NodePtr& node)
          }), m_Links.end());
      }
      m_Links.push_back(link);
+     RefreshTypes();
      return &m_Links.back();
  }
+
+namespace
+{
+using TypeBindings = std::map<std::string, TypeRef>;
+
+std::string IterableBindingName(const TypeRef& pattern)
+{
+    return "$iterable:" + pattern.ElementType().ToString();
+}
+
+TypeRef ResolveType(const TypeRef& pattern, const TypeBindings& bindings)
+{
+    if (pattern.kind == PinType::TypeVariable)
+    {
+        const auto found = bindings.find(pattern.name);
+        return found == bindings.end() ? TypeRef(PinType::Any) : found->second;
+    }
+    if (pattern.kind == PinType::Iterable)
+    {
+        const auto found = bindings.find(IterableBindingName(pattern));
+        if (found != bindings.end())
+            return found->second;
+    }
+
+    TypeRef result = pattern;
+    for (TypeRef& parameter : result.parameters)
+        parameter = ResolveType(parameter, bindings);
+    return result;
+}
+
+bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindings)
+{
+    if (pattern.kind == PinType::TypeVariable)
+    {
+        if (actual.kind == PinType::Any || actual.kind == PinType::TypeVariable)
+            return false;
+        const auto found = bindings.find(pattern.name);
+        if (found == bindings.end())
+        {
+            bindings.emplace(pattern.name, actual);
+            return true;
+        }
+        const TypeRef merged = CommonType(found->second, actual);
+        if (merged == found->second)
+            return false;
+        found->second = merged;
+        return true;
+    }
+
+    if (pattern.kind == PinType::Iterable)
+    {
+        if (actual.kind != PinType::List && actual.kind != PinType::Range &&
+            actual.kind != PinType::String)
+            return false;
+        bool changed = false;
+        const std::string bindingName = IterableBindingName(pattern);
+        const auto found = bindings.find(bindingName);
+        if (found == bindings.end())
+        {
+            bindings.emplace(bindingName, actual);
+            changed = true;
+        }
+        else
+        {
+            const TypeRef merged = CommonType(found->second, actual);
+            if (merged != found->second)
+            {
+                found->second = merged;
+                changed = true;
+            }
+        }
+        if (actual.kind == PinType::List)
+            return BindType(pattern.ElementType(), actual.ElementType(), bindings) ||
+                   changed;
+        if (actual.kind == PinType::Range)
+            return BindType(pattern.ElementType(), TypeRef(PinType::Float), bindings) ||
+                   changed;
+        if (actual.kind == PinType::String)
+            return BindType(pattern.ElementType(), TypeRef(PinType::String), bindings) ||
+                   changed;
+        return changed;
+    }
+
+    if (pattern.kind != actual.kind)
+        return false;
+
+    bool changed = false;
+    const size_t count = (std::min)(pattern.parameters.size(), actual.parameters.size());
+    for (size_t i = 0; i < count; ++i)
+        changed |= BindType(pattern.parameters[i], actual.parameters[i], bindings);
+    return changed;
+}
+}
+
+void Graph::RefreshTypes()
+{
+    std::map<const Node*, TypeBindings> bindings;
+    for (const NodePtr& node : m_Nodes)
+    {
+        for (Pin& input : node->Inputs)
+            input.Type = ResolveType(input.DeclaredType, bindings[node.get()]);
+        for (Pin& output : node->Outputs)
+            output.Type = ResolveType(output.DeclaredType, bindings[node.get()]);
+    }
+
+    // Constraints can travel through several generic nodes, so converge the
+    // small graph instead of imposing a construction order.
+    const size_t iterationLimit = (std::max)(size_t(1), m_Nodes.size() * 2);
+    for (size_t iteration = 0; iteration < iterationLimit; ++iteration)
+    {
+        bool changed = false;
+        for (const Link& link : m_Links)
+        {
+            Pin* output = FindPin(link.StartPinID);
+            Pin* input = FindPin(link.EndPinID);
+            if (!output || !input) continue;
+            changed |= BindType(output->DeclaredType, input->Type,
+                                bindings[output->Node.get()]);
+            changed |= BindType(input->DeclaredType, output->Type,
+                                bindings[input->Node.get()]);
+        }
+
+        for (const NodePtr& node : m_Nodes)
+        {
+            for (Pin& input : node->Inputs)
+                input.Type = ResolveType(input.DeclaredType, bindings[node.get()]);
+            for (Pin& output : node->Outputs)
+                output.Type = ResolveType(output.DeclaredType, bindings[node.get()]);
+        }
+        if (!changed) break;
+    }
+
+    // Generic node defaults are placeholders until a connection binds their
+    // type. Keep an unconnected default's runtime representation in sync with
+    // the inferred type so, for example, Equals<Number>(value, 0) compares two
+    // numbers instead of a number and a hidden nil.
+    for (const NodePtr& node : m_Nodes)
+    {
+        const size_t count = (std::min)(node->Inputs.size(), node->InputValues.size());
+        for (size_t i = 0; i < count; ++i)
+        {
+            Pin& input = node->Inputs[i];
+            Value& value = node->InputValues[i];
+            if (!input.DeclaredType.IsGeneric() || IsPinLinked(input.ID) ||
+                input.Type == PinType::Any || input.Type == PinType::Flow)
+                continue;
+            const TypeRef valueType = TypeOfValue(value);
+            if (isNil(value) || !CanAssign(valueType, input.Type, false))
+                value = MakeValueFromType(input.Type);
+        }
+    }
+}
 
  bool GraphUtils::IsNodeImplicit(const Node* node)
  {
@@ -428,17 +590,9 @@ NodePtr Graph::AddNode(const NodePtr& node)
      return IsNodeConstFoldableRecursive(graph, node, visiting, verified);
  }
 
- bool GraphUtils::AreTypesCompatible(PinType a, PinType b)
+ bool GraphUtils::AreTypesCompatible(const TypeRef& outputType, const TypeRef& inputType)
  {
-     if (a != b)
-     {
-         const bool isAny = (a == PinType::Any || b == PinType::Any);
-         const bool isFlow = (a == PinType::Flow || b == PinType::Flow);
-
-         return isAny && !isFlow;
-     }
-
-     return true;
+     return CanAssign(outputType, inputType);
  }
 
 bool GraphUtils::IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child)

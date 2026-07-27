@@ -55,6 +55,8 @@ public:
     OperationResult AddFunction(int id, const std::string& name = "Function");
     OperationResult RemoveFunction(int id);
     OperationResult RenameFunction(int id, const std::string& name);
+    OperationResult ChangeFunctionDescription(int id, const std::string& description);
+    OperationResult ChangeFunctionPurity(int id, bool pure);
 
     OperationResult AddClass(int id, const std::string& name = "Class");
     OperationResult RemoveClass(int id);
@@ -64,7 +66,10 @@ public:
                                      const Value& value = Value());
     OperationResult RemoveClassProperty(int classId, int propertyId);
     OperationResult RenameClassProperty(int classId, int propertyId, const std::string& name);
+    OperationResult ChangeClassPropertyDescription(
+        int classId, int propertyId, const std::string& description);
     OperationResult ChangeClassPropertyValue(int classId, int propertyId, const Value& value);
+    OperationResult ChangeClassPropertyType(int classId, int propertyId, const TypeRef& type);
     OperationResult AddClassMethod(int classId, int methodId, const std::string& name = "Method");
     OperationResult RemoveClassMethod(int classId, int methodId);
     OperationResult AddClassConstructor(int classId, int constructorId);
@@ -73,19 +78,27 @@ public:
     OperationResult AddVariable(int id, const std::string& name = "Variable", const Value& value = Value());
     OperationResult RemoveVariable(int id);
     OperationResult RenameVariable(int id, const std::string& name);
+    OperationResult ChangeVariableDescription(int id, const std::string& description);
     OperationResult ChangeVariableValue(int id, const Value& value);
+    OperationResult ChangeVariableType(int id, const TypeRef& type);
 
     OperationResult AddFunctionInput(int functionId, int inputId, const std::string& name = "Input",
                                      const Value& value = Value());
     OperationResult RemoveFunctionInput(int functionId, int inputId);
     OperationResult RenameFunctionInput(int functionId, int inputId, const std::string& name);
+    OperationResult ChangeFunctionInputDescription(
+        int functionId, int inputId, const std::string& description);
     OperationResult ChangeFunctionInputValue(int functionId, int inputId, const Value& value);
+    OperationResult ChangeFunctionInputType(int functionId, int inputId, const TypeRef& type);
 
     OperationResult AddFunctionOutput(int functionId, int outputId, const std::string& name = "Output",
                                       const Value& value = Value());
     OperationResult RemoveFunctionOutput(int functionId, int outputId);
     OperationResult RenameFunctionOutput(int functionId, int outputId, const std::string& name);
+    OperationResult ChangeFunctionOutputDescription(
+        int functionId, int outputId, const std::string& description);
     OperationResult ChangeFunctionOutputValue(int functionId, int outputId, const Value& value);
+    OperationResult ChangeFunctionOutputType(int functionId, int outputId, const TypeRef& type);
 
     bool CanUndo() const;
     bool CanRedo() const;

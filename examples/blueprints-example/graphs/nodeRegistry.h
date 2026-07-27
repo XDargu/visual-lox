@@ -33,10 +33,21 @@ class NodeRegistry
 {
 public:
     void RegisterDefinitions();
-    void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags);
-    void RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps);
+    void RegisterNativeFunc(const char* name,
+        std::vector<BasicFunctionDef::Input>&& inputs,
+        std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
+        NodeDefinitionFlags flags, const char* description = nullptr);
+    void RegisterNativeFunc(const char* name,
+        std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
+        NodeDefinitionFlags flags,
+        BasicFunctionDef::DynamicInputProps&& dynamicProps,
+        const char* description = nullptr);
     void RegisterNatives(VM& vm);
-    void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags = NodeDefinitionFlags::None);
+    void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
+        std::vector<BasicFunctionDef::Input>&& inputs,
+        std::vector<BasicFunctionDef::Input>&& outputs,
+        NodeDefinitionFlags flags = NodeDefinitionFlags::None,
+        const char* description = nullptr);
 
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;

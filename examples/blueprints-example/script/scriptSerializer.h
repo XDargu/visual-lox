@@ -21,12 +21,13 @@ struct SerializationResult
 };
 
 // Version 2 adds script-level classes, properties, methods and constructors.
+// Version 3 stores declared types independently from runtime default values.
 // Loading remains backward-compatible with version 1 and is transactional: outputScript and
 // idGenerator are only replaced after the complete document has been checked.
 class ScriptSerializer
 {
 public:
-    static constexpr int FormatVersion = 2;
+    static constexpr int FormatVersion = 4;
 
     static SerializationResult Save(const Script& script, const std::string& path);
     static SerializationResult Load(const std::string& path, const NodeRegistry& registry,

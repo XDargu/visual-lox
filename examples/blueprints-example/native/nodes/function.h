@@ -71,6 +71,15 @@ struct GetFunctionNode : public Node
         }
 
         Outputs[0].Name = pFunctionDef->name;
+        Outputs[0].Description = pFunctionDef->description;
+        Description = "Gets function '" + pFunctionDef->name + "' as a typed value. " +
+            pFunctionDef->description;
+        std::vector<TypeRef> inputs;
+        std::vector<TypeRef> outputs;
+        for (const auto& input : pFunctionDef->inputs) inputs.push_back(input.type);
+        for (const auto& output : pFunctionDef->outputs) outputs.push_back(output.type);
+        Outputs[0].Type = Outputs[0].DeclaredType =
+            TypeRef::Function(std::move(inputs), std::move(outputs));
     }
 
     void RefreshDefinition(const Script& script)
@@ -100,7 +109,18 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
     if (!funcID.IsValid() && pFunctionDef)
         node->DefinitionId = pFunctionDef->name;
     if (pFunctionDef)
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(), PinType::Function);
+    {
+        node->DefinitionFlags |= NodeDefinitionFlags::Pure;
+        node->Description = "Gets function '" + pFunctionDef->name +
+            "' as a typed value. " + pFunctionDef->description;
+        std::vector<TypeRef> inputs;
+        std::vector<TypeRef> outputs;
+        for (const auto& input : pFunctionDef->inputs) inputs.push_back(input.type);
+        for (const auto& output : pFunctionDef->outputs) outputs.push_back(output.type);
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(),
+            TypeRef::Function(std::move(inputs), std::move(outputs)),
+            pFunctionDef->description);
+    }
 
     return node;
 }

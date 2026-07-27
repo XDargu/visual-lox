@@ -315,7 +315,7 @@ void NodeRegistry::RegisterDefinitions()
 
     RegisterNativeFunc("String::Split",
         { { "String", Value(copyString("", 0)) }, { "Separator", Value(copyString("", 0))} },
-        { { "List", Value(newList()) } },
+        { { "List", Value(newList()), -1, TypeRef::List(PinType::String) } },
         [](int argCount, Value* args, VM* vm)
         {
             if (isString(args[0]) && isString(args[1]))
@@ -351,92 +351,117 @@ void NodeRegistry::RegisterDefinitions()
     );
 
     RegisterNativeFunc("List::MakeList",
-        { { "List", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         [] (int argCount, Value* args, VM* vm)
         {
             return Value(args[0]); // Result is already a list!
         },
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::Pure,
         {
-            1, 16, PinType::Any, Value(0.0)
+            1, 16, TypeRef::Variable("T"), Value(0.0)
         }
     );
 
     RegisterNativeFunc("List::Length",
-        { { "List", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         { { "Length", Value(0.0) } },
         &lengthOfIterable,
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::In Bounds",
-        { { "List", Value(newList()) }, { "Index", Value(0.0) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) } },
         { { "Result", Value(false) } },
         &inBounds,
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::Concat",
-        { { "List", Value(newList()) }, { "List", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "A", Value(newList()), -1, TypeRef::List(TypeRef::Variable("T")) },
+          { "B", Value(newList()), -1, TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &concat,
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
     );
 
     RegisterNativeFunc("List::Erase",
-        { { "List", Value(newList()) }, { "Index", Value(0.0) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) } },
         { },
         &erase,
         NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Push",
-        { { "List", Value(newList()) }, { "Value", Value() } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) },
+          { "Value", Value(), -1, TypeRef::Variable("T") } },
         { { "Size", Value(0.0) } },
         &push,
         NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Pop",
-        { { "List", Value(newList()) } },
-        { { "Value", Value() } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Value", Value(), -1, TypeRef::Variable("T") } },
         &pop,
         NodeDefinitionFlags::None
     );
 
     RegisterNativeFunc("List::Insert",
-        { { "List", Value(newList()) }, { "Index", Value(0.0) },
-          { "Value", Value() } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) },
+          { "Value", Value(), -1, TypeRef::Variable("T") } },
         { { "Size", Value(0.0) } },
         &ListInsert, NodeDefinitionFlags::None);
     RegisterNativeFunc("List::Clear",
-        { { "List", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         { { "Size", Value(0.0) } },
         &ListClear, NodeDefinitionFlags::None);
     RegisterNativeFunc("List::Slice",
-        { { "List", Value(newList()) }, { "Start", Value(0.0) },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) }, { "Start", Value(0.0) },
           { "Count", Value(0.0) } },
-        { { "Result", Value(newList()) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &ListSlice, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
     RegisterNativeFunc("List::Reverse",
-        { { "List", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &ListReverse, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
     RegisterNativeFunc("List::Sort",
-        { { "List", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &ListSort, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
     RegisterNativeFunc("List::Distinct",
-        { { "List", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Result", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
         &ListDistinct, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
     RegisterNativeFunc("List::Enumerate",
-        { { "List", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "List", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) } },
+        { { "Result", Value(newList()), -1, TypeRef::List(TypeRef::Tuple(
+            { PinType::Float, TypeRef::Variable("T") })) } },
         &ListEnumerate, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
     RegisterNativeFunc("List::Zip",
-        { { "A", Value(newList()) }, { "B", Value(newList()) } },
-        { { "Result", Value(newList()) } },
+        { { "A", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("T")) },
+          { "B", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("U")) } },
+        { { "Result", Value(newList()), -1, TypeRef::List(TypeRef::Tuple(
+            { TypeRef::Variable("T"), TypeRef::Variable("U") })) } },
         &ListZip, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
 
     RegisterNativeFunc("File::ReadFile",
@@ -1010,7 +1035,40 @@ void NodeRegistry::RegisterDefinitions()
     );
 }
 
-void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags)
+namespace
+{
+std::string DisplayDefinitionName(const std::string& name)
+{
+    const size_t separator = name.rfind("::");
+    return separator == std::string::npos ? name : name.substr(separator + 2);
+}
+
+void EnsureDefinitionDocumentation(BasicFunctionDef& definition,
+                                   const char* explicitDescription = nullptr)
+{
+    const std::string displayName = DisplayDefinitionName(definition.name);
+    if (explicitDescription && *explicitDescription)
+        definition.description = explicitDescription;
+    else if (definition.description.empty())
+        definition.description = "Performs " + displayName + ".";
+
+    for (BasicFunctionDef::Input& input : definition.inputs)
+        if (input.description.empty())
+            input.description = "Input '" + input.name + "' for " + displayName + ".";
+    for (BasicFunctionDef::Input& output : definition.outputs)
+        if (output.description.empty())
+            output.description = "Output '" + output.name + "' from " + displayName + ".";
+    if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs) &&
+        definition.dynamicInputProps.description.empty())
+        definition.dynamicInputProps.description =
+            "A value supplied to " + displayName + ".";
+}
+}
+
+void NodeRegistry::RegisterNativeFunc(const char* name,
+    std::vector<BasicFunctionDef::Input>&& inputs,
+    std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
+    NodeDefinitionFlags flags, const char* description)
 {
     BasicFunctionDefPtr nativeFunc  = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -1018,11 +1076,16 @@ void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctio
     nativeFunc->inputs = inputs;
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
+    EnsureDefinitionDocumentation(*nativeFunc, description);
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
 
-void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun, NodeDefinitionFlags flags, BasicFunctionDef::DynamicInputProps&& dynamicProps)
+void NodeRegistry::RegisterNativeFunc(const char* name,
+    std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
+    NodeDefinitionFlags flags,
+    BasicFunctionDef::DynamicInputProps&& dynamicProps,
+    const char* description)
 {
     BasicFunctionDefPtr nativeFunc = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -1031,6 +1094,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name, std::vector<BasicFunctio
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
     nativeFunc->dynamicInputProps = dynamicProps;
+    EnsureDefinitionDocumentation(*nativeFunc, description);
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1043,7 +1107,10 @@ void NodeRegistry::RegisterNatives(VM& vm)
     }
 }
 
-void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc, std::vector<BasicFunctionDef::Input>&& inputs, std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags)
+void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
+    std::vector<BasicFunctionDef::Input>&& inputs,
+    std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
+    const char* description)
 {
     CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
     compiledNodeDef->nodeCreationFunc = creationFunc;
@@ -1055,6 +1122,7 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     funtionDef->inputs = inputs;
     funtionDef->outputs = outputs;
     funtionDef->flags = flags;
+    EnsureDefinitionDocumentation(*funtionDef, description);
 
     compiledNodeDef->functionDef = funtionDef;
 
@@ -1067,6 +1135,48 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     node->SerializationType = "compiled";
     node->DefinitionId = name;
     node->DefinitionFlags = functionDef->flags;
+    if (node->Description.empty())
+        node->Description = functionDef->description;
+    size_t inputIndex = 0;
+    for (Pin& pin : node->Inputs)
+    {
+        if (pin.Type == PinType::Flow)
+        {
+            if (pin.Description.empty())
+                pin.Description = "Execution input for " +
+                    DisplayDefinitionName(name) + ".";
+            continue;
+        }
+        if (pin.Description.empty())
+        {
+            if (inputIndex < functionDef->inputs.size())
+                pin.Description = functionDef->inputs[inputIndex].description;
+            else
+                pin.Description = "Input " + std::to_string(inputIndex + 1) +
+                    " for " + DisplayDefinitionName(name) + ".";
+        }
+        ++inputIndex;
+    }
+    size_t outputIndex = 0;
+    for (Pin& pin : node->Outputs)
+    {
+        if (pin.Type == PinType::Flow)
+        {
+            if (pin.Description.empty())
+                pin.Description = "Execution output from " +
+                    DisplayDefinitionName(name) + ".";
+            continue;
+        }
+        if (pin.Description.empty())
+        {
+            if (outputIndex < functionDef->outputs.size())
+                pin.Description = functionDef->outputs[outputIndex].description;
+            else
+                pin.Description = "Output " + std::to_string(outputIndex + 1) +
+                    " from " + DisplayDefinitionName(name) + ".";
+        }
+        ++outputIndex;
+    }
     return node;
 }
 

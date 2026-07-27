@@ -7,6 +7,7 @@
 #include "../native/nodes/object.h"
 #include "../native/nodes/return.h"
 #include "../native/nodes/variable.h"
+#include "../operations/documentOperations.h"
 #include "../runtime/scriptRuntime.h"
 #include "../runtime/standardLibrary.h"
 #include "../script/script.h"
@@ -157,6 +158,19 @@ void StandardLibraryDeclaresCapabilities()
             "Math::Add should be declared pure.");
     Require(print && !HasFlag(print->functionDef->flags, NodeDefinitionFlags::Pure),
             "Debug::Print should be declared impure.");
+    for (const char* controlFlowName : {
+            "Flow::Branch", "Flow::For In", "Flow::While",
+            "Flow::Repeat", "Flow::Match", "Flow::Switch" })
+    {
+        const CompiledNodeDefPtr controlFlow =
+            fixture.registry.FindCompiled(controlFlowName);
+        const std::string message =
+            std::string(controlFlowName) + " should be allowed in pure graphs.";
+        Require(controlFlow &&
+                HasFlag(controlFlow->functionDef->flags,
+                        NodeDefinitionFlags::Pure),
+                message.c_str());
+    }
     Require(HasFlag(fixture.registry.FindNative("Math::Square")->functionDef->flags,
                     NodeDefinitionFlags::Pure),
             "Math::Square should be declared pure.");
@@ -166,6 +180,13 @@ void StandardLibraryDeclaresCapabilities()
     Require(!HasFlag(fixture.registry.FindNative("Functional::Map")->functionDef->flags,
                      NodeDefinitionFlags::Pure),
             "Higher-order functions cannot be pure without a pure callable contract.");
+    const NodePtr addNode = add->MakeNode(fixture.ids);
+    Require(!addNode->Description.empty() &&
+            std::all_of(addNode->Inputs.begin(), addNode->Inputs.end(),
+                [](const Pin& pin) { return !pin.Description.empty(); }) &&
+            std::all_of(addNode->Outputs.begin(), addNode->Outputs.end(),
+                [](const Pin& pin) { return !pin.Description.empty(); }),
+            "Native node definitions should provide node and pin descriptions.");
 }
 
 void ListNativeNodesOperateOnLists()
@@ -404,6 +425,76 @@ void ForInKeepsConstantStackFootprint()
     Require(fixture.vm.globalTable().get(copyString("CollectionLength", 16), &observedLength) &&
             isNumber(observedLength) && asNumber(observedLength) == 1000.0,
             "List::Length should execute through the graph compiler.");
+}
+
+void ForInIteratesRangesAndStrings()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(
+        fixture.ids.GetNextId(), "IterableMain");
+
+    ScriptPropertyPtr rangeResult =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "RangeResult");
+    rangeResult->type = PinType::Float;
+    rangeResult->defaultValue = Value(-1.0);
+    script.variables.push_back(rangeResult);
+    ScriptPropertyPtr stringResult =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "StringResult");
+    stringResult->type = PinType::String;
+    stringResult->defaultValue = StringValue("");
+    script.variables.push_back(stringResult);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr rangeLoop =
+        fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
+    NodePtr storeRange = BuildSetVariableNode(fixture.ids, rangeResult);
+    NodePtr stringLoop =
+        fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
+    NodePtr storeString = BuildSetVariableNode(fixture.ids, stringResult);
+    rangeLoop->InputValues[1] = Value(newRange(2.0, 4.0));
+    stringLoop->InputValues[1] = StringValue("Lox");
+
+    for (const NodePtr& node :
+         { begin, rangeLoop, storeRange, stringLoop, storeString })
+        AttachNode(script.main->Graph, node);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        begin->Outputs[0].ID, rangeLoop->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        rangeLoop->Outputs[0].ID, storeRange->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        rangeLoop->Outputs[1].ID, storeRange->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        rangeLoop->Outputs[2].ID, stringLoop->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        stringLoop->Outputs[0].ID, storeString->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        stringLoop->Outputs[1].ID, storeString->Inputs[1].ID));
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled),
+            "Range and string Flow::For In nodes should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "Range and string Flow::For In nodes should execute.");
+
+    Value observedRange;
+    Value observedString;
+    Require(fixture.vm.globalTable().get(
+                copyString("RangeResult", 11), &observedRange) &&
+            isNumber(observedRange) && asNumber(observedRange) == 4.0,
+            "Flow::For In should expose range values.");
+    Require(fixture.vm.globalTable().get(
+                copyString("StringResult", 12), &observedString) &&
+            isString(observedString) &&
+            std::string(asString(observedString)->chars) == "x",
+            "Flow::For In should expose string characters.");
 }
 
 void MainReceivesProgramArgumentsAsAStringList()
@@ -1355,6 +1446,208 @@ void NewLinksReplaceOccupiedConnections()
     Require(targets.size() == 1 && targets[0]->Node == replacementPrint,
             "The replacement flow connection should become active.");
 }
+
+void TypeDescriptorsAreDirectionalAndComposable()
+{
+    const TypeRef stringList = TypeRef::List(PinType::String);
+    const TypeRef anyList = TypeRef::List(PinType::Any);
+    Require(CanAssign(stringList, anyList),
+            "A specifically typed list should be assignable to List<Any>.");
+    Require(!CanAssign(anyList, stringList),
+            "List<Any> should not silently become List<String>.");
+    Require(CanAssign(PinType::Nil, PinType::String) &&
+            CanAssign(PinType::Nil, TypeRef::List(PinType::Float)),
+            "Nil should be assignable to every runtime value declaration.");
+    Require(!CanAssign(TypeRef::Object(10, "Student"),
+                       TypeRef::Object(11, "Teacher")),
+            "Different script classes should be distinct types.");
+
+    ObjList* strings = MakeList({ StringValue("Ada"), StringValue("Grace") });
+    Require(TypeOfValue(Value(strings)) == stringList,
+            "List literal inference should inspect its element values.");
+
+    const TypeRef signature = TypeRef::Function(
+        { PinType::String, TypeRef::List(TypeRef::Object(10, "Student")) },
+        { PinType::Float });
+    Require(signature.ToString().find("Student") != std::string::npos &&
+            signature.ToString().find("Number") != std::string::npos,
+            "Function signatures should retain nested declaration types.");
+    Require(CanAssign(signature, signature) &&
+            !CanAssign(signature,
+                TypeRef::Function({ PinType::String }, { PinType::Float })) &&
+            CanAssign(signature, TypeRef(PinType::Function)),
+            "Typed function signatures should be exact while bare Function remains dynamic.");
+}
+
+void GenericNodesInferAcrossConnections()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    ScriptPropertyPtr students =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Names");
+    students->type = TypeRef::List(PinType::String);
+    students->defaultValue = Value(newList());
+    script.variables.push_back(students);
+
+    NodePtr source = BuildGetVariableNode(fixture.ids, students);
+    NodePtr forIn = fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
+    AttachNode(script.main->Graph, source);
+    AttachNode(script.main->Graph, forIn);
+
+    Link link(fixture.ids.GetNextId(), source->Outputs[0].ID, forIn->Inputs[1].ID);
+    script.main->Graph.AddLink(link);
+    Require(forIn->Inputs[1].Type == TypeRef::List(PinType::String),
+            "For In should retain the connected list type.");
+    Require(forIn->Outputs[1].Type == PinType::String,
+            "For In should infer its value output from List<String>.");
+
+    script.main->Graph.DeleteLink(link.ID);
+    Require(forIn->Inputs[1].Type == TypeRef::Iterable(PinType::Any) &&
+            forIn->Outputs[1].Type == PinType::Any,
+            "Removing a constraint should reset a generic node to Any.");
+
+    ScriptPropertyPtr range =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Range");
+    range->type = PinType::Range;
+    range->defaultValue = Value(newRange(0.0, 2.0));
+    NodePtr rangeSource = BuildGetVariableNode(fixture.ids, range);
+    AttachNode(script.main->Graph, rangeSource);
+    Link rangeLink(fixture.ids.GetNextId(), rangeSource->Outputs[0].ID,
+                   forIn->Inputs[1].ID);
+    script.main->Graph.AddLink(rangeLink);
+    Require(forIn->Inputs[1].Type == PinType::Range &&
+            forIn->Outputs[1].Type == PinType::Float,
+            "For In should infer Number while iterating a range.");
+    script.main->Graph.DeleteLink(rangeLink.ID);
+
+    ScriptPropertyPtr text =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Text");
+    text->type = PinType::String;
+    text->defaultValue = StringValue("abc");
+    NodePtr textSource = BuildGetVariableNode(fixture.ids, text);
+    AttachNode(script.main->Graph, textSource);
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), textSource->Outputs[0].ID,
+        forIn->Inputs[1].ID));
+    Require(forIn->Inputs[1].Type == PinType::String &&
+            forIn->Outputs[1].Type == PinType::String,
+            "For In should infer String while iterating a string.");
+
+    NodePtr equals = fixture.registry.FindCompiled("Math::Equals")->MakeNode(fixture.ids);
+    ScriptPropertyPtr name =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Name");
+    name->type = PinType::String;
+    name->defaultValue = StringValue("");
+    NodePtr nameSource = BuildGetVariableNode(fixture.ids, name);
+    AttachNode(script.main->Graph, equals);
+    AttachNode(script.main->Graph, nameSource);
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), nameSource->Outputs[0].ID, equals->Inputs[0].ID));
+    Require(equals->Inputs[0].Type == PinType::String &&
+            equals->Inputs[1].Type == PinType::String,
+            "A shared Equals<T> constraint should update both operands.");
+
+    NodePtr numericEquals =
+        fixture.registry.FindCompiled("Math::Equals")->MakeNode(fixture.ids);
+    ScriptPropertyPtr number =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Number");
+    number->type = PinType::Float;
+    number->defaultValue = Value(0.0);
+    NodePtr numberSource = BuildGetVariableNode(fixture.ids, number);
+    AttachNode(script.main->Graph, numericEquals);
+    AttachNode(script.main->Graph, numberSource);
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), numberSource->Outputs[0].ID,
+        numericEquals->Inputs[0].ID));
+    Require(numericEquals->Inputs[1].Type == PinType::Float &&
+            isNumber(numericEquals->InputValues[1]) &&
+            asNumber(numericEquals->InputValues[1]) == 0.0,
+            "An inferred numeric Equals operand should receive a numeric zero default.");
+}
+
+void PureGraphsRejectImpureNodes()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    ScriptFunctionPtr pure =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "PureFunction");
+    pure->functionDef->flags |= NodeDefinitionFlags::Pure;
+    NodePtr begin = BuildBeginNode(fixture.ids, pure);
+    NodePtr print =
+        fixture.registry.FindCompiled("Debug::Print")->MakeNode(fixture.ids);
+    AttachNode(pure->Graph, begin);
+    AttachNode(pure->Graph, print);
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[0].ID, print->Inputs[0].ID));
+    script.functions.push_back(pure);
+
+    const ValidationReport invalid = ScriptValidator::Validate(script);
+    const bool foundImpure = std::any_of(
+        invalid.diagnostics.begin(), invalid.diagnostics.end(),
+        [](const ValidationDiagnostic& diagnostic)
+        {
+            return diagnostic.code == "impure-node" &&
+                   diagnostic.severity == DiagnosticSeverity::Error;
+        });
+    Require(foundImpure,
+            "A non-pure node in a pure graph should be a compilation error.");
+    const ScriptCompileResult rejected =
+        ScriptRuntime::Compile(fixture.vm, script);
+    Require(!rejected,
+            "Compilation should stop when a pure graph contains an impure node.");
+
+    pure->Graph.DeleteNode(print->ID);
+    NodePtr equals =
+        fixture.registry.FindCompiled("Math::Equals")->MakeNode(fixture.ids);
+    NodePtr branch =
+        fixture.registry.FindCompiled("Flow::Branch")->MakeNode(fixture.ids);
+    NodePtr forIn =
+        fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
+    AttachNode(pure->Graph, equals);
+    AttachNode(pure->Graph, branch);
+    AttachNode(pure->Graph, forIn);
+    const ValidationReport valid = ScriptValidator::Validate(script);
+    const bool stillImpure = std::any_of(
+        valid.diagnostics.begin(), valid.diagnostics.end(),
+        [](const ValidationDiagnostic& diagnostic)
+        {
+            return diagnostic.code == "impure-node";
+        });
+    Require(!stillImpure,
+            "Pure expression and control-flow nodes should be accepted in a pure graph.");
+}
+
+void DeclaredTypesDoNotFollowDefaults()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+    DocumentOperations operations(script, fixture.ids, fixture.registry);
+
+    const int variableId = fixture.ids.GetNextId();
+    Require(operations.AddVariable(variableId, "Username", StringValue("Ada")).success,
+            "Expected to add a typed variable.");
+    Require(operations.ChangeVariableValue(variableId, StringValue("Grace")).success,
+            "Expected to change the variable default.");
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(script, variableId);
+    Require(variable && variable->type == PinType::String,
+            "Changing a default should not change the declared type.");
+
+    const TypeRef students = TypeRef::List(TypeRef::Object(42, "Student"));
+    Require(operations.ChangeVariableType(variableId, students).success,
+            "Expected to change a variable declaration.");
+    Require(variable->type == students && isList(variable->defaultValue),
+            "Changing a declaration should create a suitable fresh default.");
+}
 }
 
 void AddRuntimeTests(Tests::Runner& runner)
@@ -1376,6 +1669,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("repeated interpretation releases the stack", RepeatedInterpretationReleasesStack);
         runner.Test("large list literals preserve their items", LargeListLiteralsPreserveItems);
         runner.Test("Flow For In keeps a constant stack footprint", ForInKeepsConstantStackFootprint);
+        runner.Test("Flow For In iterates ranges and strings",
+            ForInIteratesRangesAndStrings);
         runner.Test("Main receives program arguments as a string list",
             MainReceivesProgramArgumentsAsAStringList);
         runner.Test("functions and methods support multiple outputs",
@@ -1400,5 +1695,16 @@ void AddRuntimeTests(Tests::Runner& runner)
     runner.Group("Runtime / graph links", [&]()
     {
         runner.Test("new links replace occupied connections", NewLinksReplaceOccupiedConnections);
+    });
+    runner.Group("Type system", [&]()
+    {
+        runner.Test("descriptors are directional and composable",
+            TypeDescriptorsAreDirectionalAndComposable);
+        runner.Test("generic nodes infer across connections",
+            GenericNodesInferAcrossConnections);
+        runner.Test("declared types do not follow defaults",
+            DeclaredTypesDoNotFollowDefaults);
+        runner.Test("pure graphs reject impure nodes",
+            PureGraphsRejectImpureNodes);
     });
 }

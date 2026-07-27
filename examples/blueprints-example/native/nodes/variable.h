@@ -24,6 +24,7 @@ struct GetVariableNode : public Node
         refId = varID;
         Category = NodeCategory::Variable;
         Type = NodeType::SimpleGet;
+        DefinitionFlags |= NodeDefinitionFlags::Pure;
     }
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
@@ -45,7 +46,10 @@ struct GetVariableNode : public Node
         }
 
         Outputs[0].Name = pPropertyDef->Name;
-        Outputs[0].Type = TypeOfValue(pPropertyDef->defaultValue);
+        Outputs[0].Type = Outputs[0].DeclaredType = pPropertyDef->type;
+        Outputs[0].Description = pPropertyDef->Description;
+        Description = "Gets variable '" + pPropertyDef->Name + "'. " +
+            pPropertyDef->Description;
     }
 
     void RefreshDefinition(const Script& script)
@@ -65,7 +69,12 @@ static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptProper
     NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID);
     node->SerializationType = "variable.get";
     if (pProperty)
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
+    {
+        node->Description = "Gets variable '" + pProperty->Name + "'. " +
+            pProperty->Description;
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(),
+            pProperty->type, pProperty->Description);
+    }
 
     return node;
 }
@@ -127,11 +136,14 @@ struct SetVariableNode : public Node
         }
 
         Inputs[1].Name = pPropertyDef->Name;
-        if (TypeOfValue(pPropertyDef->defaultValue) != Inputs[1].Type)
+        Inputs[1].Description = pPropertyDef->Description;
+        Description = "Sets variable '" + pPropertyDef->Name + "'. " +
+            pPropertyDef->Description;
+        if (pPropertyDef->type != Inputs[1].DeclaredType)
         {
-            Inputs[1].Type = TypeOfValue(pPropertyDef->defaultValue);
-            InputValues[1] = pPropertyDef->defaultValue;
+            Inputs[1].Type = Inputs[1].DeclaredType = pPropertyDef->type;
         }
+        InputValues[1] = pPropertyDef->defaultValue;
     }
 
     void RefreshDefinition(const Script& script)
@@ -152,13 +164,18 @@ static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptProper
     node->SerializationType = "variable.set";
     if (pProperty)
     {
-        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-        node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(), TypeOfValue(pProperty->defaultValue));
+        node->Description = "Sets variable '" + pProperty->Name + "'. " +
+            pProperty->Description;
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+            "Executes the assignment.");
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(),
+            pProperty->type, pProperty->Description);
 
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+            "Continues after the assignment.");
 
         node->InputValues.push_back(Value());
-        node->InputValues.push_back(Value(MakeValueFromType(TypeOfValue(pProperty->defaultValue))));
+        node->InputValues.push_back(pProperty->defaultValue);
     }
 
     return node;

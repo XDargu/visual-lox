@@ -28,12 +28,14 @@ inline void RefreshCallInputs(Node& node, IDGenerator& ids,
         if (index < node.Inputs.size())
         {
             node.Inputs[index].Name = parameter.name;
-            node.Inputs[index].Type = TypeOfValue(parameter.value);
+            node.Inputs[index].Type = node.Inputs[index].DeclaredType = parameter.type;
+            node.Inputs[index].Description = parameter.description;
             node.InputValues[index] = parameter.value;
         }
         else
         {
-            node.Inputs.emplace_back(ids.GetNextId(), parameter.name.c_str(), TypeOfValue(parameter.value));
+            node.Inputs.emplace_back(ids.GetNextId(), parameter.name.c_str(), parameter.type,
+                parameter.description);
             node.InputValues.emplace_back(parameter.value);
         }
     }
@@ -62,13 +64,14 @@ inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
         if (existing != node.Outputs.end())
         {
             Pin output = *existing;
-            output.Type = TypeOfValue(result.value);
+            output.Type = output.DeclaredType = result.type;
+            output.Description = result.description;
             refreshed.push_back(std::move(output));
         }
         else
         {
             refreshed.emplace_back(
-                ids.GetNextId(), result.name.c_str(), TypeOfValue(result.value));
+                ids.GetNextId(), result.name.c_str(), result.type, result.description);
         }
     }
     node.Outputs = std::move(refreshed);
@@ -111,6 +114,9 @@ struct ConstructObjectNode : public Node
             return;
         }
         Name = classDefinition->Name;
+        Description = "Constructs an instance of '" + classDefinition->Name + "'.";
+        Outputs[1].Type = Outputs[1].DeclaredType =
+            TypeRef::Object(classDefinition->ID.id, classDefinition->Name);
         static const std::vector<BasicFunctionDef::Input> noInputs;
         const auto& inputs = classDefinition->constructor
             ? classDefinition->constructor->functionDef->inputs : noInputs;
@@ -126,16 +132,25 @@ inline NodePtr BuildConstructObjectNode(IDGenerator& ids, const ScriptClassPtr& 
     if (scriptClass) classId = scriptClass->ID;
     NodePtr node = std::make_shared<ConstructObjectNode>(ids.GetNextId(), scriptClass, classId);
     node->SerializationType = "class.construct";
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
+    node->Description = scriptClass
+        ? "Constructs an instance of '" + scriptClass->Name + "'."
+        : "Constructs an object instance.";
+    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Executes the constructor.");
     node->InputValues.emplace_back(Value());
     if (scriptClass && scriptClass->constructor)
         for (const auto& input : scriptClass->constructor->functionDef->inputs)
         {
-            node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), TypeOfValue(input.value));
+            node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
+                input.description);
             node->InputValues.emplace_back(input.value);
         }
-    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    node->Outputs.emplace_back(ids.GetNextId(), "Instance", PinType::Object);
+    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Continues after construction.");
+    node->Outputs.emplace_back(ids.GetNextId(), "Instance",
+        scriptClass ? TypeRef::Object(scriptClass->ID.id, scriptClass->Name)
+                    : TypeRef(PinType::Object),
+        "The newly constructed instance.");
     return node;
 }
 
@@ -145,6 +160,7 @@ struct ThisNode : public Node
     {
         Category = NodeCategory::Variable;
         Type = NodeType::SimpleGet;
+        DefinitionFlags |= NodeDefinitionFlags::Pure;
     }
 
     void Compile(CompilerContext& context, const Graph& graph,
@@ -158,11 +174,14 @@ struct ThisNode : public Node
     }
 };
 
-inline NodePtr BuildThisNode(IDGenerator& ids)
+inline NodePtr BuildThisNode(IDGenerator& ids,
+                            TypeRef thisType = TypeRef(PinType::Object))
 {
     NodePtr node = std::make_shared<ThisNode>(ids.GetNextId());
     node->SerializationType = "class.this";
-    node->Outputs.emplace_back(ids.GetNextId(), "This", PinType::Object);
+    node->Description = "Gets the current class instance.";
+    node->Outputs.emplace_back(ids.GetNextId(), "This", std::move(thisType),
+        "The current class instance.");
     return node;
 }
 
@@ -175,6 +194,7 @@ struct GetPropertyNode : public Node
         Category = NodeCategory::Variable;
         Type = NodeType::SimpleGet;
         refId = propertyId;
+        DefinitionFlags |= NodeDefinitionFlags::Pure;
     }
 
     void Compile(CompilerContext& context, const Graph& graph,
@@ -199,22 +219,34 @@ struct GetPropertyNode : public Node
             return;
         }
         Name = Outputs[0].Name = propertyDefinition->Name;
-        Outputs[0].Type = TypeOfValue(propertyDefinition->defaultValue);
+        Description = "Gets property '" + propertyDefinition->Name + "'. " +
+            propertyDefinition->Description;
+        if (const ScriptClassPtr owner = ScriptUtils::FindOwningClass(script, refId.id))
+            Inputs[0].Type = Inputs[0].DeclaredType =
+                TypeRef::Object(owner->ID.id, owner->Name);
+        Outputs[0].Type = Outputs[0].DeclaredType = propertyDefinition->type;
+        Outputs[0].Description = propertyDefinition->Description;
     }
 
     ScriptPropertyPtr propertyDefinition;
 };
 
 inline NodePtr BuildGetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& property,
-                                    ScriptElementID propertyId = ScriptElementID::Invalid)
+                                    ScriptElementID propertyId = ScriptElementID::Invalid,
+                                    TypeRef instanceType = TypeRef(PinType::Object))
 {
     if (property) propertyId = property->ID;
     NodePtr node = std::make_shared<GetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.get";
-    node->Inputs.emplace_back(ids.GetNextId(), "Instance", PinType::Object);
+    node->Description = property
+        ? "Gets property '" + property->Name + "'. " + property->Description
+        : "Gets an object property.";
+    node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
+        "The instance that owns the property.");
     node->InputValues.emplace_back(Value());
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
-        property ? TypeOfValue(property->defaultValue) : PinType::Any);
+        property ? property->type : TypeRef(PinType::Any),
+        property ? property->Description : std::string{});
     return node;
 }
 
@@ -251,8 +283,16 @@ struct SetPropertyNode : public Node
             return;
         }
         Name = "Set " + propertyDefinition->Name;
+        Description = "Sets property '" + propertyDefinition->Name + "'. " +
+            propertyDefinition->Description;
+        if (const ScriptClassPtr owner = ScriptUtils::FindOwningClass(script, refId.id))
+            Inputs[1].Type = Inputs[1].DeclaredType =
+                TypeRef::Object(owner->ID.id, owner->Name);
         Inputs[2].Name = Outputs[1].Name = propertyDefinition->Name;
-        Inputs[2].Type = Outputs[1].Type = TypeOfValue(propertyDefinition->defaultValue);
+        Inputs[2].Description = Outputs[1].Description =
+            propertyDefinition->Description;
+        Inputs[2].Type = Inputs[2].DeclaredType = propertyDefinition->type;
+        Outputs[1].Type = Outputs[1].DeclaredType = propertyDefinition->type;
         InputValues[2] = propertyDefinition->defaultValue;
     }
 
@@ -260,21 +300,30 @@ struct SetPropertyNode : public Node
 };
 
 inline NodePtr BuildSetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& property,
-                                    ScriptElementID propertyId = ScriptElementID::Invalid)
+                                    ScriptElementID propertyId = ScriptElementID::Invalid,
+                                    TypeRef instanceType = TypeRef(PinType::Object))
 {
     if (property) propertyId = property->ID;
     NodePtr node = std::make_shared<SetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.set";
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(ids.GetNextId(), "Instance", PinType::Object);
+    node->Description = property
+        ? "Sets property '" + property->Name + "'. " + property->Description
+        : "Sets an object property.";
+    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Executes the assignment.");
+    node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
+        "The instance that owns the property.");
     node->Inputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
-        property ? TypeOfValue(property->defaultValue) : PinType::Any);
+        property ? property->type : TypeRef(PinType::Any),
+        property ? property->Description : std::string{});
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(property ? property->defaultValue : Value());
-    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
+    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Continues after the assignment.");
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
-        property ? TypeOfValue(property->defaultValue) : PinType::Any);
+        property ? property->type : TypeRef(PinType::Any),
+        property ? property->Description : std::string{});
     return node;
 }
 
@@ -308,13 +357,18 @@ struct MethodCallNode : public Node
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
         methodDefinition = ScriptUtils::FindFunctionById(script, refId);
-        if (!methodDefinition || !ScriptUtils::FindOwningClass(script, refId))
+        const ScriptClassPtr owner = ScriptUtils::FindOwningClass(script, refId.id);
+        if (!methodDefinition || !owner)
         {
             InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing class method with ID: " + std::to_string(refId.id);
             return;
         }
         Name = methodDefinition->functionDef->name;
+        Description = methodDefinition->functionDef->description;
+        DefinitionFlags = methodDefinition->functionDef->flags;
+        Inputs[1].Type = Inputs[1].DeclaredType =
+            TypeRef::Object(owner->ID.id, owner->Name);
         ObjectNodeUtils::RefreshCallInputs(*this, ids, methodDefinition->functionDef->inputs, 2);
         ObjectNodeUtils::RefreshCallOutputs(
             *this, ids, methodDefinition->functionDef->outputs, 1);
@@ -324,27 +378,38 @@ struct MethodCallNode : public Node
 };
 
 inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& method,
-                                   ScriptElementID methodId = ScriptElementID::Invalid)
+                                   ScriptElementID methodId = ScriptElementID::Invalid,
+                                   TypeRef instanceType = TypeRef(PinType::Object))
 {
     if (method) methodId = method->ID;
     NodePtr node = std::make_shared<MethodCallNode>(ids.GetNextId(), method, methodId);
     node->SerializationType = "method.call";
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(ids.GetNextId(), "Instance", PinType::Object);
+    if (method)
+    {
+        node->Description = method->functionDef->description;
+        node->DefinitionFlags = method->functionDef->flags;
+    }
+    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Executes this method.");
+    node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
+        "The instance on which to call the method.");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     if (method) for (const auto& input : method->functionDef->inputs)
     {
-        node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), TypeOfValue(input.value));
+        node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
+            input.description);
         node->InputValues.emplace_back(input.value);
     }
-    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
+    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+        "Continues after the method returns.");
     if (method)
     {
         for (const auto& output : method->functionDef->outputs)
         {
             node->Outputs.emplace_back(
-                ids.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+                ids.GetNextId(), output.name.c_str(), output.type,
+                output.description);
         }
     }
     return node;

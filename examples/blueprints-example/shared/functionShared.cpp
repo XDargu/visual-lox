@@ -105,6 +105,8 @@ struct FunctionNode : public Node
 
         // Basic info
         Name = pFunctionDef->name;
+        Description = pFunctionDef->description;
+        DefinitionFlags = pFunctionDef->flags;
 
         // Add missing inputs
         int startingInput = HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ? 0 : 1;
@@ -115,12 +117,15 @@ struct FunctionNode : public Node
 
             if (Pin* existingInput = FindInputByName(input.name))
             {
-                existingInput->Type = TypeOfValue(input.value);
+                existingInput->Type = existingInput->DeclaredType = input.type;
+                existingInput->Description = input.description;
                 auto it = InputValues.begin() + startingInput + i;
             }
             else
             {
-                Inputs.insert(Inputs.begin() + startingInput + i, { IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value) });
+                Inputs.insert(Inputs.begin() + startingInput + i,
+                    { IDGenerator.GetNextId(), input.name.c_str(), input.type,
+                      input.description });
             }
         }
 
@@ -150,11 +155,14 @@ struct FunctionNode : public Node
 
             if (Pin* existingOutput = FindOutputByName(output.name))
             {
-                existingOutput->Type = TypeOfValue(output.value);
+                existingOutput->Type = existingOutput->DeclaredType = output.type;
+                existingOutput->Description = output.description;
             }
             else
             {
-                Outputs.insert(Outputs.begin() + startingOutput + i, { IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value) });
+                Outputs.insert(Outputs.begin() + startingOutput + i,
+                    { IDGenerator.GetNextId(), output.name.c_str(), output.type,
+                      output.description });
             }
         }
 
@@ -186,7 +194,10 @@ struct FunctionNode : public Node
     {
         if (pFunctionDef)
         {
-            Inputs.emplace_back(IDGenerator.GetNextId(), GetInputName(Inputs.size()).c_str(), pFunctionDef->dynamicInputProps.type);
+            Inputs.emplace_back(IDGenerator.GetNextId(),
+                GetInputName(Inputs.size()).c_str(),
+                pFunctionDef->dynamicInputProps.type,
+                pFunctionDef->dynamicInputProps.description);
             InputValues.emplace_back(pFunctionDef->dynamicInputProps.defaultValue);
         }
     };
@@ -216,6 +227,11 @@ struct FunctionNode : public Node
     {
         return pFunctionDef && Inputs.size() < pFunctionDef->dynamicInputProps.maxInputs;
     };
+    virtual TypeRef DynamicInputType() const override
+    {
+        return pFunctionDef
+            ? pFunctionDef->dynamicInputProps.type : TypeRef(PinType::Any);
+    }
 
     static std::string GetInputName(int inputIdx) { return std::string(1, char(65 + inputIdx)); }
 
@@ -235,26 +251,32 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
     if (!pFunctionDef)
         return node;
 
+    node->Description = pFunctionDef->description;
+
     if (!HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly))
     {
-        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+            "Executes this function.");
         node->InputValues.emplace_back(Value());
 
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+            "Continues after the function returns.");
     }
 
     if (!HasFlag(pFunctionDef->flags, NodeDefinitionFlags::DynamicInputs))
     {
         for (const BasicFunctionDef::Input& input : pFunctionDef->inputs)
         {
-            node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value));
+            node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
+                input.description);
             node->InputValues.emplace_back(input.value);
         }
     }
 
     for (const BasicFunctionDef::Input& output : pFunctionDef->outputs)
     {
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), TypeOfValue(output.value));
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), output.type,
+            output.description);
     }
 
     node->DefinitionFlags = pFunctionDef->flags;

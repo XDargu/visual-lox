@@ -30,6 +30,8 @@ struct BeginNode : public Node
 
     virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
+        Description = "Entry point for '" + functionDef->name + "'. " +
+            functionDef->description;
         // Add missing outputs
         const int startingOutput = 1;
 
@@ -39,11 +41,14 @@ struct BeginNode : public Node
 
             if (Pin* existingOutput = FindOutputByName(input.name))
             {
-                existingOutput->Type = TypeOfValue(input.value);
+                existingOutput->Type = existingOutput->DeclaredType = input.type;
+                existingOutput->Description = input.description;
             }
             else
             {
-                Outputs.insert(Outputs.begin() + startingOutput + i, { IDGenerator.GetNextId(), input.name.c_str(), TypeOfValue(input.value) });
+                Outputs.insert(Outputs.begin() + startingOutput + i,
+                    { IDGenerator.GetNextId(), input.name.c_str(), input.type,
+                      input.description });
             }
         }
 
@@ -61,13 +66,17 @@ static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr&
 {
     NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function->functionDef);
     node->SerializationType = "begin";
+    node->Description = "Entry point for '" + function->functionDef->name + "'. " +
+        function->functionDef->description;
     node->DefinitionFlags |= NodeDefinitionFlags::Protected;
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
+        "Starts execution of this graph.");
 
     for (int i = 0; i < function->functionDef->inputs.size(); ++i)
     {
         const BasicFunctionDef::Input& input = function->functionDef->inputs[i];
-        node->Outputs.emplace_back(IDGenerator.GetNextId(),input.name.c_str(), TypeOfValue(input.value));
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
+            input.description);
     }
 
     return node;

@@ -132,4 +132,6 @@ struct GraphViewUtils
     static bool DrawTypeInputImpl(const PinType pinType, Value& inputValue);
     static bool DrawTypeInput(const PinType pinType, Value& inputValue);
     static void DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange);
+    static void DrawDeclaredTypeSelection(const Script& script, const TypeRef& current,
+                                          std::function<void(TypeRef type)> onChange);
 };

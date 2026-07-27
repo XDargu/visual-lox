@@ -98,6 +98,7 @@ struct Graph
 
     NodePtr AddNode(const NodePtr& node);
     Link* AddLink(Link& link);
+    void RefreshTypes();
 
     std::vector<NodePtr>& GetNodes() { return m_Nodes; } // TODO: Remove
     std::vector<Link>& GetLinks() { return m_Links; } // TODO: Remove
@@ -134,7 +135,7 @@ namespace GraphUtils
 
     bool IsNodeConstFoldable(const Graph& graph, const NodePtr& node);
 
-    bool AreTypesCompatible(PinType a, PinType b);
+    bool AreTypesCompatible(const TypeRef& outputType, const TypeRef& inputType);
 
     bool IsNodeParent(const Graph& graph, const NodePtr& node, const NodePtr& child);
     bool CanReachNodeAllPaths(const Graph& graph, const NodePtr& node, const NodePtr& child);

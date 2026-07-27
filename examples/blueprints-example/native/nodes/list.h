@@ -48,12 +48,13 @@ struct ListGetByIndex : public Node
 static NodePtr BuildListGetByIndexNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<ListGetByIndex>(IDGenerator.GetNextId(), "Get By Index");
+    const TypeRef element = TypeRef::Variable("T");
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "List", PinType::List);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "List", TypeRef::List(element));
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "Index", PinType::Float);
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Any);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", element);
 
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(newList()));
@@ -98,13 +99,14 @@ struct ListSetByIndex : public Node
 static NodePtr BuildListSetByIndexNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<ListSetByIndex>(IDGenerator.GetNextId(), "Set By Index");
+    const TypeRef element = TypeRef::Variable("T");
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "List", PinType::List);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "List", TypeRef::List(element));
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "Index", PinType::Float);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::Any);
+    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Value", element);
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", PinType::List);
+    node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", TypeRef::List(element));
 
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(newList()));

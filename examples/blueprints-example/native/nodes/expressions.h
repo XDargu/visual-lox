@@ -182,8 +182,9 @@ inline NodePtr BuildNotEqualsNode(IDGenerator& ids)
     NodePtr node =
         std::make_shared<TwoOperationExpressionNode<OpCode::OP_EQUAL, OpCode::OP_NOT>>(
             ids.GetNextId(), "!=");
-    node->Inputs.emplace_back(ids.GetNextId(), "A", PinType::Any);
-    node->Inputs.emplace_back(ids.GetNextId(), "B", PinType::Any);
+    const TypeRef comparable = TypeRef::Variable("T");
+    node->Inputs.emplace_back(ids.GetNextId(), "A", comparable);
+    node->Inputs.emplace_back(ids.GetNextId(), "B", comparable);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
@@ -244,6 +245,13 @@ inline NodePtr BuildOrNode(IDGenerator& ids)
 
 inline NodePtr BuildCoalesceNode(IDGenerator& ids)
 {
-    return BuildShortCircuitNode(
-        ids, "Coalesce", ShortCircuitMode::Coalesce, PinType::Any, Value());
+    NodePtr node = std::make_shared<ShortCircuitExpressionNode>(
+        ids.GetNextId(), "Coalesce", ShortCircuitMode::Coalesce);
+    const TypeRef valueType = TypeRef::Variable("T");
+    node->Inputs.emplace_back(ids.GetNextId(), "Value", valueType);
+    node->Inputs.emplace_back(ids.GetNextId(), "Fallback", valueType);
+    node->Outputs.emplace_back(ids.GetNextId(), "Result", valueType);
+    node->InputValues.emplace_back(Value());
+    node->InputValues.emplace_back(Value());
+    return node;
 }

@@ -1,6 +1,7 @@
 # pragma once
 
 #include "scriptElement.h"
+#include "../graphs/typeSystem.h"
 
 #include <Value.h>
 
@@ -18,6 +19,8 @@ struct ScriptProperty : public IScriptElement
     }
 
     std::string Name;
+    std::string Description;
+    TypeRef type = PinType::Any;
     Value defaultValue;
 };
 

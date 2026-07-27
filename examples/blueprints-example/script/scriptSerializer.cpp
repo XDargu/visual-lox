@@ -65,6 +65,18 @@ std::string StringField(const Json& value, const char* name)
     return Field(value, name, crude_json::type_t::string).get<crude_json::string>();
 }
 
+const Json* OptionalField(const Json& value, const char* name);
+
+std::string OptionalStringField(const Json& value, const char* name,
+                                std::string fallback = {})
+{
+    const Json* field = OptionalField(value, name);
+    if (!field) return fallback;
+    if (!field->is_string())
+        throw SerializationError("Field '" + std::string(name) + "' has the wrong type.");
+    return field->get<crude_json::string>();
+}
+
 int IntField(const Json& value, const char* name)
 {
     const double number = Field(value, name, crude_json::type_t::number).get<crude_json::number>();
@@ -109,6 +121,7 @@ const char* PinTypeName(PinType type)
     switch (type)
     {
     case PinType::Flow: return "flow";
+    case PinType::Nil: return "nil";
     case PinType::Bool: return "bool";
     case PinType::Int: return "int";
     case PinType::Float: return "number";
@@ -117,6 +130,9 @@ const char* PinTypeName(PinType type)
     case PinType::Range: return "range";
     case PinType::Object: return "object";
     case PinType::Function: return "function";
+    case PinType::Tuple: return "tuple";
+    case PinType::Iterable: return "iterable";
+    case PinType::TypeVariable: return "variable";
     case PinType::Any: return "any";
     case PinType::Error: return "error";
     }
@@ -126,6 +142,7 @@ const char* PinTypeName(PinType type)
 PinType ParsePinType(const std::string& type)
 {
     if (type == "flow") return PinType::Flow;
+    if (type == "nil") return PinType::Nil;
     if (type == "bool") return PinType::Bool;
     if (type == "int") return PinType::Int;
     if (type == "number") return PinType::Float;
@@ -134,9 +151,66 @@ PinType ParsePinType(const std::string& type)
     if (type == "range") return PinType::Range;
     if (type == "object") return PinType::Object;
     if (type == "function") return PinType::Function;
+    if (type == "tuple") return PinType::Tuple;
+    if (type == "iterable") return PinType::Iterable;
+    if (type == "variable") return PinType::TypeVariable;
     if (type == "any") return PinType::Any;
     if (type == "error") return PinType::Error;
     throw SerializationError("Unknown pin type '" + type + "'.");
+}
+
+const Json* OptionalField(const Json& value, const char* name)
+{
+    if (!value.is_object()) return nullptr;
+    const Object& object = value.get<Object>();
+    const auto found = object.find(name);
+    return found == object.end() ? nullptr : &found->second;
+}
+
+Json SerializeTypeRef(const TypeRef& type)
+{
+    Json result(Object{});
+    result["kind"] = PinTypeName(type.kind);
+    result["class_id"] = static_cast<double>(type.classId);
+    result["input_count"] = static_cast<double>(type.functionInputCount);
+    result["name"] = type.name;
+    Json parameters(Array{});
+    for (const TypeRef& parameter : type.parameters)
+        parameters.push_back(SerializeTypeRef(parameter));
+    result["parameters"] = std::move(parameters);
+    return result;
+}
+
+TypeRef DeserializeTypeRef(const Json& json, int depth = 0)
+{
+    if (depth > 32)
+        throw SerializationError("Type nesting exceeds 32 levels.");
+    const std::string kind = StringField(json, "kind");
+    const bool legacyOptional = kind == "optional";
+    TypeRef result(legacyOptional ? PinType::Any : ParsePinType(kind));
+    result.classId = IntField(json, "class_id");
+    result.functionInputCount = IntField(json, "input_count");
+    result.name = StringField(json, "name");
+    for (const Json& parameter :
+         Field(json, "parameters", crude_json::type_t::array).get<Array>())
+        result.parameters.push_back(DeserializeTypeRef(parameter, depth + 1));
+    if ((result.kind == PinType::List || result.kind == PinType::Iterable) &&
+        result.parameters.size() != 1)
+        throw SerializationError("Container types require one element type.");
+    // Version 3 briefly persisted Optional<T>. Nil is now permitted by every
+    // value type, so loading that declaration simply recovers T.
+    if (legacyOptional)
+        return result.parameters.size() == 1
+            ? result.parameters.front() : TypeRef(PinType::Any);
+    return result;
+}
+
+TypeRef MigratedTypeOfValue(const Value& value)
+{
+    TypeRef type = TypeOfValue(value);
+    if (type == PinType::Nil)
+        type = PinType::Any;
+    return type;
 }
 
 Json SerializeValue(const Value& value, int depth = 0)
@@ -265,6 +339,8 @@ Json SerializeProperty(const ScriptProperty& property)
     Json result(Object{});
     result["id"] = static_cast<double>(property.ID.id);
     result["name"] = property.Name;
+    result["description"] = property.Description;
+    result["declared_type"] = SerializeTypeRef(property.type);
     result["default"] = SerializeValue(property.defaultValue);
     return result;
 }
@@ -274,7 +350,12 @@ ScriptPropertyPtr DeserializeProperty(const Json& json, IdSet& ids)
     const int id = IntField(json, "id");
     ids.Add(id, "Property");
     ScriptPropertyPtr property = std::make_shared<ScriptProperty>(id, StringField(json, "name").c_str());
+    property->Description = OptionalStringField(json, "description");
     property->defaultValue = DeserializeValue(Field(json, "default", crude_json::type_t::object));
+    if (const Json* type = OptionalField(json, "declared_type"))
+        property->type = DeserializeTypeRef(*type);
+    else
+        property->type = MigratedTypeOfValue(property->defaultValue);
     return property;
 }
 
@@ -283,6 +364,8 @@ Json SerializeDefinitionPort(const BasicFunctionDef::Input& port)
     Json result(Object{});
     result["id"] = static_cast<double>(port.id);
     result["name"] = port.name;
+    result["description"] = port.description;
+    result["declared_type"] = SerializeTypeRef(port.type);
     result["default"] = SerializeValue(port.value);
     return result;
 }
@@ -293,7 +376,12 @@ BasicFunctionDef::Input DeserializeDefinitionPort(const Json& json, IdSet& ids)
     port.id = IntField(json, "id");
     ids.Add(port.id, "Function port");
     port.name = StringField(json, "name");
+    port.description = OptionalStringField(json, "description");
     port.value = DeserializeValue(Field(json, "default", crude_json::type_t::object));
+    if (const Json* type = OptionalField(json, "declared_type"))
+        port.type = DeserializeTypeRef(*type);
+    else
+        port.type = MigratedTypeOfValue(port.value);
     return port;
 }
 
@@ -302,7 +390,9 @@ Json SerializePin(const Pin& pin)
     Json result(Object{});
     result["id"] = static_cast<double>(pin.ID.Get());
     result["name"] = pin.Name;
-    result["type"] = PinTypeName(pin.Type);
+    result["description"] = pin.Description;
+    result["type"] = PinTypeName(pin.DeclaredType.kind);
+    result["declared_type"] = SerializeTypeRef(pin.DeclaredType);
     return result;
 }
 
@@ -311,7 +401,12 @@ Pin DeserializePin(const Json& json, IdSet& ids)
     const int id = IntField(json, "id");
     ids.Add(id, "Pin");
     const std::string name = StringField(json, "name");
-    return Pin(id, name.c_str(), ParsePinType(StringField(json, "type")));
+    const Json* declaredType = OptionalField(json, "declared_type");
+    TypeRef type = declaredType
+        ? DeserializeTypeRef(*declaredType)
+        : TypeRef(ParsePinType(StringField(json, "type")));
+    return Pin(id, name.c_str(), std::move(type),
+        OptionalStringField(json, "description"));
 }
 
 Json SerializeNode(const Node& node)
@@ -325,6 +420,7 @@ Json SerializeNode(const Node& node)
     result["definition"] = node.DefinitionId;
     result["reference_id"] = static_cast<double>(node.refId.id);
     result["state"] = node.State;
+    result["description"] = node.Description;
 
     Json inputs(Array{});
     for (const Pin& pin : node.Inputs)
@@ -396,21 +492,36 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
         return node;
     }
     if (kind == "class.this")
-        return BuildThisNode(constructionIds);
+    {
+        const ScriptClassPtr ownerClass =
+            owner ? ScriptUtils::FindOwningClass(script, owner->ID.id) : nullptr;
+        return BuildThisNode(constructionIds, ownerClass
+            ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
+            : TypeRef(PinType::Object));
+    }
     if (kind == "property.get" || kind == "property.set")
     {
         ScriptPropertyPtr property = ScriptUtils::FindClassPropertyById(script, reference);
+        const ScriptClassPtr ownerClass =
+            ScriptUtils::FindOwningClass(script, reference.id);
+        const TypeRef instanceType = ownerClass
+            ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
+            : TypeRef(PinType::Object);
         NodePtr node = kind == "property.get"
-            ? BuildGetPropertyNode(constructionIds, property, reference)
-            : BuildSetPropertyNode(constructionIds, property, reference);
+            ? BuildGetPropertyNode(constructionIds, property, reference, instanceType)
+            : BuildSetPropertyNode(constructionIds, property, reference, instanceType);
         if (!property) node->Refresh(script, constructionIds);
         return node;
     }
     if (kind == "method.call")
     {
         ScriptFunctionPtr method = ScriptUtils::FindFunctionById(script, reference);
-        if (!ScriptUtils::FindOwningClass(script, reference)) method = nullptr;
-        NodePtr node = BuildMethodCallNode(constructionIds, method, reference);
+        const ScriptClassPtr ownerClass =
+            ScriptUtils::FindOwningClass(script, reference.id);
+        if (!ownerClass) method = nullptr;
+        NodePtr node = BuildMethodCallNode(constructionIds, method, reference,
+            ownerClass ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
+                       : TypeRef(PinType::Object));
         if (!method) node->Refresh(script, constructionIds);
         return node;
     }
@@ -459,6 +570,12 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         ids.Add(nodeId, "Node");
         node->ID = ed::NodeId(nodeId);
         node->State = StringField(nodeJson, "state");
+        if (const Json* description = OptionalField(nodeJson, "description"))
+        {
+            if (!description->is_string())
+                throw SerializationError("Node description has the wrong type.");
+            node->Description = description->get<crude_json::string>();
+        }
 
         const Array& inputs = Field(nodeJson, "inputs", crude_json::type_t::array).get<Array>();
         const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
@@ -471,9 +588,26 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
             (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
            )
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid input layout.");
+        const std::vector<Pin> definitionInputs = node->Inputs;
         node->Inputs.clear();
         for (const Json& pin : inputs)
             node->Inputs.push_back(DeserializePin(pin, ids));
+        if (definitionInputs.size() == node->Inputs.size())
+            for (size_t i = 0; i < node->Inputs.size(); ++i)
+            {
+                if (!OptionalField(inputs[i], "description"))
+                    node->Inputs[i].Description = definitionInputs[i].Description;
+                if (!OptionalField(inputs[i], "declared_type") &&
+                    definitionInputs[i].DeclaredType.IsGeneric())
+                    node->Inputs[i].Type = node->Inputs[i].DeclaredType =
+                        definitionInputs[i].DeclaredType;
+            }
+        if (hasDynamicInputs)
+            for (size_t i = 0; i < node->Inputs.size(); ++i)
+                if (!OptionalField(inputs[i], "declared_type") &&
+                    node->Inputs[i].Type != PinType::Flow)
+                    node->Inputs[i].Type = node->Inputs[i].DeclaredType =
+                        node->DynamicInputType();
 
         const Array& outputs = Field(nodeJson, "outputs", crude_json::type_t::array).get<Array>();
         const bool validDynamicOutputs =
@@ -483,9 +617,20 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
                 outputs.size() == inputs.size());
         if (!isMissingReference && !validDynamicOutputs && outputs.size() != node->Outputs.size())
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid output layout.");
+        const std::vector<Pin> definitionOutputs = node->Outputs;
         node->Outputs.clear();
         for (const Json& pin : outputs)
             node->Outputs.push_back(DeserializePin(pin, ids));
+        if (definitionOutputs.size() == node->Outputs.size())
+            for (size_t i = 0; i < node->Outputs.size(); ++i)
+            {
+                if (!OptionalField(outputs[i], "description"))
+                    node->Outputs[i].Description = definitionOutputs[i].Description;
+                if (!OptionalField(outputs[i], "declared_type") &&
+                    definitionOutputs[i].DeclaredType.IsGeneric())
+                    node->Outputs[i].Type = node->Outputs[i].DeclaredType =
+                        definitionOutputs[i].DeclaredType;
+            }
 
         node->InputValues.clear();
         const Array& values = Field(nodeJson, "input_values", crude_json::type_t::array).get<Array>();
@@ -499,6 +644,7 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         if (node->SerializationType == "begin")
             ++beginNodeCount;
     }
+    graph.RefreshTypes();
 
     if (beginNodeCount != 1)
         throw SerializationError("Every function graph must contain exactly one Begin node.");
@@ -542,6 +688,9 @@ Json SerializeFunction(const ScriptFunction& function)
     Json result(Object{});
     result["id"] = static_cast<double>(function.ID.id);
     result["name"] = function.functionDef->name;
+    result["description"] = function.functionDef->description;
+    result["pure"] =
+        HasFlag(function.functionDef->flags, NodeDefinitionFlags::Pure);
 
     Json inputs(Array{});
     for (const BasicFunctionDef::Input& input : function.functionDef->inputs)
@@ -566,6 +715,14 @@ ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids)
     const int id = IntField(json, "id");
     ids.Add(id, "Function");
     ScriptFunctionPtr function = std::make_shared<ScriptFunction>(id, StringField(json, "name").c_str());
+    function->functionDef->description = OptionalStringField(json, "description");
+    if (const Json* pure = OptionalField(json, "pure"))
+    {
+        if (!pure->is_boolean())
+            throw SerializationError("Function purity has the wrong type.");
+        if (pure->get<crude_json::boolean>())
+            function->functionDef->flags |= NodeDefinitionFlags::Pure;
+    }
 
     const Array& inputs = Field(json, "inputs", crude_json::type_t::array).get<Array>();
     for (const Json& input : inputs)
@@ -645,7 +802,7 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
     if (StringField(root, "format") != "visual-lox")
         throw SerializationError("This is not a Visual Lox document.");
     const int version = IntField(root, "format_version");
-    if (version != 1 && version != ScriptSerializer::FormatVersion)
+    if (version < 1 || version > ScriptSerializer::FormatVersion)
         throw SerializationError("Unsupported .vlox format version " + std::to_string(version) + ".");
 
     const Json& scriptJson = Field(root, "script", crude_json::type_t::object);
@@ -824,6 +981,7 @@ NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
     NodePtr clone = CreateNode(definition, registry, destination, owner, constructionIds);
     clone->ID = ed::NodeId(ids.GetNextId());
     clone->State = OffsetNodeState(sourceNode->State, positionOffset);
+    clone->Description = sourceNode->Description;
     clone->Inputs.clear();
     clone->Outputs.clear();
     clone->InputValues.clear();
@@ -833,14 +991,16 @@ NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
         const Pin& sourcePin = sourceNode->Inputs[i];
         const int newId = ids.GetNextId();
         pinMap[sourcePin.ID.Get()] = newId;
-        clone->Inputs.emplace_back(newId, sourcePin.Name.c_str(), sourcePin.Type);
+        clone->Inputs.emplace_back(newId, sourcePin.Name.c_str(),
+            sourcePin.DeclaredType, sourcePin.Description);
         clone->InputValues.push_back(CloneValue(sourceNode->InputValues[i]));
     }
     for (const Pin& sourcePin : sourceNode->Outputs)
     {
         const int newId = ids.GetNextId();
         pinMap[sourcePin.ID.Get()] = newId;
-        clone->Outputs.emplace_back(newId, sourcePin.Name.c_str(), sourcePin.Type);
+        clone->Outputs.emplace_back(newId, sourcePin.Name.c_str(),
+            sourcePin.DeclaredType, sourcePin.Description);
     }
     NodeUtils::BuildNode(clone);
     return clone;
@@ -918,23 +1078,31 @@ SerializationResult ScriptSerializer::CloneFunction(const Script& source, int fu
         referenceMap[sourceFunction->ID.id] = pastedFunctionId;
         ScriptFunctionPtr clone = std::make_shared<ScriptFunction>(pastedFunctionId,
                                                                    sourceFunction->functionDef->name.c_str());
+        clone->functionDef->description = sourceFunction->functionDef->description;
+        clone->functionDef->flags = sourceFunction->functionDef->flags;
         for (const BasicFunctionDef::Input& input : sourceFunction->functionDef->inputs)
         {
             const int newId = ids.GetNextId();
             referenceMap[input.id] = newId;
-            clone->functionDef->inputs.push_back({ input.name, CloneValue(input.value), newId });
+            clone->functionDef->inputs.push_back(
+                { input.name, CloneValue(input.value), newId, input.type,
+                  input.description });
         }
         for (const BasicFunctionDef::Input& output : sourceFunction->functionDef->outputs)
         {
             const int newId = ids.GetNextId();
             referenceMap[output.id] = newId;
-            clone->functionDef->outputs.push_back({ output.name, CloneValue(output.value), newId });
+            clone->functionDef->outputs.push_back(
+                { output.name, CloneValue(output.value), newId, output.type,
+                  output.description });
         }
         for (const ScriptPropertyPtr& variable : sourceFunction->variables)
         {
             const int newId = ids.GetNextId();
             referenceMap[variable->ID.id] = newId;
             ScriptPropertyPtr variableClone = std::make_shared<ScriptProperty>(newId, variable->Name.c_str());
+            variableClone->Description = variable->Description;
+            variableClone->type = variable->type;
             variableClone->defaultValue = CloneValue(variable->defaultValue);
             clone->variables.push_back(variableClone);
         }
@@ -969,6 +1137,8 @@ SerializationResult ScriptSerializer::CloneVariable(const Script& source, int va
         GarbageCollectionPause pause;
         pastedVariableId = ids.GetNextId();
         ScriptPropertyPtr clone = std::make_shared<ScriptProperty>(pastedVariableId, variable->Name.c_str());
+        clone->Description = variable->Description;
+        clone->type = variable->type;
         clone->defaultValue = CloneValue(variable->defaultValue);
         destination.variables.push_back(clone);
         return SerializationResult::Ok();
@@ -997,7 +1167,9 @@ SerializationResult ScriptSerializer::CloneFunctionPort(const Script& source, in
     {
         GarbageCollectionPause pause;
         pastedPortId = ids.GetNextId();
-        BasicFunctionDef::Input clone{ sourcePort->name, CloneValue(sourcePort->value), pastedPortId };
+        BasicFunctionDef::Input clone{
+            sourcePort->name, CloneValue(sourcePort->value), pastedPortId,
+            sourcePort->type, sourcePort->description };
         if (output) destinationFunction->functionDef->outputs.push_back(std::move(clone));
         else destinationFunction->functionDef->inputs.push_back(std::move(clone));
         ScriptUtils::RefreshFunctionRefs(destination, destinationFunctionId, ids);

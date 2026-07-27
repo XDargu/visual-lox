@@ -1615,7 +1615,9 @@ void Example::ShowInspector()
             }
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip(
-                    "Pure graphs can only contain pure nodes and call pure functions.");
+                    "Pure functions cannot cause side effects or call impure "
+                    "functions. Their graphs may use normal execution flow, but "
+                    "calls to them appear as data-only nodes.");
         }
 
         ImGui::Spacing();
@@ -1667,6 +1669,7 @@ void Example::ShowInspector()
                     });
                 }
                 std::string inputDescription = input.description;
+                ImGui::TextDisabled("DESCRIPTION");
                 ImGui::SetNextItemWidth(-1.0f);
                 if (ImGui::InputTextMultiline(
                         "##input-description", &inputDescription,
@@ -1742,6 +1745,7 @@ void Example::ShowInspector()
                     });
                 }
                 std::string outputDescription = output.description;
+                ImGui::TextDisabled("DESCRIPTION");
                 ImGui::SetNextItemWidth(-1.0f);
                 if (ImGui::InputTextMultiline(
                         "##output-description", &outputDescription,

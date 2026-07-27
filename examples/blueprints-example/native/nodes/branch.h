@@ -86,10 +86,18 @@ struct BranchNode : public Node
 static NodePtr BuildBranchNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<BranchNode>(IDGenerator.GetNextId(), "Branch");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "Condition", PinType::Bool);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "True", PinType::Flow);
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "False", PinType::Flow);
+    node->Inputs.emplace_back(
+        IDGenerator.GetNextId(), "", PinType::Flow,
+        "Starts the branch.");
+    node->Inputs.emplace_back(
+        IDGenerator.GetNextId(), "Condition", PinType::Bool,
+        "Chooses the True path when true and the False path when false.");
+    node->Outputs.emplace_back(
+        IDGenerator.GetNextId(), "True", PinType::Flow,
+        "Runs when Condition is true.");
+    node->Outputs.emplace_back(
+        IDGenerator.GetNextId(), "False", PinType::Flow,
+        "Runs when Condition is false.");
 
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(false));

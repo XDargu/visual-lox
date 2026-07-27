@@ -253,6 +253,27 @@ void ScriptUtils::RefreshFunctionRefs(Script& script, int funId, IDGenerator& ID
         for (const ScriptFunctionPtr& method : scriptClass->methods)
             method->Graph.RefreshTypes();
     }
+
+    const auto removeDanglingLinks = [](Graph& graph)
+    {
+        std::vector<Link>& links = graph.GetLinks();
+        links.erase(std::remove_if(links.begin(), links.end(),
+            [&](const Link& link)
+            {
+                return !graph.FindPin(link.StartPinID) ||
+                       !graph.FindPin(link.EndPinID);
+            }), links.end());
+    };
+    if (script.main) removeDanglingLinks(script.main->Graph);
+    for (const ScriptFunctionPtr& function : script.functions)
+        removeDanglingLinks(function->Graph);
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor)
+            removeDanglingLinks(scriptClass->constructor->Graph);
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            removeDanglingLinks(method->Graph);
+    }
 }
 
 void ScriptUtils::RefreshVariableRefs(Script& script, int varId, IDGenerator& IDGenerator)

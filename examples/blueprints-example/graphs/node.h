@@ -130,6 +130,8 @@ struct Pin
         Type(type), DeclaredType(std::move(type)),
         Kind(PinKind::Input)
     {
+        if (!Description.empty() && Description.back() == '.')
+            Description.pop_back();
     }
 };
 
@@ -234,5 +236,6 @@ struct NodeIdLess
 
 struct NodeUtils
 {
+    static void NormalizeDocumentation(const NodePtr& node);
     static void BuildNode(const NodePtr& node);
 };

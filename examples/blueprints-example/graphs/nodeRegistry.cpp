@@ -18,6 +18,7 @@
 #include <chrono>
 #include <map>
 #include <set>
+#include <stdexcept>
 
 #include <locale>
 #include <codecvt>
@@ -250,45 +251,100 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(0.0);
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Multiplies a number by itself",
+            { "The number to square" },
+            { "The squared number" }
+        }
     );
 
     RegisterNativeFunc("Math::Abs",
         { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
-        &MathAbs, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathAbs, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the distance of a number from zero",
+            { "The number whose absolute value is needed" },
+            { "The non-negative absolute value" }
+        });
     RegisterNativeFunc("Math::Min",
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
         { { "Result", Value(0.0) } },
-        &MathMin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathMin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the smaller of two numbers",
+            { "The first number to compare", "The second number to compare" },
+            { "The smaller number" }
+        });
     RegisterNativeFunc("Math::Max",
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
         { { "Result", Value(0.0) } },
-        &MathMax, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathMax, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the larger of two numbers",
+            { "The first number to compare", "The second number to compare" },
+            { "The larger number" }
+        });
     RegisterNativeFunc("Math::Clamp",
         { { "Value", Value(0.0) }, { "Min", Value(0.0) },
           { "Max", Value(1.0) } },
         { { "Result", Value(0.0) } },
-        &MathClamp, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathClamp, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Limits a number to a minimum and maximum value",
+            { "The number to limit", "The lowest allowed value", "The highest allowed value" },
+            { "The value constrained to the requested range" }
+        });
     RegisterNativeFunc("Math::Power",
         { { "Base", Value(0.0) }, { "Exponent", Value(1.0) } },
         { { "Result", Value(0.0) } },
-        &MathPower, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathPower, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Raises a number to a power",
+            { "The number to raise", "The power applied to the base" },
+            { "The base raised to the exponent" }
+        });
     RegisterNativeFunc("Math::Sqrt",
         { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
-        &MathSqrt, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathSqrt, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the square root of a number",
+            { "The number whose square root is needed" },
+            { "The square root" }
+        });
     RegisterNativeFunc("Math::Floor",
         { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
-        &MathFloor, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathFloor, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Rounds a number down to the nearest integer",
+            { "The number to round down" },
+            { "The rounded-down number" }
+        });
     RegisterNativeFunc("Math::Ceil",
         { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
-        &MathCeil, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathCeil, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Rounds a number up to the nearest integer",
+            { "The number to round up" },
+            { "The rounded-up number" }
+        });
     RegisterNativeFunc("Math::Round",
         { { "Value", Value(0.0) } }, { { "Result", Value(0.0) } },
-        &MathRound, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &MathRound, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Rounds a number to the nearest integer",
+            { "The number to round" },
+            { "The nearest integer" }
+        });
     RegisterNativeFunc("Math::Random",
         { { "Min", Value(0.0) }, { "Max", Value(1.0) } },
         { { "Result", Value(0.0) } },
-        &MathRandom, NodeDefinitionFlags::ReadOnly);
+        &MathRandom, NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Returns a random number between two bounds",
+            { "The lowest possible value", "The highest possible value" },
+            { "A random number between Min and Max" }
+        });
 
     RegisterNativeFunc("File::FileExists",
         { { "File", Value(copyString("", 0))}},
@@ -303,14 +359,24 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(false);
         },
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Checks whether a file or directory exists",
+            { "The path to check" },
+            { "True when the path exists" }
+        }
     );
 
     RegisterNativeFunc("String::Length",
         { { "Value", Value(copyString("", 0)) } },
         { { "Length", Value(0.0) } },
         &lengthOfIterable,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the number of characters in text",
+            { "The text to measure" },
+            { "The character count" }
+        }
     );
 
     RegisterNativeFunc("String::Split",
@@ -340,14 +406,24 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(newList());
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Splits text wherever a separator occurs",
+            { "The text to split", "The separator between parts" },
+            { "The separated text parts" }
+        }
     );
 
     RegisterNativeFunc("System::Clock",
         { },
         { { "Time", Value(0.0) } },
         &clock,
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Returns the elapsed processor time in seconds",
+            {  },
+            { "The current clock value" }
+        }
     );
 
     RegisterNativeFunc("List::MakeList",
@@ -360,6 +436,12 @@ void NodeRegistry::RegisterDefinitions()
         NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::Pure,
         {
             1, 16, TypeRef::Variable("T"), Value(0.0)
+        },
+        NodeDocumentation{
+            "Collects its inputs into a typed list",
+            { "The packed values supplied by the dynamic pins" },
+            { "A list containing the supplied values" },
+            "A value to append to the list"
         }
     );
 
@@ -368,7 +450,12 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Length", Value(0.0) } },
         &lengthOfIterable,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the number of values in a list",
+            { "The list to measure" },
+            { "The number of values" }
+        }
     );
 
     RegisterNativeFunc("List::In Bounds",
@@ -376,7 +463,12 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) } },
         { { "Result", Value(false) } },
         &inBounds,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether an index is valid for a list",
+            { "The list to inspect", "The index to check" },
+            { "True when the index identifies a list value" }
+        }
     );
 
     RegisterNativeFunc("List::Concat",
@@ -385,7 +477,12 @@ void NodeRegistry::RegisterDefinitions()
         { { "Result", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         &concat,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Combines two lists in order",
+            { "The first list", "The list appended after the first" },
+            { "A new list containing both inputs" }
+        }
     );
 
     RegisterNativeFunc("List::Erase",
@@ -393,7 +490,12 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) } },
         { },
         &erase,
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Removes the value at an index from a list",
+            { "The list to modify", "The index to remove" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("List::Push",
@@ -402,7 +504,12 @@ void NodeRegistry::RegisterDefinitions()
           { "Value", Value(), -1, TypeRef::Variable("T") } },
         { { "Size", Value(0.0) } },
         &push,
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Adds a value to the end of a list",
+            { "The list to modify", "The value to append" },
+            { "The list size after appending" }
+        }
     );
 
     RegisterNativeFunc("List::Pop",
@@ -410,7 +517,12 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Value", Value(), -1, TypeRef::Variable("T") } },
         &pop,
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Removes and returns the final value in a list",
+            { "The list to modify" },
+            { "The removed value" }
+        }
     );
 
     RegisterNativeFunc("List::Insert",
@@ -418,43 +530,78 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("T")) }, { "Index", Value(0.0) },
           { "Value", Value(), -1, TypeRef::Variable("T") } },
         { { "Size", Value(0.0) } },
-        &ListInsert, NodeDefinitionFlags::None);
+        &ListInsert, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Inserts a value at an index in a list",
+            { "The list to modify", "The position for the new value", "The value to insert" },
+            { "The list size after insertion" }
+        });
     RegisterNativeFunc("List::Clear",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Size", Value(0.0) } },
-        &ListClear, NodeDefinitionFlags::None);
+        &ListClear, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Removes every value from a list",
+            { "The list to clear" },
+            { "The list size after clearing" }
+        });
     RegisterNativeFunc("List::Slice",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) }, { "Start", Value(0.0) },
           { "Count", Value(0.0) } },
         { { "Result", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
-        &ListSlice, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListSlice, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Copies a consecutive section of a list",
+            { "The source list", "The first index to copy", "The maximum number of values to copy" },
+            { "A new list containing the requested section" }
+        });
     RegisterNativeFunc("List::Reverse",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Result", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
-        &ListReverse, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListReverse, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates a list with the values in reverse order",
+            { "The source list" },
+            { "A reversed copy of the list" }
+        });
     RegisterNativeFunc("List::Sort",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Result", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
-        &ListSort, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListSort, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates a list with its values in ascending order",
+            { "The source list" },
+            { "A sorted copy of the list" }
+        });
     RegisterNativeFunc("List::Distinct",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Result", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
-        &ListDistinct, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListDistinct, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates a list with duplicate values removed",
+            { "The source list" },
+            { "A copy containing the first occurrence of each value" }
+        });
     RegisterNativeFunc("List::Enumerate",
         { { "List", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) } },
         { { "Result", Value(newList()), -1, TypeRef::List(TypeRef::Tuple(
             { PinType::Float, TypeRef::Variable("T") })) } },
-        &ListEnumerate, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListEnumerate, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Pairs every list value with its index",
+            { "The source list" },
+            { "A list of (index, value) tuples" }
+        });
     RegisterNativeFunc("List::Zip",
         { { "A", Value(newList()), -1,
             TypeRef::List(TypeRef::Variable("T")) },
@@ -462,110 +609,205 @@ void NodeRegistry::RegisterDefinitions()
             TypeRef::List(TypeRef::Variable("U")) } },
         { { "Result", Value(newList()), -1, TypeRef::List(TypeRef::Tuple(
             { TypeRef::Variable("T"), TypeRef::Variable("U") })) } },
-        &ListZip, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &ListZip, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Pairs values from two lists at matching indices",
+            { "The first list", "The second list" },
+            { "A list of (A, B) tuples, limited by the shorter input" }
+        });
 
     RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },
         &readFile,
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Reads all text from a file",
+            { "The path of the file to read" },
+            { "The file contents" }
+        }
     );
 
     RegisterNativeFunc("File::WriteFile",
         { { "File", Value(copyString("", 0)) }, { "Content", Value(copyString("", 0)) } },
         { },
         &writeFile,
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Replaces a file with the supplied text",
+            { "The path of the file to write", "The text to write" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("File::Read Text",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) }, { "Success", Value(false) },
           { "Error", Value(copyString("", 0)) } },
-        &FileReadText, NodeDefinitionFlags::None);
+        &FileReadText, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Reads text from a file and reports failures without stopping the graph",
+            { "The path of the file to read" },
+            { "The text read from the file", "True when reading succeeded", "An error message when reading failed" }
+        });
     RegisterNativeFunc("File::Write Text",
         { { "File", Value(copyString("", 0)) },
           { "Content", Value(copyString("", 0)) } },
         { { "Success", Value(false) }, { "Error", Value(copyString("", 0)) } },
-        &FileWriteText, NodeDefinitionFlags::None);
+        &FileWriteText, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Writes text to a file and reports whether it succeeded",
+            { "The path of the file to write", "The text that replaces the file" },
+            { "True when writing succeeded", "An error message when writing failed" }
+        });
     RegisterNativeFunc("File::Append Text",
         { { "File", Value(copyString("", 0)) },
           { "Content", Value(copyString("", 0)) } },
         { { "Success", Value(false) }, { "Error", Value(copyString("", 0)) } },
-        &FileAppendText, NodeDefinitionFlags::None);
+        &FileAppendText, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Adds text to the end of a file and reports whether it succeeded",
+            { "The path of the file to update", "The text to append" },
+            { "True when appending succeeded", "An error message when appending failed" }
+        });
     RegisterNativeFunc("File::List Directory",
         { { "Directory", Value(copyString("", 0)) } },
         { { "Entries", Value(newList()) }, { "Success", Value(false) },
           { "Error", Value(copyString("", 0)) } },
-        &FileListDirectory, NodeDefinitionFlags::None);
+        &FileListDirectory, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Lists the entries directly inside a directory",
+            { "The directory path to inspect" },
+            { "The paths found in the directory", "True when the directory was read successfully", "An error message when listing failed" }
+        });
     RegisterNativeFunc("Path::Combine",
         { { "A", Value(copyString("", 0)) }, { "B", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &PathCombine, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &PathCombine, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Combines two path segments using the platform separator",
+            { "The first path segment", "The path segment to append" },
+            { "The combined path" }
+        });
     RegisterNativeFunc("Path::Extension",
         { { "Path", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &PathExtension, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &PathExtension, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the extension at the end of a path",
+            { "The path to inspect" },
+            { "The extension, including its dot" }
+        });
     RegisterNativeFunc("Path::Filename",
         { { "Path", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &PathFilename, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &PathFilename, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the final file or directory name in a path",
+            { "The path to inspect" },
+            { "The final path component" }
+        });
     RegisterNativeFunc("Path::Parent",
         { { "Path", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &PathParent, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &PathParent, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the directory containing a path",
+            { "The path to inspect" },
+            { "The parent directory path" }
+        });
     RegisterNativeFunc("Console::Read Input",
         {},
         { { "Text", Value(copyString("", 0)) } },
-        &readInput, NodeDefinitionFlags::None);
+        &readInput, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Waits for and returns one line of console input",
+            {  },
+            { "The line entered by the user" }
+        });
 
     RegisterNativeFunc("List::Contains",
         { { "List", Value(newList()) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether a list contains a value",
+            { "The list to search", "The value to find" },
+            { "True when the value occurs in the list" }
+        }
     );
 
     RegisterNativeFunc("String::Contains",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
         & contains,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether text contains a substring",
+            { "The text to search", "The substring to find" },
+            { "True when the substring occurs" }
+        }
     );
 
     RegisterNativeFunc("List::IndexOf",
         { { "List", Value(newList()) }, { "Value", Value() } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Finds the first index of a value in a list",
+            { "The list to search", "The value to find" },
+            { "The first matching index, or -1 when absent" }
+        }
     );
 
     RegisterNativeFunc("Range::Length",
         { { "Range", Value(newRange(0.0, 0.0)) } },
         { { "Length", Value(0.0) } },
         &lengthOfIterable,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the number of values produced by a range",
+            { "The range to measure" },
+            { "The number of produced values" }
+        }
     );
 
     RegisterNativeFunc("Range::In Bounds",
         { { "Range", Value(newRange(0.0, 0.0)) }, { "Index", Value(0.0) } },
         { { "Result", Value(false) } },
         &inBounds,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether an index is valid for a range",
+            { "The range to inspect", "The index to check" },
+            { "True when the index identifies a range value" }
+        }
     );
 
     RegisterNativeFunc("Range::Contains",
         { { "Range", Value(newRange(0.0, 0.0)) }, { "Value", Value(0.0) } },
         { { "Result", Value(false) } },
         &contains,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether a range produces a number",
+            { "The range to inspect", "The number to find" },
+            { "True when the range produces the number" }
+        }
     );
 
     RegisterNativeFunc("Range::IndexOf",
         { { "Range", Value(newRange(0.0, 0.0)) }, { "Value", Value(0.0) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Finds the index of a number in a range",
+            { "The range to search", "The number to find" },
+            { "The matching index, or -1 when absent" }
+        }
     );
 
     RegisterNativeFunc("Range::Make Advanced",
@@ -574,13 +816,23 @@ void NodeRegistry::RegisterDefinitions()
           { "Include End", Value(true) } },
         { { "Range", Value(newRange(0.0, 1.0)) } },
         &RangeMakeAdvanced,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates a numeric range with explicit step and endpoint rules",
+            { "The first boundary", "The final boundary", "The amount added between values", "Whether the starting boundary is produced", "Whether the ending boundary may be produced" },
+            { "The configured numeric range" }
+        });
 
     RegisterNativeFunc("String::IndexOf",
         { { "Text", Value(copyString("", 0)) }, { "Value", Value(copyString("", 0)) } },
         { { "Result", Value(0.0) } },
         &indexOf,
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Finds the first character index of a substring",
+            { "The text to search", "The substring to find" },
+            { "The first matching index, or -1 when absent" }
+        }
     );
 
     RegisterNativeFunc("String::ToLower",
@@ -597,7 +849,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length())); // Result is already a list!
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Converts text to lowercase",
+            { "The text to convert" },
+            { "The lowercase text" }
+        }
     );
 
     RegisterNativeFunc("String::ToUpper",
@@ -614,7 +871,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length())); // Result is already a list!
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Converts text to uppercase",
+            { "The text to convert" },
+            { "The uppercase text" }
+        }
     );
 
     RegisterNativeFunc("String::Substring",
@@ -647,7 +909,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value(takeString(result.c_str(), result.length()));
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Extracts a section of text",
+            { "The source text", "The first character index", "The maximum character count" },
+            { "The requested section of text" }
+        }
     );
 
     RegisterNativeFunc("String::Find",
@@ -673,73 +940,138 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value((double)result);
         },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Finds the first character index of a substring",
+            { "The text to search", "The substring to find" },
+            { "The first matching index, or -1 when absent" }
+        }
     );
 
     RegisterNativeFunc("String::Trim",
         { { "Text", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &StringTrim, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringTrim, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Removes whitespace from both ends of text",
+            { "The text to trim" },
+            { "The trimmed text" }
+        });
     RegisterNativeFunc("String::Replace",
         { { "Text", Value(copyString("", 0)) },
           { "Search", Value(copyString("", 0)) },
           { "Replacement", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &StringReplace, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringReplace, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Replaces occurrences of one substring with another",
+            { "The source text", "The substring to replace", "The text inserted for each match" },
+            { "The text after replacement" }
+        });
     RegisterNativeFunc("String::Join",
         { { "Values", Value(newList()) },
           { "Separator", Value(copyString("", 0)) } },
         { { "Result", Value(copyString("", 0)) } },
-        &StringJoin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringJoin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Combines a list of values into text with a separator",
+            { "The values to combine", "The text placed between values" },
+            { "The joined text" }
+        });
     RegisterNativeFunc("String::Starts With",
         { { "Text", Value(copyString("", 0)) },
           { "Prefix", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
-        &StringStartsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringStartsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether text begins with a prefix",
+            { "The text to inspect", "The required prefix" },
+            { "True when Text starts with Prefix" }
+        });
     RegisterNativeFunc("String::Ends With",
         { { "Text", Value(copyString("", 0)) },
           { "Suffix", Value(copyString("", 0)) } },
         { { "Result", Value(false) } },
-        &StringEndsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringEndsWith, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether text ends with a suffix",
+            { "The text to inspect", "The required suffix" },
+            { "True when Text ends with Suffix" }
+        });
     RegisterNativeFunc("String::Format",
         { { "Template", Value(copyString("", 0)) }, { "Values", Value(newList()) } },
         { { "Result", Value(copyString("", 0)) } },
-        &StringFormat, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringFormat, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Replaces numbered placeholders in a template with values",
+            { "Text containing numbered placeholders", "The values used to fill the placeholders" },
+            { "The formatted text" }
+        });
     RegisterNativeFunc("String::Parse Number",
         { { "Text", Value(copyString("", 0)) } },
         { { "Value", Value(0.0) }, { "Success", Value(false) } },
-        &StringParseNumber, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringParseNumber, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Attempts to read a number from text",
+            { "The text to parse" },
+            { "The parsed number, or zero on failure", "True when the entire text is a valid number" }
+        });
     RegisterNativeFunc("String::Parse Bool",
         { { "Text", Value(copyString("", 0)) } },
         { { "Value", Value(false) }, { "Success", Value(false) } },
-        &StringParseBool, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure);
+        &StringParseBool, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Attempts to read a boolean from text",
+            { "The text to parse" },
+            { "The parsed boolean, or false on failure", "True when the text is a recognized boolean" }
+        });
 
     RegisterNativeFunc("Functional::FindIf",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value() } },
         &findIf,
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Returns the first iterable value accepted by a predicate",
+            { "The values to search", "A function that returns true for an accepted value" },
+            { "The first accepted value, or nil when none match" }
+        }
     );
 
     RegisterNativeFunc("Functional::Map",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value(newList()) } },
         &map,
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Transforms every iterable value with a function",
+            { "The values to transform", "The function applied to each value" },
+            { "A list containing each transformed value" }
+        }
     );
 
     RegisterNativeFunc("Functional::Filter",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) } },
         { { "Result", Value(newList()) } },
         &filter,
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Keeps the iterable values accepted by a predicate",
+            { "The values to test", "A function that returns true for values to keep" },
+            { "A list containing the accepted values" }
+        }
     );
 
     RegisterNativeFunc("Functional::Reduce",
         { { "Iterable", Value() }, { "Function", Value(newFunction()) }, { "Init", Value() } },
         { { "Result", Value(newList()) } },
         &reduce,
-        NodeDefinitionFlags::ReadOnly
+        NodeDefinitionFlags::ReadOnly,
+        NodeDocumentation{
+            "Combines iterable values into one accumulated result",
+            { "The values to combine", "A function that combines the accumulator and next value", "The initial accumulator value" },
+            { "The final accumulated value" }
+        }
     );
 
     RegisterNativeFunc("System::CopyToClipboard",
@@ -764,7 +1096,12 @@ void NodeRegistry::RegisterDefinitions()
 #endif
             return Value();
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Replaces the system clipboard text",
+            { "The text to place on the clipboard" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::RunCommand",
@@ -783,7 +1120,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value();
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Starts a command through the operating system",
+            { "The command line to run" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::Sleep",
@@ -800,7 +1142,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return Value();
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Pauses execution for a duration",
+            { "The number of seconds to wait" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::SetCursorPos",
@@ -820,7 +1167,12 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
     
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Moves the mouse cursor to screen coordinates",
+            { "The horizontal screen coordinate", "The vertical screen coordinate" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::ClickMouse",
@@ -868,7 +1220,12 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
 
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Clicks the primary mouse button at screen coordinates",
+            { "The horizontal screen coordinate", "The vertical screen coordinate" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::DragMouse",
@@ -939,7 +1296,12 @@ void NodeRegistry::RegisterDefinitions()
         return Value();
 
     },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Drags the primary mouse button between two screen positions",
+            { "The starting horizontal coordinate", "The starting vertical coordinate", "The ending horizontal coordinate", "The ending vertical coordinate" },
+            {  }
+        }
     );
 
 
@@ -964,7 +1326,12 @@ void NodeRegistry::RegisterDefinitions()
             return Value();
 
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Presses and releases one named keyboard key",
+            { "The name of the key to press" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("System::PressKeys",
@@ -999,7 +1366,12 @@ void NodeRegistry::RegisterDefinitions()
         return Value();
 
     },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Presses a group of named keyboard keys together",
+            { "The key names to press" },
+            {  }
+        }
     );
 
     RegisterNativeFunc("Functional::Call",
@@ -1031,7 +1403,12 @@ void NodeRegistry::RegisterDefinitions()
 
             return vm->pop();
         },
-        NodeDefinitionFlags::None
+        NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Calls a function value with a list of arguments",
+            { "The function to call", "The argument values in parameter order" },
+            { "The value returned by the function" }
+        }
     );
 }
 
@@ -1043,32 +1420,51 @@ std::string DisplayDefinitionName(const std::string& name)
     return separator == std::string::npos ? name : name.substr(separator + 2);
 }
 
-void EnsureDefinitionDocumentation(BasicFunctionDef& definition,
-                                   const char* explicitDescription = nullptr)
+void ApplyDocumentation(BasicFunctionDef& definition,
+                        const NodeDocumentation& documentation)
 {
-    const std::string displayName = DisplayDefinitionName(definition.name);
-    if (explicitDescription && *explicitDescription)
-        definition.description = explicitDescription;
-    else if (definition.description.empty())
-        definition.description = "Performs " + displayName + ".";
+    const auto validate = [&](const char* description, const char* field)
+    {
+        if (!description || !*description)
+            throw std::invalid_argument(
+                definition.name + " has no " + field + " description");
+        const std::string value(description);
+        if (value.back() == '.')
+            throw std::invalid_argument(
+                definition.name + " has a " + field +
+                " description ending in a period");
+        return value;
+    };
 
-    for (BasicFunctionDef::Input& input : definition.inputs)
-        if (input.description.empty())
-            input.description = "Input '" + input.name + "' for " + displayName + ".";
-    for (BasicFunctionDef::Input& output : definition.outputs)
-        if (output.description.empty())
-            output.description = "Output '" + output.name + "' from " + displayName + ".";
-    if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs) &&
-        definition.dynamicInputProps.description.empty())
+    if (documentation.inputs.size() != definition.inputs.size())
+        throw std::invalid_argument(
+            definition.name + " documents " +
+            std::to_string(documentation.inputs.size()) + " inputs but declares " +
+            std::to_string(definition.inputs.size()));
+    if (documentation.outputs.size() != definition.outputs.size())
+        throw std::invalid_argument(
+            definition.name + " documents " +
+            std::to_string(documentation.outputs.size()) + " outputs but declares " +
+            std::to_string(definition.outputs.size()));
+
+    definition.description = validate(documentation.description, "node");
+    for (size_t index = 0; index < definition.inputs.size(); ++index)
+        definition.inputs[index].description =
+            validate(documentation.inputs[index], "input");
+    for (size_t index = 0; index < definition.outputs.size(); ++index)
+        definition.outputs[index].description =
+            validate(documentation.outputs[index], "output");
+
+    if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
         definition.dynamicInputProps.description =
-            "A value supplied to " + displayName + ".";
+            validate(documentation.dynamicInput, "dynamic input");
 }
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name,
     std::vector<BasicFunctionDef::Input>&& inputs,
     std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
-    NodeDefinitionFlags flags, const char* description)
+    NodeDefinitionFlags flags, NodeDocumentation documentation)
 {
     BasicFunctionDefPtr nativeFunc  = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -1076,7 +1472,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->inputs = inputs;
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
-    EnsureDefinitionDocumentation(*nativeFunc, description);
+    ApplyDocumentation(*nativeFunc, documentation);
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1085,16 +1481,20 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
     NodeDefinitionFlags flags,
     BasicFunctionDef::DynamicInputProps&& dynamicProps,
-    const char* description)
+    NodeDocumentation documentation)
 {
     BasicFunctionDefPtr nativeFunc = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
 
-    nativeFunc->inputs = { { "Dumy", Value(2.0) }}; // Single input, input will be a list!
+    // The VM receives all dynamic values packed in this single list argument.
+    nativeFunc->inputs = {
+        { "Values", Value(2.0), -1, TypeRef(PinType::Any),
+          "The values to include in the list" }
+    };
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
     nativeFunc->dynamicInputProps = dynamicProps;
-    EnsureDefinitionDocumentation(*nativeFunc, description);
+    ApplyDocumentation(*nativeFunc, documentation);
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1110,7 +1510,7 @@ void NodeRegistry::RegisterNatives(VM& vm)
 void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
     std::vector<BasicFunctionDef::Input>&& inputs,
     std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
-    const char* description)
+    NodeDocumentation documentation)
 {
     CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
     compiledNodeDef->nodeCreationFunc = creationFunc;
@@ -1122,7 +1522,7 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     funtionDef->inputs = inputs;
     funtionDef->outputs = outputs;
     funtionDef->flags = flags;
-    EnsureDefinitionDocumentation(*funtionDef, description);
+    ApplyDocumentation(*funtionDef, documentation);
 
     compiledNodeDef->functionDef = funtionDef;
 
@@ -1135,8 +1535,7 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     node->SerializationType = "compiled";
     node->DefinitionId = name;
     node->DefinitionFlags = functionDef->flags;
-    if (node->Description.empty())
-        node->Description = functionDef->description;
+    node->Description = functionDef->description;
     size_t inputIndex = 0;
     for (Pin& pin : node->Inputs)
     {
@@ -1144,16 +1543,20 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
         {
             if (pin.Description.empty())
                 pin.Description = "Execution input for " +
-                    DisplayDefinitionName(name) + ".";
+                    DisplayDefinitionName(name);
             continue;
         }
         if (pin.Description.empty())
         {
             if (inputIndex < functionDef->inputs.size())
                 pin.Description = functionDef->inputs[inputIndex].description;
+            else if (HasFlag(functionDef->flags,
+                             NodeDefinitionFlags::DynamicInputs))
+                pin.Description =
+                    functionDef->dynamicInputProps.description;
             else
                 pin.Description = "Input " + std::to_string(inputIndex + 1) +
-                    " for " + DisplayDefinitionName(name) + ".";
+                    " for " + DisplayDefinitionName(name);
         }
         ++inputIndex;
     }
@@ -1164,7 +1567,7 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
         {
             if (pin.Description.empty())
                 pin.Description = "Execution output from " +
-                    DisplayDefinitionName(name) + ".";
+                    DisplayDefinitionName(name);
             continue;
         }
         if (pin.Description.empty())
@@ -1173,7 +1576,7 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
                 pin.Description = functionDef->outputs[outputIndex].description;
             else
                 pin.Description = "Output " + std::to_string(outputIndex + 1) +
-                    " from " + DisplayDefinitionName(name) + ".";
+                    " from " + DisplayDefinitionName(name);
         }
         ++outputIndex;
     }

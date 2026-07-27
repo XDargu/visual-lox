@@ -70,10 +70,15 @@ struct MatchFlowNode : public Node
     void AddInput(IDGenerator& ids) override
     {
         const int caseNumber = static_cast<int>(Inputs.size()) - 1;
-        Inputs.emplace_back(ids.GetNextId(), ("Pattern " + std::to_string(caseNumber)).c_str(), PinType::Any);
+        Inputs.emplace_back(
+            ids.GetNextId(),
+            ("Pattern " + std::to_string(caseNumber)).c_str(), PinType::Any,
+            "Another pattern to compare with Value.");
         InputValues.emplace_back(Value(0.0));
         Outputs.insert(Outputs.end() - 1,
-            Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(), PinType::Flow));
+            Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
+                PinType::Flow,
+                "Runs when Value matches this pattern."));
     }
 
     void RemoveInput(ed::PinId pinId) override
@@ -107,13 +112,23 @@ struct MatchFlowNode : public Node
 inline NodePtr BuildMatchFlowNode(IDGenerator& ids)
 {
     NodePtr node = std::make_shared<MatchFlowNode>(ids.GetNextId());
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(ids.GetNextId(), "Value", PinType::Any);
-    node->Inputs.emplace_back(ids.GetNextId(), "Pattern 1", PinType::Any);
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "", PinType::Flow,
+        "Starts matching Value against the patterns.");
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "Value", PinType::Any,
+        "The value tested against each pattern in order.");
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "Pattern 1", PinType::Any,
+        "The first pattern to compare with Value.");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(0.0));
-    node->Outputs.emplace_back(ids.GetNextId(), "Case 1", PinType::Flow);
-    node->Outputs.emplace_back(ids.GetNextId(), "Default", PinType::Flow);
+    node->Outputs.emplace_back(
+        ids.GetNextId(), "Case 1", PinType::Flow,
+        "Runs when Value matches Pattern 1.");
+    node->Outputs.emplace_back(
+        ids.GetNextId(), "Default", PinType::Flow,
+        "Runs when none of the patterns match.");
     return node;
 }

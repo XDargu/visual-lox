@@ -164,11 +164,13 @@ void StandardLibraryDeclaresCapabilities()
     {
         const CompiledNodeDefPtr controlFlow =
             fixture.registry.FindCompiled(controlFlowName);
-        const std::string message =
-            std::string(controlFlowName) + " should be allowed in pure graphs.";
+        const std::string message = std::string(controlFlowName) +
+            " should be pure-safe while retaining execution flow.";
         Require(controlFlow &&
                 HasFlag(controlFlow->functionDef->flags,
-                        NodeDefinitionFlags::Pure),
+                        NodeDefinitionFlags::Pure) &&
+                !HasFlag(controlFlow->functionDef->flags,
+                         NodeDefinitionFlags::ReadOnly),
                 message.c_str());
     }
     Require(HasFlag(fixture.registry.FindNative("Math::Square")->functionDef->flags,
@@ -180,13 +182,70 @@ void StandardLibraryDeclaresCapabilities()
     Require(!HasFlag(fixture.registry.FindNative("Functional::Map")->functionDef->flags,
                      NodeDefinitionFlags::Pure),
             "Higher-order functions cannot be pure without a pure callable contract.");
-    const NodePtr addNode = add->MakeNode(fixture.ids);
-    Require(!addNode->Description.empty() &&
-            std::all_of(addNode->Inputs.begin(), addNode->Inputs.end(),
-                [](const Pin& pin) { return !pin.Description.empty(); }) &&
-            std::all_of(addNode->Outputs.begin(), addNode->Outputs.end(),
-                [](const Pin& pin) { return !pin.Description.empty(); }),
-            "Native node definitions should provide node and pin descriptions.");
+    const auto isUsefulDescription = [](const std::string& description)
+    {
+        return !description.empty() &&
+               description.back() != '.' &&
+               description.find("Performs ") == std::string::npos &&
+               description.find("No description has been registered") ==
+                   std::string::npos;
+    };
+    for (const NativeFunctionDef& definition :
+         fixture.registry.nativeDefinitions)
+    {
+        Require(isUsefulDescription(definition.functionDef->description),
+                "Every native node should have an authored description.");
+        for (const BasicFunctionDef::Input& input :
+             definition.functionDef->inputs)
+            Require(isUsefulDescription(input.description),
+                    "Every native input should have an authored description.");
+        for (const BasicFunctionDef::Input& output :
+             definition.functionDef->outputs)
+            Require(isUsefulDescription(output.description),
+                    "Every native output should have an authored description.");
+
+        IDGenerator ids;
+        const NodePtr node = definition.functionDef->MakeNode(
+            ids, ScriptElementID::Invalid);
+        Require(isUsefulDescription(node->Description),
+                "Every native node instance should use its authored description.");
+        for (const Pin& pin : node->Inputs)
+            Require(isUsefulDescription(pin.Description),
+                    "Every native input pin should use its authored description.");
+        for (const Pin& pin : node->Outputs)
+            Require(isUsefulDescription(pin.Description),
+                    "Every native output pin should use its authored description.");
+    }
+    for (const CompiledNodeDefPtr& definition :
+         fixture.registry.compiledDefinitions)
+    {
+        Require(isUsefulDescription(definition->functionDef->description),
+                "Every compiled node should have an authored description.");
+        for (const BasicFunctionDef::Input& input :
+             definition->functionDef->inputs)
+            Require(isUsefulDescription(input.description),
+                    "Every compiled input should have an authored description.");
+        for (const BasicFunctionDef::Input& output :
+             definition->functionDef->outputs)
+            Require(isUsefulDescription(output.description),
+                    "Every compiled output should have an authored description.");
+        if (HasFlag(definition->functionDef->flags,
+                    NodeDefinitionFlags::DynamicInputs))
+            Require(isUsefulDescription(
+                        definition->functionDef->dynamicInputProps.description),
+                    "Every dynamic input should have an authored description.");
+
+        IDGenerator ids;
+        const NodePtr node = definition->MakeNode(ids);
+        Require(isUsefulDescription(node->Description),
+                "Every compiled node instance should use its authored description.");
+        for (const Pin& pin : node->Inputs)
+            Require(isUsefulDescription(pin.Description),
+                    "Every compiled input pin should use its authored description.");
+        for (const Pin& pin : node->Outputs)
+            Require(isUsefulDescription(pin.Description),
+                    "Every compiled output pin should use its authored description.");
+    }
 }
 
 void ListNativeNodesOperateOnLists()
@@ -1579,13 +1638,24 @@ void PureGraphsRejectImpureNodes()
     ScriptFunctionPtr pure =
         std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "PureFunction");
     pure->functionDef->flags |= NodeDefinitionFlags::Pure;
+    pure->functionDef->outputs.push_back(
+        { "Result", Value(false), fixture.ids.GetNextId(),
+          TypeRef(PinType::Bool), "The computed result." });
     NodePtr begin = BuildBeginNode(fixture.ids, pure);
+    NodePtr returnNode = BuildReturnNode(fixture.ids, *pure);
     NodePtr print =
         fixture.registry.FindCompiled("Debug::Print")->MakeNode(fixture.ids);
+    NodePtr branch =
+        fixture.registry.FindCompiled("Flow::Branch")->MakeNode(fixture.ids);
     AttachNode(pure->Graph, begin);
+    AttachNode(pure->Graph, returnNode);
     AttachNode(pure->Graph, print);
+    AttachNode(pure->Graph, branch);
     pure->Graph.AddLink(Link(
         fixture.ids.GetNextId(), begin->Outputs[0].ID, print->Inputs[0].ID));
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), print->Outputs[0].ID,
+        returnNode->Inputs[0].ID));
     script.functions.push_back(pure);
 
     const ValidationReport invalid = ScriptValidator::Validate(script);
@@ -1606,22 +1676,36 @@ void PureGraphsRejectImpureNodes()
     pure->Graph.DeleteNode(print->ID);
     NodePtr equals =
         fixture.registry.FindCompiled("Math::Equals")->MakeNode(fixture.ids);
-    NodePtr branch =
-        fixture.registry.FindCompiled("Flow::Branch")->MakeNode(fixture.ids);
-    NodePtr forIn =
-        fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
     AttachNode(pure->Graph, equals);
-    AttachNode(pure->Graph, branch);
-    AttachNode(pure->Graph, forIn);
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[0].ID,
+        branch->Inputs[0].ID));
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), branch->Outputs[0].ID,
+        returnNode->Inputs[0].ID));
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), equals->Outputs[0].ID,
+        branch->Inputs[1].ID));
+    pure->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), equals->Outputs[0].ID,
+        returnNode->Inputs[1].ID));
     const ValidationReport valid = ScriptValidator::Validate(script);
-    const bool stillImpure = std::any_of(
+    const bool stillInvalid = std::any_of(
         valid.diagnostics.begin(), valid.diagnostics.end(),
         [](const ValidationDiagnostic& diagnostic)
         {
             return diagnostic.code == "impure-node";
         });
-    Require(!stillImpure,
+    Require(!stillInvalid,
             "Pure expression and control-flow nodes should be accepted in a pure graph.");
+    Require(!begin->Outputs.empty() &&
+            begin->Outputs[0].Type == PinType::Flow &&
+            !returnNode->Inputs.empty() &&
+            returnNode->Inputs[0].Type == PinType::Flow,
+            "A pure function body should retain its execution-flow pins.");
+    const NodePtr call = pure->functionDef->MakeNode(fixture.ids, pure->ID);
+    Require(GraphUtils::IsNodeImplicit(call),
+            "Calling a pure script function should use data pins only.");
 }
 
 void DeclaredTypesDoNotFollowDefaults()

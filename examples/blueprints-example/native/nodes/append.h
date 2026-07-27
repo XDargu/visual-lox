@@ -61,7 +61,9 @@ struct AppendNode : public Node
     virtual void AddInput(IDGenerator& IDGenerator) override
     {
         const char asciiChar = char(65 + Inputs.size());
-        Inputs.emplace_back(IDGenerator.GetNextId(), std::string(1, asciiChar).c_str(), PinType::Any);
+        Inputs.emplace_back(
+            IDGenerator.GetNextId(), std::string(1, asciiChar).c_str(),
+            PinType::Any, "Another value to append to the text.");
         InputValues.emplace_back(Value(copyString("", 0)));
     };
 

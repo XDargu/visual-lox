@@ -74,11 +74,21 @@ struct RepeatNode : public Node
 inline NodePtr BuildRepeatNode(IDGenerator& ids)
 {
     NodePtr node = std::make_shared<RepeatNode>(ids.GetNextId());
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
-    node->Inputs.emplace_back(ids.GetNextId(), "Count", PinType::Float);
-    node->Outputs.emplace_back(ids.GetNextId(), "Body", PinType::Flow);
-    node->Outputs.emplace_back(ids.GetNextId(), "Index", PinType::Float);
-    node->Outputs.emplace_back(ids.GetNextId(), "Completed", PinType::Flow);
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "", PinType::Flow,
+        "Starts the repetition.");
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "Count", PinType::Float,
+        "The number of times to run Body.");
+    node->Outputs.emplace_back(
+        ids.GetNextId(), "Body", PinType::Flow,
+        "Runs once for each repetition.");
+    node->Outputs.emplace_back(
+        ids.GetNextId(), "Index", PinType::Float,
+        "The zero-based index of the current repetition.");
+    node->Outputs.emplace_back(
+        ids.GetNextId(), "Completed", PinType::Flow,
+        "Runs after all repetitions finish.");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(1.0));
     return node;

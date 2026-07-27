@@ -87,12 +87,14 @@ struct SwitchFlowNode : public Node
         const int caseNumber = static_cast<int>(Inputs.size());
         Inputs.emplace_back(
             ids.GetNextId(), ("Condition " + std::to_string(caseNumber)).c_str(),
-            PinType::Bool);
+            PinType::Bool,
+            "Another condition to evaluate in order.");
         InputValues.emplace_back(Value(false));
         Outputs.insert(
             Outputs.end() - 1,
             Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
-                PinType::Flow));
+                PinType::Flow,
+                "Runs when this is the first true condition."));
     }
 
     void RemoveInput(ed::PinId pinId) override
@@ -128,14 +130,19 @@ struct SwitchFlowNode : public Node
 inline NodePtr BuildSwitchFlowNode(IDGenerator& ids)
 {
     NodePtr node = std::make_shared<SwitchFlowNode>(ids.GetNextId());
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(
-        ids.GetNextId(), "Condition 1", PinType::Bool);
+        ids.GetNextId(), "", PinType::Flow,
+        "Starts evaluating the conditions.");
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "Condition 1", PinType::Bool,
+        "The first condition to evaluate.");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(false));
     node->Outputs.emplace_back(
-        ids.GetNextId(), "Case 1", PinType::Flow);
+        ids.GetNextId(), "Case 1", PinType::Flow,
+        "Runs when Condition 1 is true.");
     node->Outputs.emplace_back(
-        ids.GetNextId(), "Default", PinType::Flow);
+        ids.GetNextId(), "Default", PinType::Flow,
+        "Runs when none of the conditions are true.");
     return node;
 }

@@ -23,25 +23,19 @@ struct ListGetByIndex : public Node
 
     virtual void Compile(CompilerContext& compilerCtx, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
-        switch (stage)
-        {
-        case CompilationStage::BeginInputs:
-        {
+        if (stage == CompilationStage::PullOutput)
             CompileInputs(compilerCtx, graph);
-        }
-        break;
-        }
     }
 
     void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
         Compiler& compiler = compilerCtx.compiler;
 
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
         GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[2], InputValues[2]);
         compiler.emitByte(OpByte(OpCode::OP_INDEX_SUBSCR));
 
-        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[1]);
+        GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
     }
 };
 
@@ -49,14 +43,11 @@ static NodePtr BuildListGetByIndexNode(IDGenerator& IDGenerator)
 {
     NodePtr node = std::make_shared<ListGetByIndex>(IDGenerator.GetNextId(), "Get By Index");
     const TypeRef element = TypeRef::Variable("T");
-    node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "List", TypeRef::List(element));
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "Index", PinType::Float);
 
-    node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", element);
 
-    node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(newList()));
     node->InputValues.emplace_back(Value(0.0));
     return node;

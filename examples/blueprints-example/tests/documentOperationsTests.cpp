@@ -129,6 +129,46 @@ void FunctionChangesCanBeUndoneAndRedone()
             "Adding a recursive call node failed.");
 }
 
+void MarkingFunctionPureMakesCallsImplicit()
+{
+    OperationsFixture fixture;
+    ScriptFunctionPtr worker = fixture.AddWorker();
+    NodePtr workerBegin = worker->Graph.FindNodeIf(
+        [](const NodePtr& node)
+        {
+            return node->Category == NodeCategory::Begin;
+        });
+    NodePtr call = worker->functionDef->MakeNode(fixture.ids, worker->ID);
+    RequireSuccess(
+        fixture.operations->AddNode(fixture.script.main->ID.id, call),
+        "Adding a function call failed.");
+    RequireSuccess(
+        fixture.operations->Connect(
+            fixture.script.main->ID.id, fixture.begin->Outputs[0].ID,
+            call->Inputs[0].ID),
+        "Connecting the function call failed.");
+
+    RequireSuccess(
+        fixture.operations->ChangeFunctionPurity(worker->ID.id, true),
+        "Marking the function pure failed.");
+    Require(workerBegin && !workerBegin->Outputs.empty() &&
+            workerBegin->Outputs[0].Type == PinType::Flow,
+            "Marking a function pure removed execution flow from its body.");
+    Require(GraphUtils::IsNodeImplicit(call),
+            "A call to a pure script function retained execution-flow pins.");
+    Require(fixture.script.main->Graph.GetLinks().empty(),
+            "Links attached to removed execution-flow pins were not cleaned up.");
+
+    RequireSuccess(
+        fixture.operations->ChangeFunctionPurity(worker->ID.id, false),
+        "Marking the function impure failed.");
+    Require(workerBegin && !workerBegin->Outputs.empty() &&
+            workerBegin->Outputs[0].Type == PinType::Flow,
+            "Clearing purity changed execution flow inside the function body.");
+    Require(!GraphUtils::IsNodeImplicit(call),
+            "The caller's execution-flow pins were not restored after clearing purity.");
+}
+
 void NodeFragmentsPreserveLinksAndUseFreshIds()
 {
     OperationsFixture fixture;
@@ -340,6 +380,8 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("Main signature cannot be edited", MainSignatureCannotBeEdited);
         runner.Test("node state can be undone and redone", NodeStateCanBeUndoneAndRedone);
         runner.Test("function changes can be undone and redone", FunctionChangesCanBeUndoneAndRedone);
+        runner.Test("marking a function pure makes calls implicit",
+            MarkingFunctionPureMakesCallsImplicit);
         runner.Test("a transaction is one undo step", TransactionIsOneUndoStep);
     });
     runner.Group("Document operations / clipboard", [&]()

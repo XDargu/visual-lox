@@ -12,6 +12,14 @@
 
 using NodeCreationFun = NodePtr(*)(IDGenerator& IDGenerator);
 
+struct NodeDocumentation
+{
+    const char* description;
+    std::vector<const char*> inputs;
+    std::vector<const char*> outputs;
+    const char* dynamicInput = nullptr;
+};
+
 struct CompiledNodeDef : public std::enable_shared_from_this<CompiledNodeDef>
 {
     NodePtr MakeNode(IDGenerator& IDGenerator);
@@ -36,18 +44,17 @@ public:
     void RegisterNativeFunc(const char* name,
         std::vector<BasicFunctionDef::Input>&& inputs,
         std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
-        NodeDefinitionFlags flags, const char* description = nullptr);
+        NodeDefinitionFlags flags, NodeDocumentation documentation);
     void RegisterNativeFunc(const char* name,
         std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
         NodeDefinitionFlags flags,
         BasicFunctionDef::DynamicInputProps&& dynamicProps,
-        const char* description = nullptr);
+        NodeDocumentation documentation);
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
         std::vector<BasicFunctionDef::Input>&& inputs,
         std::vector<BasicFunctionDef::Input>&& outputs,
-        NodeDefinitionFlags flags = NodeDefinitionFlags::None,
-        const char* description = nullptr);
+        NodeDefinitionFlags flags, NodeDocumentation documentation);
 
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;

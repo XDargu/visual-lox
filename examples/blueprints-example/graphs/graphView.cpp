@@ -216,7 +216,7 @@ void DrawPinTooltip(const Pin& pin)
     ImGui::Separator();
     ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
     ImGui::TextUnformatted(pin.Description.empty()
-        ? "No pin description has been provided."
+        ? "No pin description has been provided"
         : pin.Description.c_str());
     ImGui::PopTextWrapPos();
     ImGui::EndTooltip();
@@ -231,7 +231,7 @@ void DrawNodeTooltip(const Node& node)
     ImGui::Separator();
     ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
     ImGui::TextUnformatted(node.Description.empty()
-        ? "No node description has been provided."
+        ? "No node description has been provided"
         : node.Description.c_str());
     ImGui::PopTextWrapPos();
     ImGui::EndTooltip();
@@ -1122,6 +1122,7 @@ void GraphView::DrawContextMenu()
             std::string name;
             std::string fullName;
             std::function<NodePtr(IDGenerator&)> creationFun;
+            BasicFunctionDefPtr definition;
             std::map<std::string, Data> children;
             int depth;
         };
@@ -1131,7 +1132,9 @@ void GraphView::DrawContextMenu()
         root.fullName = "Nodes";
         root.depth = 0;
 
-        auto AddEntry = [&](const std::string& fullName, std::function<NodePtr(IDGenerator&)> creation)
+        auto AddEntry = [&](const std::string& fullName,
+                            std::function<NodePtr(IDGenerator&)> creation,
+                            BasicFunctionDefPtr definition = {})
         {
             if (!Utils::FilterString(Utils::to_lower(fullName), searchFilterLower))
                 return;
@@ -1148,6 +1151,7 @@ void GraphView::DrawContextMenu()
                 {
                     child.fullName = fullName;
                     child.creationFun = creation;
+                    child.definition = std::move(definition);
                 }
                 current = &child;
             }
@@ -1180,6 +1184,7 @@ void GraphView::DrawContextMenu()
                             // Last element!
                             child.fullName = def.functionDef->name;
                             child.creationFun = [=](IDGenerator& idGenerator) { return def.functionDef->MakeNode(idGenerator, ScriptElementID::Invalid); };
+                            child.definition = def.functionDef;
                         }
 
                         current = &child;
@@ -1214,10 +1219,14 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = getFuncName;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            const BasicFunctionDefPtr functionDef = def.functionDef;
+                            child.creationFun = [functionDef](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildGetFunctionNode(IDGenerator, def.functionDef, ScriptElementID::Invalid);
+                                return BuildGetFunctionNode(
+                                    IDGenerator, functionDef,
+                                    ScriptElementID::Invalid);
                             };
+                            child.definition = def.functionDef;
                         }
 
                         current = &child;
@@ -1251,10 +1260,12 @@ void GraphView::DrawContextMenu()
                     if (token == tokens.back())
                     {
                         // Last element!
-                        child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                        const CompiledNodeDefPtr compiledDefinition = def;
+                        child.creationFun = [compiledDefinition](IDGenerator& IDGenerator) -> NodePtr
                         {
-                            return def->MakeNode(IDGenerator);
+                            return compiledDefinition->MakeNode(IDGenerator);
                         };
+                        child.definition = def->functionDef;
                         child.fullName = def->name;
                     }
 
@@ -1381,6 +1392,7 @@ void GraphView::DrawContextMenu()
                                 return capturedFunction->functionDef->MakeNode(
                                     IDGenerator, capturedFunction->ID);
                             };
+                            child.definition = capturedFunction->functionDef;
                         }
 
                         current = &child;
@@ -1423,6 +1435,7 @@ void GraphView::DrawContextMenu()
                                     IDGenerator, capturedFunction->functionDef,
                                     capturedFunction->ID);
                             };
+                            child.definition = capturedFunction->functionDef;
                         }
 
                         current = &child;
@@ -1497,7 +1510,7 @@ void GraphView::DrawContextMenu()
                             return BuildMethodCallNode(
                                 ids, capturedMethod, ScriptElementID::Invalid,
                                 TypeRef::Object(capturedClass->ID.id, capturedClass->Name));
-                        });
+                        }, capturedMethod->functionDef);
             }
         }
         if (!hasScriptItemContext &&
@@ -1538,10 +1551,12 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = fullFuncName;
-                            child.creationFun = [&](IDGenerator& IDGenerator) -> NodePtr
+                            const ScriptFunctionPtr function = m_pScriptFunction;
+                            child.creationFun = [function](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildReturnNode(IDGenerator, *m_pScriptFunction);
+                                return BuildReturnNode(IDGenerator, *function);
                             };
+                            child.definition = m_pScriptFunction->functionDef;
                         }
 
                         current = &child;
@@ -1579,17 +1594,17 @@ void GraphView::DrawContextMenu()
         auto palettePresentation = [](const std::string& fullName)
         {
             std::pair<const char*, const char*> presentation = {
-                ICON_FA_CUBE, "Create a graph node."
+                ICON_FA_CUBE, "Create a graph node"
             };
             if (fullName.rfind("Flow::", 0) == 0)
-                presentation = { ICON_FA_CODE_BRANCH, "Control the order in which the graph executes." };
+                presentation = { ICON_FA_CODE_BRANCH, "Control the order in which the graph executes" };
             else if (fullName.rfind("Variables::", 0) == 0)
-                presentation = { ICON_FA_DATABASE, "Read or update script-level data." };
+                presentation = { ICON_FA_DATABASE, "Read or update script-level data" };
             else if (fullName.rfind("Functions::", 0) == 0 ||
                      fullName.rfind("Get::", 0) == 0)
-                presentation = { ICON_FA_CODE, "Call a function or store it as a value." };
+                presentation = { ICON_FA_CODE, "Call a function or store it as a value" };
             else if (fullName.rfind("Classes::", 0) == 0)
-                presentation = { ICON_FA_CUBES, "Construct an object or access one of its members." };
+                presentation = { ICON_FA_CUBES, "Construct an object or access one of its members" };
             return presentation;
         };
 
@@ -1598,7 +1613,7 @@ void GraphView::DrawContextMenu()
             paletteSelection = 0;
             ImGui::Spacing();
             ImGui::TextDisabled("No matching nodes");
-            ImGui::TextDisabled("Try fewer characters or disable compatibility filtering.");
+            ImGui::TextDisabled("Try fewer characters or disable compatibility filtering");
         }
         else
         {
@@ -1610,8 +1625,22 @@ void GraphView::DrawContextMenu()
 
             const bool createSelected =
                 ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter), false);
+            const Data* selected = results[paletteSelection];
+            const BasicFunctionDefPtr selectedDefinition =
+                selected->definition;
+            static std::string documentedNodeKey;
+            static NodePtr documentedNode;
+            if (expandPaletteOnOpen ||
+                documentedNodeKey != selected->fullName)
+            {
+                IDGenerator previewIds;
+                documentedNode = selected->creationFun(previewIds);
+                NodeUtils::NormalizeDocumentation(documentedNode);
+                documentedNodeKey = selected->fullName;
+            }
+            constexpr float detailLines = 8.0f;
             const float descriptionHeight =
-                ImGui::GetTextLineHeightWithSpacing() * 3.4f +
+                ImGui::GetTextLineHeightWithSpacing() * detailLines +
                 ImGui::GetStyle().ItemSpacing.y * 2.0f;
             ImGui::BeginChild("##paletteTree",
                               ImVec2(0, -descriptionHeight), false,
@@ -1715,14 +1744,46 @@ void GraphView::DrawContextMenu()
             drawTree(root, 0);
             ImGui::EndChild();
 
-            const Data* selected = results[paletteSelection];
-            const auto [selectedIcon, selectedDescription] =
-                palettePresentation(selected->fullName);
+            const auto [selectedIcon, selectedDescription] = palettePresentation(selected->fullName);
             ImGui::Separator();
+            ImGui::BeginChild("##paletteDetails", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysVerticalScrollbar);
             ImGui::Text("%s  %s", selectedIcon, selected->fullName.c_str());
-            ImGui::TextWrapped("%s", selectedDescription);
             ImGui::SameLine();
             ImGui::TextDisabled("Enter to create");
+            ImGui::TextWrapped("%s", documentedNode &&
+                                      !documentedNode->Description.empty()
+                ? documentedNode->Description.c_str()
+                : selectedDescription);
+
+            const auto drawPins = [](const char* heading, const std::vector<Pin>& pins, const bool shouldExcludeFlow)
+            {
+                if (pins.empty()) return;
+                ImGui::Spacing();
+                ImGui::TextDisabled("%s", heading);
+                for (const Pin& pin : pins)
+                {
+                    if (shouldExcludeFlow && pin.Type == PinType::Flow)
+                        continue;
+
+                    const std::string label = (pin.Name.empty() ? "Flow" : pin.Name) + ": " + pin.Description.c_str() + " (" + pin.Type.ToString() + ")";
+                    ImGui::BulletText("%s", label.c_str());
+                }
+            };
+            if (documentedNode)
+            {
+                drawPins("INPUTS", documentedNode->Inputs, true);
+                if (selectedDefinition && HasFlag(selectedDefinition->flags, NodeDefinitionFlags::DynamicInputs))
+                {
+                    ImGui::Spacing();
+                    ImGui::TextDisabled("ADDITIONAL INPUTS");
+
+                    const std::string label = selectedDefinition->dynamicInputProps.description + " (" + selectedDefinition->dynamicInputProps.type.ToString() + ")";
+
+                    ImGui::BulletText("%s", label.c_str());
+                }
+                drawPins("OUTPUTS", documentedNode->Outputs, documentedNode->Category != NodeCategory::Flow);
+            }
+            ImGui::EndChild();
         }
 
         if (node)

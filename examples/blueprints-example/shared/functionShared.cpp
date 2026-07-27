@@ -14,6 +14,8 @@
 
 #include <Compiler.h>
 
+#include <algorithm>
+
 
 struct FunctionNode : public Node
 {
@@ -108,8 +110,43 @@ struct FunctionNode : public Node
         Description = pFunctionDef->description;
         DefinitionFlags = pFunctionDef->flags;
 
+        const bool expressionOnly =
+            HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
+            HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure);
+        if (expressionOnly)
+        {
+            for (size_t index = Inputs.size(); index-- > 0;)
+            {
+                if (Inputs[index].Type != PinType::Flow)
+                    continue;
+                Inputs.erase(Inputs.begin() + index);
+                if (index < InputValues.size())
+                    InputValues.erase(InputValues.begin() + index);
+            }
+            stl::erase_if(Outputs,
+                [](const Pin& output) { return output.Type == PinType::Flow; });
+        }
+        else
+        {
+            if (std::none_of(Inputs.begin(), Inputs.end(),
+                    [](const Pin& input) { return input.Type == PinType::Flow; }))
+            {
+                Inputs.insert(Inputs.begin(),
+                    Pin(IDGenerator.GetNextId(), "", PinType::Flow,
+                        "Executes this function."));
+                InputValues.insert(InputValues.begin(), Value());
+            }
+            if (std::none_of(Outputs.begin(), Outputs.end(),
+                    [](const Pin& output) { return output.Type == PinType::Flow; }))
+            {
+                Outputs.insert(Outputs.begin(),
+                    Pin(IDGenerator.GetNextId(), "", PinType::Flow,
+                        "Continues after the function returns."));
+            }
+        }
+
         // Add missing inputs
-        int startingInput = HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ? 0 : 1;
+        int startingInput = expressionOnly ? 0 : 1;
 
         for (int i = 0; i < pFunctionDef->inputs.size(); ++i)
         {
@@ -147,7 +184,7 @@ struct FunctionNode : public Node
         }
 
         // Add missing outputs
-        int startingOutput = HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ? 0 : 1;
+        int startingOutput = expressionOnly ? 0 : 1;
 
         for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
         {
@@ -253,7 +290,10 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
 
     node->Description = pFunctionDef->description;
 
-    if (!HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly))
+    const bool expressionOnly =
+        HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly) ||
+        HasFlag(pFunctionDef->flags, NodeDefinitionFlags::Pure);
+    if (!expressionOnly)
     {
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Executes this function.");

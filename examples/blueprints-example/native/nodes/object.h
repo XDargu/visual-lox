@@ -3,6 +3,7 @@
 #include "../../graphs/graphCompiler.h"
 #include "../../graphs/idgeneration.h"
 #include "../../script/script.h"
+#include "../../utilities/utils.h"
 
 #include <Compiler.h>
 
@@ -340,17 +341,31 @@ struct MethodCallNode : public Node
     void Compile(CompilerContext& context, const Graph& graph,
                  CompilationStage stage, int) const override
     {
-        if (stage != CompilationStage::BeginInputs || !methodDefinition)
+        if (!methodDefinition)
             return;
-        GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
-        for (size_t i = 2; i < Inputs.size(); ++i)
+        const bool expressionOnly = GraphUtils::IsNodeImplicit(this);
+        if ((stage == CompilationStage::BeginInputs && expressionOnly) ||
+            (stage == CompilationStage::PullOutput && !expressionOnly) ||
+            (stage != CompilationStage::BeginInputs &&
+             stage != CompilationStage::PullOutput))
+            return;
+        const size_t instanceIndex =
+            (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
+             HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1;
+        GraphCompiler::CompileInput(
+            context, graph, Inputs[instanceIndex], InputValues[instanceIndex]);
+        for (size_t i = instanceIndex + 1; i < Inputs.size(); ++i)
             GraphCompiler::CompileInput(context, graph, Inputs[i], InputValues[i]);
         const std::string& name = methodDefinition->functionDef->name;
         const Token token(TokenType::IDENTIFIER, name.c_str(), name.length(), 0);
         context.compiler.emitOpWithValue(OpCode::OP_INVOKE, OpCode::OP_INVOKE_LONG,
                                          context.compiler.identifierConstant(token));
-        context.compiler.emitByte(static_cast<uint8_t>(Inputs.size() - 2));
-        GraphCompiler::CompileCallResult(context, graph, Outputs, 1);
+        context.compiler.emitByte(
+            static_cast<uint8_t>(Inputs.size() - instanceIndex - 1));
+        GraphCompiler::CompileCallResult(
+            context, graph, Outputs,
+            (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
+             HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1);
     }
 
     void Refresh(const Script& script, IDGenerator& ids) override
@@ -367,11 +382,49 @@ struct MethodCallNode : public Node
         Name = methodDefinition->functionDef->name;
         Description = methodDefinition->functionDef->description;
         DefinitionFlags = methodDefinition->functionDef->flags;
-        Inputs[1].Type = Inputs[1].DeclaredType =
+        const bool expressionOnly =
+            HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
+            HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure);
+        if (expressionOnly)
+        {
+            for (size_t index = Inputs.size(); index-- > 0;)
+            {
+                if (Inputs[index].Type != PinType::Flow)
+                    continue;
+                Inputs.erase(Inputs.begin() + index);
+                if (index < InputValues.size())
+                    InputValues.erase(InputValues.begin() + index);
+            }
+            stl::erase_if(Outputs,
+                [](const Pin& output) { return output.Type == PinType::Flow; });
+        }
+        else
+        {
+            if (std::none_of(Inputs.begin(), Inputs.end(),
+                    [](const Pin& input) { return input.Type == PinType::Flow; }))
+            {
+                Inputs.insert(Inputs.begin(),
+                    Pin(ids.GetNextId(), "", PinType::Flow,
+                        "Executes this method."));
+                InputValues.insert(InputValues.begin(), Value());
+            }
+            if (std::none_of(Outputs.begin(), Outputs.end(),
+                    [](const Pin& output) { return output.Type == PinType::Flow; }))
+            {
+                Outputs.insert(Outputs.begin(),
+                    Pin(ids.GetNextId(), "", PinType::Flow,
+                        "Continues after the method returns."));
+            }
+        }
+        const int instanceIndex = expressionOnly ? 0 : 1;
+        Inputs[instanceIndex].Type = Inputs[instanceIndex].DeclaredType =
             TypeRef::Object(owner->ID.id, owner->Name);
-        ObjectNodeUtils::RefreshCallInputs(*this, ids, methodDefinition->functionDef->inputs, 2);
+        ObjectNodeUtils::RefreshCallInputs(
+            *this, ids, methodDefinition->functionDef->inputs,
+            instanceIndex + 1);
         ObjectNodeUtils::RefreshCallOutputs(
-            *this, ids, methodDefinition->functionDef->outputs, 1);
+            *this, ids, methodDefinition->functionDef->outputs,
+            expressionOnly ? 0 : 1);
     }
 
     ScriptFunctionPtr methodDefinition;
@@ -389,11 +442,16 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
         node->Description = method->functionDef->description;
         node->DefinitionFlags = method->functionDef->flags;
     }
-    node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
-        "Executes this method.");
+    const bool expressionOnly = method &&
+        (HasFlag(method->functionDef->flags, NodeDefinitionFlags::ReadOnly) ||
+         HasFlag(method->functionDef->flags, NodeDefinitionFlags::Pure));
+    if (!expressionOnly)
+        node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+            "Executes this method.");
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance on which to call the method.");
-    node->InputValues.emplace_back(Value());
+    if (!expressionOnly)
+        node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     if (method) for (const auto& input : method->functionDef->inputs)
     {
@@ -401,8 +459,9 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
             input.description);
         node->InputValues.emplace_back(input.value);
     }
-    node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
-        "Continues after the method returns.");
+    if (!expressionOnly)
+        node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
+            "Continues after the method returns.");
     if (method)
     {
         for (const auto& output : method->functionDef->outputs)

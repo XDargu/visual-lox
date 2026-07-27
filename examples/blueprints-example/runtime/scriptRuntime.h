@@ -39,7 +39,8 @@ public:
                                const ScriptCompileOptions& options = {});
 
 private:
-    static void CompileGraph(const Graph& graph, Compiler& compiler,
+    static void CompileGraph(const Script& script, const ScriptFunction& function,
+                             Compiler& compiler,
                              const std::vector<Value>& foldedValues,
                              const std::vector<ed::NodeId>& foldedNodeIds);
 };

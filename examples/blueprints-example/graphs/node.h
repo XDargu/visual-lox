@@ -219,6 +219,7 @@ struct Node
     {
         return false;
     }
+    virtual int GetReceiverInputIndex() const { return -1; }
 
     Pin* FindOutputByName(const std::string& name);
     Pin* FindInputByName(const std::string& name);

@@ -13,12 +13,16 @@
 class Compiler;
 class VM;
 struct Graph;
+struct Script;
 struct Value;
 
 struct CompilerContext
 {
-    CompilerContext(Compiler& compiler)
+    CompilerContext(Compiler& compiler, const Script* script = nullptr,
+                    ScriptElementID functionId = ScriptElementID::Invalid)
         : compiler(compiler)
+        , script(script)
+        , functionId(functionId)
     {}
 
     constexpr static const char* tempVarPrefix = "__lv__";
@@ -28,6 +32,8 @@ struct CompilerContext
     std::vector<ed::NodeId>   constFoldingIDs;
 
     Compiler& compiler;
+    const Script* script = nullptr;
+    ScriptElementID functionId;
 
     Token StoreTempVariable(const std::string& name)
     {
@@ -50,8 +56,9 @@ struct CompilerContext
 
 struct GraphCompiler
 {
-    GraphCompiler(Compiler& compiler)
-        : context(compiler)
+    GraphCompiler(Compiler& compiler, const Script* script = nullptr,
+                  ScriptElementID functionId = ScriptElementID::Invalid)
+        : context(compiler, script, functionId)
     {}
 
     using Callback = std::function<void(const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)>;

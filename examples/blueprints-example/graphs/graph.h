@@ -18,6 +18,7 @@
 
 class Compiler;
 class VM;
+struct Script;
 
 namespace ed = ax::NodeEditor;
 
@@ -132,6 +133,10 @@ namespace GraphUtils
 
     std::vector<const Link*> CollectInputLinks(const Graph& graph, const Pin& inputPin);
     std::vector<const Link*> CollectOutputLinks(const Graph& graph, const Pin& outputPin);
+
+    const Pin* FindReceiverInput(const Node& node);
+    bool UsesImplicitReceiver(const Script& script, ScriptElementID functionId,
+                              const Graph& graph, const Node& node);
 
     bool IsNodeConstFoldable(const Graph& graph, const NodePtr& node);
 

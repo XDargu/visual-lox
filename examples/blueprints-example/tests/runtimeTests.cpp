@@ -381,6 +381,148 @@ void DependencyCyclesAreRejected()
             "Validation should reject dependency cycles.");
 }
 
+void ImplicitSelfReceiversRespectGraphContext()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    ScriptPropertyPtr observed =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Observed");
+    observed->type = PinType::Float;
+    observed->defaultValue = Value(0.0);
+    script.variables.push_back(observed);
+
+    ScriptClassPtr counter =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "Counter");
+    ScriptPropertyPtr value =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "value");
+    value->type = PinType::Float;
+    value->defaultValue = Value(1.0);
+    counter->properties.push_back(value);
+
+    counter->constructor =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "init");
+    NodePtr constructorBegin =
+        BuildBeginNode(fixture.ids, counter->constructor);
+    NodePtr constructorSet = BuildSetPropertyNode(fixture.ids, value);
+    constructorSet->InputValues[2] = Value(7.0);
+    AttachNode(counter->constructor->Graph, constructorBegin);
+    AttachNode(counter->constructor->Graph, constructorSet);
+    counter->constructor->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), constructorBegin->Outputs[0].ID,
+        constructorSet->Inputs[0].ID));
+
+    ScriptFunctionPtr read =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "read");
+    read->functionDef->flags |= NodeDefinitionFlags::ReadOnly;
+    read->functionDef->outputs.push_back(
+        { "Value", Value(0.0), fixture.ids.GetNextId(), PinType::Float });
+    NodePtr readBegin = BuildBeginNode(fixture.ids, read);
+    NodePtr propertyGet = BuildGetPropertyNode(fixture.ids, value);
+    NodePtr readReturn = BuildReturnNode(fixture.ids, *read);
+    AttachNode(read->Graph, readBegin);
+    AttachNode(read->Graph, propertyGet);
+    AttachNode(read->Graph, readReturn);
+    read->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        readBegin->Outputs[0].ID, readReturn->Inputs[0].ID));
+    read->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        propertyGet->Outputs[0].ID, readReturn->Inputs[1].ID));
+    counter->methods.push_back(read);
+
+    ScriptFunctionPtr readThroughSelf =
+        std::make_shared<ScriptFunction>(
+            fixture.ids.GetNextId(), "readThroughSelf");
+    readThroughSelf->functionDef->flags |= NodeDefinitionFlags::ReadOnly;
+    readThroughSelf->functionDef->outputs.push_back(
+        { "Value", Value(0.0), fixture.ids.GetNextId(), PinType::Float });
+    NodePtr throughBegin = BuildBeginNode(fixture.ids, readThroughSelf);
+    NodePtr callRead = BuildMethodCallNode(fixture.ids, read);
+    NodePtr throughReturn = BuildReturnNode(fixture.ids, *readThroughSelf);
+    AttachNode(readThroughSelf->Graph, throughBegin);
+    AttachNode(readThroughSelf->Graph, callRead);
+    AttachNode(readThroughSelf->Graph, throughReturn);
+    readThroughSelf->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        throughBegin->Outputs[0].ID, throughReturn->Inputs[0].ID));
+    readThroughSelf->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callRead->Outputs[0].ID, throughReturn->Inputs[1].ID));
+    counter->methods.push_back(readThroughSelf);
+    script.classes.push_back(counter);
+
+    NodePtr mainBegin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr construct = BuildConstructObjectNode(fixture.ids, counter);
+    NodePtr callThrough =
+        BuildMethodCallNode(fixture.ids, readThroughSelf);
+    NodePtr storeObserved = BuildSetVariableNode(fixture.ids, observed);
+    for (const NodePtr& node :
+         { mainBegin, construct, callThrough, storeObserved })
+        AttachNode(script.main->Graph, node);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        mainBegin->Outputs[0].ID, construct->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        construct->Outputs[0].ID, storeObserved->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        construct->Outputs[1].ID, callThrough->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(),
+        callThrough->Outputs[0].ID, storeObserved->Inputs[1].ID));
+
+    const ValidationReport valid = ScriptValidator::Validate(script);
+    Require(!valid.HasErrors(),
+            "Unconnected receivers should resolve to self in their owning class.");
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled),
+            "Implicit property and method receivers should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "Implicit property and method receivers should execute.");
+    Value result;
+    Require(fixture.vm.globalTable().get(copyString("Observed", 8), &result) &&
+                isNumber(result) && asNumber(result) == 7.0,
+            "Implicit self should target the current Counter instance.");
+
+    NodePtr missingInMain = BuildGetPropertyNode(fixture.ids, value);
+    AttachNode(script.main->Graph, missingInMain);
+    ScriptClassPtr other =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "Other");
+    ScriptFunctionPtr otherMethod =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "readCounter");
+    NodePtr otherBegin = BuildBeginNode(fixture.ids, otherMethod);
+    NodePtr missingInOtherClass = BuildGetPropertyNode(fixture.ids, value);
+    AttachNode(otherMethod->Graph, otherBegin);
+    AttachNode(otherMethod->Graph, missingInOtherClass);
+    other->methods.push_back(otherMethod);
+    script.classes.push_back(other);
+
+    const ValidationReport invalid = ScriptValidator::Validate(script);
+    const auto hasMissingInstance = [&](const NodePtr& node)
+    {
+        const auto diagnostics =
+            invalid.ForNode(node->ID == missingInMain->ID
+                    ? script.main->ID : otherMethod->ID,
+                node->ID);
+        return std::any_of(diagnostics.begin(), diagnostics.end(),
+            [](const ValidationDiagnostic* diagnostic)
+            {
+                return diagnostic->code == "missing-instance";
+            });
+    };
+    Require(hasMissingInstance(missingInMain),
+            "A member node in Main should require an explicit instance.");
+    Require(hasMissingInstance(missingInOtherClass),
+            "A member node in another class should require an explicit instance.");
+    Require(!HasCode(valid, "missing-instance"),
+            "Same-class receivers must not produce missing-instance errors.");
+}
+
 void PureNodesAreConstantFolded()
 {
     RuntimeFixture fixture;
@@ -1985,6 +2127,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             InstanceErrorsDoNotChangeDefinitionCapabilities);
         runner.Test("a missing Begin node is rejected", MissingBeginIsRejected);
         runner.Test("dependency cycles are rejected", DependencyCyclesAreRejected);
+        runner.Test("implicit self receivers respect graph context",
+            ImplicitSelfReceiversRespectGraphContext);
         runner.Test("pure nodes are constant folded", PureNodesAreConstantFolded);
         runner.Test("complete expression nodes compile and execute",
             CompleteExpressionNodesCompileAndExecute);

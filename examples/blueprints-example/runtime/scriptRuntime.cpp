@@ -21,10 +21,12 @@ void EmitPropertyInitializer(Compiler& compiler, const ScriptProperty& property)
 }
 }
 
-void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
+void ScriptRuntime::CompileGraph(const Script& script, const ScriptFunction& function,
+                                 Compiler& compiler,
                                  const std::vector<Value>& foldedValues,
                                  const std::vector<ed::NodeId>& foldedNodeIds)
 {
+    const Graph& graph = function.Graph;
     const NodePtr begin = graph.FindNodeIf([](const NodePtr& node)
     {
         return node->Category == NodeCategory::Begin;
@@ -32,7 +34,7 @@ void ScriptRuntime::CompileGraph(const Graph& graph, Compiler& compiler,
     if (!begin)
         return;
 
-    GraphCompiler graphCompiler(compiler);
+    GraphCompiler graphCompiler(compiler, &script, function.ID);
     graphCompiler.context.constFoldingValues = foldedValues;
     graphCompiler.context.constFoldingIDs = foldedNodeIds;
 
@@ -126,7 +128,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
             for (const ScriptPropertyPtr& property : propertyOwner->properties)
                 EmitPropertyInitializer(compiler, *property);
 
-        CompileGraph(scriptFunction->Graph, compiler, folding.values, folding.nodeIds);
+        CompileGraph(script, *scriptFunction, compiler, folding.values, folding.nodeIds);
         ObjFunction* function = compiler.endCompiler();
         const uint32_t constant = compiler.makeConstant(Value(function));
         compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
@@ -194,7 +196,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     GraphCompiler::CompileLiteral(compiler, programArgumentsValue);
     compiler.addLocal(argumentsToken, true);
     compiler.emitVariable(argumentsToken, true, true);
-    CompileGraph(script.main->Graph, compiler, folding.values, folding.nodeIds);
+    CompileGraph(script, *script.main, compiler, folding.values, folding.nodeIds);
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();
 

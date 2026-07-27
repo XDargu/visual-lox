@@ -1,6 +1,7 @@
 # pragma once
 
 #include "graph.h"
+#include "../script/script.h"
 
 #include <Compiler.h>
 
@@ -529,6 +530,28 @@ void Graph::RefreshTypes()
      return links;
  }
 
+ const Pin* GraphUtils::FindReceiverInput(const Node& node)
+ {
+     const int index = node.GetReceiverInputIndex();
+     if (index < 0 || index >= static_cast<int>(node.Inputs.size()))
+         return nullptr;
+     return &node.Inputs[index];
+ }
+
+ bool GraphUtils::UsesImplicitReceiver(const Script& script, ScriptElementID functionId,
+                                       const Graph& graph, const Node& node)
+ {
+     const Pin* receiver = FindReceiverInput(node);
+     if (!receiver || graph.IsPinLinked(receiver->ID))
+         return false;
+
+     const ScriptClassPtr graphOwner =
+         ScriptUtils::FindOwningClass(script, functionId.id);
+     const ScriptClassPtr memberOwner =
+         ScriptUtils::FindOwningClass(script, node.refId.id);
+     return graphOwner && memberOwner && graphOwner->ID.id == memberOwner->ID.id;
+ }
+
  namespace
  {
  bool IsNodeConstFoldableRecursive(const Graph& graph, const NodePtr& node,
@@ -536,7 +559,13 @@ void Graph::RefreshTypes()
                                    std::set<const Node*>& verified)
  {
      if (!node || !node->IsPure() || !GraphUtils::IsNodeImplicit(node) ||
-         HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
+          HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
+         return false;
+
+     // An unlinked member receiver may resolve to the runtime `this` value.
+     // It cannot be evaluated safely by the context-free constant folder.
+     const Pin* receiver = GraphUtils::FindReceiverInput(*node);
+     if (receiver && !graph.IsPinLinked(receiver->ID))
          return false;
 
      // The current folding bytecode path materializes one result. Definitions

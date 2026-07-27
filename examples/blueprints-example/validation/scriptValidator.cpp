@@ -25,7 +25,8 @@ bool HasFlowPins(const Node& node)
            std::any_of(node.Outputs.begin(), node.Outputs.end(), isFlow);
 }
 
-void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
+void ValidateGraph(const Script& script, const ScriptFunction& function,
+                   ValidationReport& report,
                    std::set<RawId>& documentIds, bool isClassFunction = false,
                    bool isConstructor = false)
 {
@@ -84,6 +85,21 @@ void ValidateGraph(const ScriptFunction& function, ValidationReport& report,
         if (HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
             add(DiagnosticSeverity::Error, "invalid-reference",
                 node->Error.empty() ? "Node contains an invalid reference." : node->Error, node->ID);
+        if (const Pin* receiver = GraphUtils::FindReceiverInput(*node);
+            receiver && !graph.IsPinLinked(receiver->ID))
+        {
+            const ScriptClassPtr memberOwner =
+                ScriptUtils::FindOwningClass(script, node->refId.id);
+            if (memberOwner &&
+                !GraphUtils::UsesImplicitReceiver(
+                    script, function.ID, graph, *node))
+            {
+                add(DiagnosticSeverity::Error, "missing-instance",
+                    "'" + node->Name + "' requires a " +
+                        memberOwner->Name + " instance.",
+                    node->ID, receiver->ID);
+            }
+        }
         if (node->SerializationType == "class.this" && !isClassFunction)
             add(DiagnosticSeverity::Error, "this-outside-class",
                 "The This node can only be used inside a class method or constructor.", node->ID);
@@ -360,7 +376,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             addScriptError("invalid-purity",
                 std::string(isMain ? "Main" : "A constructor") +
                 " cannot be marked pure.");
-        ValidateGraph(*function, report, documentIds, isClassFunction, isConstructor);
+        ValidateGraph(script, *function, report, documentIds,
+                      isClassFunction, isConstructor);
     };
 
     if (script.main)

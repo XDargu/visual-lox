@@ -461,24 +461,40 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 builder.EndHeader();
             }
 
+            const bool usesImplicitReceiver =
+                m_pScript && m_pScriptFunction &&
+                GraphUtils::UsesImplicitReceiver(
+                    *m_pScript, m_pScriptFunction->ID, *m_pGraph, *node);
+            const int receiverInputIndex = node->GetReceiverInputIndex();
             int idx = 0;
             for (const Pin& input : node->Inputs)
             {
+                const bool linked = m_pGraph->IsPinLinked(input.ID);
+                const bool isReceiver = idx == receiverInputIndex;
                 float alpha = ImGui::GetStyle().Alpha;
                 //if (newLinkPin && m_pGraph->CanCreateLink(newLinkPin, &input, processedNodes) != ELinkQueryResult::Possible && &input != newLinkPin)
                 //    alpha = alpha * (48.0f / 255.0f);
 
                 builder.Input(input.ID);
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
-                DrawPinIcon(input, m_pGraph->IsPinLinked(input.ID), (int)(alpha * 255));
+                DrawPinIcon(input, linked, (int)(alpha * 255));
                 ImGui::Spring(0);
                 if (!input.Name.empty())
                 {
                     ImGui::TextUnformatted(input.Name.c_str());
                     ImGui::Spring(0);
                 }
+                if (isReceiver && !linked)
+                {
+                    if (usesImplicitReceiver)
+                        ImGui::TextDisabled("self");
+                    else
+                        ImGui::TextColored(
+                            ImVec4(1.0f, 0.55f, 0.2f, 1.0f), "required");
+                    ImGui::Spring(0);
+                }
 
-                if (!m_pGraph->IsPinLinked(input.ID))
+                if (!linked)
                     DrawPinInput(input, idx);
 
                 ImGui::PopStyleVar();

@@ -18,6 +18,22 @@ inline void EmitNamedOperation(Compiler& compiler, OpCode shortOp, OpCode longOp
     compiler.emitOpWithValue(shortOp, longOp, compiler.identifierConstant(token));
 }
 
+inline void CompileReceiverInput(CompilerContext& context, const Graph& graph,
+                                 const Node& node, const Pin& input,
+                                 const Value& value)
+{
+    if (context.script &&
+        GraphUtils::UsesImplicitReceiver(
+            *context.script, context.functionId, graph, node))
+    {
+        static constexpr char name[] = "this";
+        context.compiler.namedVariable(
+            Token(TokenType::THIS, name, 4, 0), false);
+        return;
+    }
+    GraphCompiler::CompileInput(context, graph, input, value);
+}
+
 inline void RefreshCallInputs(Node& node, IDGenerator& ids,
                               const std::vector<BasicFunctionDef::Input>& parameters,
                               int fixedInputs)
@@ -203,11 +219,14 @@ struct GetPropertyNode : public Node
     {
         if (stage != CompilationStage::PullOutput || !propertyDefinition)
             return;
-        GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
+        ObjectNodeUtils::CompileReceiverInput(
+            context, graph, *this, Inputs[0], InputValues[0]);
         ObjectNodeUtils::EmitNamedOperation(context.compiler, OpCode::OP_GET_PROPERTY,
             OpCode::OP_GET_PROPERTY_LONG, propertyDefinition->Name);
         GraphCompiler::CompileOutput(context, graph, Outputs[0]);
     }
+
+    int GetReceiverInputIndex() const override { return 0; }
 
     void Refresh(const Script& script, IDGenerator&) override
     {
@@ -266,12 +285,15 @@ struct SetPropertyNode : public Node
     {
         if (stage != CompilationStage::BeginInputs || !propertyDefinition)
             return;
-        GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
+        ObjectNodeUtils::CompileReceiverInput(
+            context, graph, *this, Inputs[1], InputValues[1]);
         GraphCompiler::CompileInput(context, graph, Inputs[2], InputValues[2]);
         ObjectNodeUtils::EmitNamedOperation(context.compiler, OpCode::OP_SET_PROPERTY,
             OpCode::OP_SET_PROPERTY_LONG, propertyDefinition->Name);
         GraphCompiler::CompileOutput(context, graph, Outputs[1]);
     }
+
+    int GetReceiverInputIndex() const override { return 1; }
 
     void Refresh(const Script& script, IDGenerator&) override
     {
@@ -352,8 +374,8 @@ struct MethodCallNode : public Node
         const size_t instanceIndex =
             (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
              HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1;
-        GraphCompiler::CompileInput(
-            context, graph, Inputs[instanceIndex], InputValues[instanceIndex]);
+        ObjectNodeUtils::CompileReceiverInput(
+            context, graph, *this, Inputs[instanceIndex], InputValues[instanceIndex]);
         for (size_t i = instanceIndex + 1; i < Inputs.size(); ++i)
             GraphCompiler::CompileInput(context, graph, Inputs[i], InputValues[i]);
         const std::string& name = methodDefinition->functionDef->name;
@@ -366,6 +388,12 @@ struct MethodCallNode : public Node
             context, graph, Outputs,
             (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
              HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1);
+    }
+
+    int GetReceiverInputIndex() const override
+    {
+        return (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
+                HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1;
     }
 
     void Refresh(const Script& script, IDGenerator& ids) override

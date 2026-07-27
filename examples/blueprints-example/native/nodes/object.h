@@ -210,6 +210,7 @@ struct GetPropertyNode : public Node
     {
         Category = NodeCategory::Variable;
         Type = NodeType::SimpleGet;
+        ShowOutputPinNames = false;
         refId = propertyId;
         DefinitionFlags |= NodeDefinitionFlags::Pure;
     }

@@ -248,6 +248,40 @@ void StandardLibraryDeclaresCapabilities()
     }
 }
 
+void SimpleNodesHideRedundantPinNames()
+{
+    RuntimeFixture fixture;
+    for (const char* name : {
+            "Math::Negate", "Math::Not Equals", "Math::Greater Or Equal",
+            "Math::Less Or Equal", "Logic::Not", "Logic::And", "Logic::Or",
+            "Value::Is Nil" })
+    {
+        const CompiledNodeDefPtr definition = fixture.registry.FindCompiled(name);
+        Require(definition != nullptr,
+                "Expected the simple node definition to be registered.");
+        const NodePtr node = definition->MakeNode(fixture.ids);
+        Require(!node->ShowInputPinNames && !node->ShowOutputPinNames,
+                "Self-evident simple nodes should hide their pin names.");
+    }
+
+    for (const char* name : { "Math::Modulo", "Value::Coalesce" })
+    {
+        const CompiledNodeDefPtr definition = fixture.registry.FindCompiled(name);
+        Require(definition != nullptr,
+                "Expected the ordered-operand node definition to be registered.");
+        const NodePtr node = definition->MakeNode(fixture.ids);
+        Require(node->ShowInputPinNames && node->ShowOutputPinNames,
+                "Ordered-operand simple nodes should retain their pin names.");
+    }
+
+    const ScriptPropertyPtr property =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Score");
+    const NodePtr getProperty = BuildGetPropertyNode(fixture.ids, property);
+    Require(getProperty->ShowInputPinNames &&
+            !getProperty->ShowOutputPinNames,
+            "Class property Get nodes should only hide the redundant output name.");
+}
+
 void ListNativeNodesOperateOnLists()
 {
     RuntimeFixture fixture;
@@ -2102,6 +2136,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("file, path, and console nodes operate",
             FilePathAndConsoleNodesOperate);
         runner.Test("node definitions declare their capabilities", StandardLibraryDeclaresCapabilities);
+        runner.Test("simple nodes hide redundant pin names",
+            SimpleNodesHideRedundantPinNames);
         runner.Test("list native nodes operate on lists", ListNativeNodesOperateOnLists);
         runner.Test("range native nodes support both directions", RangeNativeNodesSupportBothDirections);
         runner.Test("expanded math and string nodes operate",

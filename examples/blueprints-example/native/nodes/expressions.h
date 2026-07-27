@@ -13,6 +13,8 @@ struct UnaryExpressionNode : public Node
     {
         Category = NodeCategory::Function;
         Type = NodeType::SimpleLargeBody;
+        ShowInputPinNames = false;
+        ShowOutputPinNames = false;
         DefinitionFlags |= NodeDefinitionFlags::Pure;
     }
 
@@ -35,6 +37,8 @@ struct TwoOperationExpressionNode : public Node
     {
         Category = NodeCategory::Function;
         Type = NodeType::SimpleLargeBody;
+        ShowInputPinNames = false;
+        ShowOutputPinNames = false;
         DefinitionFlags |= NodeDefinitionFlags::Pure;
     }
 
@@ -233,14 +237,20 @@ inline NodePtr BuildShortCircuitNode(IDGenerator& ids, const char* name,
 
 inline NodePtr BuildAndNode(IDGenerator& ids)
 {
-    return BuildShortCircuitNode(
+    NodePtr node = BuildShortCircuitNode(
         ids, "And", ShortCircuitMode::And, PinType::Bool, Value(false));
+    node->ShowInputPinNames = false;
+    node->ShowOutputPinNames = false;
+    return node;
 }
 
 inline NodePtr BuildOrNode(IDGenerator& ids)
 {
-    return BuildShortCircuitNode(
+    NodePtr node = BuildShortCircuitNode(
         ids, "Or", ShortCircuitMode::Or, PinType::Bool, Value(false));
+    node->ShowInputPinNames = false;
+    node->ShowOutputPinNames = false;
+    return node;
 }
 
 inline NodePtr BuildCoalesceNode(IDGenerator& ids)

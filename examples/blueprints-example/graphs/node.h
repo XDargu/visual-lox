@@ -178,6 +178,8 @@ struct Node
     NodeType         Type = NodeType::Blueprint;
     NodeCategory     Category = NodeCategory::Begin;
     ImVec2           Size;
+    bool             ShowInputPinNames = true;
+    bool             ShowOutputPinNames = true;
     NodeDefinitionFlags DefinitionFlags = NodeDefinitionFlags::None;
     NodeInstanceFlags   InstanceFlags = NodeInstanceFlags::None;
 

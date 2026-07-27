@@ -479,7 +479,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
                 DrawPinIcon(input, linked, (int)(alpha * 255));
                 ImGui::Spring(0);
-                if (!input.Name.empty())
+                if (node->ShowInputPinNames && !input.Name.empty())
                 {
                     ImGui::TextUnformatted(input.Name.c_str());
                     ImGui::Spring(0);
@@ -556,7 +556,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     }
                     ImGui::Spring(0);
                 }*/
-                if (!output.Name.empty())
+                if (node->ShowOutputPinNames && !output.Name.empty())
                 {
                     ImGui::Spring(0);
                     ImGui::TextUnformatted(output.Name.c_str());

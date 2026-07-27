@@ -3,6 +3,7 @@
 #include "../graphs/idgeneration.h"
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/begin.h"
+#include "../native/nodes/return.h"
 #include "../script/scriptSerializer.h"
 #include "../utilities/utils.h"
 
@@ -730,6 +731,47 @@ OperationResult DocumentOperations::AddClassMethod(int classId, int methodId, co
         NodePtr begin = BuildBeginNode(m_ids, method);
         NodeUtils::BuildNode(begin);
         method->Graph.AddNode(begin);
+        scriptClass->methods.push_back(method);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddClassToStringMethod(
+    int classId, int methodId, int outputId)
+{
+    ScriptClassPtr scriptClass = ScriptUtils::FindClassById(m_script, classId);
+    if (!scriptClass) return Missing("Class", classId);
+    if (ScriptUtils::FindFunctionById(m_script, methodId))
+        return OperationResult::Fail("A function with this ID already exists.");
+    if (std::any_of(scriptClass->methods.begin(), scriptClass->methods.end(),
+        [](const ScriptFunctionPtr& method)
+        {
+            return method && method->functionDef->name == "toString";
+        }))
+        return OperationResult::Fail("This class already has a toString method.");
+
+    return Apply("Add toString method", [&]
+    {
+        ScriptFunctionPtr method =
+            std::make_shared<ScriptFunction>(methodId, "toString");
+        method->functionDef->flags |= NodeDefinitionFlags::Pure;
+
+        const std::string defaultLabel = scriptClass->Name + " instance";
+        const Value defaultText = Value(copyString(
+            defaultLabel.c_str(), static_cast<int>(defaultLabel.size())));
+        method->functionDef->outputs.push_back(
+            { "Text", defaultText, outputId, TypeRef(PinType::String) });
+
+        NodePtr begin = BuildBeginNode(m_ids, method);
+        NodePtr returnNode = BuildReturnNode(m_ids, *method);
+        returnNode->InputValues[1] = defaultText;
+        NodeUtils::BuildNode(begin);
+        NodeUtils::BuildNode(returnNode);
+        method->Graph.AddNode(begin);
+        method->Graph.AddNode(returnNode);
+        method->Graph.AddLink(Link(
+            m_ids.GetNextId(), begin->Outputs[0].ID, returnNode->Inputs[0].ID));
+
         scriptClass->methods.push_back(method);
         return OperationResult::Ok();
     });

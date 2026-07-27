@@ -422,7 +422,9 @@ void Example::OnStart()
     m_script.main = std::make_shared<ScriptFunction>(m_IDGenerator.GetNextId(), "Main");
     EnsureMainSignature();
 
-    // Start with main graph
+    // SetGraph is called during startup, before ImGui has a current window.
+    // Keep the graph empty here so node registration is deferred to its first
+    // rendered frame.
     m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
 
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
@@ -1061,6 +1063,38 @@ void Example::ShowScriptExplorer()
                         if (result) RebuildScriptTree(methodId);
                     }));
             }
+            const bool hasToString = std::any_of(
+                selectedClass->methods.begin(), selectedClass->methods.end(),
+                [](const ScriptFunctionPtr& method)
+                {
+                    return method && method->functionDef->name == "toString";
+                });
+            if (ImGui::MenuItem(
+                    ICON_FA_WAND_MAGIC_SPARKLES "  toString Method",
+                    nullptr, false, !hasToString))
+            {
+                const int classId = selectedClass->ID.id;
+                const int methodId = m_IDGenerator.GetNextId();
+                const int outputId = m_IDGenerator.GetNextId();
+                pendingActions.push_back(std::make_shared<DeferredAction>(
+                    [this, classId, methodId, outputId]()
+                    {
+                        const OperationResult result =
+                            m_operations->AddClassToStringMethod(
+                                classId, methodId, outputId);
+                        m_fileStatusIsError = !result;
+                        m_fileStatus =
+                            result ? "toString method added" : result.error;
+                        if (!result)
+                            return;
+
+                        RebuildScriptTree();
+                        m_selectedItemId = methodId;
+                        if (ScriptFunctionPtr method =
+                                ScriptUtils::FindFunctionById(m_script, methodId))
+                            ChangeGraph(method);
+                    }));
+            }
             if (!selectedClass->constructor &&
                 ImGui::MenuItem(ICON_FA_WAND_MAGIC_SPARKLES "  Constructor"))
             {
@@ -1360,6 +1394,38 @@ void Example::ShowInspector()
         ImGuiUtils::EndDisabled();
         if (scriptClass->constructor)
             ImGui::TextDisabled("This class already has a constructor.");
+
+        const bool hasToString = std::any_of(
+            scriptClass->methods.begin(), scriptClass->methods.end(),
+            [](const ScriptFunctionPtr& method)
+        {
+            return method && method->functionDef->name == "toString";
+        });
+        ImGuiUtils::BeginDisabled(hasToString);
+        if (ImGui::Button(ICON_FA_TEXT_WIDTH " To String", ImVec2(-1, 0)))
+        {
+            const int classId = scriptClass->ID.id;
+            const int methodId = m_IDGenerator.GetNextId();
+            const int outputId = m_IDGenerator.GetNextId();
+
+            pendingActions.push_back(std::make_shared<DeferredAction>(
+                [this, classId, methodId, outputId]()
+            {
+                const OperationResult result = m_operations->AddClassToStringMethod(classId, methodId, outputId);
+                m_fileStatusIsError = !result;
+                m_fileStatus = result ? "toString method added" : result.error;
+                if (!result)
+                    return;
+
+                RebuildScriptTree();
+                m_selectedItemId = methodId;
+                if (ScriptFunctionPtr method = ScriptUtils::FindFunctionById(m_script, methodId))
+                    ChangeGraph(method);
+            }));
+        }
+        ImGuiUtils::EndDisabled();
+        if (hasToString)
+            ImGui::TextDisabled("This class already has a toString method");
 
         ImGui::Spacing();
         ImGui::Text("%zu propert%s", scriptClass->properties.size(),

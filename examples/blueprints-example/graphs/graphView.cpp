@@ -295,14 +295,25 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
         {
             const bool isPositionChange =
                 (reason & ed::SaveReasonFlags::Position) != ed::SaveReasonFlags::None;
+            const bool isSizeChange =
+                (reason & ed::SaveReasonFlags::Size) != ed::SaveReasonFlags::None;
+            const bool isUserChange =
+                (reason & ed::SaveReasonFlags::User) != ed::SaveReasonFlags::None;
             const bool dragging = isPositionChange && ImGui::IsMouseDown(ImGuiMouseButton_Left);
             const int rawNodeId = static_cast<int>(nodeId.Get());
             const bool amendCreation = isPositionChange &&
                 self->amendNextNodePosition.erase(rawNodeId) != 0;
-            self->m_pOperations->SetNodeState(self->m_pScriptFunction->ID.id, nodeId, state,
-                                               self->recordNodeStateHistory && isPositionChange,
-                                               dragging && self->nodePositionDragActive,
-                                               amendCreation);
+            // The node editor reports AddNode and automatic Size changes while
+            // laying out a graph for the first time. Those are initialization,
+            // not document edits. Persist explicit positions and user resizes.
+            if (isPositionChange || (isSizeChange && isUserChange))
+            {
+                self->m_pOperations->SetNodeState(
+                    self->m_pScriptFunction->ID.id, nodeId, state,
+                    self->recordNodeStateHistory && isPositionChange,
+                    dragging && self->nodePositionDragActive,
+                    amendCreation);
+            }
             self->nodePositionDragActive = dragging;
         }
         else

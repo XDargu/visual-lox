@@ -169,6 +169,75 @@ void MarkingFunctionPureMakesCallsImplicit()
             "The caller's execution-flow pins were not restored after clearing purity.");
 }
 
+void ToStringShortcutCreatesCompleteMethod()
+{
+    OperationsFixture fixture;
+    const int classId = fixture.ids.GetNextId();
+    const int methodId = fixture.ids.GetNextId();
+    const int outputId = fixture.ids.GetNextId();
+    RequireSuccess(
+        fixture.operations->AddClass(classId, "Display"),
+        "Adding the class failed.");
+    RequireSuccess(
+        fixture.operations->AddClassToStringMethod(
+            classId, methodId, outputId),
+        "Adding the toString method failed.");
+
+    ScriptClassPtr scriptClass =
+        ScriptUtils::FindClassById(fixture.script, classId);
+    Require(scriptClass && scriptClass->methods.size() == 1,
+            "The shortcut did not add exactly one class method.");
+    ScriptFunctionPtr method = scriptClass->methods.front();
+    Require(method->ID == methodId &&
+            method->functionDef->name == "toString",
+            "The shortcut created the wrong method.");
+    Require(HasFlag(method->functionDef->flags, NodeDefinitionFlags::Pure),
+            "The generated toString method should be pure.");
+    Require(method->functionDef->outputs.size() == 1 &&
+            method->functionDef->outputs.front().id == outputId &&
+            method->functionDef->outputs.front().name == "Text" &&
+            method->functionDef->outputs.front().type == PinType::String &&
+            isString(method->functionDef->outputs.front().value) &&
+            asString(method->functionDef->outputs.front().value)->chars ==
+                "Display instance",
+            "The generated toString method should return a String.");
+
+    NodePtr begin = method->Graph.FindNodeIf(
+        [](const NodePtr& node)
+        {
+            return node->Category == NodeCategory::Begin;
+        });
+    NodePtr returnNode = method->Graph.FindNodeIf(
+        [](const NodePtr& node)
+        {
+            return node->Category == NodeCategory::Return;
+        });
+    Require(begin && returnNode && method->Graph.GetLinks().size() == 1,
+            "The generated toString graph should contain a connected Begin and Return.");
+    const Link& flowLink = method->Graph.GetLinks().front();
+    Require(flowLink.StartPinID == begin->Outputs[0].ID &&
+            flowLink.EndPinID == returnNode->Inputs[0].ID &&
+            returnNode->InputValues.size() > 1 &&
+            isString(returnNode->InputValues[1]) &&
+            asString(returnNode->InputValues[1])->chars == "Display instance",
+            "The generated Return node should provide the default instance text.");
+
+    Require(!fixture.operations->AddClassToStringMethod(
+                classId, fixture.ids.GetNextId(), fixture.ids.GetNextId()),
+            "A class accepted a duplicate toString shortcut.");
+    RequireSuccess(fixture.operations->Undo(),
+                   "Undoing toString creation failed.");
+    scriptClass = ScriptUtils::FindClassById(fixture.script, classId);
+    Require(scriptClass && scriptClass->methods.empty(),
+            "Undo did not remove the generated toString method.");
+    RequireSuccess(fixture.operations->Redo(),
+                   "Redoing toString creation failed.");
+    scriptClass = ScriptUtils::FindClassById(fixture.script, classId);
+    Require(scriptClass && scriptClass->methods.size() == 1 &&
+            scriptClass->methods.front()->functionDef->name == "toString",
+            "Redo did not restore the generated toString method.");
+}
+
 void NodeFragmentsPreserveLinksAndUseFreshIds()
 {
     OperationsFixture fixture;
@@ -382,6 +451,8 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("function changes can be undone and redone", FunctionChangesCanBeUndoneAndRedone);
         runner.Test("marking a function pure makes calls implicit",
             MarkingFunctionPureMakesCallsImplicit);
+        runner.Test("toString shortcut creates a complete method",
+            ToStringShortcutCreatesCompleteMethod);
         runner.Test("a transaction is one undo step", TransactionIsOneUndoStep);
     });
     runner.Group("Document operations / clipboard", [&]()

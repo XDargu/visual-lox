@@ -71,6 +71,7 @@ public:
     OperationResult ChangeClassPropertyValue(int classId, int propertyId, const Value& value);
     OperationResult ChangeClassPropertyType(int classId, int propertyId, const TypeRef& type);
     OperationResult AddClassMethod(int classId, int methodId, const std::string& name = "Method");
+    OperationResult AddClassToStringMethod(int classId, int methodId, int outputId);
     OperationResult RemoveClassMethod(int classId, int methodId);
     OperationResult AddClassConstructor(int classId, int constructorId);
     OperationResult RemoveClassConstructor(int classId);

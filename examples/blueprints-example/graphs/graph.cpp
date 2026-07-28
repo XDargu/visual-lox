@@ -572,6 +572,11 @@ void Graph::RefreshTypes()
           HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
          return false;
 
+     // Variable reads are side-effect free, but their values are supplied by
+     // runtime state and cannot be evaluated before global/local initialization.
+     if (node->Category == NodeCategory::Variable)
+         return false;
+
      // An unlinked member receiver may resolve to the runtime `this` value.
      // It cannot be evaluated safely by the context-free constant folder.
      const Pin* receiver = GraphUtils::FindReceiverInput(*node);

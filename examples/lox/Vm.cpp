@@ -928,6 +928,13 @@ InterpretResult VM::run(int depth)
                 push(Value(isNil(pop())));
                 break;
             }
+            case OpCode::OP_TO_STRING:
+            {
+                ObjString* result = valueToStringWithOverrides(peek(0));
+                pop();
+                push(Value(result));
+                break;
+            }
             case OpCode::OP_PRINT:
             {
                 const Value value = peek(0);
@@ -1064,7 +1071,7 @@ InterpretResult VM::run(int depth)
                 defineMethod(readStringLong());
                 break;
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 56, "Missing operations in the VM");
+        static_assert(static_cast<int>(OpCode::COUNT) == 57, "Missing operations in the VM");
     }
 }
 

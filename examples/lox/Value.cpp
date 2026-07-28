@@ -1,6 +1,9 @@
 #include "Value.h"
 
 #include <iostream>
+#include <charconv>
+#include <array>
+#include <string_view>
 
 #include "Object.h"
 
@@ -17,13 +20,29 @@ void printValue(const Value& value)
     }
 }
 
+// Fast double to string conversion
+std::string_view doubleToString(double value, std::array<char, 24>& buffer)
+{
+    auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value, std::chars_format::general);
+
+    if (ec == std::errc())
+    {
+        return std::string_view(buffer.data(), ptr - buffer.data());
+    }
+    return "Error";
+}
+
 ObjString* valueAsString(const Value& value)
 {
     switch (value.type)
     {
     case ValueType::BOOL: return (asBoolean(value) ? takeString("true", 4) : takeString("false", 5));
     case ValueType::NIL: return takeString("nil", 3);
-    case ValueType::NUMBER: return takeString(std::to_string(asNumber(value)));
+    case ValueType::NUMBER:
+    {
+        std::array<char, 24> buffer;
+        return takeString(doubleToString(asNumber(value), buffer));
+    }
     case ValueType::OBJ: return objectAsString(value); break;
     }
 

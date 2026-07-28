@@ -154,6 +154,8 @@ inline NodePtr BuildUnaryExpressionNode(IDGenerator& ids, const char* name,
     else if (operation == OpCode::OP_IS_NIL)
         node = std::make_shared<UnaryExpressionNode<OpCode::OP_IS_NIL>>(
             ids.GetNextId(), name);
+    else if (operation == OpCode::OP_TO_STRING)
+        node = std::make_shared<UnaryExpressionNode<OpCode::OP_TO_STRING>>(ids.GetNextId(), name);
     else
         node = std::make_shared<UnaryExpressionNode<OpCode::OP_NOT>>(
             ids.GetNextId(), name);
@@ -179,6 +181,11 @@ inline NodePtr BuildIsNilNode(IDGenerator& ids)
 {
     return BuildUnaryExpressionNode(
         ids, "Is Nil", PinType::Any, PinType::Bool, OpCode::OP_IS_NIL, Value());
+}
+
+inline NodePtr BuildToStringNode(IDGenerator& ids)
+{
+    return BuildUnaryExpressionNode(ids, "ToString", PinType::Any, PinType::String, OpCode::OP_TO_STRING, Value());
 }
 
 inline NodePtr BuildNotEqualsNode(IDGenerator& ids)

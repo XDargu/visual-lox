@@ -2,6 +2,7 @@
 #define loxcpp_object_h
 
 #include <string>
+#include <string_view>
 #include <iostream>
 #include <cmath>
 
@@ -313,8 +314,11 @@ inline ObjRange* asRange(const Value& value) { return static_cast<ObjRange*>(asO
 inline ObjList* asList(const Value& value) { return static_cast<ObjList*>(asObject(value)); }
 
 ObjString* copyString(const char* chars, int length);
+ObjString* takeString(const char* chars);
 ObjString* takeString(const char* chars, int length);
+ObjString* takeString(std::string_view chars);
 ObjString* takeString(std::string&& chars);
+ObjString* takeString(std::string_view chars);
 
 ObjUpvalue* newUpvalue(Value* slot);
 ObjInstance* newInstance(ObjClass* klass);

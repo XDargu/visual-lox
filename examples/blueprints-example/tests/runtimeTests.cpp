@@ -267,7 +267,7 @@ void SimpleNodesHideRedundantPinNames()
     for (const char* name : {
             "Math::Negate", "Math::Not Equals", "Math::Greater Or Equal",
             "Math::Less Or Equal", "Logic::Not", "Logic::And", "Logic::Or",
-            "Value::Is Nil" })
+            "Value::Is Nil", "String::ToString" })
     {
         const CompiledNodeDefPtr definition = fixture.registry.FindCompiled(name);
         Require(definition != nullptr,
@@ -1648,6 +1648,10 @@ void CompleteExpressionNodesCompileAndExecute()
                   StringValue("same"), StringValue("same"), true, Value(false));
     addExpression("Value::Is Nil", "ExprIsNil", Value(), Value(), false,
                   Value(false));
+    addExpression("String::ToString", "ExprStringNil", Value(), Value(), false, StringValue(""));
+    addExpression("String::ToString", "ExprStringBool", Value(true), Value(), false, StringValue(""));
+    addExpression("String::ToString", "ExprStringNumber", Value(12.5), Value(), false, StringValue(""));
+    addExpression("String::ToString", "ExprStringList", Value(MakeList({ StringValue("value"), Value(3.0) })), Value(), false, StringValue(""));
     addExpression("Logic::And", "ExprAnd", Value(true), Value(true), true,
                   Value(false));
     NodePtr shortAnd = addExpression(
@@ -1707,6 +1711,10 @@ void CompleteExpressionNodesCompileAndExecute()
     Require(isString(ReadGlobal(fixture.vm, "ExprCoalesceKeep")) &&
             asString(ReadGlobal(fixture.vm, "ExprCoalesceKeep"))->chars == "left",
             "Value::Coalesce should preserve a non-nil left operand.");
+    Require(asString(ReadGlobal(fixture.vm, "ExprStringNil"))->chars == "nil", "String::ToString should convert nil.");
+    Require(asString(ReadGlobal(fixture.vm, "ExprStringBool"))->chars == "true", "String::ToString should convert booleans.");
+    Require(asString(ReadGlobal(fixture.vm, "ExprStringNumber"))->chars == "12.5", "String::ToString should convert numbers.");
+    Require(asString(ReadGlobal(fixture.vm, "ExprStringList"))->chars == "value,3", "String::ToString should convert lists.");
 }
 
 void WhileAndRepeatNodesCompileAndExecute()
@@ -1842,6 +1850,9 @@ void ExpandedMathAndStringNodesOperate()
         Require(isString(result), "Expected a string native result.");
         return asString(result)->chars;
     };
+    const CompiledNodeDefPtr toString = fixture.registry.FindCompiled("String::ToString");
+    Require(toString && !fixture.registry.FindNative("String::ToString") && toString->functionDef->inputs[0].type == PinType::Any &&
+            toString->functionDef->outputs[0].type == PinType::String, "String::ToString should be a compiled Any-to-String node.");
     Require(string("String::Trim", { StringValue("  hello \n") }) == "hello",
             "String::Trim should remove surrounding whitespace.");
     Require(string("String::Replace",

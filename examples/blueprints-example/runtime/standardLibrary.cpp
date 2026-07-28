@@ -210,6 +210,10 @@ void RegisterStandardLibrary(NodeRegistry& registry)
             { "The value to inspect" },
             { "True when Value is nil" }
         });
+    registry.RegisterCompiledNode("String::ToString", &BuildToStringNode,
+        { { "Value", Value() } }, { { "Result", Value(copyString("", 0)) } },
+        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{ "Converts any value to text", { "The value to convert" }, { "The text representation of Value" } });
     registry.RegisterCompiledNode("Value::Coalesce", &BuildCoalesceNode,
         { { "Value", Value(), -1, TypeRef::Variable("T") },
           { "Fallback", Value(), -1, TypeRef::Variable("T") } },

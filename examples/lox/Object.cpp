@@ -1,6 +1,7 @@
 #include "Object.h"
 
 #include <iostream>
+#include <string_view>
 
 #include "Memory.h"
 #include "VM.h"
@@ -58,6 +59,20 @@ ObjString* takeString(const char* chars, int length)
     if (interned != nullptr) return interned;
 
     return allocateString(chars, length, hash);
+}
+
+ObjString* takeString(const char* chars)
+{
+    return takeString(chars, static_cast<int>(std::char_traits<char>::length(chars)));
+}
+
+ObjString* takeString(std::string_view chars)
+{
+    const uint32_t hash = hashString(chars.data(), chars.length());
+    ObjString* interned = VM::getInstance().stringTable().findString(chars.data(), chars.length(), hash);
+    if (interned != nullptr) return interned;
+
+    return allocateString(chars.data(), static_cast<int>(chars.length()), hash);
 }
 
 ObjString* takeString(std::string&& chars)

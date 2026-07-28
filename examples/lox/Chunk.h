@@ -48,6 +48,7 @@ enum class OpCode : uint8_t
     OP_STORE_SUBSCR,
     OP_RANGE_IN_BOUNDS,
     OP_IS_NIL,
+    OP_TO_STRING,
     OP_NOT,
     OP_PRINT,
     OP_JUMP,

@@ -170,7 +170,9 @@ TypeRef TypeOfValue(const Value& value)
             return TypeRef::Object(asInstance(value)->klass && asInstance(value)->klass->name
                 ? asInstance(value)->klass->name->chars : "");
         case ObjType::FUNCTION:
-        case ObjType::CLOSURE: return TypeRef(PinType::Function);
+        case ObjType::CLOSURE:
+        case ObjType::BOUND_METHOD:
+        case ObjType::NATIVE: return TypeRef(PinType::Function);
         default: return TypeRef(PinType::Any);
         }
     }

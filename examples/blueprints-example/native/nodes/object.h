@@ -93,6 +93,19 @@ inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
     }
     node.Outputs = std::move(refreshed);
 }
+
+inline TypeRef FunctionType(const BasicFunctionDef& definition)
+{
+    std::vector<TypeRef> inputs;
+    std::vector<TypeRef> outputs;
+    inputs.reserve(definition.inputs.size());
+    outputs.reserve(definition.outputs.size());
+    for (const BasicFunctionDef::Input& input : definition.inputs)
+        inputs.push_back(input.type);
+    for (const BasicFunctionDef::Input& output : definition.outputs)
+        outputs.push_back(output.type);
+    return TypeRef::Function(std::move(inputs), std::move(outputs));
+}
 }
 
 struct ConstructObjectNode : public Node
@@ -348,6 +361,93 @@ inline NodePtr BuildSetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
+    return node;
+}
+
+struct GetMethodNode : public Node
+{
+    GetMethodNode(int id, const ScriptFunctionPtr& method, ScriptElementID methodId)
+        : Node(id, method ? ("Get " + method->functionDef->name).c_str()
+                          : "Missing Method",
+               ImColor(255, 128, 128))
+        , methodDefinition(method)
+    {
+        Category = NodeCategory::Function;
+        Type = NodeType::SimpleGet;
+        ShowOutputPinNames = false;
+        DefinitionFlags |= NodeDefinitionFlags::Pure;
+        refId = methodId;
+    }
+
+    void Compile(CompilerContext& context, const Graph& graph,
+                 CompilationStage stage, int) const override
+    {
+        if (stage != CompilationStage::PullOutput || !methodDefinition)
+            return;
+        ObjectNodeUtils::CompileReceiverInput(
+            context, graph, *this, Inputs[0], InputValues[0]);
+        ObjectNodeUtils::EmitNamedOperation(
+            context.compiler, OpCode::OP_GET_PROPERTY,
+            OpCode::OP_GET_PROPERTY_LONG,
+            methodDefinition->functionDef->name);
+        GraphCompiler::CompileOutput(context, graph, Outputs[0]);
+    }
+
+    int GetReceiverInputIndex() const override { return 0; }
+
+    void Refresh(const Script& script, IDGenerator&) override
+    {
+        InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
+        methodDefinition = ScriptUtils::FindFunctionById(script, refId);
+        const ScriptClassPtr owner =
+            ScriptUtils::FindOwningClass(script, refId.id);
+        if (!methodDefinition || !owner)
+        {
+            methodDefinition = nullptr;
+            InstanceFlags |= NodeInstanceFlags::Error;
+            Error = "Missing class method with ID: " +
+                std::to_string(refId.id);
+            return;
+        }
+
+        const std::string& methodName = methodDefinition->functionDef->name;
+        Name = "Get " + methodName;
+        Description = "Gets method '" + methodName +
+            "' from a specific " + owner->Name + " instance.";
+        DefinitionFlags = NodeDefinitionFlags::Pure;
+        Inputs[0].Type = Inputs[0].DeclaredType =
+            TypeRef::Object(owner->ID.id, owner->Name);
+        Outputs[0].Name = methodName;
+        Outputs[0].Type = Outputs[0].DeclaredType =
+            ObjectNodeUtils::FunctionType(*methodDefinition->functionDef);
+        Outputs[0].Description = methodDefinition->functionDef->description;
+    }
+
+    ScriptFunctionPtr methodDefinition;
+};
+
+inline NodePtr BuildGetMethodNode(
+    IDGenerator& ids, const ScriptFunctionPtr& method,
+    ScriptElementID methodId = ScriptElementID::Invalid,
+    TypeRef instanceType = TypeRef(PinType::Object))
+{
+    if (method) methodId = method->ID;
+    NodePtr node =
+        std::make_shared<GetMethodNode>(ids.GetNextId(), method, methodId);
+    node->SerializationType = "method.get";
+    node->Description = method
+        ? "Gets method '" + method->functionDef->name +
+            "' from a specific instance."
+        : "Gets a method from a specific instance.";
+    node->Inputs.emplace_back(
+        ids.GetNextId(), "Instance", std::move(instanceType),
+        "The instance whose method is returned.");
+    node->InputValues.emplace_back(Value());
+    node->Outputs.emplace_back(
+        ids.GetNextId(), method ? method->functionDef->name.c_str() : "Method",
+        method ? ObjectNodeUtils::FunctionType(*method->functionDef)
+               : TypeRef(PinType::Function),
+        method ? method->functionDef->description : std::string{});
     return node;
 }
 

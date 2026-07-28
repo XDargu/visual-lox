@@ -4,6 +4,7 @@
 #include "../native/nodes/begin.h"
 #include "../native/nodes/function.h"
 #include "../native/nodes/math.h"
+#include "../native/nodes/object.h"
 #include "../native/nodes/return.h"
 #include "../native/nodes/variable.h"
 #include "../runtime/scriptRuntime.h"
@@ -83,6 +84,30 @@ struct SerializerFixture
         ScriptClassPtr student =
             std::make_shared<ScriptClass>(ids.GetNextId(), "Student");
         script.classes.push_back(student);
+
+        ScriptFunctionPtr accepts =
+            std::make_shared<ScriptFunction>(ids.GetNextId(), "Accepts");
+        accepts->functionDef->description = "Checks a candidate value.";
+        accepts->functionDef->flags |= NodeDefinitionFlags::Pure;
+        accepts->functionDef->inputs.push_back(
+            { "Value", Value(copyString("", 0)), ids.GetNextId(),
+              PinType::String, "The value to check" });
+        accepts->functionDef->outputs.push_back(
+            { "Accepted", Value(false), ids.GetNextId(),
+              PinType::Bool, "Whether the value is accepted" });
+        NodePtr acceptsBegin = BuildBeginNode(ids, accepts);
+        NodePtr acceptsReturn = BuildReturnNode(ids, *accepts);
+        AttachNode(accepts->Graph, acceptsBegin);
+        AttachNode(accepts->Graph, acceptsReturn);
+        accepts->Graph.AddLink(Link(
+            ids.GetNextId(), acceptsBegin->Outputs[0].ID,
+            acceptsReturn->Inputs[0].ID));
+        AttachNode(
+            accepts->Graph,
+            BuildGetMethodNode(
+                ids, accepts, ScriptElementID::Invalid,
+                TypeRef::Object(student->ID.id, student->Name)));
+        student->methods.push_back(accepts);
 
         ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), "Samples");
         property->Description = "Mixed sample values.";
@@ -222,6 +247,14 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     Require(loadedFunction && loadedFunction->Outputs[0].Type.kind == PinType::Function &&
             !loadedFunction->Outputs[0].Type.parameters.empty(),
             "First-class function signatures were not restored.");
+    const NodePtr loadedMethod = fixture.loaded.classes[0]->methods[0]->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->SerializationType == "method.get"; });
+    Require(loadedMethod &&
+            loadedMethod->Inputs[0].Type ==
+                TypeRef::Object(fixture.loaded.classes[0]->ID.id, "Student") &&
+            loadedMethod->Outputs[0].Type ==
+                TypeRef::Function({ PinType::String }, { PinType::Bool }),
+            "Method Get nodes and their function signatures were not restored.");
     Require(fixture.loadedIds.PeekNextId() == fixture.ids.PeekNextId(),
             "ID generator did not resume after the maximum persisted ID.");
 }

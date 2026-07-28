@@ -513,15 +513,20 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
         if (!property) node->Refresh(script, constructionIds);
         return node;
     }
-    if (kind == "method.call")
+    if (kind == "method.call" || kind == "method.get")
     {
         ScriptFunctionPtr method = ScriptUtils::FindFunctionById(script, reference);
         const ScriptClassPtr ownerClass =
             ScriptUtils::FindOwningClass(script, reference.id);
         if (!ownerClass) method = nullptr;
-        NodePtr node = BuildMethodCallNode(constructionIds, method, reference,
-            ownerClass ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
-                       : TypeRef(PinType::Object));
+        const TypeRef instanceType = ownerClass
+            ? TypeRef::Object(ownerClass->ID.id, ownerClass->Name)
+            : TypeRef(PinType::Object);
+        NodePtr node = kind == "method.call"
+            ? BuildMethodCallNode(
+                constructionIds, method, reference, instanceType)
+            : BuildGetMethodNode(
+                constructionIds, method, reference, instanceType);
         if (!method) node->Refresh(script, constructionIds);
         return node;
     }
@@ -583,7 +588,8 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
             (node->SerializationType == "variable.get" || node->SerializationType == "variable.set" ||
              node->SerializationType == "function.get" || node->SerializationType == "function.call" ||
              node->SerializationType == "class.construct" || node->SerializationType == "property.get" ||
-             node->SerializationType == "property.set" || node->SerializationType == "method.call");
+             node->SerializationType == "property.set" || node->SerializationType == "method.call" ||
+             node->SerializationType == "method.get");
         if (!isMissingReference && ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
             (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
            )

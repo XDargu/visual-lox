@@ -1187,6 +1187,29 @@ void GraphView::DrawContextMenu()
             return true;
         };
 
+        auto FilterContextMethodGet =
+            [&](const BasicFunctionDefPtr& functionDef,
+                const TypeRef& instanceType)
+        {
+            if (!contextualSearch) return true;
+            if (isFlow) return true;
+            if (!newNodeLinkPin) return true;
+
+            if (isOutput)
+                return GraphUtils::AreTypesCompatible(
+                    newNodeLinkPin->Type, instanceType);
+
+            std::vector<TypeRef> inputs;
+            std::vector<TypeRef> outputs;
+            for (const auto& input : functionDef->inputs)
+                inputs.push_back(input.type);
+            for (const auto& output : functionDef->outputs)
+                outputs.push_back(output.type);
+            return GraphUtils::AreTypesCompatible(
+                TypeRef::Function(std::move(inputs), std::move(outputs)),
+                newNodeLinkPin->Type);
+        };
+
         struct Data
         {
             std::string name;
@@ -1571,14 +1594,31 @@ void GraphView::DrawContextMenu()
             for (const ScriptFunctionPtr& method : scriptClass->methods)
             {
                 const ScriptFunctionPtr capturedMethod = method;
+                const TypeRef instanceType =
+                    TypeRef::Object(scriptClass->ID.id, scriptClass->Name);
                 const bool methodContext =
                     hasScriptItemContext &&
                     paletteScriptItem.kind == Editor::TreeNodeKind::ClassMethod &&
                     paletteScriptItem.id == method->ID.id;
+                const bool relatedContext =
+                    !hasScriptItemContext || wholeClassContext || methodContext;
+                if (relatedContext &&
+                    FilterContextMethodGet(
+                        method->functionDef, instanceType))
+                    AddEntry("Classes::" + scriptClass->Name +
+                        "::Methods::Get " + method->functionDef->name,
+                        [capturedMethod, capturedClass](IDGenerator& ids)
+                        {
+                            return BuildGetMethodNode(
+                                ids, capturedMethod, ScriptElementID::Invalid,
+                                TypeRef::Object(
+                                    capturedClass->ID.id,
+                                    capturedClass->Name));
+                        }, capturedMethod->functionDef);
                 if ((!pureGraph ||
                      HasFlag(method->functionDef->flags,
                              NodeDefinitionFlags::Pure)) &&
-                    (!hasScriptItemContext || wholeClassContext || methodContext))
+                    relatedContext)
                     AddEntry("Classes::" + scriptClass->Name + "::Methods::Call " +
                         method->functionDef->name,
                         [capturedMethod, capturedClass](IDGenerator& ids)

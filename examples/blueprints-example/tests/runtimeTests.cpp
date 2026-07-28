@@ -474,9 +474,11 @@ void ImplicitSelfReceiversRespectGraphContext()
         { "Value", Value(0.0), fixture.ids.GetNextId(), PinType::Float });
     NodePtr throughBegin = BuildBeginNode(fixture.ids, readThroughSelf);
     NodePtr callRead = BuildMethodCallNode(fixture.ids, read);
+    NodePtr getRead = BuildGetMethodNode(fixture.ids, read);
     NodePtr throughReturn = BuildReturnNode(fixture.ids, *readThroughSelf);
     AttachNode(readThroughSelf->Graph, throughBegin);
     AttachNode(readThroughSelf->Graph, callRead);
+    AttachNode(readThroughSelf->Graph, getRead);
     AttachNode(readThroughSelf->Graph, throughReturn);
     readThroughSelf->Graph.AddLink(Link(fixture.ids.GetNextId(),
         throughBegin->Outputs[0].ID, throughReturn->Inputs[0].ID));
@@ -522,9 +524,17 @@ void ImplicitSelfReceiversRespectGraphContext()
     Require(fixture.vm.globalTable().get(copyString("Observed", 8), &result) &&
                 isNumber(result) && asNumber(result) == 7.0,
             "Implicit self should target the current Counter instance.");
+    Require(GraphUtils::UsesImplicitReceiver(
+                script, readThroughSelf->ID, readThroughSelf->Graph, *getRead) &&
+            getRead->Inputs[0].Name == "Instance" &&
+            getRead->Outputs[0].Type ==
+                TypeRef::Function({}, { PinType::Float }),
+            "A method Get node should default its instance to self and expose only the method signature.");
 
     NodePtr missingInMain = BuildGetPropertyNode(fixture.ids, value);
+    NodePtr missingMethodInMain = BuildGetMethodNode(fixture.ids, read);
     AttachNode(script.main->Graph, missingInMain);
+    AttachNode(script.main->Graph, missingMethodInMain);
     ScriptClassPtr other =
         std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "Other");
     ScriptFunctionPtr otherMethod =
@@ -537,24 +547,142 @@ void ImplicitSelfReceiversRespectGraphContext()
     script.classes.push_back(other);
 
     const ValidationReport invalid = ScriptValidator::Validate(script);
-    const auto hasMissingInstance = [&](const NodePtr& node)
+    const auto hasMissingInstance =
+        [&](ScriptElementID functionId, const NodePtr& node)
     {
         const auto diagnostics =
-            invalid.ForNode(node->ID == missingInMain->ID
-                    ? script.main->ID : otherMethod->ID,
-                node->ID);
+            invalid.ForNode(functionId, node->ID);
         return std::any_of(diagnostics.begin(), diagnostics.end(),
             [](const ValidationDiagnostic* diagnostic)
             {
                 return diagnostic->code == "missing-instance";
             });
     };
-    Require(hasMissingInstance(missingInMain),
+    Require(hasMissingInstance(script.main->ID, missingInMain),
             "A member node in Main should require an explicit instance.");
-    Require(hasMissingInstance(missingInOtherClass),
+    Require(hasMissingInstance(script.main->ID, missingMethodInMain),
+            "A method Get node in Main should require an explicit instance.");
+    Require(hasMissingInstance(otherMethod->ID, missingInOtherClass),
             "A member node in another class should require an explicit instance.");
     Require(!HasCode(valid, "missing-instance"),
             "Same-class receivers must not produce missing-instance errors.");
+}
+
+void MethodGetFunctionsWorkWithFilter()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    ScriptPropertyPtr matchCount =
+        std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "MatchCount");
+    matchCount->type = PinType::Float;
+    matchCount->defaultValue = Value(0.0);
+    script.variables.push_back(matchCount);
+
+    ScriptClassPtr tester =
+        std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "Tester");
+    ScriptFunctionPtr accepts =
+        std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Accepts");
+    accepts->functionDef->flags |= NodeDefinitionFlags::ReadOnly;
+    accepts->functionDef->inputs.push_back(
+        { "Value", Value(0.0), fixture.ids.GetNextId(), PinType::Float,
+          "The value to test" });
+    accepts->functionDef->outputs.push_back(
+        { "Accepted", Value(false), fixture.ids.GetNextId(), PinType::Bool,
+          "True when Value is greater than two" });
+    NodePtr methodBegin = BuildBeginNode(fixture.ids, accepts);
+    NodePtr greater =
+        fixture.registry.FindCompiled("Math::Greater Than")->MakeNode(
+            fixture.ids);
+    greater->InputValues[1] = Value(2.0);
+    NodePtr methodReturn = BuildReturnNode(fixture.ids, *accepts);
+    for (const NodePtr& node : { methodBegin, greater, methodReturn })
+        AttachNode(accepts->Graph, node);
+    accepts->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), methodBegin->Outputs[0].ID,
+        methodReturn->Inputs[0].ID));
+    accepts->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), methodBegin->Outputs[1].ID,
+        greater->Inputs[0].ID));
+    accepts->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), greater->Outputs[0].ID,
+        methodReturn->Inputs[1].ID));
+    tester->methods.push_back(accepts);
+    script.classes.push_back(tester);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr construct = BuildConstructObjectNode(fixture.ids, tester);
+    NodePtr values =
+        fixture.registry.FindNative("List::MakeList")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    values->AddInput(fixture.ids);
+    values->AddInput(fixture.ids);
+    values->InputValues[0] = Value(1.0);
+    values->InputValues[1] = Value(3.0);
+    NodePtr getAccepts = BuildGetMethodNode(
+        fixture.ids, accepts, ScriptElementID::Invalid,
+        TypeRef::Object(tester->ID.id, tester->Name));
+    NodePtr filter =
+        fixture.registry.FindNative("Functional::Filter")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    NodePtr length =
+        fixture.registry.FindNative("List::Length")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    NodePtr store = BuildSetVariableNode(fixture.ids, matchCount);
+    for (const NodePtr& node :
+         { begin, construct, values, getAccepts, filter, length, store })
+        AttachNode(script.main->Graph, node);
+
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), begin->Outputs[0].ID,
+        construct->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), construct->Outputs[0].ID,
+        store->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), construct->Outputs[1].ID,
+        getAccepts->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), values->Outputs[0].ID,
+        filter->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), getAccepts->Outputs[0].ID,
+        filter->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), filter->Outputs[0].ID,
+        length->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(
+        fixture.ids.GetNextId(), length->Outputs[0].ID,
+        store->Inputs[1].ID));
+
+    Require(getAccepts->Type == NodeType::SimpleGet &&
+            getAccepts->Inputs[0].Type ==
+                TypeRef::Object(tester->ID.id, tester->Name) &&
+            getAccepts->Outputs[0].Type ==
+                TypeRef::Function({ PinType::Float }, { PinType::Bool }) &&
+            filter->Outputs[0].Type == TypeRef::List(PinType::Float),
+            "Getting an instance method should preserve its signature for Filter inference.");
+    Require(!ScriptValidator::Validate(script).HasErrors(),
+            "A method Get node with an explicit instance should validate.");
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    const ScriptCompileResult compiled =
+        ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled),
+            "A graph using a method Get function should compile.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
+                InterpretResult::INTERPRET_OK,
+            "A bound method should execute through Filter.");
+    Require(isNumber(ReadGlobal(fixture.vm, "MatchCount")) &&
+            asNumber(ReadGlobal(fixture.vm, "MatchCount")) == 1.0,
+            "Filter should invoke the method on its selected instance.");
 }
 
 void PureNodesAreConstantFolded()
@@ -2204,6 +2332,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("dependency cycles are rejected", DependencyCyclesAreRejected);
         runner.Test("implicit self receivers respect graph context",
             ImplicitSelfReceiversRespectGraphContext);
+        runner.Test("method Get functions work with Filter",
+            MethodGetFunctionsWorkWithFilter);
         runner.Test("pure nodes are constant folded", PureNodesAreConstantFolded);
         runner.Test("complete expression nodes compile and execute",
             CompleteExpressionNodesCompileAndExecute);

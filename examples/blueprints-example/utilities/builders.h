@@ -23,6 +23,10 @@ namespace Utilities {
 //------------------------------------------------------------------------------
 struct BlueprintNodeBuilder
 {
+    static inline constexpr float GridUnit = 8.0f;
+    static inline constexpr float HeaderHeight = GridUnit * 3.0f;
+    static inline constexpr float PinRowHeight = GridUnit * 4.0f;
+
     BlueprintNodeBuilder(ImTextureID texture = nullptr, int textureWidth = 0, int textureHeight = 0);
 
     void Begin(NodeId id);
@@ -33,6 +37,8 @@ struct BlueprintNodeBuilder
 
     void Input(PinId id);
     void EndInput();
+    void BeginInputControl();
+    void EndInputControl();
 
     void Middle();
 

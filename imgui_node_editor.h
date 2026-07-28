@@ -106,6 +106,7 @@ struct Config
     int                     NavigateButtonIndex;    // Mouse button index navigate action will react to (0-left, 1-right, 2-middle)
     int                     ContextMenuButtonIndex; // Mouse button index context menu action will react to (0-left, 1-right, 2-middle)
     bool                    EnableSmoothZoom;
+    float                   GridSpacing;            // Size of one visible grid square and node-position snap step.
     float                   SmoothZoomPower;
 
     Config()
@@ -124,6 +125,7 @@ struct Config
         , NavigateButtonIndex(1)
         , ContextMenuButtonIndex(1)
         , EnableSmoothZoom(false)
+        , GridSpacing(8.0f)
 # ifdef __APPLE__
         , SmoothZoomPower(1.1f)
 # else

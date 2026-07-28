@@ -470,8 +470,6 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     ImGui::TextColored(hasDiagnosticError ? ImVec4(1.0f, 0.25f, 0.25f, 1.0f)
                                                            : ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "!");
                 ImGui::Spring(1);
-                ImGui::Dummy(ImVec2(0, 28));
-                ImGui::Spring(0);
                 builder.EndHeader();
             }
 
@@ -520,11 +518,13 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             if (HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) && node->CanAddInput())
             {
+                builder.BeginInputControl();
                 if (ImGui::Button("Add Pin"))
                 {
                     OperationResult operation = m_pOperations->AddDynamicInput(m_pScriptFunction->ID.id, node->ID);
                     ReportOperation(operation);
                 }
+                builder.EndInputControl();
             }
 
             if (isSimpleGet || isSimpleLarge)

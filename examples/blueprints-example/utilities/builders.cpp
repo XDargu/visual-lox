@@ -31,7 +31,7 @@ void util::BlueprintNodeBuilder::Begin(ed::NodeId id)
     HasHeader  = false;
     HeaderMin = HeaderMax = ImVec2();
 
-    ed::PushStyleVar(StyleVar_NodePadding, ImVec4(8, 4, 8, 8));
+    ed::PushStyleVar(StyleVar_NodePadding, ImVec4(GridUnit, 0, GridUnit, 0));
 
     ed::BeginNode(id);
 
@@ -64,8 +64,8 @@ void util::BlueprintNodeBuilder::End()
         const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(tonedColor);
         if ((HeaderMax.x > HeaderMin.x) && (HeaderMax.y > HeaderMin.y))
         {
-            const auto headerMin = HeaderMin - ImVec2(8 - halfBorderWidth, 4 - halfBorderWidth);
-            const auto headerMax = HeaderMax + ImVec2(8 - halfBorderWidth, 0);
+            const auto headerMin = HeaderMin - ImVec2(GridUnit - halfBorderWidth, -halfBorderWidth);
+            const auto headerMax = HeaderMax + ImVec2(GridUnit - halfBorderWidth, 0);
 
             if (HeaderTextureId && HeaderTextureWidth > 0 && HeaderTextureHeight > 0)
             {
@@ -133,11 +133,11 @@ void util::BlueprintNodeBuilder::Input(ed::PinId id)
     SetStage(Stage::Input);
 
     if (applyPadding)
-        ImGui::Spring(0);
+        ImGui::Spring(0, 0);
 
     Pin(id, PinKind::Input);
 
-    ImGui::BeginHorizontal(id.AsPointer());
+    ImGui::BeginHorizontal(id.AsPointer(), ImVec2(0, PinRowHeight), 0.5f);
 }
 
 void util::BlueprintNodeBuilder::EndInput()
@@ -145,6 +145,25 @@ void util::BlueprintNodeBuilder::EndInput()
     ImGui::EndHorizontal();
 
     EndPin();
+}
+
+void util::BlueprintNodeBuilder::BeginInputControl()
+{
+    if (CurrentStage == Stage::Begin)
+        SetStage(Stage::Content);
+
+    const auto applyPadding = (CurrentStage == Stage::Input);
+    SetStage(Stage::Input);
+
+    if (applyPadding)
+        ImGui::Spring(0, 0);
+
+    ImGui::BeginHorizontal("input-control", ImVec2(0, PinRowHeight), 0.5f);
+}
+
+void util::BlueprintNodeBuilder::EndInputControl()
+{
+    ImGui::EndHorizontal();
 }
 
 void util::BlueprintNodeBuilder::Middle()
@@ -165,11 +184,11 @@ void util::BlueprintNodeBuilder::Output(ed::PinId id)
     SetStage(Stage::Output);
 
     if (applyPadding)
-        ImGui::Spring(0);
+        ImGui::Spring(0, 0);
 
     Pin(id, PinKind::Output);
 
-    ImGui::BeginHorizontal(id.AsPointer());
+    ImGui::BeginHorizontal(id.AsPointer(), ImVec2(0, PinRowHeight), 0.5f);
 }
 
 void util::BlueprintNodeBuilder::EndOutput()
@@ -205,8 +224,7 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
             HeaderMin = ImGui::GetItemRectMin();
             HeaderMax = ImGui::GetItemRectMax();
 
-            // spacing between header and content
-            ImGui::Spring(0, ImGui::GetStyle().ItemSpacing.y * 2.0f);
+            ImGui::Spring(0, 0);
 
             break;
 
@@ -266,12 +284,12 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
         case Stage::Header:
             HasHeader = true;
 
-            ImGui::BeginHorizontal("header");
+            ImGui::BeginHorizontal("header", ImVec2(0, HeaderHeight), 0.5f);
             break;
 
         case Stage::Content:
             if (oldStage == Stage::Begin)
-                ImGui::Spring(0);
+                ImGui::Spring(0, 0);
 
             ImGui::BeginHorizontal("content");
             ImGui::Spring(0, 0);
@@ -289,7 +307,7 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
 
         case Stage::Middle:
             ImGui::Spring(1);
-            ImGui::BeginVertical("middle", ImVec2(0, 0), 1.0f);
+            ImGui::BeginVertical("middle", ImVec2(0, PinRowHeight), 1.0f);
             break;
 
         case Stage::Output:
@@ -308,8 +326,11 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
 
         case Stage::Footer:
             if (oldStage != Stage::Begin)
+            {
                 ImGui::EndHorizontal();
-            ImGui::BeginVertical("footer", ImVec2(0, 0), 0.0f);
+                ImGui::Spring(0, 0);
+            }
+            ImGui::BeginVertical("footer", ImVec2(0, PinRowHeight), 0.0f);
             break;
 
         case Stage::End:

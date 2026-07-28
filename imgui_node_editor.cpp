@@ -1485,17 +1485,20 @@ void ed::EditorContext::End()
 
         ImVec2 offset    = m_Canvas.ViewOrigin() * (1.0f / m_Canvas.ViewScale());
         ImU32 GRID_COLOR = GetColor(StyleColor_Grid, ImClamp(m_Canvas.ViewScale() * m_Canvas.ViewScale(), 0.0f, 1.0f));
-        float GRID_SX    = 8.0f;// * m_Canvas.ViewScale();
-        float GRID_SY    = 8.0f;// * m_Canvas.ViewScale();
+        float GRID_SX    = m_Config.GridSpacing;// * m_Canvas.ViewScale();
+        float GRID_SY    = m_Config.GridSpacing;// * m_Canvas.ViewScale();
         ImVec2 VIEW_POS  = m_Canvas.ViewRect().Min;
         ImVec2 VIEW_SIZE = m_Canvas.ViewRect().GetSize();
 
         m_DrawList->AddRectFilled(VIEW_POS, VIEW_POS + VIEW_SIZE, GetColor(StyleColor_Bg));
 
-        for (float x = fmodf(offset.x, GRID_SX); x < VIEW_SIZE.x; x += GRID_SX)
-            m_DrawList->AddLine(ImVec2(x, 0.0f) + VIEW_POS, ImVec2(x, VIEW_SIZE.y) + VIEW_POS, GRID_COLOR);
-        for (float y = fmodf(offset.y, GRID_SY); y < VIEW_SIZE.y; y += GRID_SY)
-            m_DrawList->AddLine(ImVec2(0.0f, y) + VIEW_POS, ImVec2(VIEW_SIZE.x, y) + VIEW_POS, GRID_COLOR);
+        if (GRID_SX > 0.0f && GRID_SY > 0.0f)
+        {
+            for (float x = fmodf(offset.x, GRID_SX); x < VIEW_SIZE.x; x += GRID_SX)
+                m_DrawList->AddLine(ImVec2(x, 0.0f) + VIEW_POS, ImVec2(x, VIEW_SIZE.y) + VIEW_POS, GRID_COLOR);
+            for (float y = fmodf(offset.y, GRID_SY); y < VIEW_SIZE.y; y += GRID_SY)
+                m_DrawList->AddLine(ImVec2(0.0f, y) + VIEW_POS, ImVec2(VIEW_SIZE.x, y) + VIEW_POS, GRID_COLOR);
+        }
     }
 # endif
 
@@ -1645,9 +1648,10 @@ void ed::EditorContext::SetNodePosition(NodeId nodeId, const ImVec2& position)
         node->m_IsLive = false;
     }
 
-    if (node->m_Bounds.Min != position)
+    const ImVec2 alignedPosition = AlignPointToGrid(position);
+    if (node->m_Bounds.Min != alignedPosition)
     {
-        node->m_Bounds.Translate(position - node->m_Bounds.Min);
+        node->m_Bounds.Translate(alignedPosition - node->m_Bounds.Min);
         node->m_Bounds.Floor();
         MakeDirty(NodeEditor::SaveReasonFlags::Position, node);
     }
@@ -1744,10 +1748,10 @@ void ed::EditorContext::UpdateNodeState(Node* node)
             *settings = newSettings;
     }
 
-    node->m_Bounds.Min      = settings->m_Location;
+    node->m_Bounds.Min      = AlignPointToGrid(settings->m_Location);
     node->m_Bounds.Max      = node->m_Bounds.Min + settings->m_Size;
     node->m_Bounds.Floor();
-    node->m_GroupBounds.Min = settings->m_Location;
+    node->m_GroupBounds.Min = node->m_Bounds.Min;
     node->m_GroupBounds.Max = node->m_GroupBounds.Min + settings->m_GroupSize;
     node->m_GroupBounds.Floor();
 }
@@ -3983,46 +3987,8 @@ bool ed::DragAction::Process(const Control& control)
     {
         auto dragOffset = ImGui::GetMouseDragDelta(Editor->GetConfig().DragButtonIndex, 0.0f);
 
-        auto draggedOrigin  = m_DraggedObject->DragStartLocation();
-        auto alignPivot     = ImVec2(0, 0);
-
-        // TODO: Move this experimental alignment to closes pivot out of internals to node API
-        if (auto draggedNode = m_DraggedObject->AsNode())
-        {
-            float x = FLT_MAX;
-            float y = FLT_MAX;
-
-            auto testPivot = [this, &x, &y, &draggedOrigin, &dragOffset, &alignPivot](const ImVec2& pivot)
-            {
-                auto initial   = draggedOrigin + dragOffset + pivot;
-                auto candidate = Editor->AlignPointToGrid(initial) - draggedOrigin - pivot;
-
-                if (ImFabs(candidate.x) < ImFabs(ImMin(x, FLT_MAX)))
-                {
-                    x = candidate.x;
-                    alignPivot.x = pivot.x;
-                }
-
-                if (ImFabs(candidate.y) < ImFabs(ImMin(y, FLT_MAX)))
-                {
-                    y = candidate.y;
-                    alignPivot.y = pivot.y;
-                }
-            };
-
-            for (auto pin = draggedNode->m_LastPin; pin; pin = pin->m_PreviousPin)
-            {
-                auto pivot = pin->m_Pivot.GetCenter() - draggedNode->m_Bounds.Min;
-                testPivot(pivot);
-            }
-
-            //testPivot(point(0, 0));
-        }
-
-        auto alignedOffset  = Editor->AlignPointToGrid(draggedOrigin + dragOffset + alignPivot) - draggedOrigin - alignPivot;
-
-        if (!ImGui::GetIO().KeyAlt)
-            dragOffset = alignedOffset;
+        const auto draggedOrigin = m_DraggedObject->DragStartLocation();
+        dragOffset = Editor->AlignPointToGrid(draggedOrigin + dragOffset) - draggedOrigin;
 
         for (auto object : m_Objects)
             object->UpdateDrag(dragOffset);
@@ -5223,7 +5189,10 @@ void ed::NodeBuilder::Begin(NodeId nodeId)
     if (m_CurrentNode->m_CenterOnScreen)
     {
         auto bounds = Editor->GetViewRect();
-        auto offset = bounds.GetCenter() - m_CurrentNode->m_Bounds.GetCenter();
+        const auto centeredPosition =
+            bounds.GetCenter() - m_CurrentNode->m_Bounds.GetSize() * 0.5f;
+        auto offset =
+            Editor->AlignPointToGrid(centeredPosition) - m_CurrentNode->m_Bounds.Min;
 
         if (ImLengthSqr(offset) > 0)
         {
@@ -5235,15 +5204,15 @@ void ed::NodeBuilder::Begin(NodeId nodeId)
 
                 for (auto node : groupedNodes)
                 {
-                    node->m_Bounds.Translate(ImFloor(offset));
-                    node->m_GroupBounds.Translate(ImFloor(offset));
+                    node->m_Bounds.Translate(offset);
+                    node->m_GroupBounds.Translate(offset);
                     Editor->MakeDirty(SaveReasonFlags::Position | SaveReasonFlags::User, node);
                 }
             }
             else
             {
-                m_CurrentNode->m_Bounds.Translate(ImFloor(offset));
-                m_CurrentNode->m_GroupBounds.Translate(ImFloor(offset));
+                m_CurrentNode->m_Bounds.Translate(offset);
+                m_CurrentNode->m_GroupBounds.Translate(offset);
                 Editor->MakeDirty(SaveReasonFlags::Position | SaveReasonFlags::User, m_CurrentNode);
             }
         }

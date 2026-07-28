@@ -1,6 +1,7 @@
 #include "../script/scriptSerializerTest.h"
 #include "documentOperationsTests.h"
 #include "runtimeTests.h"
+#include "scriptSearchTests.h"
 #include "testFramework.h"
 
 #include <string>
@@ -11,6 +12,7 @@ int main(int argc, char** argv)
     Tests::Runner runner;
     AddRuntimeTests(runner);
     AddDocumentOperationsTests(runner);
+    AddScriptSearchTests(runner);
     AddScriptSerializerTests(runner, outputPath);
     return runner.Finish();
 }

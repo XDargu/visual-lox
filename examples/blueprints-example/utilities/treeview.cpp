@@ -111,7 +111,7 @@ namespace Editor
     }
 
     void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem,
-                        const char* filter)
+                        const char* filter, int* scrollToItem)
     {
         const std::string normalizedFilter = filter ? Lowercase(filter) : std::string();
         if (!MatchesFilter(node, normalizedFilter))
@@ -196,6 +196,11 @@ namespace Editor
         }
 
         const bool rowHovered = ImGui::IsItemHovered();
+        if (scrollToItem && *scrollToItem == node.id)
+        {
+            ImGui::SetScrollHereY(0.5f);
+            *scrollToItem = -1;
+        }
         if (editingItem != node.id && node.isDraggable &&
             ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
         {
@@ -229,7 +234,7 @@ namespace Editor
             ImGui::Indent(14.0f);
             for (auto& child : node.children)
             {
-                RenderTreeNode(child, selectedItem, editingItem, filter);
+                RenderTreeNode(child, selectedItem, editingItem, filter, scrollToItem);
             }
             ImGui::Unindent(14.0f);
         }

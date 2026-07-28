@@ -13,6 +13,7 @@
 #include "graphs/graphCompiler.h"
 
 #include "script/script.h"
+#include "script/scriptSearch.h"
 #include "script/scriptSerializer.h"
 #include "runtime/scriptRuntime.h"
 #include "runtime/standardLibrary.h"
@@ -53,6 +54,7 @@ namespace Editor
 enum class BottomPanelTab
 {
     Problems,
+    Search,
     Output,
     Developer,
 };
@@ -84,6 +86,7 @@ struct Example :
     void ShowInspector();
     void ShowBottomPanel();
     void ShowProblemsPanel();
+    void ShowSearchPanel();
     void ShowOutputPanel();
     void ShowDeveloperPanel();
     void DrawMenuBar();
@@ -96,6 +99,11 @@ struct Example :
     void LoadLayoutSettings();
     void SaveLayoutSettings() const;
     void SetBottomPanel(BottomPanelTab tab);
+    void RunTextSearch();
+    void FindReferences(int referenceId, int definitionId = ScriptElementID::Invalid);
+    void GoToOrigin(int elementId);
+    void FocusSearchResult(const ScriptSearchResult& result);
+    void SelectScriptItem(int elementId);
 
     void OnFrame(float deltaTime) override;
     ImGuiWindowFlags GetWindowFlags() const override;
@@ -228,6 +236,9 @@ struct Example :
     ValidationReport m_validationReport;
 
     std::string m_scriptFilter;
+    std::string m_searchQuery;
+    std::string m_searchTitle = "Search";
+    std::vector<ScriptSearchResult> m_searchResults;
     std::string m_compileOutput = "Compile output will appear here.";
     std::string m_runOutput = "Run the script to see its output.";
     bool m_showScriptExplorer = true;
@@ -241,6 +252,10 @@ struct Example :
     float m_bottomPaneHeight = 240.0f;
     BottomPanelTab m_bottomPanelTab = BottomPanelTab::Problems;
     bool m_selectBottomPanelTab = true;
+    bool m_focusSearchBox = false;
+    int m_scrollToScriptItemId = -1;
+    int m_pendingOriginId = ScriptElementID::Invalid;
+    int m_pendingReferenceId = ScriptElementID::Invalid;
 };
 
 }

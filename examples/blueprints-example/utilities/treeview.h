@@ -60,5 +60,5 @@ namespace Editor
     };
 
     void RenderTreeNode(TreeNode& node, int& selectedItem, int& editingItem,
-                        const char* filter = nullptr);
+                        const char* filter = nullptr, int* scrollToItem = nullptr);
 }

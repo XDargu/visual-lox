@@ -53,6 +53,8 @@ set(_VisualLoxCoreSources
     script/scriptElement.h
     script/script.h
     script/script.cpp
+    script/scriptSearch.h
+    script/scriptSearch.cpp
     script/scriptSerializer.h
     script/scriptSerializer.cpp
     script/class.h
@@ -133,6 +135,8 @@ if (BUILD_TESTING)
         tests/runtimeTests.cpp
         tests/documentOperationsTests.h
         tests/documentOperationsTests.cpp
+        tests/scriptSearchTests.h
+        tests/scriptSearchTests.cpp
         script/scriptSerializerTest.h
         script/scriptSerializerTest.cpp
     )

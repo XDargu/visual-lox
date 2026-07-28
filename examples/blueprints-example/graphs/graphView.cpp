@@ -65,6 +65,20 @@ void GraphView::Init(ImFont* largeNodeFont)
     }
 }
 
+void GraphView::setNavigationHandlers(
+    std::function<void(int)> goToOrigin,
+    std::function<void(int)> findReferences)
+{
+    onGoToOrigin = std::move(goToOrigin);
+    onFindReferences = std::move(findReferences);
+}
+
+void GraphView::FocusNodeOnNextFrame(int nodeId)
+{
+    focusNodeIdOnNextFrame = nodeId;
+    m_NavigateToContentOnNextFrame = false;
+}
+
 void GraphView::TouchNode(ed::NodeId id)
 {
     m_NodeTouchTime[id] = m_TouchTime;
@@ -767,6 +781,12 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
     }
 
     DrawContextMenu();
+    if (const NodePtr doubleClicked =
+            m_pGraph->FindNode(ed::GetDoubleClickedNode());
+        doubleClicked && doubleClicked->refId.IsValid() && onGoToOrigin)
+    {
+        onGoToOrigin(doubleClicked->refId.id);
+    }
     if (ed::BeginShortcut())
     {
         // Clipboard handling is centralized by the editor. Accept the node
@@ -778,7 +798,18 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ed::AcceptCreateNode();
         ed::EndShortcut();
     }
-    if (m_NavigateToContentOnNextFrame)
+    if (focusNodeIdOnNextFrame >= 0)
+    {
+        if (m_pGraph->FindNode(ed::NodeId(focusNodeIdOnNextFrame)))
+        {
+            ed::ClearSelection();
+            ed::SelectNode(ed::NodeId(focusNodeIdOnNextFrame));
+            ed::NavigateToSelection(false, 0.0f);
+        }
+        focusNodeIdOnNextFrame = -1;
+        m_NavigateToContentOnNextFrame = false;
+    }
+    else if (m_NavigateToContentOnNextFrame)
     {
         ed::NavigateToContent(0.0f);
         m_NavigateToContentOnNextFrame = false;
@@ -893,6 +924,18 @@ void GraphView::DrawContextMenu()
     if (ImGui::BeginPopup("Node Context Menu"))
     {
         NodePtr node = m_pGraph->FindNode(contextNodeId);
+
+        const bool hasOrigin = node && node->refId.IsValid();
+        if (ImGui::MenuItem(
+                ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE "  Go to Origin",
+                nullptr, false, hasOrigin) && onGoToOrigin)
+            onGoToOrigin(node->refId.id);
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References",
+                nullptr, false, hasOrigin) && onFindReferences)
+            onFindReferences(node->refId.id);
+        if (node)
+            ImGui::Separator();
 
         if (node && ImGui::MenuItem(ICON_FA_COPY "  Copy", "Ctrl+C"))
         {

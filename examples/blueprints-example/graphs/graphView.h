@@ -66,8 +66,11 @@ struct GraphView
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
     void setDocumentOperations(DocumentOperations& operations);
+    void setNavigationHandlers(std::function<void(int)> goToOrigin,
+                               std::function<void(int)> findReferences);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
                   Graph* pTargetGraph, bool navigateToContent = true);
+    void FocusNodeOnNextFrame(int nodeId);
     void RegisterNode(const NodePtr& node);
 
     void Destroy();
@@ -125,6 +128,9 @@ struct GraphView
     Editor::TreeNodeDragPayload pendingScriptItemDrop;
     ImVec2 pendingScriptItemDropPosition = ImVec2(0, 0);
     bool openPaletteForScriptItem = false;
+    int focusNodeIdOnNextFrame = -1;
+    std::function<void(int)> onGoToOrigin;
+    std::function<void(int)> onFindReferences;
 };
 
 struct GraphViewUtils

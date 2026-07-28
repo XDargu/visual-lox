@@ -388,6 +388,9 @@ void Example::OnStart()
     m_graphView.setIDGenerator(m_IDGenerator);
     m_graphView.Init(LargeNodeFont());
     m_graphView.setNodeRegistry(m_NodeRegistry);
+    m_graphView.setNavigationHandlers(
+        [this](int elementId) { m_pendingOriginId = elementId; },
+        [this](int elementId) { m_pendingReferenceId = elementId; });
 
     VM& vm = VM::getInstance();
     vm.setExternalMarkingFunc([&]()
@@ -1156,7 +1159,7 @@ void Example::ShowScriptExplorer()
 
     ImGui::Spacing();
     RenderTreeNode(m_scriptTreeView, m_selectedItemId, m_editingItemId,
-                   m_scriptFilter.c_str());
+                   m_scriptFilter.c_str(), &m_scrollToScriptItemId);
 }
 
 void Example::ShowInspector()
@@ -1902,6 +1905,108 @@ void Example::SetBottomPanel(BottomPanelTab tab)
     m_showBottomPanel = true;
 }
 
+void Example::SelectScriptItem(int elementId)
+{
+    TreeNode* selected = FindNodeByID(elementId);
+    if (!selected)
+        return;
+
+    m_showScriptExplorer = true;
+    m_scriptFilter.clear();
+    ed::ClearSelection();
+    m_selectedItemId = elementId;
+    m_scrollToScriptItemId = elementId;
+    for (TreeNode* parent = selected->parentId >= 0
+            ? FindNodeByID(selected->parentId) : nullptr;
+         parent;
+         parent = parent->parentId >= 0
+            ? FindNodeByID(parent->parentId) : nullptr)
+    {
+        parent->isOpen = true;
+    }
+}
+
+void Example::GoToOrigin(int elementId)
+{
+    SelectScriptItem(elementId);
+
+    ScriptFunctionPtr function =
+        m_script.main && m_script.main->ID.id == elementId
+            ? m_script.main
+            : ScriptUtils::FindFunctionById(m_script, elementId);
+    if (function)
+        ChangeGraph(function);
+}
+
+void Example::RunTextSearch()
+{
+    m_searchTitle = m_searchQuery.empty()
+        ? "Search"
+        : "Search for \"" + m_searchQuery + "\"";
+    m_searchResults = ScriptSearch::Text(m_script, m_searchQuery);
+    SetBottomPanel(BottomPanelTab::Search);
+}
+
+void Example::FindReferences(int referenceId, int definitionId)
+{
+    if (definitionId == ScriptElementID::Invalid)
+        definitionId = referenceId;
+    m_searchResults =
+        ScriptSearch::References(m_script, referenceId, definitionId);
+    const auto definition = std::find_if(
+        m_searchResults.begin(), m_searchResults.end(),
+        [](const ScriptSearchResult& result)
+        {
+            return result.detail == "Definition";
+        });
+    m_searchTitle = "References to " +
+        (definition != m_searchResults.end()
+            ? definition->label
+            : std::string("#") + std::to_string(definitionId));
+    SetBottomPanel(BottomPanelTab::Search);
+}
+
+void Example::FocusSearchResult(const ScriptSearchResult& result)
+{
+    if (result.kind == ScriptSearchResultKind::GraphNode)
+    {
+        ScriptFunctionPtr function =
+            m_script.main && m_script.main->ID.id == result.functionId
+                ? m_script.main
+                : ScriptUtils::FindFunctionById(m_script, result.functionId);
+        if (!function || !function->Graph.FindNode(ed::NodeId(result.nodeId)))
+        {
+            ShowToast("That search result no longer exists");
+            return;
+        }
+
+        SelectScriptItem(result.functionId);
+        ChangeGraph(function);
+        m_graphView.FocusNodeOnNextFrame(result.nodeId);
+        return;
+    }
+
+    SelectScriptItem(result.elementId);
+    if (result.kind == ScriptSearchResultKind::FunctionPort &&
+        result.functionId != ScriptElementID::Invalid)
+    {
+        ScriptFunctionPtr function =
+            m_script.main && m_script.main->ID.id == result.functionId
+                ? m_script.main
+                : ScriptUtils::FindFunctionById(m_script, result.functionId);
+        if (function)
+            ChangeGraph(function);
+        return;
+    }
+
+    ScriptFunctionPtr function =
+        m_script.main && m_script.main->ID.id == result.elementId
+            ? m_script.main
+            : ScriptUtils::FindFunctionById(m_script, result.elementId);
+    if (function)
+        ChangeGraph(function);
+}
+
 void Example::FocusDiagnostic(const ValidationDiagnostic& diagnostic)
 {
     ScriptFunctionPtr function;
@@ -1965,6 +2070,74 @@ void Example::ShowProblemsPanel()
     }
 }
 
+void Example::ShowSearchPanel()
+{
+    ImGui::TextUnformatted(m_searchTitle.c_str());
+    ImGui::SameLine();
+    ImGui::TextDisabled("(%zu result%s)", m_searchResults.size(),
+                        m_searchResults.size() == 1 ? "" : "s");
+    ImGui::SameLine(ImMax(
+        ImGui::GetCursorPosX() + 12.0f,
+        ImGui::GetWindowContentRegionMax().x - 70.0f));
+    if (ImGui::SmallButton(ICON_FA_TRASH_CAN " Clear"))
+    {
+        m_searchQuery.clear();
+        m_searchResults.clear();
+        m_searchTitle = "Search";
+    }
+    ImGui::Separator();
+
+    if (m_searchResults.empty())
+    {
+        ImGui::TextDisabled(
+            m_searchQuery.empty()
+                ? "Enter a term in the toolbar search box."
+                : "No matching definitions, nodes, pins, or values.");
+        return;
+    }
+
+    if (ImGui::BeginTable(
+            "SearchResultsTable", 3,
+            ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH |
+            ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY))
+    {
+        ImGui::TableSetupColumn("Result", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Matched", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(
+            "Location", ImGuiTableColumnFlags_WidthFixed, 210.0f);
+        ImGui::TableHeadersRow();
+
+        for (size_t index = 0; index < m_searchResults.size(); ++index)
+        {
+            const ScriptSearchResult& result = m_searchResults[index];
+            ImGui::PushID(static_cast<int>(index));
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            const char* icon =
+                result.kind == ScriptSearchResultKind::GraphNode
+                    ? ICON_FA_DIAGRAM_PROJECT
+                    : result.kind == ScriptSearchResultKind::FunctionPort
+                        ? ICON_FA_CIRCLE_DOT
+                        : ICON_FA_FILE_CODE;
+            const std::string rowLabel =
+                std::string(icon) + "  " + result.label;
+            if (ImGui::Selectable(
+                    rowLabel.c_str(), false,
+                    ImGuiSelectableFlags_SpanAllColumns))
+                FocusSearchResult(result);
+            Tooltip(result.kind == ScriptSearchResultKind::GraphNode
+                ? "Open the graph, select this node, and center it"
+                : "Select and reveal this definition in Script Explorer");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(result.detail.c_str());
+            ImGui::TableSetColumnIndex(2);
+            ImGui::TextDisabled("%s", result.location.c_str());
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+}
+
 void Example::ShowOutputPanel()
 {
     if (ImGui::Button(ICON_FA_TRASH_CAN " Clear"))
@@ -2010,25 +2183,50 @@ void Example::ShowBottomPanel()
 {
     if (ImGui::BeginTabBar("BottomPanelTabs", ImGuiTabBarFlags_Reorderable))
     {
+        const bool selectionPending = m_selectBottomPanelTab;
+        const BottomPanelTab requestedTab = m_bottomPanelTab;
+
         char problemsLabel[96];
         snprintf(problemsLabel, sizeof(problemsLabel), ICON_FA_LIST_CHECK " Problems  %zu",
                  m_validationReport.diagnostics.size());
         ImGuiTabItemFlags problemFlags =
-            m_selectBottomPanelTab && m_bottomPanelTab == BottomPanelTab::Problems
+            selectionPending && requestedTab == BottomPanelTab::Problems
                 ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
         if (ImGui::BeginTabItem(problemsLabel, nullptr, problemFlags))
         {
-            m_bottomPanelTab = BottomPanelTab::Problems;
+            if (!selectionPending || requestedTab == BottomPanelTab::Problems)
+                m_bottomPanelTab = BottomPanelTab::Problems;
+            if (selectionPending && requestedTab == BottomPanelTab::Problems)
+                m_selectBottomPanelTab = false;
             ShowProblemsPanel();
             ImGui::EndTabItem();
         }
 
+        char searchLabel[96];
+        snprintf(searchLabel, sizeof(searchLabel),
+                 ICON_FA_MAGNIFYING_GLASS " Search  %zu",
+                 m_searchResults.size());
+        ImGuiTabItemFlags searchFlags =
+            selectionPending && requestedTab == BottomPanelTab::Search
+                ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+        if (ImGui::BeginTabItem(searchLabel, nullptr, searchFlags))
+        {
+            m_bottomPanelTab = BottomPanelTab::Search;
+            if (selectionPending && requestedTab == BottomPanelTab::Search)
+                m_selectBottomPanelTab = false;
+            ShowSearchPanel();
+            ImGui::EndTabItem();
+        }
+
         ImGuiTabItemFlags outputFlags =
-            m_selectBottomPanelTab && m_bottomPanelTab == BottomPanelTab::Output
+            selectionPending && requestedTab == BottomPanelTab::Output
                 ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
         if (ImGui::BeginTabItem(ICON_FA_TERMINAL " Output", nullptr, outputFlags))
         {
-            m_bottomPanelTab = BottomPanelTab::Output;
+            if (!selectionPending || requestedTab == BottomPanelTab::Output)
+                m_bottomPanelTab = BottomPanelTab::Output;
+            if (selectionPending && requestedTab == BottomPanelTab::Output)
+                m_selectBottomPanelTab = false;
             ShowOutputPanel();
             ImGui::EndTabItem();
         }
@@ -2036,11 +2234,14 @@ void Example::ShowBottomPanel()
         if (m_showDeveloperTools)
         {
             ImGuiTabItemFlags developerFlags =
-                m_selectBottomPanelTab && m_bottomPanelTab == BottomPanelTab::Developer
+                selectionPending && requestedTab == BottomPanelTab::Developer
                     ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
             if (ImGui::BeginTabItem(ICON_FA_BUG " Developer", nullptr, developerFlags))
             {
-                m_bottomPanelTab = BottomPanelTab::Developer;
+                if (!selectionPending || requestedTab == BottomPanelTab::Developer)
+                    m_bottomPanelTab = BottomPanelTab::Developer;
+                if (selectionPending && requestedTab == BottomPanelTab::Developer)
+                    m_selectBottomPanelTab = false;
                 ShowDeveloperPanel();
                 ImGui::EndTabItem();
             }
@@ -2048,7 +2249,6 @@ void Example::ShowBottomPanel()
 
         ImGui::EndTabBar();
     }
-    m_selectBottomPanelTab = false;
 }
 
 void Example::CompileScript(bool runAfterCompile)
@@ -2185,6 +2385,10 @@ void Example::DrawMenuBar()
             CopySelection();
         if (ImGui::MenuItem(ICON_FA_PASTE "  Paste", "Ctrl+V"))
             PasteClipboard();
+        ImGui::Separator();
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Search", "Ctrl+F"))
+            m_focusSearchBox = true;
         ImGui::EndMenu();
     }
 
@@ -2270,6 +2474,8 @@ void Example::DrawMenuBar()
                 ImGui::BulletText("Compile checks the script without running it.");
                 ImGui::BulletText("Run compiles and executes the script; output appears in the Output tab.");
                 ImGui::BulletText("Click a row in Problems to open and frame the affected graph node.");
+                ImGui::BulletText("Search matches definitions, node and pin text, types, descriptions, and values.");
+                ImGui::BulletText("Use Find References from node or Script Explorer context menus.");
             }
 
             if (ImGui::CollapsingHeader("Keyboard and navigation"))
@@ -2283,6 +2489,8 @@ void Example::DrawMenuBar()
                         { "Space / right-click", "Add a node on the canvas" },
                         { "Home", "Frame all nodes" },
                         { "F", "Frame selected nodes" },
+                        { "Double-click node", "Open the referenced definition" },
+                        { "Ctrl+F", "Focus whole-script search" },
                         { "Alt+Left / Alt+Right", "Move through graph history" },
                         { "Ctrl+N", "Create a new script" },
                         { "Ctrl+Enter", "Compile" },
@@ -2377,6 +2585,43 @@ void Example::DrawToolbar()
     const float actionsWidth = compileWidth + runWidth + ImGui::GetStyle().ItemSpacing.x;
     const float rightX = ImGui::GetWindowWidth() - actionsWidth -
                          ImGui::GetStyle().WindowPadding.x;
+
+    const float searchButtonWidth =
+        ImGui::CalcTextSize(ICON_FA_MAGNIFYING_GLASS).x +
+        ImGui::GetStyle().FramePadding.x * 2.0f;
+    const float searchStart = ImGui::GetCursorPosX() +
+                              ImGui::GetStyle().ItemSpacing.x;
+    const float searchSpace = rightX - searchStart -
+                              ImGui::GetStyle().ItemSpacing.x * 2.0f;
+    if (searchSpace >= 160.0f)
+    {
+        const float searchWidth = ImClamp(
+            searchSpace - searchButtonWidth -
+                ImGui::GetStyle().ItemSpacing.x,
+            120.0f, 340.0f);
+        ImGui::SameLine();
+        ImGui::SetCursorPosX(ImMax(
+            searchStart,
+            rightX - searchWidth - searchButtonWidth -
+                ImGui::GetStyle().ItemSpacing.x * 2.0f));
+        if (m_focusSearchBox)
+        {
+            ImGui::SetKeyboardFocusHere();
+            m_focusSearchBox = false;
+        }
+        ImGui::SetNextItemWidth(searchWidth);
+        if (ImGui::InputTextWithHint(
+                "##globalSearch",
+                "Search nodes, pins, and values...",
+                &m_searchQuery,
+                ImGuiInputTextFlags_EnterReturnsTrue))
+            RunTextSearch();
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_MAGNIFYING_GLASS "##runSearch"))
+            RunTextSearch();
+        Tooltip("Search the entire script (Enter or click, Ctrl+F to focus)");
+    }
+
     if (rightX > ImGui::GetCursorPosX())
     {
         ImGui::SameLine();
@@ -2466,6 +2711,8 @@ void Example::HandleShortcuts()
 
     if (io.KeyCtrl)
     {
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F), false))
+            m_focusSearchBox = true;
         if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_C), false))
             CopySelection();
         if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V), false))
@@ -2527,6 +2774,18 @@ void Example::OnFrame(float deltaTime)
     }
 
     pendingActions.clear();
+    if (m_pendingOriginId != ScriptElementID::Invalid)
+    {
+        const int elementId = m_pendingOriginId;
+        m_pendingOriginId = ScriptElementID::Invalid;
+        GoToOrigin(elementId);
+    }
+    if (m_pendingReferenceId != ScriptElementID::Invalid)
+    {
+        const int elementId = m_pendingReferenceId;
+        m_pendingReferenceId = ScriptElementID::Invalid;
+        FindReferences(elementId);
+    }
     if (m_commitPendingEdit)
     {
         if (m_operations->IsTransactionActive())
@@ -2768,6 +3027,10 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
     };
     funcNode.contextMenu = [this, funId]()
     {
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References"))
+            FindReferences(funId);
+        ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(
                 this, funId, m_IDGenerator.GetNextId()));
@@ -2811,6 +3074,10 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     {
         if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
         {
+            if (ImGui::MenuItem(
+                    ICON_FA_MAGNIFYING_GLASS "  Find References"))
+                FindReferences(varId);
+            ImGui::Separator();
             if (ImGui::MenuItem("Rename"))
                 m_editingItemId = varId;
             if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
@@ -2853,6 +3120,10 @@ TreeNode Example::MakeInputNode(int funId, int inputId, const std::string& name)
         {
             if (BasicFunctionDef::Input* pInput = pFun->functionDef->FindInputByID(inputId))
             {
+                if (ImGui::MenuItem(
+                        ICON_FA_MAGNIFYING_GLASS "  Find References"))
+                    FindReferences(funId, inputId);
+                ImGui::Separator();
                 if (ImGui::MenuItem("Rename"))
                     m_editingItemId = inputId;
                 if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
@@ -2897,6 +3168,10 @@ TreeNode Example::MakeOutputNode(int funId, int outputId, const std::string& nam
         {
             if (BasicFunctionDef::Input* pOutput = pFun->functionDef->FindOutputByID(outputId))
             {
+                if (ImGui::MenuItem(
+                        ICON_FA_MAGNIFYING_GLASS "  Find References"))
+                    FindReferences(funId, outputId);
+                ImGui::Separator();
                 if (ImGui::MenuItem("Rename"))
                     m_editingItemId = outputId;
                 if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
@@ -3384,6 +3659,12 @@ void Example::RebuildScriptTree(int createdItemId)
         mainNode.iconText = ICON_FA_PLAY;
         mainNode.pElement = std::static_pointer_cast<IScriptElement>(m_script.main);
         mainNode.onclick = [this]() { ed::ClearSelection(); ChangeGraph(m_script.main); };
+        mainNode.contextMenu = [this]()
+        {
+            if (ImGui::MenuItem(
+                    ICON_FA_MAGNIFYING_GLASS "  Find References"))
+                FindReferences(m_script.main->ID.id);
+        };
         if (!m_script.main->functionDef->inputs.empty())
         {
             TreeNode argumentsNode;
@@ -3393,6 +3674,14 @@ void Example::RebuildScriptTree(int createdItemId)
             argumentsNode.icon = m_InputIcon;
             argumentsNode.iconText = ICON_FA_LIST;
             argumentsNode.onclick = []() { ed::ClearSelection(); };
+            const int argumentsId =
+                m_script.main->functionDef->inputs.front().id;
+            argumentsNode.contextMenu = [this, argumentsId]()
+            {
+                if (ImGui::MenuItem(
+                        ICON_FA_MAGNIFYING_GLASS "  Find References"))
+                    FindReferences(m_script.main->ID.id, argumentsId);
+            };
             mainNode.AddChild(argumentsNode);
         }
         m_scriptTreeView.AddChild(mainNode);
@@ -3475,6 +3764,10 @@ TreeNode Example::MakeClassNode(const ScriptClassPtr& scriptClass)
     };
     node.contextMenu = [this, id = scriptClass->ID.id]()
     {
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References"))
+            FindReferences(id);
+        ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Property"))
         {
             const int propertyId = m_IDGenerator.GetNextId();
@@ -3554,6 +3847,10 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
     };
     node.contextMenu = [this, classId, id = method->ID.id]()
     {
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References"))
+            FindReferences(id);
+        ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Output"))
@@ -3592,6 +3889,10 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
     node.onclick = [this, constructor]() { ed::ClearSelection(); ChangeGraph(constructor); };
     node.contextMenu = [this, classId, id = constructor->ID.id]()
     {
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References"))
+            FindReferences(classId, id);
+        ImGui::Separator();
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
         ImGui::Separator();
@@ -3635,6 +3936,10 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
     {
         ScriptPropertyPtr current = ScriptUtils::FindClassPropertyById(m_script, id);
         if (!current) return;
+        if (ImGui::MenuItem(
+                ICON_FA_MAGNIFYING_GLASS "  Find References"))
+            FindReferences(id);
+        ImGui::Separator();
         if (ImGui::MenuItem("Rename"))
             m_editingItemId = id;
         if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
@@ -3783,6 +4088,9 @@ void Example::NewScript()
     m_editingItemId = 0;
     m_graphBackHistory.clear();
     m_graphForwardHistory.clear();
+    m_searchQuery.clear();
+    m_searchResults.clear();
+    m_searchTitle = "Search";
     RebuildScriptTree();
     m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
     ApplyEditorTheme();
@@ -3975,6 +4283,9 @@ void Example::LoadScript(const std::string& path)
     m_constFoldingIDs.clear();
     m_selectedItemId = m_script.main ? m_script.main->ID.id : 0;
     m_editingItemId = 0;
+    m_searchQuery.clear();
+    m_searchResults.clear();
+    m_searchTitle = "Search";
     RebuildScriptTree();
     m_graphView.SetGraph(&m_script, m_script.main, &m_script.main->Graph);
     ApplyEditorTheme();

@@ -240,8 +240,19 @@ std::string objectAsStr(const Value& value)
     {
     case ObjType::STRING: return asString(value)->chars;
     case ObjType::NATIVE: return "<native fn>";
-    case ObjType::FUNCTION: return "<" + asFunction(value)->name->chars + ">";
-    case ObjType::CLOSURE: return "<" + asClosure(value)->function->name->chars + ">";
+    case ObjType::FUNCTION:
+    {
+        const ObjFunction* function = asFunction(value);
+        return function && function->name
+            ? "<" + function->name->chars + ">" : "<function>";
+    }
+    case ObjType::CLOSURE:
+    {
+        const ObjClosure* closure = asClosure(value);
+        const ObjFunction* function = closure ? closure->function : nullptr;
+        return function && function->name
+            ? "<" + function->name->chars + ">" : "<function>";
+    }
     case ObjType::BOUND_METHOD: return objectAsStr(asBoundMethod(value)->method);
     case ObjType::RANGE: return std::to_string(asRange(value)->min) + ".." + std::to_string(asRange(value)->max);
     case ObjType::LIST:

@@ -181,6 +181,55 @@ void ConstructorReferencesUseTheClassIdentity()
         fixture.scriptClass->ID.id, 40),
         "Constructor reference search omitted a class construction node.");
 }
+
+void NativeAndCompiledReferencesUseDefinitionIdentity()
+{
+    SearchFixture fixture;
+
+    NodePtr nativeReference = std::make_shared<SearchNode>(50, "Clock");
+    nativeReference->SerializationType = "function.call";
+    nativeReference->DefinitionId = "Clock";
+    NodeUtils::BuildNode(nativeReference);
+    fixture.script.main->Graph.AddNode(nativeReference);
+
+    NodePtr secondNativeReference = std::make_shared<SearchNode>(51, "Clock");
+    secondNativeReference->SerializationType = "function.call";
+    secondNativeReference->DefinitionId = "Clock";
+    NodeUtils::BuildNode(secondNativeReference);
+    fixture.function->Graph.AddNode(secondNativeReference);
+
+    NodePtr otherNative = std::make_shared<SearchNode>(52, "Random");
+    otherNative->SerializationType = "function.call";
+    otherNative->DefinitionId = "Random";
+    NodeUtils::BuildNode(otherNative);
+    fixture.script.main->Graph.AddNode(otherNative);
+
+    NodePtr compiledReference = std::make_shared<SearchNode>(53, "+");
+    compiledReference->SerializationType = "compiled";
+    compiledReference->DefinitionId = "Math::Add";
+    NodeUtils::BuildNode(compiledReference);
+    fixture.function->Graph.AddNode(compiledReference);
+
+    NodePtr secondCompiledReference = std::make_shared<SearchNode>(54, "+");
+    secondCompiledReference->SerializationType = "compiled";
+    secondCompiledReference->DefinitionId = "Math::Add";
+    NodeUtils::BuildNode(secondCompiledReference);
+    fixture.script.main->Graph.AddNode(secondCompiledReference);
+
+    const auto nativeResults = ScriptSearch::References(fixture.script, *nativeReference);
+    Require(HasResult(nativeResults, ScriptSearchResultKind::GraphNode, ScriptElementID::Invalid, 50),
+        "Reference search omitted a native node instance.");
+    Require(HasResult(nativeResults, ScriptSearchResultKind::GraphNode, ScriptElementID::Invalid, 51),
+        "Reference search omitted a native node instance in another graph.");
+    Require(!HasResult(nativeResults, ScriptSearchResultKind::GraphNode, ScriptElementID::Invalid, 52),
+        "Reference search included a different native definition.");
+
+    const auto compiledResults = ScriptSearch::References(fixture.script, *compiledReference);
+    Require(HasResult(compiledResults, ScriptSearchResultKind::GraphNode, ScriptElementID::Invalid, 53),
+        "Reference search omitted a compiled node instance.");
+    Require(HasResult(compiledResults, ScriptSearchResultKind::GraphNode, ScriptElementID::Invalid, 54),
+        "Reference search omitted a compiled node instance in another graph.");
+}
 }
 
 void AddScriptSearchTests(Tests::Runner& runner)
@@ -196,5 +245,8 @@ void AddScriptSearchTests(Tests::Runner& runner)
         runner.Test(
             "Constructor references use class identity",
             ConstructorReferencesUseTheClassIdentity);
+        runner.Test(
+            "Native and compiled references use definition identity",
+            NativeAndCompiledReferencesUseDefinitionIdentity);
     });
 }

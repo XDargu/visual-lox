@@ -67,7 +67,7 @@ void GraphView::Init(ImFont* largeNodeFont)
 
 void GraphView::setNavigationHandlers(
     std::function<void(int)> goToOrigin,
-    std::function<void(int)> findReferences)
+    std::function<void(const NodePtr&)> findReferences)
 {
     onGoToOrigin = std::move(goToOrigin);
     onFindReferences = std::move(findReferences);
@@ -944,14 +944,14 @@ void GraphView::DrawContextMenu()
         NodePtr node = m_pGraph->FindNode(contextNodeId);
 
         const bool hasOrigin = node && node->refId.IsValid();
-        if (ImGui::MenuItem(
-                ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE "  Go to Origin",
-                nullptr, false, hasOrigin) && onGoToOrigin)
+        const bool canFindReferences = node && (hasOrigin || !node->SerializationType.empty());
+
+        if (ImGui::MenuItem( ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE "  Go to Origin", nullptr, false, hasOrigin) && onGoToOrigin)
             onGoToOrigin(node->refId.id);
-        if (ImGui::MenuItem(
-                ICON_FA_MAGNIFYING_GLASS "  Find References",
-                nullptr, false, hasOrigin) && onFindReferences)
-            onFindReferences(node->refId.id);
+
+        if (ImGui::MenuItem(ICON_FA_MAGNIFYING_GLASS "  Find References", nullptr, false, canFindReferences) && onFindReferences)
+            onFindReferences(node);
+
         if (node)
             ImGui::Separator();
 

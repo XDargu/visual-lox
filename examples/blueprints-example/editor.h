@@ -101,6 +101,7 @@ struct Example :
     void SetBottomPanel(BottomPanelTab tab);
     void RunTextSearch();
     void FindReferences(int referenceId, int definitionId = ScriptElementID::Invalid);
+    void FindReferences(const NodePtr& node);
     void GoToOrigin(int elementId);
     void FocusSearchResult(const ScriptSearchResult& result);
     void SelectScriptItem(int elementId);
@@ -255,7 +256,7 @@ struct Example :
     bool m_focusSearchBox = false;
     int m_scrollToScriptItemId = -1;
     int m_pendingOriginId = ScriptElementID::Invalid;
-    int m_pendingReferenceId = ScriptElementID::Invalid;
+    NodePtr m_pendingReferenceNode;
 };
 
 }

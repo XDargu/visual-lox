@@ -67,7 +67,7 @@ struct GraphView
     void setNodeRegistry(NodeRegistry& nodeRegistry);
     void setDocumentOperations(DocumentOperations& operations);
     void setNavigationHandlers(std::function<void(int)> goToOrigin,
-                               std::function<void(int)> findReferences);
+                               std::function<void(const NodePtr&)> findReferences);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
                   Graph* pTargetGraph, bool navigateToContent = true);
     void FocusNodeOnNextFrame(int nodeId);
@@ -130,7 +130,7 @@ struct GraphView
     bool openPaletteForScriptItem = false;
     int focusNodeIdOnNextFrame = -1;
     std::function<void(int)> onGoToOrigin;
-    std::function<void(int)> onFindReferences;
+    std::function<void(const NodePtr&)> onFindReferences;
 };
 
 struct GraphViewUtils

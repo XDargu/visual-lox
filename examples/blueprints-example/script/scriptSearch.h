@@ -34,4 +34,10 @@ struct ScriptSearch
     // constructors and function ports, whose graph nodes reference their owner.
     static std::vector<ScriptSearchResult> References(
         const Script& script, int referenceId, int definitionId);
+
+    // Native and compiled nodes do not reference a user-authored script
+    // element. Their persisted node type and definition identify every
+    // instance of the same registered node definition.
+    static std::vector<ScriptSearchResult> References(
+        const Script& script, const Node& node);
 };

@@ -388,7 +388,7 @@ void Example::OnStart()
     m_graphView.setNodeRegistry(m_NodeRegistry);
     m_graphView.setNavigationHandlers(
         [this](int elementId) { m_pendingOriginId = elementId; },
-        [this](int elementId) { m_pendingReferenceId = elementId; });
+        [this](const NodePtr& node) { m_pendingReferenceNode = node; });
 
     VM& vm = VM::getInstance();
     vm.setExternalMarkingFunc([&]()
@@ -2035,6 +2035,26 @@ void Example::FindReferences(int referenceId, int definitionId)
     SetBottomPanel(BottomPanelTab::Search);
 }
 
+void Example::FindReferences(const NodePtr& node)
+{
+    if (!node)
+        return;
+
+    if (node->refId.IsValid())
+    {
+        FindReferences(node->refId.id);
+        return;
+    }
+
+    m_searchResults = ScriptSearch::References(m_script, *node);
+    const std::string label = !node->DefinitionId.empty()
+        ? node->DefinitionId
+        : (!node->Name.empty() ? node->Name : node->SerializationType);
+
+    m_searchTitle = "References to " + label;
+    SetBottomPanel(BottomPanelTab::Search);
+}
+
 void Example::FocusSearchResult(const ScriptSearchResult& result)
 {
     if (result.kind == ScriptSearchResultKind::GraphNode)
@@ -2845,11 +2865,10 @@ void Example::OnFrame(float deltaTime)
         m_pendingOriginId = ScriptElementID::Invalid;
         GoToOrigin(elementId);
     }
-    if (m_pendingReferenceId != ScriptElementID::Invalid)
+    if (m_pendingReferenceNode)
     {
-        const int elementId = m_pendingReferenceId;
-        m_pendingReferenceId = ScriptElementID::Invalid;
-        FindReferences(elementId);
+        NodePtr node = std::move(m_pendingReferenceNode);
+        FindReferences(node);
     }
     if (m_commitPendingEdit)
     {

@@ -435,8 +435,7 @@ std::vector<ScriptSearchResult> ScriptSearch::Text(
     return results;
 }
 
-std::vector<ScriptSearchResult> ScriptSearch::References(
-    const Script& script, int referenceId, int definitionId)
+std::vector<ScriptSearchResult> ScriptSearch::References(const Script& script, int referenceId, int definitionId)
 {
     std::vector<ScriptSearchResult> results;
     AddDefinitionById(script, definitionId, results);
@@ -445,10 +444,35 @@ std::vector<ScriptSearchResult> ScriptSearch::References(
     {
         if (!function)
             return;
+
         for (const NodePtr& node : function->Graph.GetNodes())
         {
             if (node && node->refId.id == referenceId)
                 AddGraphNode(script, function, node, "Reference", results);
+        }
+    });
+
+    return results;
+}
+
+std::vector<ScriptSearchResult> ScriptSearch::References(
+    const Script& script, const Node& referencedNode)
+{
+    std::vector<ScriptSearchResult> results;
+    if (referencedNode.SerializationType.empty())
+        return results;
+
+    ForEachFunction(script, [&](const ScriptFunctionPtr& function)
+    {
+        if (!function)
+            return;
+        for (const NodePtr& node : function->Graph.GetNodes())
+        {
+            if (!node || node->refId.IsValid() ||
+                node->SerializationType != referencedNode.SerializationType ||
+                node->DefinitionId != referencedNode.DefinitionId)
+                continue;
+            AddGraphNode(script, function, node, "Reference", results);
         }
     });
     return results;

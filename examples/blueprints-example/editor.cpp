@@ -1296,7 +1296,7 @@ void Example::ShowInspector()
                 }
 
                 ImGui::Spacing();
-                if (ImGui::Button(ICON_FA_CROSSHAIRS " Frame node", ImVec2(-1, 0)))
+                if (ImGui::Button(ICON_FA_CROSSHAIRS " Center on node", ImVec2(-1, 0)))
                     ed::NavigateToSelection(false);
             }
         }
@@ -2517,7 +2517,7 @@ void Example::DrawMenuBar()
                     const std::pair<const char*, const char*> shortcuts[] = {
                         { "Space / right-click", "Add a node on the canvas" },
                         { "Home", "Frame all nodes" },
-                        { "F", "Frame selected nodes" },
+                        { "F", "Center on selected nodes" },
                         { "Double-click node", "Open the referenced definition" },
                         { "Ctrl+F", "Focus whole-script search" },
                         { "Alt+Left / Alt+Right", "Move through graph history" },
@@ -2600,10 +2600,6 @@ void Example::DrawToolbar()
         RedoLastAction();
     ImGuiUtils::EndDisabled();
     Tooltip(CanRedo() ? "Redo (Ctrl+Y)" : "Nothing to redo");
-    ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_CROSSHAIRS "##frameAll"))
-        ed::NavigateToContent();
-    Tooltip("Frame all nodes (Home)");
 
     const float compileWidth =
         ImGui::CalcTextSize(ICON_FA_CODE " Compile").x +
@@ -2930,9 +2926,9 @@ void Example::OnFrame(float deltaTime)
 
     ImGui::SameLine(ImMax(ImGui::GetCursorPosX() + 16.0f,
                           ImGui::GetWindowContentRegionMax().x - 225.0f));
-    if (ImGui::SmallButton(ICON_FA_CROSSHAIRS "##frameSelection"))
+    if (ImGui::SmallButton(ICON_FA_CROSSHAIRS "##centerOnSelection"))
         ed::NavigateToSelection(false);
-    Tooltip("Frame selection (F)");
+    Tooltip("Center on selection (F)");
     ImGui::SameLine();
     if (ImGui::SmallButton(ICON_FA_MAXIMIZE "##frameAllGraph"))
         ed::NavigateToContent();

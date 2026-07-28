@@ -442,7 +442,8 @@ void NodeRegistry::RegisterDefinitions()
             { "The packed values supplied by the dynamic pins" },
             { "A list containing the supplied values" },
             "A value to append to the list"
-        }
+        },
+        { { "T", "Type" } }
     );
 
     RegisterNativeFunc("List::Length",
@@ -1477,12 +1478,42 @@ void ApplyDocumentation(BasicFunctionDef& definition,
         definition.dynamicInputProps.description =
             validate(documentation.dynamicInput, "dynamic input");
 }
+
+void ApplyGenericTypeProperties(BasicFunctionDef& definition, std::vector<GenericTypeProperty> genericTypeProperties)
+{
+    std::set<std::string> names;
+    for (const GenericTypeProperty& property : genericTypeProperties)
+    {
+        if (property.variableName.empty() || property.label.empty())
+            throw std::invalid_argument(definition.name + " has an incomplete generic type property");
+
+        if (!names.insert(property.variableName).second)
+            throw std::invalid_argument( definition.name + " exposes generic type '" + property.variableName + "' more than once");
+
+        const auto containsVariable =
+            [&](const BasicFunctionDef::Input& port)
+            {
+                return port.type.ContainsVariable(property.variableName);
+            };
+
+        const bool declaredOnPin = 
+               std::any_of(definition.inputs.begin(), definition.inputs.end(), containsVariable)
+            || std::any_of(definition.outputs.begin(), definition.outputs.end(), containsVariable);
+
+        const bool declaredOnDynamicInput = HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs) && definition.dynamicInputProps.type.ContainsVariable(property.variableName);
+
+        if (!declaredOnPin && !declaredOnDynamicInput)
+            throw std::invalid_argument(definition.name + " exposes undeclared generic type '" + property.variableName + "'");
+    }
+    definition.genericTypeProperties = std::move(genericTypeProperties);
+}
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name,
     std::vector<BasicFunctionDef::Input>&& inputs,
     std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
-    NodeDefinitionFlags flags, NodeDocumentation documentation)
+    NodeDefinitionFlags flags, NodeDocumentation documentation,
+    std::vector<GenericTypeProperty> genericTypeProperties)
 {
     BasicFunctionDefPtr nativeFunc  = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -1491,6 +1522,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
     ApplyDocumentation(*nativeFunc, documentation);
+    ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1499,7 +1531,8 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
     NodeDefinitionFlags flags,
     BasicFunctionDef::DynamicInputProps&& dynamicProps,
-    NodeDocumentation documentation)
+    NodeDocumentation documentation,
+    std::vector<GenericTypeProperty> genericTypeProperties)
 {
     BasicFunctionDefPtr nativeFunc = std::make_shared<BasicFunctionDef>();
     nativeFunc->name = name;
@@ -1513,6 +1546,7 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->flags = flags;
     nativeFunc->dynamicInputProps = dynamicProps;
     ApplyDocumentation(*nativeFunc, documentation);
+    ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1528,7 +1562,8 @@ void NodeRegistry::RegisterNatives(VM& vm)
 void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
     std::vector<BasicFunctionDef::Input>&& inputs,
     std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
-    NodeDocumentation documentation)
+    NodeDocumentation documentation,
+    std::vector<GenericTypeProperty> genericTypeProperties)
 {
     CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
     compiledNodeDef->nodeCreationFunc = creationFunc;
@@ -1541,6 +1576,7 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     funtionDef->outputs = outputs;
     funtionDef->flags = flags;
     ApplyDocumentation(*funtionDef, documentation);
+    ApplyGenericTypeProperties(*funtionDef, std::move(genericTypeProperties));
 
     compiledNodeDef->functionDef = funtionDef;
 
@@ -1554,6 +1590,7 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     node->DefinitionId = name;
     node->DefinitionFlags = functionDef->flags;
     node->Description = functionDef->description;
+    node->GenericTypeProperties = functionDef->genericTypeProperties;
     size_t inputIndex = 0;
     for (Pin& pin : node->Inputs)
     {

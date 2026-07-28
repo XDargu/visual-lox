@@ -109,6 +109,7 @@ struct FunctionNode : public Node
         Name = pFunctionDef->name;
         Description = pFunctionDef->description;
         DefinitionFlags = pFunctionDef->flags;
+        GenericTypeProperties = pFunctionDef->genericTypeProperties;
 
         const bool expressionOnly =
             HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
@@ -289,6 +290,7 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
         return node;
 
     node->Description = pFunctionDef->description;
+    node->GenericTypeProperties = pFunctionDef->genericTypeProperties;
 
     const bool expressionOnly =
         HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly) ||

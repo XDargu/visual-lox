@@ -80,6 +80,16 @@ const TypeRef& TypeRef::ElementType() const
     return parameters.empty() ? kAny : parameters.front();
 }
 
+bool TypeRef::ContainsVariable(const std::string& variableName) const
+{
+    if (kind == PinType::TypeVariable && name == variableName)
+        return true;
+    for (const TypeRef& parameter : parameters)
+        if (parameter.ContainsVariable(variableName))
+            return true;
+    return false;
+}
+
 bool TypeRef::IsGeneric() const
 {
     if (kind == PinType::TypeVariable)

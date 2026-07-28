@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <memory>
 #include <utility>
 
@@ -113,6 +114,17 @@ enum class NodeType
 struct Node;
 using NodePtr = std::shared_ptr<Node>;
 
+struct GenericTypeProperty
+{
+    std::string variableName;
+    std::string label = "Type";
+
+    bool operator==(const GenericTypeProperty& other) const
+    {
+        return variableName == other.variableName && label == other.label;
+    }
+};
+
 struct Pin
 {
     ed::PinId   ID;
@@ -194,6 +206,14 @@ struct Node
     // identifiers: compiled nodes such as Math::Add are displayed as "+".
     std::string SerializationType;
     std::string DefinitionId;
+
+    // Explicit bindings for generic type variables on this node instance.
+    // Missing entries remain inferred from connected pins.
+    std::map<std::string, TypeRef> TypeOverrides;
+    // Definition metadata controls which generic bindings appear in the
+    // Inspector. ResolvedTypeVariables is transient graph-inference state.
+    std::vector<GenericTypeProperty> GenericTypeProperties;
+    std::map<std::string, TypeRef> ResolvedTypeVariables;
 
     // Reference to: functionId, variableId
     ScriptElementID refId;

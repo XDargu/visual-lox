@@ -44,17 +44,20 @@ public:
     void RegisterNativeFunc(const char* name,
         std::vector<BasicFunctionDef::Input>&& inputs,
         std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
-        NodeDefinitionFlags flags, NodeDocumentation documentation);
+        NodeDefinitionFlags flags, NodeDocumentation documentation,
+        std::vector<GenericTypeProperty> genericTypeProperties = {});
     void RegisterNativeFunc(const char* name,
         std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
         NodeDefinitionFlags flags,
         BasicFunctionDef::DynamicInputProps&& dynamicProps,
-        NodeDocumentation documentation);
+        NodeDocumentation documentation,
+        std::vector<GenericTypeProperty> genericTypeProperties = {});
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
         std::vector<BasicFunctionDef::Input>&& inputs,
         std::vector<BasicFunctionDef::Input>&& outputs,
-        NodeDefinitionFlags flags, NodeDocumentation documentation);
+        NodeDefinitionFlags flags, NodeDocumentation documentation,
+        std::vector<GenericTypeProperty> genericTypeProperties = {});
 
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;

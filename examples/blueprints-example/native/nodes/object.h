@@ -415,6 +415,8 @@ struct GetMethodNode : public Node
         Description = "Gets method '" + methodName +
             "' from a specific " + owner->Name + " instance.";
         DefinitionFlags = NodeDefinitionFlags::Pure;
+        GenericTypeProperties =
+            methodDefinition->functionDef->genericTypeProperties;
         Inputs[0].Type = Inputs[0].DeclaredType =
             TypeRef::Object(owner->ID.id, owner->Name);
         Outputs[0].Name = methodName;
@@ -448,6 +450,9 @@ inline NodePtr BuildGetMethodNode(
         method ? ObjectNodeUtils::FunctionType(*method->functionDef)
                : TypeRef(PinType::Function),
         method ? method->functionDef->description : std::string{});
+    if (method)
+        node->GenericTypeProperties =
+            method->functionDef->genericTypeProperties;
     return node;
 }
 
@@ -511,6 +516,8 @@ struct MethodCallNode : public Node
         Name = methodDefinition->functionDef->name;
         Description = methodDefinition->functionDef->description;
         DefinitionFlags = methodDefinition->functionDef->flags;
+        GenericTypeProperties =
+            methodDefinition->functionDef->genericTypeProperties;
         const bool expressionOnly =
             HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
             HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure);
@@ -570,6 +577,8 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     {
         node->Description = method->functionDef->description;
         node->DefinitionFlags = method->functionDef->flags;
+        node->GenericTypeProperties =
+            method->functionDef->genericTypeProperties;
     }
     const bool expressionOnly = method &&
         (HasFlag(method->functionDef->flags, NodeDefinitionFlags::ReadOnly) ||

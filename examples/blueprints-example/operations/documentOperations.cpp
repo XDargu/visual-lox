@@ -30,6 +30,15 @@ std::string UniqueName(const std::string& requested, const Range& range, Name na
         candidate = requested + std::to_string(suffix++);
     return candidate;
 }
+
+bool NodeExposesTypeVariable(const Node& node, const std::string& name)
+{
+    const auto matches = [&](const GenericTypeProperty& property)
+    {
+        return property.variableName == name;
+    };
+    return std::any_of(node.GenericTypeProperties.begin(), node.GenericTypeProperties.end(), matches);
+}
 }
 
 DocumentOperations::DocumentOperations(Script& script, IDGenerator& ids, const NodeRegistry& registry)
@@ -235,6 +244,38 @@ OperationResult DocumentOperations::ChangeNodeInputValue(int functionId, ed::Nod
     });
 }
 
+OperationResult DocumentOperations::ChangeNodeTypeOverride(
+    int functionId, ed::NodeId nodeId, const std::string& variableName, const TypeRef& type)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    NodePtr node = function ? function->Graph.FindNode(nodeId) : nullptr;
+    if (!node) return Missing("Node", nodeId.Get());
+    if (!NodeExposesTypeVariable(*node, variableName))
+        return OperationResult::Fail("This node does not expose generic type '" + variableName + "'.");
+    return Apply("Change node type", [&]
+    {
+        node->TypeOverrides[variableName] = type;
+        function->Graph.RefreshTypes();
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ClearNodeTypeOverride(
+    int functionId, ed::NodeId nodeId, const std::string& variableName)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    NodePtr node = function ? function->Graph.FindNode(nodeId) : nullptr;
+    if (!node) return Missing("Node", nodeId.Get());
+    if (node->TypeOverrides.find(variableName) == node->TypeOverrides.end())
+        return OperationResult::Ok();
+    return Apply("Infer node type", [&]
+    {
+        node->TypeOverrides.erase(variableName);
+        function->Graph.RefreshTypes();
+        return OperationResult::Ok();
+    });
+}
+
 OperationResult DocumentOperations::AddDynamicInput(int functionId, ed::NodeId nodeId)
 {
     ScriptFunctionPtr function = FindFunction(functionId);
@@ -245,6 +286,7 @@ OperationResult DocumentOperations::AddDynamicInput(int functionId, ed::NodeId n
     {
         node->AddInput(m_ids);
         NodeUtils::BuildNode(node);
+        function->Graph.RefreshTypes();
         return OperationResult::Ok();
     });
 }

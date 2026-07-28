@@ -112,6 +112,69 @@ void NodeStateCanBeUndoneAndRedone()
     Require(!fixture.begin->State.empty(), "Redo did not restore the node position.");
 }
 
+void MakeListTypeOverrideCanBeUndoneAndRedone()
+{
+    OperationsFixture fixture;
+    const int variableId = fixture.ids.GetNextId();
+    RequireSuccess(fixture.operations->AddVariable(variableId, "Count", Value(42.0)),
+            "Adding a numeric variable failed.");
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(fixture.script, variableId);
+    NodePtr source = BuildGetVariableNode(fixture.ids, variable);
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, source),
+            "Adding the numeric source failed.");
+    const int textVariableId = fixture.ids.GetNextId();
+    RequireSuccess(fixture.operations->AddVariable(
+            textVariableId, "Label", Value(copyString("mixed", 5))),
+            "Adding a text variable failed.");
+    ScriptPropertyPtr textVariable =
+        ScriptUtils::FindVariableById(fixture.script, textVariableId);
+    NodePtr textSource = BuildGetVariableNode(fixture.ids, textVariable);
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, textSource),
+            "Adding the text source failed.");
+
+    NodePtr makeList =
+        fixture.registry.FindNative("List::MakeList")->functionDef->MakeNode(
+            fixture.ids, ScriptElementID::Invalid);
+    makeList->AddInput(fixture.ids);
+    makeList->AddInput(fixture.ids);
+    const int makeListId = static_cast<int>(makeList->ID.Get());
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, makeList),
+            "Adding MakeList failed.");
+    RequireSuccess(fixture.operations->Connect(
+            fixture.script.main->ID.id, source->Outputs[0].ID, makeList->Inputs[0].ID),
+            "Connecting MakeList failed.");
+    Require(makeList->Outputs[0].Type == TypeRef::List(PinType::Float),
+            "MakeList did not infer Number from its input.");
+    Require(makeList->ResolvedTypeVariables.at("T") == PinType::Float,
+            "The inferred generic type was not exposed as node state.");
+
+    RequireSuccess(fixture.operations->ChangeNodeTypeOverride(
+            fixture.script.main->ID.id, makeList->ID, "T", PinType::Any),
+            "Changing MakeList to List<Any> failed.");
+    Require(makeList->Inputs[0].Type == PinType::Any &&
+            makeList->Inputs[1].Type == PinType::Any &&
+            makeList->Outputs[0].Type == TypeRef::List(PinType::Any),
+            "The explicit Any type did not replace MakeList inference.");
+    Require(makeList->ResolvedTypeVariables.at("T") == PinType::Any,
+            "The explicit generic type was not exposed as node state.");
+    Require(fixture.script.main->Graph.CanCreateLink(
+                &textSource->Outputs[0], &makeList->Inputs[1], {}) ==
+                ELinkQueryResult::Possible,
+            "An explicit List<Any> did not accept a differently typed input.");
+
+    RequireSuccess(fixture.operations->Undo(), "Undoing the MakeList type failed.");
+    makeList = fixture.script.main->Graph.FindNode(ed::NodeId(makeListId));
+    Require(makeList && makeList->TypeOverrides.empty() &&
+            makeList->Outputs[0].Type == TypeRef::List(PinType::Float),
+            "Undo did not restore MakeList inference.");
+
+    RequireSuccess(fixture.operations->Redo(), "Redoing the MakeList type failed.");
+    makeList = fixture.script.main->Graph.FindNode(ed::NodeId(makeListId));
+    Require(makeList && makeList->TypeOverrides.at("T") == PinType::Any &&
+            makeList->Outputs[0].Type == TypeRef::List(PinType::Any),
+            "Redo did not restore the explicit List<Any> type.");
+}
+
 void FunctionChangesCanBeUndoneAndRedone()
 {
     OperationsFixture fixture;
@@ -448,6 +511,8 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("required Begin node cannot be deleted", RequiredBeginCannotBeDeleted);
         runner.Test("Main signature cannot be edited", MainSignatureCannotBeEdited);
         runner.Test("node state can be undone and redone", NodeStateCanBeUndoneAndRedone);
+        runner.Test("MakeList type overrides can be undone and redone",
+            MakeListTypeOverrideCanBeUndoneAndRedone);
         runner.Test("function changes can be undone and redone", FunctionChangesCanBeUndoneAndRedone);
         runner.Test("marking a function pure makes calls implicit",
             MarkingFunctionPureMakesCallsImplicit);

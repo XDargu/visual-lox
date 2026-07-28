@@ -248,10 +248,13 @@ TypeRef ResolveType(const TypeRef& pattern, const TypeBindings& bindings)
     return result;
 }
 
-bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindings)
+bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindings,
+              const std::map<std::string, TypeRef>& overrides)
 {
     if (pattern.kind == PinType::TypeVariable)
     {
+        if (overrides.find(pattern.name) != overrides.end())
+            return false;
         if (actual.kind == PinType::Any || actual.kind == PinType::TypeVariable)
             return false;
         const auto found = bindings.find(pattern.name);
@@ -290,13 +293,13 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
             }
         }
         if (actual.kind == PinType::List)
-            return BindType(pattern.ElementType(), actual.ElementType(), bindings) ||
+            return BindType(pattern.ElementType(), actual.ElementType(), bindings, overrides) ||
                    changed;
         if (actual.kind == PinType::Range)
-            return BindType(pattern.ElementType(), TypeRef(PinType::Float), bindings) ||
+            return BindType(pattern.ElementType(), TypeRef(PinType::Float), bindings, overrides) ||
                    changed;
         if (actual.kind == PinType::String)
-            return BindType(pattern.ElementType(), TypeRef(PinType::String), bindings) ||
+            return BindType(pattern.ElementType(), TypeRef(PinType::String), bindings, overrides) ||
                    changed;
         return changed;
     }
@@ -307,7 +310,7 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
     bool changed = false;
     const size_t count = (std::min)(pattern.parameters.size(), actual.parameters.size());
     for (size_t i = 0; i < count; ++i)
-        changed |= BindType(pattern.parameters[i], actual.parameters[i], bindings);
+        changed |= BindType(pattern.parameters[i], actual.parameters[i], bindings, overrides);
     return changed;
 }
 }
@@ -317,6 +320,8 @@ void Graph::RefreshTypes()
     std::map<const Node*, TypeBindings> bindings;
     for (const NodePtr& node : m_Nodes)
     {
+        bindings[node.get()].insert(node->TypeOverrides.begin(), node->TypeOverrides.end());
+        node->ResolvedTypeVariables.clear();
         for (Pin& input : node->Inputs)
             input.Type = ResolveType(input.DeclaredType, bindings[node.get()]);
         for (Pin& output : node->Outputs)
@@ -335,9 +340,11 @@ void Graph::RefreshTypes()
             Pin* input = FindPin(link.EndPinID);
             if (!output || !input) continue;
             changed |= BindType(output->DeclaredType, input->Type,
-                                bindings[output->Node.get()]);
+                                bindings[output->Node.get()],
+                                output->Node->TypeOverrides);
             changed |= BindType(input->DeclaredType, output->Type,
-                                bindings[input->Node.get()]);
+                                bindings[input->Node.get()],
+                                input->Node->TypeOverrides);
         }
 
         for (const NodePtr& node : m_Nodes)
@@ -349,6 +356,9 @@ void Graph::RefreshTypes()
         }
         if (!changed) break;
     }
+
+    for (const NodePtr& node : m_Nodes)
+        node->ResolvedTypeVariables = bindings[node.get()];
 
     // Generic node defaults are placeholders until a connection binds their
     // type. Keep an unconnected default's runtime representation in sync with

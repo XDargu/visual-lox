@@ -246,6 +246,19 @@ void StandardLibraryDeclaresCapabilities()
             Require(isUsefulDescription(pin.Description),
                     "Every compiled output pin should use its authored description.");
     }
+
+    const NativeFunctionDef* makeList =
+        fixture.registry.FindNative("List::MakeList");
+    Require(makeList &&
+            makeList->functionDef->genericTypeProperties.size() == 1 &&
+            makeList->functionDef->genericTypeProperties[0].variableName == "T" &&
+            makeList->functionDef->genericTypeProperties[0].label == "Type",
+            "MakeList should expose its generic type through definition metadata.");
+    const NodePtr makeListNode = makeList->functionDef->MakeNode(
+        fixture.ids, ScriptElementID::Invalid);
+    Require(makeListNode->GenericTypeProperties ==
+                makeList->functionDef->genericTypeProperties,
+            "Function nodes should inherit generic type properties from their definitions.");
 }
 
 void SimpleNodesHideRedundantPinNames()

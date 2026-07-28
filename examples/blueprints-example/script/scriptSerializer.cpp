@@ -385,6 +385,24 @@ BasicFunctionDef::Input DeserializeDefinitionPort(const Json& json, IdSet& ids)
     return port;
 }
 
+Json SerializeGenericTypeProperty(const GenericTypeProperty& property)
+{
+    Json result(Object{});
+    result["variable_name"] = property.variableName;
+    result["label"] = property.label;
+    return result;
+}
+
+GenericTypeProperty DeserializeGenericTypeProperty(const Json& json)
+{
+    GenericTypeProperty property;
+    property.variableName = StringField(json, "variable_name");
+    property.label = StringField(json, "label");
+    if (property.variableName.empty() || property.label.empty())
+        throw SerializationError("Generic type properties require a variable name and label.");
+    return property;
+}
+
 Json SerializePin(const Pin& pin)
 {
     Json result(Object{});
@@ -421,6 +439,11 @@ Json SerializeNode(const Node& node)
     result["reference_id"] = static_cast<double>(node.refId.id);
     result["state"] = node.State;
     result["description"] = node.Description;
+
+    Json typeOverrides(Object{});
+    for (const auto& [name, type] : node.TypeOverrides)
+        typeOverrides[name] = SerializeTypeRef(type);
+    result["type_overrides"] = std::move(typeOverrides);
 
     Json inputs(Array{});
     for (const Pin& pin : node.Inputs)
@@ -581,6 +604,13 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
                 throw SerializationError("Node description has the wrong type.");
             node->Description = description->get<crude_json::string>();
         }
+        if (const Json* typeOverrides = OptionalField(nodeJson, "type_overrides"))
+        {
+            if (!typeOverrides->is_object())
+                throw SerializationError("Node type overrides have the wrong type.");
+            for (const auto& [name, type] : typeOverrides->get<Object>())
+                node->TypeOverrides[name] = DeserializeTypeRef(type);
+        }
 
         const Array& inputs = Field(nodeJson, "inputs", crude_json::type_t::array).get<Array>();
         const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
@@ -698,6 +728,16 @@ Json SerializeFunction(const ScriptFunction& function)
     result["pure"] =
         HasFlag(function.functionDef->flags, NodeDefinitionFlags::Pure);
 
+    Json genericTypeProperties(Array{});
+    for (const GenericTypeProperty& property :
+         function.functionDef->genericTypeProperties)
+    {
+        genericTypeProperties.push_back(
+            SerializeGenericTypeProperty(property));
+    }
+    result["generic_type_properties"] =
+        std::move(genericTypeProperties);
+
     Json inputs(Array{});
     for (const BasicFunctionDef::Input& input : function.functionDef->inputs)
         inputs.push_back(SerializeDefinitionPort(input));
@@ -728,6 +768,18 @@ ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids)
             throw SerializationError("Function purity has the wrong type.");
         if (pure->get<crude_json::boolean>())
             function->functionDef->flags |= NodeDefinitionFlags::Pure;
+    }
+    if (const Json* properties =
+            OptionalField(json, "generic_type_properties"))
+    {
+        if (!properties->is_array())
+            throw SerializationError(
+                "Function generic type properties have the wrong type.");
+        for (const Json& property : properties->get<Array>())
+        {
+            function->functionDef->genericTypeProperties.push_back(
+                DeserializeGenericTypeProperty(property));
+        }
     }
 
     const Array& inputs = Field(json, "inputs", crude_json::type_t::array).get<Array>();
@@ -988,6 +1040,7 @@ NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
     clone->ID = ed::NodeId(ids.GetNextId());
     clone->State = OffsetNodeState(sourceNode->State, positionOffset);
     clone->Description = sourceNode->Description;
+    clone->TypeOverrides = sourceNode->TypeOverrides;
     clone->Inputs.clear();
     clone->Outputs.clear();
     clone->InputValues.clear();
@@ -1086,6 +1139,8 @@ SerializationResult ScriptSerializer::CloneFunction(const Script& source, int fu
                                                                    sourceFunction->functionDef->name.c_str());
         clone->functionDef->description = sourceFunction->functionDef->description;
         clone->functionDef->flags = sourceFunction->functionDef->flags;
+        clone->functionDef->genericTypeProperties =
+            sourceFunction->functionDef->genericTypeProperties;
         for (const BasicFunctionDef::Input& input : sourceFunction->functionDef->inputs)
         {
             const int newId = ids.GetNextId();

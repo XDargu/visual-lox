@@ -150,15 +150,24 @@ struct SerializerFixture
         square->InputValues[0] = Value(7.0);
         AttachNode(script.main->Graph, square);
 
+        NodePtr anyList =
+            registry.FindNative("List::MakeList")->functionDef->MakeNode(
+                ids, ScriptElementID::Invalid);
+        anyList->AddInput(ids);
+        anyList->TypeOverrides["T"] = PinType::Any;
+        AttachNode(script.main->Graph, anyList);
+
         ScriptFunctionPtr function = std::make_shared<ScriptFunction>(ids.GetNextId(), "Echo");
         function->functionDef->description = "Returns the supplied text.";
         function->functionDef->flags |= NodeDefinitionFlags::Pure;
+        function->functionDef->genericTypeProperties.push_back(
+            { "T", "Value Type" });
         function->functionDef->inputs.push_back(
             { "Value", Value(copyString("default", 7)), ids.GetNextId(),
-              "Text to return." });
+              TypeRef::Variable("T"), "Value to return." });
         function->functionDef->outputs.push_back(
             { "Result", Value(copyString("", 0)), ids.GetNextId(),
-              "The returned text." });
+              TypeRef::Variable("T"), "The returned value." });
         NodePtr begin = BuildBeginNode(ids, function);
         NodePtr returnNode = BuildReturnNode(ids, *function);
         AttachNode(function->Graph, begin);
@@ -232,8 +241,12 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             fixture.loaded.functions[0]->functionDef->description ==
                 "Returns the supplied text." &&
             fixture.loaded.functions[0]->functionDef->inputs[0].description ==
-                "Text to return.",
+                "Value to return.",
             "Script and port descriptions changed.");
+    Require(fixture.loaded.functions[0]->functionDef->genericTypeProperties.size() == 1 &&
+            fixture.loaded.functions[0]->functionDef->genericTypeProperties[0].variableName == "T" &&
+            fixture.loaded.functions[0]->functionDef->genericTypeProperties[0].label == "Value Type",
+            "Custom function generic type properties changed.");
     Require(HasFlag(fixture.loaded.functions[0]->functionDef->flags,
                     NodeDefinitionFlags::Pure),
             "Script function purity changed.");
@@ -245,8 +258,10 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     const NodePtr loadedFunction = fixture.loaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->SerializationType == "function.get"; });
     Require(loadedFunction && loadedFunction->Outputs[0].Type.kind == PinType::Function &&
-            !loadedFunction->Outputs[0].Type.parameters.empty(),
-            "First-class function signatures were not restored.");
+            !loadedFunction->Outputs[0].Type.parameters.empty() &&
+            loadedFunction->GenericTypeProperties.size() == 1 &&
+            loadedFunction->GenericTypeProperties[0].variableName == "T",
+            "First-class generic function signatures were not restored.");
     const NodePtr loadedMethod = fixture.loaded.classes[0]->methods[0]->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->SerializationType == "method.get"; });
     Require(loadedMethod &&
@@ -255,6 +270,13 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             loadedMethod->Outputs[0].Type ==
                 TypeRef::Function({ PinType::String }, { PinType::Bool }),
             "Method Get nodes and their function signatures were not restored.");
+    const NodePtr loadedAnyList = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "List::MakeList"; });
+    Require(loadedAnyList && loadedAnyList->TypeOverrides.at("T") == PinType::Any &&
+            loadedAnyList->Outputs[0].Type == TypeRef::List(PinType::Any) &&
+            loadedAnyList->GenericTypeProperties.size() == 1 &&
+            loadedAnyList->GenericTypeProperties[0].variableName == "T",
+            "The explicit MakeList element type changed.");
     Require(fixture.loadedIds.PeekNextId() == fixture.ids.PeekNextId(),
             "ID generator did not resume after the maximum persisted ID.");
 }

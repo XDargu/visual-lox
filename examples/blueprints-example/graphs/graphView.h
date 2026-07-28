@@ -139,5 +139,7 @@ struct GraphViewUtils
     static bool DrawTypeInput(const PinType pinType, Value& inputValue);
     static void DrawTypeSelection(Value& inputValue, std::function<void(PinType type)> onChange);
     static void DrawDeclaredTypeSelection(const Script& script, const TypeRef& current,
-                                          std::function<void(TypeRef type)> onChange);
+                                          std::function<void(TypeRef type)> onChange,
+                                          const char* label = "TYPE",
+                                          bool notifyWhenReselected = false);
 };

@@ -74,6 +74,7 @@ struct GetFunctionNode : public Node
         Outputs[0].Description = pFunctionDef->description;
         Description = "Gets function '" + pFunctionDef->name + "' as a typed value. " +
             pFunctionDef->description;
+        GenericTypeProperties = pFunctionDef->genericTypeProperties;
         std::vector<TypeRef> inputs;
         std::vector<TypeRef> outputs;
         for (const auto& input : pFunctionDef->inputs) inputs.push_back(input.type);
@@ -111,6 +112,7 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
     if (pFunctionDef)
     {
         node->DefinitionFlags |= NodeDefinitionFlags::Pure;
+        node->GenericTypeProperties = pFunctionDef->genericTypeProperties;
         node->Description = "Gets function '" + pFunctionDef->name +
             "' as a typed value. " + pFunctionDef->description;
         std::vector<TypeRef> inputs;

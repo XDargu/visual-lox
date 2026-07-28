@@ -1204,6 +1204,35 @@ void Example::ShowInspector()
                         ? m_graphView.m_pScriptFunction->functionDef->name.c_str()
                         : "Unknown");
 
+                if (!node->GenericTypeProperties.empty() && m_graphView.m_pScriptFunction)
+                {
+                    ImGui::Spacing();
+                    const int functionId = m_graphView.m_pScriptFunction->ID.id;
+                    const ed::NodeId nodeId = node->ID;
+                    for (const GenericTypeProperty& property : node->GenericTypeProperties)
+                    {
+                        ImGui::PushID(property.variableName.c_str());
+                        const auto resolved = node->ResolvedTypeVariables.find(property.variableName);
+                        const TypeRef currentType =
+                            resolved != node->ResolvedTypeVariables.end()
+                                ? resolved->second
+                                : TypeRef(PinType::Any);
+                        const std::string variableName = property.variableName;
+                        GraphViewUtils::DrawDeclaredTypeSelection(
+                            m_script, currentType,
+                            [this, functionId, nodeId, variableName, &queueOperation](TypeRef type)
+                            {
+                                queueOperation("Node type updated",
+                                    [this, functionId, nodeId, variableName, type]()
+                                    {
+                                        return m_operations->ChangeNodeTypeOverride(
+                                            functionId, nodeId, variableName, type);
+                                    });
+                            }, property.label.c_str(), true);
+                        ImGui::PopID();
+                    }
+                }
+
                 if (ImGui::CollapsingHeader("Inputs", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     if (node->Inputs.empty())

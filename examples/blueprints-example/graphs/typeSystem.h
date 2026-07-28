@@ -64,6 +64,7 @@ struct TypeRef
     static TypeRef Variable(std::string variableName);
 
     const TypeRef& ElementType() const;
+    bool ContainsVariable(const std::string& variableName) const;
     bool IsGeneric() const;
     std::string ToString() const;
 };

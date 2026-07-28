@@ -39,6 +39,10 @@ public:
     OperationResult Disconnect(int functionId, ed::LinkId linkId);
     OperationResult ChangeNodeInputValue(int functionId, ed::NodeId nodeId, int inputIndex,
                                          const Value& value);
+    OperationResult ChangeNodeTypeOverride(int functionId, ed::NodeId nodeId,
+                                           const std::string& variableName, const TypeRef& type);
+    OperationResult ClearNodeTypeOverride(int functionId, ed::NodeId nodeId,
+                                          const std::string& variableName);
     OperationResult AddDynamicInput(int functionId, ed::NodeId nodeId);
     OperationResult RemoveDynamicInput(int functionId, ed::NodeId nodeId, ed::PinId pinId);
     OperationResult SetNodeState(int functionId, ed::NodeId nodeId, const std::string& state,

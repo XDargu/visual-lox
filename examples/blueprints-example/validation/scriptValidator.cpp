@@ -286,13 +286,21 @@ ValidationReport ScriptValidator::Validate(const Script& script)
     std::set<int> classIds;
     for (const ScriptClassPtr& scriptClass : script.classes)
         if (scriptClass) classIds.insert(scriptClass->ID.id);
+    const std::set<std::string> noTypeVariables;
     const auto validateDeclaredType = [&](const TypeRef& type, const std::string& owner,
+                                          const std::set<std::string>& typeVariables,
                                           const auto& self) -> void
     {
-        if (type.kind == PinType::Flow || type.kind == PinType::Error ||
-            type.kind == PinType::TypeVariable)
+        if (type.kind == PinType::Flow || type.kind == PinType::Error)
             addScriptError("invalid-type",
                 owner + " has invalid declared type '" + type.ToString() + "'.");
+        if (type.kind == PinType::TypeVariable &&
+            typeVariables.count(type.name) == 0)
+        {
+            addScriptError("invalid-type",
+                owner + " uses undeclared generic type '" +
+                type.ToString() + "'.");
+        }
         if (type.kind == PinType::Iterable)
             addScriptError("invalid-type",
                 owner + " uses an internal iterable constraint as a declaration.");
@@ -310,7 +318,7 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             addScriptError("invalid-type",
                 owner + " has a malformed function signature.");
         for (const TypeRef& parameter : type.parameters)
-            self(parameter, owner, self);
+            self(parameter, owner, typeVariables, self);
     };
 
     claimScriptId(script.ID.id, "Script");
@@ -328,7 +336,7 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         }
         claimScriptId(variable->ID.id, "Variable");
         validateDeclaredType(variable->type, "Variable '" + variable->Name + "'",
-                             validateDeclaredType);
+                             noTypeVariables, validateDeclaredType);
         if (!variableNames.insert(variable->Name).second)
             addScriptError("duplicate-variable", "Duplicate variable name '" + variable->Name + "'.");
     }
@@ -347,6 +355,47 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         if (!isMain && !isClassFunction && variableNames.count(function->functionDef->name) != 0)
             addScriptError("symbol-conflict", "Function and variable share the global name '" +
                 function->functionDef->name + "'.");
+        std::set<std::string> genericTypeNames;
+        for (const GenericTypeProperty& property :
+             function->functionDef->genericTypeProperties)
+        {
+            if (property.variableName.empty() || property.label.empty())
+            {
+                addScriptError("invalid-generic",
+                    "Function '" + function->functionDef->name +
+                    "' has an incomplete generic type property.");
+                continue;
+            }
+            if (!genericTypeNames.insert(property.variableName).second)
+            {
+                addScriptError("duplicate-generic",
+                    "Function '" + function->functionDef->name +
+                    "' exposes generic type '" + property.variableName +
+                    "' more than once.");
+            }
+        }
+        for (const GenericTypeProperty& property :
+             function->functionDef->genericTypeProperties)
+        {
+            const auto containsVariable =
+                [&](const BasicFunctionDef::Input& port)
+                {
+                    return port.type.ContainsVariable(
+                        property.variableName);
+                };
+            if (!std::any_of(function->functionDef->inputs.begin(),
+                             function->functionDef->inputs.end(),
+                             containsVariable) &&
+                !std::any_of(function->functionDef->outputs.begin(),
+                             function->functionDef->outputs.end(),
+                             containsVariable))
+            {
+                addScriptError("unused-generic",
+                    "Function '" + function->functionDef->name +
+                    "' exposes unused generic type '" +
+                    property.variableName + "'.");
+            }
+        }
         std::set<std::string> inputNames;
         std::set<std::string> outputNames;
         for (const BasicFunctionDef::Input& input : function->functionDef->inputs)
@@ -354,7 +403,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             claimScriptId(input.id, "Function input");
             validateDeclaredType(input.type,
                 "Input '" + input.name + "' of function '" +
-                function->functionDef->name + "'", validateDeclaredType);
+                function->functionDef->name + "'", genericTypeNames,
+                validateDeclaredType);
             if (!inputNames.insert(input.name).second)
                 addScriptError("duplicate-input", "Function '" + function->functionDef->name +
                     "' has duplicate input name '" + input.name + "'.");
@@ -364,7 +414,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             claimScriptId(output.id, "Function output");
             validateDeclaredType(output.type,
                 "Output '" + output.name + "' of function '" +
-                function->functionDef->name + "'", validateDeclaredType);
+                function->functionDef->name + "'", genericTypeNames,
+                validateDeclaredType);
             if (!outputNames.insert(output.name).second)
                 addScriptError("duplicate-output", "Function '" + function->functionDef->name +
                     "' has duplicate output name '" + output.name + "'.");
@@ -412,7 +463,8 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             claimScriptId(property->ID.id, "Class property");
             validateDeclaredType(property->type,
                 "Property '" + property->Name + "' of class '" +
-                scriptClass->Name + "'", validateDeclaredType);
+                scriptClass->Name + "'", noTypeVariables,
+                validateDeclaredType);
             if (!propertyNames.insert(property->Name).second)
                 addScriptError("duplicate-property", "Class '" + scriptClass->Name +
                     "' has duplicate property '" + property->Name + "'.");

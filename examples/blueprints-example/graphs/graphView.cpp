@@ -2241,12 +2241,13 @@ void DrawTypeRefEditor(const Script& script, TypeRef& type, bool& changed,
 
 void GraphViewUtils::DrawDeclaredTypeSelection(
     const Script& script, const TypeRef& current,
-    std::function<void(TypeRef type)> onChange)
+    std::function<void(TypeRef type)> onChange, const char* label,
+    bool notifyWhenReselected)
 {
-    ImGui::TextDisabled("TYPE");
+    ImGui::TextDisabled("%s", label);
     TypeRef edited = current;
     bool changed = false;
     DrawTypeRefEditor(script, edited, changed, 0);
-    if (changed && edited != current)
+    if (changed && (notifyWhenReselected || edited != current))
         onChange(std::move(edited));
 }

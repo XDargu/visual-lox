@@ -51,6 +51,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 
     std::vector<Input> inputs;
     std::vector<Input> outputs;
+    std::vector<GenericTypeProperty> genericTypeProperties;
 
     NodeDefinitionFlags flags = NodeDefinitionFlags::None;
 

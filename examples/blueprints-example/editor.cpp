@@ -580,7 +580,7 @@ void Example::LoadLayoutSettings()
     }
 
     m_leftPaneWidth = ImClamp(m_leftPaneWidth, 220.0f, 480.0f);
-    m_rightPaneWidth = ImClamp(m_rightPaneWidth, 240.0f, 480.0f);
+    m_rightPaneWidth = ImMax(m_rightPaneWidth, 240.0f);
     m_bottomPaneHeight = ImClamp(m_bottomPaneHeight, 160.0f, 440.0f);
 }
 
@@ -2905,14 +2905,14 @@ void Example::OnFrame(float deltaTime)
     const int visibleSidePanels = (m_showScriptExplorer ? 1 : 0) + (m_showInspector ? 1 : 0);
     const float splitterWidth = visibleSidePanels * 5.0f;
     const float minimumCanvasWidth = 360.0f;
+    const float maxRightPaneWidth = ImMax(240.0f, workspaceWidth - minimumCanvasWidth -
+        (m_showScriptExplorer ? m_leftPaneWidth : 0.0f) - splitterWidth);
     if (m_showScriptExplorer)
         m_leftPaneWidth = ImClamp(m_leftPaneWidth, 220.0f,
             ImMax(220.0f, workspaceWidth - minimumCanvasWidth -
                             (m_showInspector ? m_rightPaneWidth : 0.0f) - splitterWidth));
     if (m_showInspector)
-        m_rightPaneWidth = ImClamp(m_rightPaneWidth, 240.0f,
-            ImMax(240.0f, workspaceWidth - minimumCanvasWidth -
-                            (m_showScriptExplorer ? m_leftPaneWidth : 0.0f) - splitterWidth));
+        m_rightPaneWidth = ImClamp(m_rightPaneWidth, 240.0f, maxRightPaneWidth);
 
     if (m_showScriptExplorer)
     {
@@ -3047,7 +3047,7 @@ void Example::OnFrame(float deltaTime)
     {
         ImGui::SameLine(0, 0);
         DrawVerticalSplitter("##InspectorSplitter", m_rightPaneWidth,
-                             240.0f, 480.0f, mainHeight, true);
+                             240.0f, maxRightPaneWidth, mainHeight, true);
         ImGui::SameLine(0, 0);
         ImGui::BeginChild("Inspector Panel", ImVec2(0, mainHeight), true);
         ShowInspector();

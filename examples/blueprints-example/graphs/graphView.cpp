@@ -280,6 +280,7 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     ed::Config config;
 
     config.SettingsFile = "Blueprints.json";
+    config.CanvasSizeMode = ed::CanvasSizeMode::CenterOnly;
 
     config.UserPointer = this;
 

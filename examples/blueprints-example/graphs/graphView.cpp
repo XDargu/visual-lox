@@ -2033,9 +2033,7 @@ static void ForceMinWidth(double value, float minWidth, float padding = 20.0f)
         ForceMinWidth(min, 30.0f);
         changed |= ImGui::InputDouble("##edit", &min, 0, 0, "%.15g");
         ImGui::PopID();
-        ImGui::SameLine();
         ImGui::TextUnformatted("..");
-        ImGui::SameLine();
         ImGui::PushID("range-max");
         ForceMinWidth(max, 30.0f);
         changed |= ImGui::InputDouble("##edit", &max, 0, 0, "%.15g");

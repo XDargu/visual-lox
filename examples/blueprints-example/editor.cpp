@@ -170,13 +170,11 @@ bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange
         double maximum = range->max;
         ImGui::PushID("minimum");
         ImGui::SetNextItemWidth(-1.0f);
-        const bool minimumChanged =
-            ImGui::InputDouble("##value", &minimum, 0.0, 0.0, "From %.15g");
+        const bool minimumChanged = ImGui::InputDouble("##value", &minimum, 0.0, 0.0, "From %.15g");
         ImGui::PopID();
         ImGui::PushID("maximum");
         ImGui::SetNextItemWidth(-1.0f);
-        const bool maximumChanged =
-            ImGui::InputDouble("##value", &maximum, 0.0, 0.0, "To %.15g");
+        const bool maximumChanged = ImGui::InputDouble("##value", &maximum, 0.0, 0.0, "To %.15g");
         ImGui::PopID();
         if (minimumChanged || maximumChanged)
         {

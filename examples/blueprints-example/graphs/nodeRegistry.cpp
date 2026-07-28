@@ -1507,6 +1507,16 @@ void ApplyGenericTypeProperties(BasicFunctionDef& definition, std::vector<Generi
     }
     definition.genericTypeProperties = std::move(genericTypeProperties);
 }
+
+void ValidateDynamicInputProperties(const BasicFunctionDef& definition)
+{
+    if (!HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
+        throw std::invalid_argument(definition.name + " declares dynamic input properties without the DynamicInputs flag");
+    if (definition.dynamicInputProps.minInputs < 0)
+        throw std::invalid_argument(definition.name + " declares a negative minimum input count");
+    if (definition.dynamicInputProps.maxInputs < definition.dynamicInputProps.minInputs)
+        throw std::invalid_argument(definition.name + " declares a maximum input count below its minimum");
+}
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name,
@@ -1583,6 +1593,31 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     compiledDefinitions.push_back(compiledNodeDef);
 }
 
+void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
+    std::vector<BasicFunctionDef::Input>&& inputs,
+    std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
+    BasicFunctionDef::DynamicInputProps&& dynamicProps,
+    NodeDocumentation documentation,
+    std::vector<GenericTypeProperty> genericTypeProperties)
+{
+    CompiledNodeDefPtr compiledNodeDef = std::make_shared<CompiledNodeDef>();
+    compiledNodeDef->nodeCreationFunc = creationFunc;
+    compiledNodeDef->name = name;
+
+    BasicFunctionDefPtr functionDef = std::make_shared<BasicFunctionDef>();
+    functionDef->name = name;
+    functionDef->inputs = std::move(inputs);
+    functionDef->outputs = std::move(outputs);
+    functionDef->flags = flags;
+    functionDef->dynamicInputProps = std::move(dynamicProps);
+    ValidateDynamicInputProperties(*functionDef);
+    ApplyDocumentation(*functionDef, documentation);
+    ApplyGenericTypeProperties(*functionDef, std::move(genericTypeProperties));
+
+    compiledNodeDef->functionDef = std::move(functionDef);
+    compiledDefinitions.push_back(std::move(compiledNodeDef));
+}
+
 NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = nodeCreationFunc(IDGenerator);
@@ -1591,6 +1626,8 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     node->DefinitionFlags = functionDef->flags;
     node->Description = functionDef->description;
     node->GenericTypeProperties = functionDef->genericTypeProperties;
+    if (HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs))
+        node->ConfigureDynamicInputs(functionDef->dynamicInputProps);
     size_t inputIndex = 0;
     for (Pin& pin : node->Inputs)
     {

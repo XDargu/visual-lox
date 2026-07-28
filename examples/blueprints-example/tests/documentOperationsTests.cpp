@@ -112,6 +112,41 @@ void NodeStateCanBeUndoneAndRedone()
     Require(!fixture.begin->State.empty(), "Redo did not restore the node position.");
 }
 
+void CompiledDynamicInputsCanBeUndoneAndRedone()
+{
+    OperationsFixture fixture;
+    NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
+    const ed::NodeId addId = add->ID;
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, add), "Adding Math::Add failed.");
+    RequireSuccess(fixture.operations->AddDynamicInput(fixture.script.main->ID.id, addId), "Adding a Math::Add input failed.");
+
+    add = fixture.script.main->Graph.FindNode(addId);
+    Require(add && add->Inputs.size() == 3 && add->Inputs[2].Name == "C" && add->Inputs[2].Type == PinType::Float,
+            "The additional Math::Add input has the wrong layout.");
+    RequireSuccess(fixture.operations->Undo(), "Undoing a dynamic input failed.");
+    add = fixture.script.main->Graph.FindNode(addId);
+    Require(add && add->Inputs.size() == 2, "Undo did not remove the dynamic input.");
+    RequireSuccess(fixture.operations->Redo(), "Redoing a dynamic input failed.");
+    add = fixture.script.main->Graph.FindNode(addId);
+    Require(add && add->Inputs.size() == 3, "Redo did not restore the dynamic input.");
+
+    const int variableId = fixture.ids.GetNextId();
+    RequireSuccess(fixture.operations->AddVariable(variableId, "Operand", Value(7.0)), "Adding the operand variable failed.");
+    ScriptPropertyPtr variable = ScriptUtils::FindVariableById(fixture.script, variableId);
+    NodePtr source = BuildGetVariableNode(fixture.ids, variable);
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, source), "Adding the operand node failed.");
+    RequireSuccess(fixture.operations->Connect(fixture.script.main->ID.id, source->Outputs[0].ID, add->Inputs[2].ID),
+            "Connecting the dynamic input failed.");
+    const ed::PinId removedPin = add->Inputs[2].ID;
+    RequireSuccess(fixture.operations->RemoveDynamicInput(fixture.script.main->ID.id, addId, removedPin), "Removing the dynamic input failed.");
+    Require(fixture.script.main->Graph.FindNode(addId)->Inputs.size() == 2 && fixture.script.main->Graph.GetLinks().empty(),
+            "Removing a dynamic input should also remove its link.");
+    RequireSuccess(fixture.operations->Undo(), "Undoing dynamic input removal failed.");
+    add = fixture.script.main->Graph.FindNode(addId);
+    Require(add && add->Inputs.size() == 3 && fixture.script.main->Graph.GetLinks().size() == 1,
+            "Undo did not restore the dynamic input and its link.");
+}
+
 void MakeListTypeOverrideCanBeUndoneAndRedone()
 {
     OperationsFixture fixture;
@@ -511,6 +546,7 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("required Begin node cannot be deleted", RequiredBeginCannotBeDeleted);
         runner.Test("Main signature cannot be edited", MainSignatureCannotBeEdited);
         runner.Test("node state can be undone and redone", NodeStateCanBeUndoneAndRedone);
+        runner.Test("compiled dynamic inputs can be undone and redone", CompiledDynamicInputsCanBeUndoneAndRedone);
         runner.Test("MakeList type overrides can be undone and redone",
             MakeListTypeOverrideCanBeUndoneAndRedone);
         runner.Test("function changes can be undone and redone", FunctionChangesCanBeUndoneAndRedone);

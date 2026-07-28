@@ -125,6 +125,15 @@ struct GenericTypeProperty
     }
 };
 
+struct DynamicInputProps
+{
+    int minInputs = 1;
+    int maxInputs = 16;
+    TypeRef type = PinType::Any;
+    Value defaultValue;
+    std::string description;
+};
+
 struct Pin
 {
     ed::PinId   ID;
@@ -236,6 +245,11 @@ struct Node
     virtual bool CanRemoveInput(ed::PinId pinId) const { return false; };
     virtual bool CanAddInput() const { return false; };
     virtual TypeRef DynamicInputType() const { return TypeRef(PinType::Any); }
+    virtual void ConfigureDynamicInputs(const DynamicInputProps& properties) {}
+    virtual bool IsValidDynamicInputCount(size_t inputCount) const
+    {
+        return inputCount >= Inputs.size() && inputCount <= 64;
+    }
     virtual bool IsInputDeferred(int inputIndex) const { return false; }
     virtual bool ShouldCompileDeferredInput(int inputIndex, int outputIndex) const
     {

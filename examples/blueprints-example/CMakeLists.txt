@@ -22,6 +22,7 @@ set(_VisualLoxCoreSources
     native/nodes/return.cpp
     native/nodes/append.h
     native/nodes/append.cpp
+    native/nodes/variadic.h
     native/nodes/branch.h
     native/nodes/branch.cpp
     native/nodes/expressions.h

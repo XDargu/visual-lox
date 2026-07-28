@@ -22,13 +22,15 @@ util::BlueprintNodeBuilder::BlueprintNodeBuilder(ImTextureID texture, int textur
     HeaderTextureHeight(textureHeight),
     CurrentNodeId(0),
     CurrentStage(Stage::Invalid),
-    HasHeader(false)
+    HasHeader(false),
+    OutputsTopAligned(false)
 {
 }
 
 void util::BlueprintNodeBuilder::Begin(ed::NodeId id)
 {
-    HasHeader  = false;
+    HasHeader = false;
+    OutputsTopAligned = false;
     HeaderMin = HeaderMax = ImVec2();
 
     ed::PushStyleVar(StyleVar_NodePadding, ImVec4(GridUnit, 0, GridUnit, 0));
@@ -174,6 +176,11 @@ void util::BlueprintNodeBuilder::Middle()
     SetStage(Stage::Middle);
 }
 
+void util::BlueprintNodeBuilder::TopAlignOutputs()
+{
+    OutputsTopAligned = true;
+}
+
 void util::BlueprintNodeBuilder::Output(ed::PinId id)
 {
     if (CurrentStage == Stage::Begin)
@@ -196,6 +203,25 @@ void util::BlueprintNodeBuilder::EndOutput()
     ImGui::EndHorizontal();
 
     EndPin();
+}
+
+void util::BlueprintNodeBuilder::BeginOutputControl()
+{
+    if (CurrentStage == Stage::Begin)
+        SetStage(Stage::Content);
+
+    const auto applyPadding = (CurrentStage == Stage::Output);
+    SetStage(Stage::Output);
+
+    if (applyPadding)
+        ImGui::Spring(0, 0);
+
+    ImGui::BeginHorizontal("output-control", ImVec2(0, PinRowHeight), 0.5f);
+}
+
+void util::BlueprintNodeBuilder::EndOutputControl()
+{
+    ImGui::EndHorizontal();
 }
 
 void util::BlueprintNodeBuilder::Footer()
@@ -301,7 +327,7 @@ bool util::BlueprintNodeBuilder::SetStage(Stage stage)
             ed::PushStyleVar(ed::StyleVar_PivotAlignment, ImVec2(0, 0.5f));
             ed::PushStyleVar(ed::StyleVar_PivotSize, ImVec2(0, 0));
 
-            if (!HasHeader)
+            if (!HasHeader && !OutputsTopAligned)
                 ImGui::Spring(1, 0);
             break;
 

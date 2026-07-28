@@ -479,6 +479,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 GraphUtils::UsesImplicitReceiver(
                     *m_pScript, m_pScriptFunction->ID, *m_pGraph, *node);
             const int receiverInputIndex = node->GetReceiverInputIndex();
+            const bool hasDynamicInputs = HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs);
+            const bool canAddDynamicInput = hasDynamicInputs && node->CanAddInput();
             int idx = 0;
             for (const Pin& input : node->Inputs)
             {
@@ -517,7 +519,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 ++idx;
             }
 
-            if (HasFlag(node->DefinitionFlags, NodeDefinitionFlags::DynamicInputs) && node->CanAddInput())
+            if (canAddDynamicInput && !isSimpleLarge)
             {
                 builder.BeginInputControl();
                 if (ImGui::Button("Add Pin"))
@@ -542,6 +544,9 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 if (isSimpleLarge)
                     ImGui::PopFont();
             }
+
+            if (isSimpleLarge && hasDynamicInputs)
+                builder.TopAlignOutputs();
 
             for (const Pin& output : node->Outputs)
             {
@@ -582,6 +587,18 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 builder.EndOutput();
                 if (ImGui::IsItemHovered())
                     hoveredPin = &output;
+            }
+
+            if (isSimpleLarge && canAddDynamicInput)
+            {
+                builder.BeginOutputControl();
+                ImGui::Spring(1);
+                if (ImGui::Button("Add Pin"))
+                {
+                    OperationResult operation = m_pOperations->AddDynamicInput(m_pScriptFunction->ID.id, node->ID);
+                    ReportOperation(operation);
+                }
+                builder.EndOutputControl();
             }
 
             if (!nodeDiagnostics.empty())

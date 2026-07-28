@@ -2,6 +2,7 @@
 
 #include "../../graphs/graphCompiler.h"
 #include "../../graphs/idgeneration.h"
+#include "variadic.h"
 
 #include <Compiler.h>
 
@@ -62,10 +63,10 @@ enum class ShortCircuitMode
     Coalesce,
 };
 
-struct ShortCircuitExpressionNode : public Node
+struct ShortCircuitExpressionNode : public VariadicInputNode
 {
     ShortCircuitExpressionNode(int id, const char* name, ShortCircuitMode mode)
-        : Node(id, name, ImColor(230, 230, 0))
+        : VariadicInputNode(id, name, ImColor(230, 230, 0))
         , mode(mode)
     {
         Category = NodeCategory::Function;
@@ -75,12 +76,22 @@ struct ShortCircuitExpressionNode : public Node
 
     bool IsInputDeferred(int inputIndex) const override
     {
-        return inputIndex == 1;
+        return inputIndex > 0;
     }
 
     bool ShouldCompileDeferredInput(int inputIndex, int outputIndex) const override
     {
-        return inputIndex == 1 && outputIndex == -1;
+        return inputIndex > 0 && outputIndex == -1;
+    }
+
+    bool CanRemoveInput(ed::PinId pinId) const override
+    {
+        return mode != ShortCircuitMode::Coalesce && VariadicInputNode::CanRemoveInput(pinId);
+    }
+
+    bool CanAddInput() const override
+    {
+        return mode != ShortCircuitMode::Coalesce && VariadicInputNode::CanAddInput();
     }
 
     Token OutputToken(CompilerContext& context) const
@@ -91,56 +102,69 @@ struct ShortCircuitExpressionNode : public Node
         return context.StoreTempVariable(name);
     }
 
-    void Compile(CompilerContext& context, const Graph& graph,
-                 CompilationStage stage, int) const override
+    void Compile(CompilerContext& context, const Graph& graph, CompilationStage stage, int portIdx) const override
     {
         Compiler& compiler = context.compiler;
         const Token outputToken = OutputToken(context);
 
         if (stage == CompilationStage::BeforeDeferredInput)
         {
-            GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
-            compiler.addLocal(outputToken, true);
-            compiler.emitVariable(outputToken, true, true);
+            if (portIdx == 1)
+            {
+                exitJumps.clear();
+                successJumps.clear();
+                GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
+                compiler.addLocal(outputToken, true);
+                compiler.emitVariable(outputToken, true, true);
+            }
+
             compiler.emitVariable(outputToken, false);
             if (mode == ShortCircuitMode::Coalesce)
                 compiler.emitByte(OpByte(OpCode::OP_IS_NIL));
 
-            branchJump = compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
+            const size_t branchJump = compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
             compiler.emitByte(OpByte(OpCode::OP_POP));
 
             if (mode == ShortCircuitMode::Or)
             {
-                endJump = compiler.emitJump(OpByte(OpCode::OP_JUMP));
+                successJumps.push_back(compiler.emitJump(OpByte(OpCode::OP_JUMP)));
                 compiler.patchJump(branchJump);
                 compiler.emitByte(OpByte(OpCode::OP_POP));
-            }
-            compiler.beginScope();
-        }
-        else if (stage == CompilationStage::PullOutput)
-        {
-            GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
-            compiler.emitVariable(outputToken, true, true);
-            compiler.emitByte(OpByte(OpCode::OP_POP));
-            compiler.endScope();
-
-            if (mode == ShortCircuitMode::Or)
-            {
-                compiler.patchJump(endJump);
             }
             else
             {
-                endJump = compiler.emitJump(OpByte(OpCode::OP_JUMP));
-                compiler.patchJump(branchJump);
-                compiler.emitByte(OpByte(OpCode::OP_POP));
-                compiler.patchJump(endJump);
+                exitJumps.push_back(branchJump);
             }
+
+            compiler.beginScope();
+        }
+        else if (stage == CompilationStage::AfterDeferredInput)
+        {
+            GraphCompiler::CompileInput(context, graph, Inputs[portIdx], InputValues[portIdx]);
+            compiler.emitVariable(outputToken, true, true);
+            compiler.emitByte(OpByte(OpCode::OP_POP));
+            compiler.endScope();
+        }
+        else if (stage == CompilationStage::PullOutput)
+        {
+            if (mode == ShortCircuitMode::Or)
+            {
+                for (size_t jump : successJumps)
+                    compiler.patchJump(jump);
+                return;
+            }
+
+            const size_t endJump = compiler.emitJump(OpByte(OpCode::OP_JUMP));
+            for (size_t jump : exitJumps)
+                compiler.patchJump(jump);
+            compiler.emitByte(OpByte(OpCode::OP_POP));
+            compiler.patchJump(endJump);
         }
     }
 
     ShortCircuitMode mode;
-    mutable size_t branchJump = 0;
-    mutable size_t endJump = 0;
+    mutable std::vector<size_t> exitJumps;
+    mutable std::vector<size_t> successJumps;
 };
 
 inline NodePtr BuildUnaryExpressionNode(IDGenerator& ids, const char* name,

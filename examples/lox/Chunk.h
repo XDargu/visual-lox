@@ -38,6 +38,8 @@ enum class OpCode : uint8_t
     OP_ADD,
     OP_SUBTRACT,
     OP_MULTIPLY,
+    OP_MIN,
+    OP_MAX,
     OP_DIVIDE,
     OP_MODULO,
     OP_INCREMENT,

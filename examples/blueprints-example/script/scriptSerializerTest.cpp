@@ -142,6 +142,10 @@ struct SerializerFixture
         NodePtr add = addDefinition->MakeNode(ids);
         add->InputValues[0] = Value(2.0);
         add->InputValues[1] = Value(3.0);
+        add->AddInput(ids);
+        add->AddInput(ids);
+        add->InputValues[2] = Value(4.0);
+        add->InputValues[3] = Value(5.0);
         AttachNode(script.main->Graph, add);
 
         const NativeFunctionDef* squareDefinition = registry.FindNative("Math::Square");
@@ -277,6 +281,12 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             loadedAnyList->GenericTypeProperties.size() == 1 &&
             loadedAnyList->GenericTypeProperties[0].variableName == "T",
             "The explicit MakeList element type changed.");
+    const NodePtr loadedAdd = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "Math::Add"; });
+    Require(loadedAdd && loadedAdd->Inputs.size() == 4 && loadedAdd->InputValues.size() == 4 &&
+            isNumber(loadedAdd->InputValues[3]) && asNumber(loadedAdd->InputValues[3]) == 5.0 &&
+            loadedAdd->CanAddInput() && loadedAdd->CanRemoveInput(loadedAdd->Inputs[3].ID),
+            "Compiled dynamic inputs and values were not restored.");
     Require(fixture.loadedIds.PeekNextId() == fixture.ids.PeekNextId(),
             "ID generator did not resume after the maximum persisted ID.");
 }

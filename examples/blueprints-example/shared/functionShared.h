@@ -40,14 +40,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
         {}
     };
 
-    struct DynamicInputProps
-    {
-        int minInputs = 1;
-        int maxInputs = 16;
-        TypeRef type = PinType::Any;
-        Value defaultValue;
-        std::string description;
-    };
+    using DynamicInputProps = ::DynamicInputProps;
 
     std::vector<Input> inputs;
     std::vector<Input> outputs;

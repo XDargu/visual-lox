@@ -156,6 +156,49 @@ void StandardLibraryDeclaresCapabilities()
     const CompiledNodeDefPtr print = fixture.registry.FindCompiled("Debug::Print");
     Require(add && HasFlag(add->functionDef->flags, NodeDefinitionFlags::Pure),
             "Math::Add should be declared pure.");
+    for (const char* name : {
+            "String::Append", "Math::Add", "Math::Subtract", "Math::Multiply",
+            "Math::Min", "Math::Max", "Logic::And", "Logic::Or" })
+    {
+        const CompiledNodeDefPtr definition = fixture.registry.FindCompiled(name);
+        Require(definition && HasFlag(definition->functionDef->flags, NodeDefinitionFlags::DynamicInputs),
+                "Variadic compiled expressions should declare dynamic inputs.");
+        NodePtr node = definition->MakeNode(fixture.ids);
+        Require(node->Inputs.size() == 2 && node->CanAddInput(),
+                "Variadic compiled expressions should start with two inputs.");
+        node->AddInput(fixture.ids);
+        Require(node->Inputs.size() == 3 && node->InputValues.size() == 3,
+                "Adding a variadic expression input should preserve the input layout.");
+    }
+
+    NodePtr addNode = add->MakeNode(fixture.ids);
+    addNode->AddInput(fixture.ids);
+    Require(addNode->Inputs[2].Type == PinType::Float && isNumber(addNode->InputValues[2]) && asNumber(addNode->InputValues[2]) == 0.0,
+            "Math::Add should use zero as the identity default for additional inputs.");
+    while (addNode->CanAddInput())
+        addNode->AddInput(fixture.ids);
+    Require(addNode->Inputs.size() == 16 && !addNode->CanAddInput() && !addNode->IsValidDynamicInputCount(17),
+            "Math::Add should enforce its maximum input count.");
+    while (addNode->Inputs.size() > 2)
+        addNode->RemoveInput(addNode->Inputs.back().ID);
+    Require(!addNode->CanRemoveInput(addNode->Inputs[0].ID) && !addNode->IsValidDynamicInputCount(1),
+            "Math::Add should enforce its minimum input count.");
+    NodePtr multiplyNode = fixture.registry.FindCompiled("Math::Multiply")->MakeNode(fixture.ids);
+    multiplyNode->AddInput(fixture.ids);
+    Require(multiplyNode->Inputs[2].Type == PinType::Float && isNumber(multiplyNode->InputValues[2]) && asNumber(multiplyNode->InputValues[2]) == 1.0,
+            "Math::Multiply should use one as the identity default for additional inputs.");
+    NodePtr andNode = fixture.registry.FindCompiled("Logic::And")->MakeNode(fixture.ids);
+    andNode->AddInput(fixture.ids);
+    Require(andNode->Inputs[2].Type == PinType::Bool && isBoolean(andNode->InputValues[2]) && asBoolean(andNode->InputValues[2]),
+            "Logic::And should use true as the identity default for additional inputs.");
+    NodePtr orNode = fixture.registry.FindCompiled("Logic::Or")->MakeNode(fixture.ids);
+    orNode->AddInput(fixture.ids);
+    Require(orNode->Inputs[2].Type == PinType::Bool && isBoolean(orNode->InputValues[2]) && !asBoolean(orNode->InputValues[2]),
+            "Logic::Or should use false as the identity default for additional inputs.");
+    NodePtr appendNode = fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
+    appendNode->AddInput(fixture.ids);
+    Require(appendNode->Inputs[2].Type == PinType::Any && isString(appendNode->InputValues[2]) && asString(appendNode->InputValues[2])->length == 0,
+            "String::Append should use empty text as the identity default for additional inputs.");
     Require(print && !HasFlag(print->functionDef->flags, NodeDefinitionFlags::Pure),
             "Debug::Print should be declared impure.");
     for (const char* controlFlowName : {
@@ -265,9 +308,10 @@ void SimpleNodesHideRedundantPinNames()
 {
     RuntimeFixture fixture;
     for (const char* name : {
-            "Math::Negate", "Math::Not Equals", "Math::Greater Or Equal",
-            "Math::Less Or Equal", "Logic::Not", "Logic::And", "Logic::Or",
-            "Value::Is Nil", "String::ToString" })
+            "Math::Add", "Math::Subtract", "Math::Multiply", "Math::Min",
+            "Math::Max", "Math::Negate", "Math::Not Equals",
+            "Math::Greater Or Equal", "Math::Less Or Equal", "Logic::Not",
+            "Logic::And", "Logic::Or", "Value::Is Nil", "String::ToString" })
     {
         const CompiledNodeDefPtr definition = fixture.registry.FindCompiled(name);
         Require(definition != nullptr,
@@ -275,6 +319,8 @@ void SimpleNodesHideRedundantPinNames()
         const NodePtr node = definition->MakeNode(fixture.ids);
         Require(!node->ShowInputPinNames && !node->ShowOutputPinNames,
                 "Self-evident simple nodes should hide their pin names.");
+        Require(node->Type == NodeType::SimpleLargeBody,
+                "Self-evident simple nodes should use the compact presentation.");
     }
 
     for (const char* name : { "Math::Modulo", "Value::Coalesce" })
@@ -708,6 +754,8 @@ void PureNodesAreConstantFolded()
     NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
     add->InputValues[0] = Value(2.0);
     add->InputValues[1] = Value(3.0);
+    add->AddInput(fixture.ids);
+    add->InputValues[2] = Value(4.0);
     NodePtr print = fixture.registry.FindCompiled("Debug::Print")->MakeNode(fixture.ids);
     AttachNode(script.main->Graph, begin);
     AttachNode(script.main->Graph, add);
@@ -731,8 +779,8 @@ void PureNodesAreConstantFolded()
     const size_t index = static_cast<size_t>(
         std::distance(compiled.foldedNodeIds.begin(), folded));
     Require(isNumber(compiled.foldedValues[index]) &&
-            asNumber(compiled.foldedValues[index]) == 5.0,
-            "Constant folding should preserve the Add result.");
+            asNumber(compiled.foldedValues[index]) == 9.0,
+            "Constant folding should preserve every Add input.");
     Require(ScriptRuntime::Execute(fixture.vm, compiled.function) ==
                 InterpretResult::INTERPRET_OK,
             "The folded script should execute successfully.");
@@ -1660,6 +1708,51 @@ void CompleteExpressionNodesCompileAndExecute()
                   Value(false));
     NodePtr shortOr = addExpression(
         "Logic::Or", "ExprOrShort", Value(true), Value(false), true, Value(false));
+    NodePtr manyAdd = addExpression(
+        "Math::Add", "ExprAddMany", Value(1.0), Value(2.0), true, Value(0.0));
+    manyAdd->AddInput(fixture.ids);
+    manyAdd->AddInput(fixture.ids);
+    manyAdd->InputValues[2] = Value(3.0);
+    manyAdd->InputValues[3] = Value(4.0);
+    NodeUtils::BuildNode(manyAdd);
+    NodePtr manySubtract = addExpression(
+        "Math::Subtract", "ExprSubtractMany", Value(20.0), Value(3.0), true, Value(0.0));
+    manySubtract->AddInput(fixture.ids);
+    manySubtract->InputValues[2] = Value(2.0);
+    NodeUtils::BuildNode(manySubtract);
+    NodePtr manyMultiply = addExpression(
+        "Math::Multiply", "ExprMultiplyMany", Value(2.0), Value(3.0), true, Value(0.0));
+    manyMultiply->AddInput(fixture.ids);
+    manyMultiply->InputValues[2] = Value(4.0);
+    NodeUtils::BuildNode(manyMultiply);
+    NodePtr manyMin = addExpression(
+        "Math::Min", "ExprMinMany", Value(4.0), Value(-2.0), true, Value(0.0));
+    manyMin->AddInput(fixture.ids);
+    manyMin->InputValues[2] = Value(8.0);
+    NodeUtils::BuildNode(manyMin);
+    NodePtr manyMax = addExpression(
+        "Math::Max", "ExprMaxMany", Value(4.0), Value(-2.0), true, Value(0.0));
+    manyMax->AddInput(fixture.ids);
+    manyMax->InputValues[2] = Value(8.0);
+    NodeUtils::BuildNode(manyMax);
+    NodePtr manyAnd = addExpression(
+        "Logic::And", "ExprAndMany", Value(true), Value(true), true, Value(false));
+    manyAnd->AddInput(fixture.ids);
+    manyAnd->InputValues[2] = Value(true);
+    NodeUtils::BuildNode(manyAnd);
+    NodePtr manyOr = addExpression(
+        "Logic::Or", "ExprOrMany", Value(false), Value(false), true, Value(false));
+    manyOr->AddInput(fixture.ids);
+    manyOr->InputValues[2] = Value(true);
+    NodeUtils::BuildNode(manyOr);
+    NodePtr lateShortAnd = addExpression(
+        "Logic::And", "ExprAndLateShort", Value(true), Value(false), true, Value(true));
+    lateShortAnd->AddInput(fixture.ids);
+    NodeUtils::BuildNode(lateShortAnd);
+    NodePtr lateShortOr = addExpression(
+        "Logic::Or", "ExprOrLateShort", Value(false), Value(true), true, Value(false));
+    lateShortOr->AddInput(fixture.ids);
+    NodeUtils::BuildNode(lateShortOr);
     addExpression("Value::Coalesce", "ExprCoalesce",
                   Value(), StringValue("fallback"), true, StringValue(""));
     NodePtr shortCoalesce = addExpression(
@@ -1674,6 +1767,14 @@ void CompleteExpressionNodesCompileAndExecute()
         script.main->Graph.AddLink(Link(
             fixture.ids.GetNextId(), failing->Outputs[0].ID,
             expression->Inputs[1].ID));
+    }
+    for (const NodePtr& expression : { lateShortAnd, lateShortOr })
+    {
+        NodePtr failing = BuildFailingExpressionNode(fixture.ids, expression->Inputs[2].Type);
+        AttachNode(script.main->Graph, failing);
+        script.main->Graph.AddLink(Link(
+            fixture.ids.GetNextId(), failing->Outputs[0].ID,
+            expression->Inputs[2].ID));
     }
 
     fixture.vm.setExternalMarkingFunc([&]()
@@ -1698,13 +1799,32 @@ void CompleteExpressionNodesCompileAndExecute()
             "Math::Negate should negate its input.");
     for (const char* name : { "ExprNotEquals", "ExprGreaterEqual",
              "ExprLessEqual", "ExprAnyEquals", "ExprIsNil", "ExprAnd",
-             "ExprOr", "ExprOrShort" })
+             "ExprOr", "ExprOrShort", "ExprAndMany", "ExprOrMany",
+             "ExprOrLateShort" })
         Require(isBoolean(ReadGlobal(fixture.vm, name)) &&
                 asBoolean(ReadGlobal(fixture.vm, name)),
                 "Expected expression result to be true.");
     Require(isBoolean(ReadGlobal(fixture.vm, "ExprAndShort")) &&
             !asBoolean(ReadGlobal(fixture.vm, "ExprAndShort")),
             "Logic::And should preserve a false left operand.");
+    Require(isBoolean(ReadGlobal(fixture.vm, "ExprAndLateShort")) &&
+            !asBoolean(ReadGlobal(fixture.vm, "ExprAndLateShort")),
+            "Logic::And should stop after a false middle operand.");
+    Require(isNumber(ReadGlobal(fixture.vm, "ExprAddMany")) &&
+            asNumber(ReadGlobal(fixture.vm, "ExprAddMany")) == 10.0,
+            "Math::Add should fold every input from left to right.");
+    Require(isNumber(ReadGlobal(fixture.vm, "ExprSubtractMany")) &&
+            asNumber(ReadGlobal(fixture.vm, "ExprSubtractMany")) == 15.0,
+            "Math::Subtract should fold every input from left to right.");
+    Require(isNumber(ReadGlobal(fixture.vm, "ExprMultiplyMany")) &&
+            asNumber(ReadGlobal(fixture.vm, "ExprMultiplyMany")) == 24.0,
+            "Math::Multiply should fold every input from left to right.");
+    Require(isNumber(ReadGlobal(fixture.vm, "ExprMinMany")) &&
+            asNumber(ReadGlobal(fixture.vm, "ExprMinMany")) == -2.0,
+            "Math::Min should select the smallest input.");
+    Require(isNumber(ReadGlobal(fixture.vm, "ExprMaxMany")) &&
+            asNumber(ReadGlobal(fixture.vm, "ExprMaxMany")) == 8.0,
+            "Math::Max should select the largest input.");
     Require(isString(ReadGlobal(fixture.vm, "ExprCoalesce")) &&
             asString(ReadGlobal(fixture.vm, "ExprCoalesce"))->chars == "fallback",
             "Value::Coalesce should use its fallback for nil.");

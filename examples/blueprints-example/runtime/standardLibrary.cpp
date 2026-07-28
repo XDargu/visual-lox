@@ -66,6 +66,7 @@ void RegisterStandardLibrary(NodeRegistry& registry)
         { { "Result", Value(takeString("", 0)) } },
         NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly |
             NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Any, Value(takeString("", 0)) },
         NodeDocumentation{
             "Combines two or more strings in order",
             { "The first piece of text", "The next piece of text" },
@@ -75,29 +76,35 @@ void RegisterStandardLibrary(NodeRegistry& registry)
     registry.RegisterCompiledNode("Math::Add", &CreateAddNode,
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
         { { "Result", Value(0.0) } },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Float, Value(0.0) },
         NodeDocumentation{
-            "Adds two numbers",
+            "Adds two or more numbers",
             { "The first addend", "The second addend" },
-            { "The sum" }
+            { "The sum" },
+            "Another number to add"
         });
     registry.RegisterCompiledNode("Math::Subtract", &CreateSubtractNode,
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
         { { "Result", Value(0.0) } },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Float, Value(0.0) },
         NodeDocumentation{
-            "Subtracts the second number from the first",
-            { "The number to subtract from", "The number to subtract" },
-            { "The difference" }
+            "Subtracts each following number from the running result",
+            { "The number to subtract from", "The first number to subtract" },
+            { "The difference" },
+            "Another number to subtract"
         });
     registry.RegisterCompiledNode("Math::Multiply", &CreateMultiplyNode,
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
         { { "Result", Value(0.0) } },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Float, Value(1.0) },
         NodeDocumentation{
-            "Multiplies two numbers",
+            "Multiplies two or more numbers",
             { "The first factor", "The second factor" },
-            { "The product" }
+            { "The product" },
+            "Another factor to multiply"
         });
     registry.RegisterCompiledNode("Math::Divide", &CreateDivideNode,
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
@@ -107,6 +114,28 @@ void RegisterStandardLibrary(NodeRegistry& registry)
             "Divides the first number by the second",
             { "The dividend", "The divisor" },
             { "The quotient" }
+        });
+    registry.RegisterCompiledNode("Math::Min", &CreateMinNode,
+        { { "A", Value(0.0) }, { "B", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Float, Value(0.0) },
+        NodeDocumentation{
+            "Returns the smallest of two or more numbers",
+            { "The first number to compare", "The second number to compare" },
+            { "The smallest number" },
+            "Another number to compare"
+        });
+    registry.RegisterCompiledNode("Math::Max", &CreateMaxNode,
+        { { "A", Value(0.0) }, { "B", Value(0.0) } },
+        { { "Result", Value(0.0) } },
+        NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Float, Value(0.0) },
+        NodeDocumentation{
+            "Returns the largest of two or more numbers",
+            { "The first number to compare", "The second number to compare" },
+            { "The largest number" },
+            "Another number to compare"
         });
     registry.RegisterCompiledNode("Math::Greater Than", &CreateGreaterNode,
         { { "A", Value(0.0) }, { "B", Value(0.0) } },
@@ -188,19 +217,23 @@ void RegisterStandardLibrary(NodeRegistry& registry)
         });
     registry.RegisterCompiledNode("Logic::And", &BuildAndNode,
         { { "A", Value(false) }, { "B", Value(false) } },
-        { { "Result", Value(false) } }, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { { "Result", Value(false) } }, NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Bool, Value(true) },
         NodeDocumentation{
-            "Returns true only when both inputs are true",
+            "Returns true only when every input is true",
             { "The first condition", "The second condition" },
-            { "True when A and B are both true" }
+            { "True when every condition is true" },
+            "Another condition that must be true"
         });
     registry.RegisterCompiledNode("Logic::Or", &BuildOrNode,
         { { "A", Value(false) }, { "B", Value(false) } },
-        { { "Result", Value(false) } }, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { { "Result", Value(false) } }, NodeDefinitionFlags::DynamicInputs | NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        { 2, 16, PinType::Bool, Value(false) },
         NodeDocumentation{
-            "Returns true when either input is true",
+            "Returns true when any input is true",
             { "The first condition", "The second condition" },
-            { "True when A or B is true" }
+            { "True when any condition is true" },
+            "Another condition that may be true"
         });
     registry.RegisterCompiledNode("Value::Is Nil", &BuildIsNilNode,
         { { "Value", Value() } }, { { "Result", Value(false) } },
@@ -286,6 +319,8 @@ void MarkNodeRegistryRoots(NodeRegistry& registry, VM& vm)
             vm.markValue(input.value);
         for (BasicFunctionDef::Input& output : definition.functionDef->outputs)
             vm.markValue(output.value);
+        if (HasFlag(definition.functionDef->flags, NodeDefinitionFlags::DynamicInputs))
+            vm.markValue(definition.functionDef->dynamicInputProps.defaultValue);
     }
 
     for (CompiledNodeDefPtr& definition : registry.compiledDefinitions)
@@ -294,5 +329,7 @@ void MarkNodeRegistryRoots(NodeRegistry& registry, VM& vm)
             vm.markValue(input.value);
         for (BasicFunctionDef::Input& output : definition->functionDef->outputs)
             vm.markValue(output.value);
+        if (HasFlag(definition->functionDef->flags, NodeDefinitionFlags::DynamicInputs))
+            vm.markValue(definition->functionDef->dynamicInputProps.defaultValue);
     }
 }

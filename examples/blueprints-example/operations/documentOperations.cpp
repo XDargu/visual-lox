@@ -311,6 +311,7 @@ OperationResult DocumentOperations::RemoveDynamicInput(int functionId, ed::NodeI
                 links.push_back(link.ID);
         for (ed::LinkId link : links) function->Graph.DeleteLink(link);
         NodeUtils::BuildNode(node);
+        function->Graph.RefreshTypes();
         return OperationResult::Ok();
     });
 }

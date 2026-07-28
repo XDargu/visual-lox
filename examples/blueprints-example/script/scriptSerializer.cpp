@@ -621,8 +621,7 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
              node->SerializationType == "property.set" || node->SerializationType == "method.call" ||
              node->SerializationType == "method.get");
         if (!isMissingReference && ((!hasDynamicInputs && inputs.size() != node->Inputs.size()) ||
-            (hasDynamicInputs && (inputs.size() < node->Inputs.size() || inputs.size() > 64)))
-           )
+            (hasDynamicInputs && !node->IsValidDynamicInputCount(inputs.size()))))
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid input layout.");
         const std::vector<Pin> definitionInputs = node->Inputs;
         node->Inputs.clear();

@@ -184,6 +184,10 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return simpleInstruction("OP_SUBTRACT", offset);
     case OpCode::OP_MULTIPLY:
         return simpleInstruction("OP_MULTIPLY", offset);
+    case OpCode::OP_MIN:
+        return simpleInstruction("OP_MIN", offset);
+    case OpCode::OP_MAX:
+        return simpleInstruction("OP_MAX", offset);
     case OpCode::OP_DIVIDE:
         return simpleInstruction("OP_DIVIDE", offset);
     case OpCode::OP_MODULO:
@@ -282,5 +286,5 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return offset + 1;
     }
 
-    static_assert(static_cast<int>(OpCode::COUNT) == 57, "Missing operations in the Debug");
+    static_assert(static_cast<int>(OpCode::COUNT) == 59, "Missing operations in the Debug");
 }

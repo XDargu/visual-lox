@@ -42,8 +42,11 @@ struct BlueprintNodeBuilder
 
     void Middle();
 
+    void TopAlignOutputs();
     void Output(PinId id);
     void EndOutput();
+    void BeginOutputControl();
+    void EndOutputControl();
     void Footer();
 
 
@@ -79,6 +82,7 @@ private:
     ImVec2      ContentMin;
     ImVec2      ContentMax;
     bool        HasHeader;
+    bool        OutputsTopAligned;
 };
 
 

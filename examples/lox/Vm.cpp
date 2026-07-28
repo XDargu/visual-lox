@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #include <cstdarg>
 #include <cmath>
 #include <time.h>
@@ -663,6 +664,22 @@ InterpretResult VM::run(int depth)
                 push(Value(a * b));
                 break;
             }
+            case OpCode::OP_MIN:
+            {
+                if (!validateBinaryOperator()) { return InterpretResult::INTERPRET_RUNTIME_ERROR; }
+                const double b = asNumber(pop());
+                const double a = asNumber(pop());
+                push(Value(std::min(a, b)));
+                break;
+            }
+            case OpCode::OP_MAX:
+            {
+                if (!validateBinaryOperator()) { return InterpretResult::INTERPRET_RUNTIME_ERROR; }
+                const double b = asNumber(pop());
+                const double a = asNumber(pop());
+                push(Value(std::max(a, b)));
+                break;
+            }
             case OpCode::OP_DIVIDE:
             {
                 if (!validateBinaryOperator()) { return InterpretResult::INTERPRET_RUNTIME_ERROR; }
@@ -1071,7 +1088,7 @@ InterpretResult VM::run(int depth)
                 defineMethod(readStringLong());
                 break;
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 57, "Missing operations in the VM");
+        static_assert(static_cast<int>(OpCode::COUNT) == 59, "Missing operations in the VM");
     }
 }
 

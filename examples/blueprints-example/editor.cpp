@@ -1639,17 +1639,33 @@ void Example::ShowInspector()
                                   : isConstructor ? "CONSTRUCTOR"
                                                   : owner ? "METHOD" : "FUNCTION");
         ImGui::PushFont(HeaderFont());
-        ImGui::TextWrapped("%s", isConstructor ? owner->Name.c_str()
-                                                : function->functionDef->name.c_str());
+        /*ImGui::TextWrapped("%s", isConstructor ? owner->Name.c_str()
+                                                : function->functionDef->name.c_str());*/
+
+        if (!isConstructor && !isMain)
+        {
+            std::string name = function->functionDef->name;
+            ImGui::SetNextItemWidth(-1.0f);
+            if (ImGui::InputText("Name", &name))
+            {
+                const int functionId = function->ID.id;
+                queueOperation("Function renamed",
+                    [this, functionId, name]()
+                    {
+                        return m_operations->RenameFunction(functionId, name);
+                    }, true);
+            }
+        }
+
         ImGui::PopFont();
         if (owner)
             ImGui::TextDisabled("Class: %s", owner->Name.c_str());
 
+        ImGui::TextDisabled("DESCRIPTION");
         const int functionId = function->ID.id;
         std::string functionDescription = function->functionDef->description;
         ImGui::SetNextItemWidth(-1.0f);
-        if (ImGui::InputTextMultiline(
-                "Description", &functionDescription, ImVec2(-1.0f, 72.0f)))
+        if (ImGui::InputTextMultiline("Description", &functionDescription, ImVec2(-1.0f, 72.0f)))
         {
             queueOperation("Function description updated",
                 [this, functionId, functionDescription]()
@@ -1684,21 +1700,6 @@ void Example::ShowInspector()
 
         if (!isConstructor)
         {
-            std::string name = function->functionDef->name;
-            ImGui::SetNextItemWidth(-1.0f);
-            if (ImGui::InputText("Name", &name))
-            {
-                const int functionId = function->ID.id;
-                queueOperation("Function renamed",
-                    [this, functionId, name]()
-                    {
-                        return m_operations->RenameFunction(functionId, name);
-                    }, true);
-            }
-        }
-
-        if (!isConstructor)
-        {
             bool pure = HasFlag(
                 function->functionDef->flags, NodeDefinitionFlags::Pure);
             if (ImGui::Checkbox("Pure", &pure))
@@ -1721,19 +1722,27 @@ void Example::ShowInspector()
         ImGui::Spacing();
         if (ImGui::CollapsingHeader("Inputs", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::Button(ICON_FA_PLUS " Add input", ImVec2(-1, 0)))
-                pendingActions.push_back(std::make_shared<AddFunctionInputAction>(
-                    this, functionId, m_IDGenerator.GetNextId()));
-
             if (function->functionDef->inputs.empty())
                 ImGui::TextDisabled("No inputs.");
 
-            for (const BasicFunctionDef::Input& input : function->functionDef->inputs)
+            for (size_t inputIndex = 0; inputIndex < function->functionDef->inputs.size(); ++inputIndex)
             {
+                const BasicFunctionDef::Input& input = function->functionDef->inputs[inputIndex];
                 ImGui::PushID(input.id);
-                ImGui::Separator();
+                
+                const std::string inputLabel = std::to_string(inputIndex + 1) + ". " + (input.name.empty() ? "Unnamed input" : input.name) + "  [" + InspectorTypeName(input.type) + "]###input";
+                const bool inputExpanded = ImGui::TreeNodeEx(inputLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
+
+                if (!inputExpanded)
+                {
+                    ImGui::PopID();
+                    continue;
+                }
+
+                ImGui::TextDisabled("NAME");
                 std::string inputName = input.name;
                 ImGui::SetNextItemWidth(-1.0f);
+
                 if (ImGui::InputText("##input-name", &inputName))
                 {
                     queueOperation("Input renamed",
@@ -1743,6 +1752,7 @@ void Example::ShowInspector()
                                 functionId, inputId, inputName);
                         }, true);
                 }
+
                 GraphViewUtils::DrawDeclaredTypeSelection(
                     m_script, input.type,
                     [this, functionId, inputId = input.id, &queueOperation](TypeRef type)
@@ -1753,11 +1763,12 @@ void Example::ShowInspector()
                                 return m_operations->ChangeFunctionInputType(
                                     functionId, inputId, type);
                             }, true);
-                    });
+                    }
+                );
+
+                ImGui::TextDisabled("DEFAULT VALUE");
                 Value value = CloneInspectorValue(input.value);
-                if (DrawInspectorValueEditor(
-                        "input-default", value, input.type == PinType::Any,
-                        0, &input.type))
+                if (DrawInspectorValueEditor("input-default", value, input.type == PinType::Any, 0, &input.type))
                 {
                     queueOperation("Input default updated",
                         [this, functionId, inputId = input.id, value]()
@@ -1766,12 +1777,12 @@ void Example::ShowInspector()
                                 functionId, inputId, value);
                     });
                 }
+
                 std::string inputDescription = input.description;
                 ImGui::TextDisabled("DESCRIPTION");
                 ImGui::SetNextItemWidth(-1.0f);
-                if (ImGui::InputTextMultiline(
-                        "##input-description", &inputDescription,
-                        ImVec2(-1.0f, 54.0f)))
+
+                if (ImGui::InputTextMultiline( "##input-description", &inputDescription, ImVec2(-1.0f, 54.0f)))
                 {
                     queueOperation("Input description updated",
                         [this, functionId, inputId = input.id,
@@ -1781,7 +1792,12 @@ void Example::ShowInspector()
                                 functionId, inputId, inputDescription);
                         }, true);
                 }
-                if (ImGui::Button(ICON_FA_TRASH_CAN " Remove input"))
+
+                const char* removeInputLabel = ICON_FA_TRASH_CAN " Remove input";
+                const float removeInputWidth = ImGui::CalcTextSize(removeInputLabel).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                ImGui::SetCursorPosX(ImMax(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - removeInputWidth));
+
+                if (ImGui::SmallButton(removeInputLabel))
                 {
                     queueOperation("Input removed",
                         [this, functionId, inputId = input.id]()
@@ -1790,26 +1806,38 @@ void Example::ShowInspector()
                                 functionId, inputId);
                         }, true);
                 }
+
+                ImGui::TreePop();
+                ImGui::Spacing();
                 ImGui::PopID();
             }
+
+            if (ImGui::Button(ICON_FA_PLUS " Add input", ImVec2(-1, 0)))
+                pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, functionId, m_IDGenerator.GetNextId()));
         }
 
-        if (!isConstructor &&
-            ImGui::CollapsingHeader("Outputs", ImGuiTreeNodeFlags_DefaultOpen))
+        if (!isConstructor && ImGui::CollapsingHeader("Outputs", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            if (ImGui::Button(ICON_FA_PLUS " Add output", ImVec2(-1, 0)))
-                pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(
-                    this, functionId, m_IDGenerator.GetNextId()));
-
             if (function->functionDef->outputs.empty())
                 ImGui::TextDisabled("No outputs.");
 
-            for (const BasicFunctionDef::Input& output : function->functionDef->outputs)
+            for (size_t outputIndex = 0; outputIndex < function->functionDef->outputs.size(); ++outputIndex)
             {
+                const BasicFunctionDef::Input& output = function->functionDef->outputs[outputIndex];
                 ImGui::PushID(output.id);
-                ImGui::Separator();
+                const std::string outputLabel = std::to_string(outputIndex + 1) + ". " + (output.name.empty() ? "Unnamed output" : output.name) + "  [" + InspectorTypeName(output.type) + "]###output";
+                const bool outputExpanded = ImGui::TreeNodeEx(outputLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
+
+                if (!outputExpanded)
+                {
+                    ImGui::PopID();
+                    continue;
+                }
+
+                ImGui::TextDisabled("NAME");
                 std::string outputName = output.name;
                 ImGui::SetNextItemWidth(-1.0f);
+
                 if (ImGui::InputText("##output-name", &outputName))
                 {
                     queueOperation("Output renamed",
@@ -1819,6 +1847,7 @@ void Example::ShowInspector()
                                 functionId, outputId, outputName);
                         }, true);
                 }
+
                 GraphViewUtils::DrawDeclaredTypeSelection(
                     m_script, output.type,
                     [this, functionId, outputId = output.id, &queueOperation](TypeRef type)
@@ -1829,11 +1858,13 @@ void Example::ShowInspector()
                                 return m_operations->ChangeFunctionOutputType(
                                     functionId, outputId, type);
                             }, true);
-                    });
+                    }
+                );
+
+                ImGui::TextDisabled("DEFAULT VALUE");
                 Value value = CloneInspectorValue(output.value);
-                if (DrawInspectorValueEditor(
-                        "output-default", value, output.type == PinType::Any,
-                        0, &output.type))
+
+                if (DrawInspectorValueEditor("output-default", value, output.type == PinType::Any,0, &output.type))
                 {
                     queueOperation("Output default updated",
                         [this, functionId, outputId = output.id, value]()
@@ -1842,12 +1873,12 @@ void Example::ShowInspector()
                                 functionId, outputId, value);
                     });
                 }
+
                 std::string outputDescription = output.description;
                 ImGui::TextDisabled("DESCRIPTION");
                 ImGui::SetNextItemWidth(-1.0f);
-                if (ImGui::InputTextMultiline(
-                        "##output-description", &outputDescription,
-                        ImVec2(-1.0f, 54.0f)))
+
+                if (ImGui::InputTextMultiline("##output-description", &outputDescription, ImVec2(-1.0f, 54.0f)))
                 {
                     queueOperation("Output description updated",
                         [this, functionId, outputId = output.id,
@@ -1857,7 +1888,12 @@ void Example::ShowInspector()
                                 functionId, outputId, outputDescription);
                         }, true);
                 }
-                if (ImGui::Button(ICON_FA_TRASH_CAN " Remove output"))
+
+                const char* removeOutputLabel = ICON_FA_TRASH_CAN " Remove output";
+                const float removeOutputWidth = ImGui::CalcTextSize(removeOutputLabel).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+                ImGui::SetCursorPosX(ImMax(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - removeOutputWidth));
+
+                if (ImGui::SmallButton(removeOutputLabel))
                 {
                     queueOperation("Output removed",
                         [this, functionId, outputId = output.id]()
@@ -1866,8 +1902,14 @@ void Example::ShowInspector()
                                 functionId, outputId);
                         }, true);
                 }
+
+                ImGui::TreePop();
+                ImGui::Spacing();
                 ImGui::PopID();
             }
+
+            if (ImGui::Button(ICON_FA_PLUS " Add output", ImVec2(-1, 0)))
+                pendingActions.push_back(std::make_shared<AddFunctionOutputAction>(this, functionId, m_IDGenerator.GetNextId()));
         }
 
         ImGui::Spacing();

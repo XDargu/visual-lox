@@ -12,6 +12,7 @@ struct Node
     ImVec2 position = ImVec2(0, 0);
     ImVec2 size = ImVec2(0, 0);
     bool root = false;
+    bool execution = false;
 };
 
 struct Edge
@@ -28,6 +29,8 @@ struct Options
     float columnGap = 120.0f;
     float rowGap = 60.0f;
     float componentGap = 160.0f;
+    float dataColumnGap = 70.0f;
+    float dataRowGap = 35.0f;
     int crossingReductionPasses = 4;
 };
 

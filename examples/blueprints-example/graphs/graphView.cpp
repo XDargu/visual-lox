@@ -2316,7 +2316,13 @@ void GraphView::BeginAutoLayout()
         const ImVec2 size = ed::GetNodeSize(node->ID);
         if (!std::isfinite(position.x) || !std::isfinite(position.y) || size.x <= 0.0f || size.y <= 0.0f)
             return;
-        layoutNodes.push_back({ static_cast<int>(node->ID.Get()), position, size, node->Category == NodeCategory::Begin });
+        layoutNodes.push_back({
+            static_cast<int>(node->ID.Get()),
+            position,
+            size,
+            node->Category == NodeCategory::Begin,
+            !GraphUtils::IsNodeImplicit(node),
+        });
     }
 
     if (layoutNodes.size() < 2)

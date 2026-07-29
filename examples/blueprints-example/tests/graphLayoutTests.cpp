@@ -36,9 +36,9 @@ void RequireNoOverlap(const std::vector<GraphLayout::Node>& nodes, const std::ma
 void ChainMovesLeftToRight()
 {
     const std::vector<GraphLayout::Node> nodes = {
-        { 1, ImVec2(20, 30), ImVec2(160, 80), true },
-        { 2, ImVec2(40, 50), ImVec2(220, 100), false },
-        { 3, ImVec2(60, 70), ImVec2(140, 120), false },
+        { 1, ImVec2(20, 30), ImVec2(160, 80), true, true },
+        { 2, ImVec2(40, 50), ImVec2(220, 100), false, true },
+        { 3, ImVec2(60, 70), ImVec2(140, 120), false, true },
     };
     const std::vector<GraphLayout::Edge> edges = {
         { 1, 2, 0, 0, true },
@@ -53,9 +53,9 @@ void ChainMovesLeftToRight()
 void BranchesFollowOutputOrder()
 {
     const std::vector<GraphLayout::Node> nodes = {
-        { 1, ImVec2(0, 0), ImVec2(160, 90), true },
-        { 2, ImVec2(0, 300), ImVec2(180, 90), false },
-        { 3, ImVec2(0, 100), ImVec2(180, 90), false },
+        { 1, ImVec2(0, 0), ImVec2(160, 90), true, true },
+        { 2, ImVec2(0, 300), ImVec2(180, 90), false, true },
+        { 3, ImVec2(0, 100), ImVec2(180, 90), false, true },
     };
     const std::vector<GraphLayout::Edge> edges = {
         { 1, 2, 0, 0, true },
@@ -69,9 +69,9 @@ void BranchesFollowOutputOrder()
 void CyclesAndDisconnectedNodesRemainFinite()
 {
     const std::vector<GraphLayout::Node> nodes = {
-        { 1, ImVec2(-50, -30), ImVec2(150, 90), true },
-        { 2, ImVec2(0, 0), ImVec2(150, 90), false },
-        { 3, ImVec2(0, 0), ImVec2(150, 90), false },
+        { 1, ImVec2(-50, -30), ImVec2(150, 90), true, true },
+        { 2, ImVec2(0, 0), ImVec2(150, 90), false, true },
+        { 3, ImVec2(0, 0), ImVec2(150, 90), false, true },
         { 4, ImVec2(400, 100), ImVec2(120, 70), false },
     };
     const std::vector<GraphLayout::Edge> edges = {
@@ -89,13 +89,44 @@ void CyclesAndDisconnectedNodesRemainFinite()
     RequireNoOverlap(nodes, positions);
 }
 
+void DataDependenciesClusterAroundTheirExecutionConsumer()
+{
+    const std::vector<GraphLayout::Node> nodes = {
+        { 1, ImVec2(0, 100), ImVec2(160, 90), true, true },
+        { 2, ImVec2(600, 100), ImVec2(180, 100), false, true },
+        { 3, ImVec2(1000, 100), ImVec2(170, 90), false, true },
+        { 10, ImVec2(100, 400), ImVec2(150, 70), false, false },
+        { 11, ImVec2(300, 350), ImVec2(180, 90), false, false },
+        { 12, ImVec2(100, 500), ImVec2(140, 70), false, false },
+    };
+    const std::vector<GraphLayout::Edge> edges = {
+        { 1, 2, 0, 0, true },
+        { 2, 3, 0, 0, true },
+        { 10, 11, 0, 0, false },
+        { 12, 11, 0, 1, false },
+        { 11, 2, 0, 1, false },
+    };
+    const auto positions = Positions(GraphLayout::Calculate(nodes, edges));
+    Require(positions.at(1).x < positions.at(2).x && positions.at(2).x < positions.at(3).x, "Data dependencies distorted the execution order.");
+    Require(positions.at(10).x < positions.at(11).x && positions.at(11).x < positions.at(2).x, "Pulled data nodes were not placed upstream of their consumer.");
+    const float directGap = positions.at(2).x - (positions.at(11).x + nodes[4].size.x);
+    Require(std::abs(directGap - GraphLayout::Options().dataColumnGap) < 0.001f, "A direct data dependency was not kept close to its consumer.");
+    Require(positions.at(11).y + nodes[4].size.y < positions.at(2).y, "Pulled data nodes obstruct the execution-flow row.");
+    const float beginCenter = positions.at(1).y + nodes[0].size.y * 0.5f;
+    const float consumerCenter = positions.at(2).y + nodes[1].size.y * 0.5f;
+    const float returnCenter = positions.at(3).y + nodes[2].size.y * 0.5f;
+    Require(std::abs(beginCenter - consumerCenter) < 0.001f && std::abs(consumerCenter - returnCenter) < 0.001f,
+            "Data clusters pulled execution nodes away from the flow backbone.");
+    RequireNoOverlap(nodes, positions);
+}
+
 void LayoutIsDeterministic()
 {
     std::vector<GraphLayout::Node> nodes = {
-        { 4, ImVec2(800, 400), ImVec2(140, 80), false },
-        { 2, ImVec2(200, 300), ImVec2(180, 100), false },
-        { 1, ImVec2(100, 200), ImVec2(160, 90), true },
-        { 3, ImVec2(600, 100), ImVec2(190, 120), false },
+        { 4, ImVec2(800, 400), ImVec2(140, 80), false, true },
+        { 2, ImVec2(200, 300), ImVec2(180, 100), false, true },
+        { 1, ImVec2(100, 200), ImVec2(160, 90), true, true },
+        { 3, ImVec2(600, 100), ImVec2(190, 120), false, true },
     };
     const std::vector<GraphLayout::Edge> edges = {
         { 1, 2, 0, 0, true },
@@ -122,6 +153,7 @@ void AddGraphLayoutTests(Tests::Runner& runner)
         runner.Test("chains move left to right", ChainMovesLeftToRight);
         runner.Test("branches follow output order", BranchesFollowOutputOrder);
         runner.Test("cycles and disconnected nodes remain finite", CyclesAndDisconnectedNodesRemainFinite);
+        runner.Test("data dependencies cluster around their execution consumer", DataDependenciesClusterAroundTheirExecutionConsumer);
         runner.Test("layout is deterministic", LayoutIsDeterministic);
     });
 }

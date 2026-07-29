@@ -266,8 +266,15 @@ ComponentLayout LayoutComponent(const std::vector<size_t>& componentNodes, const
 }
 }
 
-std::vector<GraphLayout::Position> GraphLayout::Calculate(const std::vector<Node>& inputNodes, const std::vector<Edge>& inputEdges, const Options& options)
+namespace
 {
+std::vector<GraphLayout::Position> CalculateLayered(const std::vector<GraphLayout::Node>& inputNodes, const std::vector<GraphLayout::Edge>& inputEdges,
+                                                    const GraphLayout::Options& options)
+{
+    using GraphLayout::Edge;
+    using GraphLayout::Node;
+    using GraphLayout::Position;
+
     std::vector<Node> nodes;
     nodes.reserve(inputNodes.size());
     for (const Node& node : inputNodes)
@@ -376,6 +383,274 @@ std::vector<GraphLayout::Position> GraphLayout::Calculate(const std::vector<Node
     for (const ComponentLayout& component : components)
         for (const auto& [nodeIndex, position] : component.positions)
             result.push_back({ nodes[nodeIndex].id, ImVec2(position.x + finalTranslation.x, position.y + finalTranslation.y) });
+    std::stable_sort(result.begin(), result.end(), [](const Position& left, const Position& right) { return left.id < right.id; });
+    return result;
+}
+}
+
+namespace
+{
+struct DataAssignment
+{
+    int ownerId = 0;
+    int distance = std::numeric_limits<int>::max();
+    int inputOrder = std::numeric_limits<int>::max();
+};
+
+struct DataCluster
+{
+    size_t ownerIndex = 0;
+    std::map<size_t, ImVec2> localPositions;
+    ImVec2 minimum = ImVec2(0, 0);
+    ImVec2 maximum = ImVec2(0, 0);
+};
+
+void ExpandBounds(ImVec2 position, ImVec2 size, ImVec2& minimum, ImVec2& maximum)
+{
+    minimum.x = (std::min)(minimum.x, position.x);
+    minimum.y = (std::min)(minimum.y, position.y);
+    maximum.x = (std::max)(maximum.x, position.x + (std::max)(1.0f, size.x));
+    maximum.y = (std::max)(maximum.y, position.y + (std::max)(1.0f, size.y));
+}
+
+DataCluster BuildDataCluster(size_t ownerIndex, const std::vector<GraphLayout::Node>& nodes, const std::vector<DataAssignment>& assignments,
+                             const GraphLayout::Options& options)
+{
+    DataCluster cluster;
+    cluster.ownerIndex = ownerIndex;
+    cluster.localPositions[ownerIndex] = ImVec2(0, 0);
+    cluster.minimum = ImVec2(0, 0);
+    cluster.maximum = ImVec2(NodeWidth(nodes[ownerIndex]), NodeHeight(nodes[ownerIndex]));
+
+    int maximumDistance = 0;
+    for (size_t index = 0; index < nodes.size(); ++index)
+        if (!nodes[index].execution && assignments[index].ownerId == nodes[ownerIndex].id)
+            maximumDistance = (std::max)(maximumDistance, assignments[index].distance);
+
+    float nextColumnRight = -options.dataColumnGap;
+    for (int distance = 1; distance <= maximumDistance; ++distance)
+    {
+        std::vector<size_t> column;
+        for (size_t index = 0; index < nodes.size(); ++index)
+            if (!nodes[index].execution && assignments[index].ownerId == nodes[ownerIndex].id && assignments[index].distance == distance)
+                column.push_back(index);
+        if (column.empty())
+            continue;
+
+        std::stable_sort(column.begin(), column.end(), [&](size_t left, size_t right)
+        {
+            if (assignments[left].inputOrder != assignments[right].inputOrder)
+                return assignments[left].inputOrder < assignments[right].inputOrder;
+            if (nodes[left].position.y != nodes[right].position.y)
+                return nodes[left].position.y < nodes[right].position.y;
+            return nodes[left].id < nodes[right].id;
+        });
+
+        float columnWidth = 0.0f;
+        float columnHeight = 0.0f;
+        for (size_t nodeIndex : column)
+        {
+            columnWidth = (std::max)(columnWidth, NodeWidth(nodes[nodeIndex]));
+            columnHeight += NodeHeight(nodes[nodeIndex]);
+        }
+        if (column.size() > 1)
+            columnHeight += options.dataRowGap * static_cast<float>(column.size() - 1);
+
+        const float columnLeft = nextColumnRight - columnWidth;
+        float y = -options.dataRowGap - columnHeight;
+        for (size_t nodeIndex : column)
+        {
+            const ImVec2 position(columnLeft, y);
+            cluster.localPositions[nodeIndex] = position;
+            ExpandBounds(position, nodes[nodeIndex].size, cluster.minimum, cluster.maximum);
+            y += NodeHeight(nodes[nodeIndex]) + options.dataRowGap;
+        }
+        nextColumnRight = columnLeft - options.dataColumnGap;
+    }
+
+    const float ownerCenterY = NodeHeight(nodes[ownerIndex]) * 0.5f;
+    const float verticalRadius = (std::max)(ownerCenterY - cluster.minimum.y, cluster.maximum.y - ownerCenterY);
+    cluster.minimum.y = ownerCenterY - verticalRadius;
+    cluster.maximum.y = ownerCenterY + verticalRadius;
+
+    return cluster;
+}
+
+std::map<int, ImVec2> IndexPositions(const std::vector<GraphLayout::Position>& positions)
+{
+    std::map<int, ImVec2> result;
+    for (const GraphLayout::Position& position : positions)
+        result[position.id] = position.value;
+    return result;
+}
+}
+
+std::vector<GraphLayout::Position> GraphLayout::Calculate(const std::vector<Node>& inputNodes, const std::vector<Edge>& inputEdges, const Options& options)
+{
+    std::vector<Node> nodes;
+    nodes.reserve(inputNodes.size());
+    for (const Node& node : inputNodes)
+        if (node.id != 0 && IsFinite(node.position) && IsFinite(node.size))
+            nodes.push_back(node);
+    std::stable_sort(nodes.begin(), nodes.end(), [](const Node& left, const Node& right) { return left.id < right.id; });
+    nodes.erase(std::unique(nodes.begin(), nodes.end(), [](const Node& left, const Node& right) { return left.id == right.id; }), nodes.end());
+    if (nodes.empty())
+        return {};
+
+    std::map<int, size_t> nodeById;
+    for (size_t index = 0; index < nodes.size(); ++index)
+        nodeById[nodes[index].id] = index;
+
+    std::vector<Edge> edges;
+    edges.reserve(inputEdges.size());
+    for (const Edge& edge : inputEdges)
+        if (nodeById.count(edge.from) && nodeById.count(edge.to) && edge.from != edge.to)
+            edges.push_back(edge);
+
+    const bool hasExecutionNodes = std::any_of(nodes.begin(), nodes.end(), [](const Node& node) { return node.execution; });
+    if (!hasExecutionNodes)
+        return CalculateLayered(nodes, edges, options);
+
+    std::vector<std::vector<const Edge*>> dataEdgesFrom(nodes.size());
+    for (const Edge& edge : edges)
+        if (!edge.flow)
+            dataEdgesFrom[nodeById.at(edge.from)].push_back(&edge);
+
+    std::vector<DataAssignment> assignments(nodes.size());
+    for (size_t start = 0; start < nodes.size(); ++start)
+    {
+        if (nodes[start].execution)
+            continue;
+
+        std::queue<std::pair<size_t, int>> remaining;
+        std::vector<int> bestDistance(nodes.size(), std::numeric_limits<int>::max());
+        remaining.push({ start, 0 });
+        bestDistance[start] = 0;
+        while (!remaining.empty())
+        {
+            const auto [current, distance] = remaining.front();
+            remaining.pop();
+            for (const Edge* edge : dataEdgesFrom[current])
+            {
+                const size_t target = nodeById.at(edge->to);
+                const int candidateDistance = distance + 1;
+                if (nodes[target].execution)
+                {
+                    const auto candidate = std::make_tuple(candidateDistance, nodes[target].id, edge->targetOrder);
+                    const auto currentBest = std::make_tuple(assignments[start].distance, assignments[start].ownerId, assignments[start].inputOrder);
+                    if (assignments[start].ownerId == 0 || candidate < currentBest)
+                        assignments[start] = { nodes[target].id, candidateDistance, edge->targetOrder };
+                }
+                else if (candidateDistance < bestDistance[target])
+                {
+                    bestDistance[target] = candidateDistance;
+                    remaining.push({ target, candidateDistance });
+                }
+            }
+        }
+    }
+
+    std::map<int, DataCluster> clusters;
+    std::vector<Node> compoundNodes;
+    for (size_t index = 0; index < nodes.size(); ++index)
+    {
+        if (!nodes[index].execution)
+            continue;
+        DataCluster cluster = BuildDataCluster(index, nodes, assignments, options);
+        compoundNodes.push_back({
+            nodes[index].id,
+            ImVec2(nodes[index].position.x + cluster.minimum.x, nodes[index].position.y + cluster.minimum.y),
+            ImVec2(cluster.maximum.x - cluster.minimum.x, cluster.maximum.y - cluster.minimum.y),
+            nodes[index].root,
+            true,
+        });
+        clusters.emplace(nodes[index].id, std::move(cluster));
+    }
+
+    std::vector<Edge> flowEdges;
+    for (const Edge& edge : edges)
+    {
+        const size_t from = nodeById.at(edge.from);
+        const size_t to = nodeById.at(edge.to);
+        if (edge.flow && nodes[from].execution && nodes[to].execution)
+            flowEdges.push_back(edge);
+    }
+
+    const std::map<int, ImVec2> compoundPositions = IndexPositions(CalculateLayered(compoundNodes, flowEdges, options));
+    std::vector<Position> result;
+    result.reserve(nodes.size());
+    for (const auto& [ownerId, cluster] : clusters)
+    {
+        const ImVec2 blockPosition = compoundPositions.at(ownerId);
+        const ImVec2 ownerPosition(blockPosition.x - cluster.minimum.x, blockPosition.y - cluster.minimum.y);
+        for (const auto& [nodeIndex, localPosition] : cluster.localPositions)
+            result.push_back({ nodes[nodeIndex].id, ImVec2(ownerPosition.x + localPosition.x, ownerPosition.y + localPosition.y) });
+    }
+
+    std::vector<Node> orphanNodes;
+    std::set<int> orphanIds;
+    for (size_t index = 0; index < nodes.size(); ++index)
+    {
+        if (!nodes[index].execution && assignments[index].ownerId == 0)
+        {
+            orphanNodes.push_back(nodes[index]);
+            orphanIds.insert(nodes[index].id);
+        }
+    }
+    if (!orphanNodes.empty())
+    {
+        std::vector<Edge> orphanEdges;
+        for (const Edge& edge : edges)
+            if (orphanIds.count(edge.from) && orphanIds.count(edge.to))
+                orphanEdges.push_back(edge);
+
+        Options orphanOptions = options;
+        orphanOptions.columnGap = options.dataColumnGap;
+        orphanOptions.rowGap = options.dataRowGap;
+        std::vector<Position> orphanPositions = CalculateLayered(orphanNodes, orphanEdges, orphanOptions);
+
+        float flowMinimumX = std::numeric_limits<float>::max();
+        float flowMaximumY = std::numeric_limits<float>::lowest();
+        for (const Position& position : result)
+        {
+            const Node& node = nodes[nodeById.at(position.id)];
+            flowMinimumX = (std::min)(flowMinimumX, position.value.x);
+            flowMaximumY = (std::max)(flowMaximumY, position.value.y + NodeHeight(node));
+        }
+        float orphanMinimumX = std::numeric_limits<float>::max();
+        float orphanMinimumY = std::numeric_limits<float>::max();
+        for (const Position& position : orphanPositions)
+        {
+            orphanMinimumX = (std::min)(orphanMinimumX, position.value.x);
+            orphanMinimumY = (std::min)(orphanMinimumY, position.value.y);
+        }
+        const ImVec2 translation(flowMinimumX - orphanMinimumX, flowMaximumY + options.componentGap - orphanMinimumY);
+        for (Position& position : orphanPositions)
+        {
+            position.value.x += translation.x;
+            position.value.y += translation.y;
+            result.push_back(position);
+        }
+    }
+
+    ImVec2 oldMinimum(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    ImVec2 newMinimum(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+    for (const Node& node : nodes)
+    {
+        oldMinimum.x = (std::min)(oldMinimum.x, node.position.x);
+        oldMinimum.y = (std::min)(oldMinimum.y, node.position.y);
+    }
+    for (const Position& position : result)
+    {
+        newMinimum.x = (std::min)(newMinimum.x, position.value.x);
+        newMinimum.y = (std::min)(newMinimum.y, position.value.y);
+    }
+    const ImVec2 finalTranslation(oldMinimum.x - newMinimum.x, oldMinimum.y - newMinimum.y);
+    for (Position& position : result)
+    {
+        position.value.x += finalTranslation.x;
+        position.value.y += finalTranslation.y;
+    }
     std::stable_sort(result.begin(), result.end(), [](const Position& left, const Position& right) { return left.id < right.id; });
     return result;
 }

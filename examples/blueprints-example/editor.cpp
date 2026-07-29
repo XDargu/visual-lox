@@ -4122,41 +4122,21 @@ void Example::PasteClipboard()
             ? m_graphView.lastCanvasMousePosition
             : ed::ScreenToCanvas(ImGui::GetMousePos());
         std::vector<int> pasted;
-        const OperationResult result = m_operations->PasteNodes(functionId, pasted);
+        const OperationResult result = m_operations->PasteNodes(
+            functionId, pasted, std::make_pair(
+                static_cast<double>(pasteAnchor.x),
+                static_cast<double>(pasteAnchor.y)));
         m_fileStatusIsError = !result;
         m_fileStatus = result ? "Pasted nodes" : result.error;
         if (result)
         {
             ScriptFunctionPtr function = functionId == m_script.main->ID.id
                 ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
-            std::vector<std::pair<NodePtr, ImVec2>> pastedNodes;
-            pastedNodes.reserve(pasted.size());
             for (const int id : pasted)
             {
                 NodePtr pastedNode = function->Graph.FindNode(ed::NodeId(id));
-                if (!pastedNode)
-                    continue;
-                m_graphView.RegisterNode(pastedNode);
-                pastedNodes.emplace_back(pastedNode, ed::GetNodePosition(pastedNode->ID));
-            }
-
-            if (!pastedNodes.empty())
-            {
-                const auto leftmost = std::min_element(
-                    pastedNodes.begin(), pastedNodes.end(),
-                    [](const auto& left, const auto& right)
-                    {
-                        if (left.second.x != right.second.x)
-                            return left.second.x < right.second.x;
-                        return left.second.y < right.second.y;
-                    });
-                const ImVec2 offset = pasteAnchor - leftmost->second;
-                for (const auto& [pastedNode, originalPosition] : pastedNodes)
-                {
-                    m_graphView.amendNextNodePosition.insert(
-                        static_cast<int>(pastedNode->ID.Get()));
-                    ed::SetNodePosition(pastedNode->ID, originalPosition + offset);
-                }
+                if (pastedNode)
+                    m_graphView.RegisterNode(pastedNode);
             }
 
             bool append = false;

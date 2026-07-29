@@ -227,6 +227,86 @@ OperationResult DocumentOperations::Connect(int functionId, ed::PinId first, ed:
     });
 }
 
+OperationResult DocumentOperations::ConnectCompatiblePins(
+    int functionId, ed::NodeId existingNodeId, ed::NodeId newNodeId,
+    ed::PinId preferredPinId, const std::vector<ProcessedNode>& processedNodes)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    NodePtr existingNode = function->Graph.FindNode(existingNodeId);
+    NodePtr newNode = function->Graph.FindNode(newNodeId);
+    if (!existingNode || !newNode)
+        return OperationResult::Fail("The nodes to connect no longer exist.");
+
+    Pin* preferredPin = preferredPinId ? function->Graph.FindPin(preferredPinId) : nullptr;
+    if (preferredPin && preferredPin->Node != existingNode)
+        return OperationResult::Fail("The preferred pin does not belong to the source node.");
+
+    const bool existingFeedsNew = !preferredPin || preferredPin->Kind == PinKind::Output;
+    NodePtr outputNode = existingFeedsNew ? existingNode : newNode;
+    NodePtr inputNode = existingFeedsNew ? newNode : existingNode;
+    std::set<int> connectedInputs;
+    std::set<int> connectedOutputs;
+
+    const auto connect = [&](Pin& output, Pin& input, bool allowReplacement) -> OperationResult
+    {
+        if (!allowReplacement &&
+            (function->Graph.IsPinLinked(input.ID) ||
+             (output.Type == PinType::Flow && function->Graph.IsPinLinked(output.ID))))
+            return OperationResult::Ok();
+        if (function->Graph.CanCreateLink(&output, &input, processedNodes) != ELinkQueryResult::Possible)
+            return OperationResult::Ok();
+        OperationResult result = Connect(functionId, output.ID, input.ID, processedNodes);
+        if (result)
+        {
+            connectedInputs.insert(input.ID.Get());
+            connectedOutputs.insert(output.ID.Get());
+        }
+        return result;
+    };
+
+    if (preferredPin)
+    {
+        if (preferredPin->Kind == PinKind::Output)
+        {
+            for (Pin& input : inputNode->Inputs)
+            {
+                OperationResult result = connect(*preferredPin, input, true);
+                if (!result) return result;
+                if (connectedInputs.find(input.ID.Get()) != connectedInputs.end())
+                    break;
+            }
+        }
+        else
+        {
+            for (Pin& output : outputNode->Outputs)
+            {
+                OperationResult result = connect(output, *preferredPin, true);
+                if (!result) return result;
+                if (connectedInputs.find(preferredPin->ID.Get()) != connectedInputs.end())
+                    break;
+            }
+        }
+    }
+
+    for (Pin& output : outputNode->Outputs)
+    {
+        if (connectedOutputs.find(output.ID.Get()) != connectedOutputs.end())
+            continue;
+        for (Pin& input : inputNode->Inputs)
+        {
+            if (connectedInputs.find(input.ID.Get()) != connectedInputs.end() ||
+                function->Graph.IsPinLinked(input.ID))
+                continue;
+            OperationResult result = connect(output, input, false);
+            if (!result) return result;
+            if (connectedOutputs.find(output.ID.Get()) != connectedOutputs.end())
+                break;
+        }
+    }
+    return OperationResult::Ok();
+}
+
 OperationResult DocumentOperations::Disconnect(int functionId, ed::LinkId linkId)
 {
     ScriptFunctionPtr function = FindFunction(functionId);
@@ -441,7 +521,9 @@ OperationResult DocumentOperations::CopyNodes(int functionId, const std::vector<
     return OperationResult::Ok();
 }
 
-OperationResult DocumentOperations::PasteNodes(int functionId, std::vector<int>& pastedNodeIds)
+OperationResult DocumentOperations::PasteNodes(
+    int functionId, std::vector<int>& pastedNodeIds,
+    std::optional<std::pair<double, double>> pastePosition)
 {
     if (m_clipboard.kind != ClipboardKind::Nodes)
         return OperationResult::Fail("The clipboard does not contain nodes.");
@@ -455,7 +537,7 @@ OperationResult DocumentOperations::PasteNodes(int functionId, std::vector<int>&
     {
         SerializationResult cloned = ScriptSerializer::CloneNodes(
             source, m_clipboard.ownerId, m_clipboard.elementIds, m_registry,
-            m_script, functionId, m_ids, pastedNodeIds);
+            m_script, functionId, m_ids, pastedNodeIds, pastePosition);
         return cloned ? OperationResult::Ok() : OperationResult::Fail(cloned.error);
     });
 }

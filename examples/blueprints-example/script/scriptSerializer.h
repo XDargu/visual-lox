@@ -2,6 +2,7 @@
 
 #include "script.h"
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,7 +47,8 @@ public:
                                           const std::vector<int>& nodeIds,
                                           const NodeRegistry& registry, Script& destination,
                                           int destinationFunctionId, IDGenerator& ids,
-                                          std::vector<int>& pastedNodeIds);
+                                          std::vector<int>& pastedNodeIds,
+                                          std::optional<std::pair<double, double>> pastePosition = std::nullopt);
     static SerializationResult CloneFunction(const Script& source, int functionId,
                                              const NodeRegistry& registry, Script& destination,
                                              IDGenerator& ids, int& pastedFunctionId);

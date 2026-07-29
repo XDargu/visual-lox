@@ -10,10 +10,12 @@
 #include "../runtime/standardLibrary.h"
 
 #include <Vm.h>
+#include <crude_json.h>
 
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -30,6 +32,17 @@ void Attach(Graph& graph, const NodePtr& node)
 {
     NodeUtils::BuildNode(node);
     graph.AddNode(node);
+}
+
+std::pair<double, double> ReadNodeLocation(const NodePtr& node)
+{
+    crude_json::value parsed = crude_json::value::parse(node->State);
+    if (parsed.is_discarded() || !parsed.is_object() || !parsed.contains("location"))
+        throw std::runtime_error("Node state has no location.");
+    crude_json::value& location = parsed["location"];
+    if (location.is_array())
+        return { location[0].get<crude_json::number>(), location[1].get<crude_json::number>() };
+    return { location["x"].get<crude_json::number>(), location["y"].get<crude_json::number>() };
 }
 
 struct OperationsFixture
@@ -423,6 +436,79 @@ void NodeFragmentsPreserveLinksAndUseFreshIds()
             "Redo did not restore the pasted node fragment.");
 }
 
+void PastedNodesUseRequestedPosition()
+{
+    OperationsFixture fixture;
+    const CompiledNodeDefPtr addDefinition = fixture.registry.FindCompiled("Math::Add");
+    NodePtr first = addDefinition->MakeNode(fixture.ids);
+    NodePtr second = addDefinition->MakeNode(fixture.ids);
+    first->State = "{\"location\":{\"x\":100,\"y\":100}}";
+    second->State = "{\"location\":[160,180]}";
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, first),
+            "Adding the first positioned node failed.");
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, second),
+            "Adding the second positioned node failed.");
+    RequireSuccess(fixture.operations->CopyNodes(fixture.script.main->ID.id,
+                    { static_cast<int>(first->ID.Get()), static_cast<int>(second->ID.Get()) }),
+            "Copying positioned nodes failed.");
+
+    std::vector<int> pasted;
+    RequireSuccess(fixture.operations->PasteNodes(
+                    fixture.script.main->ID.id, pasted, std::make_pair(500.0, 400.0)),
+            "Pasting nodes at a requested position failed.");
+    Require(pasted.size() == 2, "Positioned paste did not recreate both nodes.");
+    const auto firstLocation = ReadNodeLocation(
+        fixture.script.main->Graph.FindNode(ed::NodeId(pasted[0])));
+    const auto secondLocation = ReadNodeLocation(
+        fixture.script.main->Graph.FindNode(ed::NodeId(pasted[1])));
+    Require(firstLocation == std::make_pair(500.0, 400.0),
+            "The top-left pasted node was not placed at the requested position.");
+    Require(secondLocation == std::make_pair(560.0, 480.0),
+            "Pasting did not preserve the relative distance between nodes.");
+}
+
+void CompatiblePinsConnectForNodeCreation()
+{
+    const auto verifyConnections = [](bool usePreferredPin)
+    {
+        OperationsFixture fixture;
+        fixture.begin->Outputs.emplace_back(
+            fixture.ids.GetNextId(), "Arguments", TypeRef::List(PinType::String));
+        NodeUtils::BuildNode(fixture.begin);
+        NodePtr forIn = fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
+        RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, forIn),
+                "Adding a For In node failed.");
+
+        const ed::PinId preferredPin = usePreferredPin
+            ? fixture.begin->Outputs[1].ID : ed::PinId(0);
+        RequireSuccess(fixture.operations->ConnectCompatiblePins(
+                        fixture.script.main->ID.id, fixture.begin->ID, forIn->ID, preferredPin),
+                "Automatically connecting compatible pins failed.");
+        Require(fixture.script.main->Graph.GetLinks().size() == 2,
+                "Automatic connection did not connect both flow and data.");
+        Require(fixture.script.main->Graph.IsPinLinked(forIn->Inputs[0].ID) &&
+                fixture.script.main->Graph.IsPinLinked(forIn->Inputs[1].ID),
+                "Automatic connection left a compatible For In input unconnected.");
+    };
+
+    verifyConnections(false);
+    verifyConnections(true);
+
+    OperationsFixture fixture;
+    const CompiledNodeDefPtr addDefinition = fixture.registry.FindCompiled("Math::Add");
+    NodePtr source = addDefinition->MakeNode(fixture.ids);
+    NodePtr target = addDefinition->MakeNode(fixture.ids);
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, source),
+            "Adding an automatic-connection source failed.");
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, target),
+            "Adding an automatic-connection target failed.");
+    RequireSuccess(fixture.operations->ConnectCompatiblePins(
+                    fixture.script.main->ID.id, source->ID, target->ID),
+            "Automatically connecting a single-output node failed.");
+    Require(fixture.script.main->Graph.GetLinks().size() == 1,
+            "One source output was connected to more than one target input.");
+}
+
 void PastedFunctionsRemapInternalReferences()
 {
     OperationsFixture fixture;
@@ -661,6 +747,8 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
     runner.Group("Document operations / clipboard", [&]()
     {
         runner.Test("node fragments preserve links and use fresh IDs", NodeFragmentsPreserveLinksAndUseFreshIds);
+        runner.Test("pasted nodes use the requested position", PastedNodesUseRequestedPosition);
+        runner.Test("compatible pins connect during node creation", CompatiblePinsConnectForNodeCreation);
         runner.Test("pasted functions remap internal references", PastedFunctionsRemapInternalReferences);
         runner.Test("pasted variables use fresh IDs", PastedVariablesUseFreshIds);
         runner.Test("function inputs can be pasted to another function", FunctionInputsCanBePastedToAnotherFunction);

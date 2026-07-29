@@ -381,17 +381,17 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
 
 void GraphView::RegisterNode(const NodePtr& node)
 {
-    if (!node)
+    if (!node || !m_Editor)
         return;
-    // Creating a node can initialize settings from Blueprints.json. Keep the
-    // graph-owned state authoritative so loading or pasting cannot be
-    // overwritten by defaults before RestoreNodeState runs.
-    const std::string persistedState = node->State;
-    ed::BeginNode(node->ID);
-    ed::EndNode();
-    node->State = persistedState;
+
+    auto* internalEditor =
+        reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(m_Editor);
+    ax::NodeEditor::Detail::Node* internalNode =
+        internalEditor->FindNode(node->ID);
+    if (!internalNode)
+        internalNode = internalEditor->CreateNode(node->ID);
     if (!node->State.empty())
-        ed::RestoreNodeState(node->ID);
+        internalEditor->MarkNodeToRestoreState(internalNode);
 }
 
 void GraphView::Destroy()
@@ -2003,6 +2003,17 @@ void GraphView::DrawContextMenu()
 
         if (node)
         {
+            const Pin* preferredConnectionPin = newNodeLinkPin;
+            NodePtr sourceNode = preferredConnectionPin ? preferredConnectionPin->Node : nullptr;
+            if (!sourceNode)
+            {
+                std::vector<ed::NodeId> selectedNodes(ed::GetSelectedObjectCount());
+                const int selectedNodeCount = ed::GetSelectedNodes(
+                    selectedNodes.data(), static_cast<int>(selectedNodes.size()));
+                if (selectedNodeCount == 1)
+                    sourceNode = m_pGraph->FindNode(selectedNodes.front());
+            }
+
             recentNodeTypes.erase(
                 std::remove(recentNodeTypes.begin(), recentNodeTypes.end(), createdNodeKey),
                 recentNodeTypes.end());
@@ -2018,25 +2029,11 @@ void GraphView::DrawContextMenu()
             ed::SetNodePosition(node->ID, newNodePostion);
             ed::SelectNode(node->ID);
 
-            if (auto startPin = newNodeLinkPin)
-            {
-                auto& pins = startPin->Kind == PinKind::Input ? node->Outputs : node->Inputs;
-
-                for (auto& pin : pins)
-                {
-                    if (m_pGraph->CanCreateLink(startPin, &pin, processedNodes) == ELinkQueryResult::Possible)
-                    {
-                        auto endPin = &pin;
-                        if (startPin->Kind == PinKind::Input)
-                            std::swap(startPin, endPin);
-
-                        OperationResult operation = m_pOperations->Connect(
-                            m_pScriptFunction->ID.id, startPin->ID, endPin->ID, processedNodes);
-                        ReportOperation(operation);
-                        break;
-                    }
-                }
-            }
+            if (sourceNode)
+                ReportOperation(m_pOperations->ConnectCompatiblePins(
+                    m_pScriptFunction->ID.id, sourceNode->ID, node->ID,
+                    preferredConnectionPin ? preferredConnectionPin->ID : ed::PinId(0),
+                    processedNodes));
 
             if (m_pOperations->IsTransactionActive())
                 ReportOperation(m_pOperations->CommitTransaction());

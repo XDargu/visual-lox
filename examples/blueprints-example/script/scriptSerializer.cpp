@@ -1020,26 +1020,60 @@ Value CloneValue(const Value& value)
     return DeserializeValue(SerializeValue(value));
 }
 
-std::string OffsetNodeState(const std::string& state, double offset)
+bool ReadNodeStateLocation(const std::string& state, double& x, double& y)
 {
-    if (state.empty() || offset == 0.0)
-        return state;
+    if (state.empty())
+        return false;
     Json parsed = Json::parse(state);
     if (parsed.is_discarded() || !parsed.is_object() || !parsed.contains("location"))
-        return state;
+        return false;
     Json& location = parsed["location"];
-    if (!location.is_array() || location.get<Array>().size() < 2 ||
-        !location[0].is_number() || !location[1].is_number())
+    if (location.is_array() && location.get<Array>().size() >= 2 &&
+        location[0].is_number() && location[1].is_number())
+    {
+        x = location[0].get<crude_json::number>();
+        y = location[1].get<crude_json::number>();
+        return true;
+    }
+    if (location.is_object() && location.contains("x") && location.contains("y") &&
+        location["x"].is_number() && location["y"].is_number())
+    {
+        x = location["x"].get<crude_json::number>();
+        y = location["y"].get<crude_json::number>();
+        return true;
+    }
+    return false;
+}
+
+std::string OffsetNodeState(const std::string& state, double offsetX, double offsetY)
+{
+    if (offsetX == 0.0 && offsetY == 0.0)
         return state;
-    location[0] = location[0].get<crude_json::number>() + offset;
-    location[1] = location[1].get<crude_json::number>() + offset;
+    Json parsed = state.empty() ? Json(Object()) : Json::parse(state);
+    if (parsed.is_discarded() || !parsed.is_object())
+        return state;
+
+    double x = 0.0;
+    double y = 0.0;
+    const bool hasLocation = ReadNodeStateLocation(state, x, y);
+    if (hasLocation && parsed["location"].is_array())
+    {
+        parsed["location"][0] = x + offsetX;
+        parsed["location"][1] = y + offsetY;
+    }
+    else
+    {
+        parsed["location"]["x"] = x + offsetX;
+        parsed["location"]["y"] = y + offsetY;
+    }
     return parsed.dump();
 }
 
 NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
                   const Script& destination, const ScriptFunctionPtr& owner,
                   IDGenerator& ids, const std::map<int, int>& referenceMap,
-                  std::map<int, int>& pinMap, double positionOffset)
+                  std::map<int, int>& pinMap, double positionOffsetX,
+                  double positionOffsetY)
 {
     Json definition = SerializeNode(*sourceNode);
     const auto reference = referenceMap.find(sourceNode->refId.id);
@@ -1049,7 +1083,7 @@ NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
     IDGenerator constructionIds;
     NodePtr clone = CreateNode(definition, registry, destination, owner, constructionIds);
     clone->ID = ed::NodeId(ids.GetNextId());
-    clone->State = OffsetNodeState(sourceNode->State, positionOffset);
+    clone->State = OffsetNodeState(sourceNode->State, positionOffsetX, positionOffsetY);
     clone->Description = sourceNode->Description;
     clone->TypeOverrides = sourceNode->TypeOverrides;
     clone->Inputs.clear();
@@ -1097,7 +1131,8 @@ SerializationResult ScriptSerializer::CloneNodes(const Script& source, int sourc
                                                    const std::vector<int>& nodeIds,
                                                    const NodeRegistry& registry, Script& destination,
                                                    int destinationFunctionId, IDGenerator& ids,
-                                                   std::vector<int>& pastedNodeIds)
+                                                   std::vector<int>& pastedNodeIds,
+                                                   std::optional<std::pair<double, double>> pastePosition)
 {
     try
     {
@@ -1122,6 +1157,43 @@ SerializationResult ScriptSerializer::CloneNodes(const Script& source, int sourc
 
         std::map<int, int> pinMap;
         std::map<int, int> referenceMap;
+        double positionOffsetX = 30.0;
+        double positionOffsetY = 30.0;
+        if (pastePosition)
+        {
+            struct PositionedNode
+            {
+                double x;
+                double y;
+            };
+            std::vector<PositionedNode> positions;
+            for (const NodePtr& node : sourceFunction->Graph.GetNodes())
+            {
+                if (selected.find(node->ID.Get()) == selected.end() ||
+                    HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected))
+                    continue;
+                double x = 0.0;
+                double y = 0.0;
+                ReadNodeStateLocation(node->State, x, y);
+                positions.push_back({ x, y });
+            }
+            if (!positions.empty())
+            {
+                const double minX = std::min_element(positions.begin(), positions.end(),
+                    [](const PositionedNode& left, const PositionedNode& right) { return left.x < right.x; })->x;
+                const double minY = std::min_element(positions.begin(), positions.end(),
+                    [](const PositionedNode& left, const PositionedNode& right) { return left.y < right.y; })->y;
+                const PositionedNode& reference = *std::min_element(positions.begin(), positions.end(),
+                    [=](const PositionedNode& left, const PositionedNode& right)
+                    {
+                        const double leftDistance = (left.x - minX) * (left.x - minX) + (left.y - minY) * (left.y - minY);
+                        const double rightDistance = (right.x - minX) * (right.x - minX) + (right.y - minY) * (right.y - minY);
+                        return leftDistance < rightDistance;
+                    });
+                positionOffsetX = pastePosition->first - reference.x;
+                positionOffsetY = pastePosition->second - reference.y;
+            }
+        }
         pastedNodeIds.clear();
         for (const NodePtr& node : sourceFunction->Graph.GetNodes())
         {
@@ -1129,7 +1201,8 @@ SerializationResult ScriptSerializer::CloneNodes(const Script& source, int sourc
                 HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected))
                 continue;
             NodePtr clone = CloneNode(node, registry, destination, destinationFunction,
-                                      ids, referenceMap, pinMap, 30.0);
+                                      ids, referenceMap, pinMap,
+                                      positionOffsetX, positionOffsetY);
             pastedNodeIds.push_back(clone->ID.Get());
             destinationFunction->Graph.AddNode(clone);
         }
@@ -1197,7 +1270,7 @@ SerializationResult ScriptSerializer::CloneFunction(const Script& source, int fu
         for (const NodePtr& node : sourceFunction->Graph.GetNodes())
         {
             NodePtr nodeClone = CloneNode(node, registry, destination, clone, ids,
-                                          referenceMap, pinMap, 0.0);
+                                          referenceMap, pinMap, 0.0, 0.0);
             clone->Graph.AddNode(nodeClone);
         }
         CloneLinks(sourceFunction->Graph, clone->Graph, ids, pinMap);

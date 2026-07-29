@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 class NodeRegistry;
@@ -37,6 +39,9 @@ public:
     OperationResult RemoveNode(int functionId, ed::NodeId nodeId);
     OperationResult Connect(int functionId, ed::PinId first, ed::PinId second,
                             const std::vector<ProcessedNode>& processedNodes = {});
+    OperationResult ConnectCompatiblePins(int functionId, ed::NodeId existingNodeId,
+                                          ed::NodeId newNodeId, ed::PinId preferredPinId = 0,
+                                          const std::vector<ProcessedNode>& processedNodes = {});
     OperationResult Disconnect(int functionId, ed::LinkId linkId);
     OperationResult ChangeNodeInputValue(int functionId, ed::NodeId nodeId, int inputIndex,
                                          const Value& value);
@@ -53,7 +58,8 @@ public:
                                  bool amendPreviousTransaction = false);
 
     OperationResult CopyNodes(int functionId, const std::vector<int>& nodeIds);
-    OperationResult PasteNodes(int functionId, std::vector<int>& pastedNodeIds);
+    OperationResult PasteNodes(int functionId, std::vector<int>& pastedNodeIds,
+                               std::optional<std::pair<double, double>> pastePosition = std::nullopt);
     OperationResult CopyScriptElement(int elementId);
     OperationResult PasteScriptElement(int targetFunctionId, int& pastedElementId);
     bool HasClipboard() const { return m_clipboard.kind != ClipboardKind::None; }

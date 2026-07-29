@@ -4180,7 +4180,6 @@ void Example::DoAction(IActionPtr action)
 void Example::UndoLastAction()
 {
     const int functionId = m_graphView.m_pScriptFunction ? m_graphView.m_pScriptFunction->ID.id : 0;
-    m_graphView.Destroy();
     const OperationResult result = m_operations->Undo();
     m_fileStatusIsError = !result;
     if (!result) m_fileStatus = result.error;
@@ -4188,14 +4187,12 @@ void Example::UndoLastAction()
     ScriptFunctionPtr function = functionId == m_script.main->ID.id
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
-    m_graphView.SetGraph(&m_script, function, &function->Graph, false);
-    ApplyEditorTheme();
+    m_graphView.RefreshGraph(&m_script, function, &function->Graph);
 }
 
 void Example::RedoLastAction()
 {
     const int functionId = m_graphView.m_pScriptFunction ? m_graphView.m_pScriptFunction->ID.id : 0;
-    m_graphView.Destroy();
     const OperationResult result = m_operations->Redo();
     m_fileStatusIsError = !result;
     if (!result) m_fileStatus = result.error;
@@ -4203,8 +4200,7 @@ void Example::RedoLastAction()
     ScriptFunctionPtr function = functionId == m_script.main->ID.id
         ? m_script.main : ScriptUtils::FindFunctionById(m_script, functionId);
     if (!function) function = m_script.main;
-    m_graphView.SetGraph(&m_script, function, &function->Graph, false);
-    ApplyEditorTheme();
+    m_graphView.RefreshGraph(&m_script, function, &function->Graph);
 }
 
 bool Example::CanUndo() const

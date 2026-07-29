@@ -379,6 +379,24 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     m_NavigateToContentOnNextFrame = navigateToContent;
 }
 
+void GraphView::RefreshGraph(Script* pTargetScript,
+                             const ScriptFunctionPtr& pScriptFunction,
+                             Graph* pTargetGraph)
+{
+    m_pGraph = pTargetGraph;
+    m_pScript = pTargetScript;
+    m_pScriptFunction = pScriptFunction;
+    editingCommentBoxId = -1;
+    commentBoxEditText.clear();
+    focusCommentBoxEditor = false;
+    amendNextNodePosition.clear();
+    nodePositionDragActive = false;
+
+    ed::SetCurrentEditor(m_Editor);
+    for (const NodePtr& node : m_pGraph->GetNodes())
+        RegisterNode(node);
+}
+
 void GraphView::RegisterNode(const NodePtr& node)
 {
     if (!node || !m_Editor)

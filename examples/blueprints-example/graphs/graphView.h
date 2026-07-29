@@ -70,6 +70,8 @@ struct GraphView
                                std::function<void(const NodePtr&)> findReferences);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
                   Graph* pTargetGraph, bool navigateToContent = true);
+    void RefreshGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
+                      Graph* pTargetGraph);
     void FocusNodeOnNextFrame(int nodeId, float horizontalAlignment = 0.5f, float zoom = -1.0f, int delayFrames = 0);
     void RegisterNode(const NodePtr& node);
 

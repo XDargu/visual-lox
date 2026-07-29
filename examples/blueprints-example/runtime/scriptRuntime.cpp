@@ -4,6 +4,7 @@
 #include "../graphs/graphCompiler.h"
 
 #include <Debug.h>
+#include <VMUtils.h>
 
 #include <utility>
 
@@ -230,6 +231,41 @@ InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)
     if (result == InterpretResult::INTERPRET_OK)
         vm.pop();
     return result;
+}
+
+InterpretResult ScriptRuntime::Call(VM& vm, const Value& callable,
+                                    const std::vector<Value>& arguments)
+{
+    if (!isCallable(callable) || arguments.size() > 255)
+        return InterpretResult::INTERPRET_RUNTIME_ERROR;
+
+    const size_t initialStackSize = vm.getStackSize();
+    const size_t initialFrameCount = vm.getFrameCount();
+    vm.push(callable);
+    for (const Value& argument : arguments)
+        vm.push(argument);
+
+    if (!vm.callValue(callable, static_cast<uint8_t>(arguments.size())))
+        return InterpretResult::INTERPRET_RUNTIME_ERROR;
+
+    InterpretResult result = InterpretResult::INTERPRET_OK;
+    if (vm.getFrameCount() > initialFrameCount)
+        result = vm.run(static_cast<int>(initialFrameCount));
+
+    if (result == InterpretResult::INTERPRET_OK)
+        while (vm.getStackSize() > initialStackSize)
+            vm.pop();
+    return result;
+}
+
+InterpretResult ScriptRuntime::CallGlobal(VM& vm, const std::string& name,
+                                          const std::vector<Value>& arguments)
+{
+    Value callable;
+    ObjString* globalName = copyString(name.c_str(), static_cast<int>(name.size()));
+    if (!vm.globalTable().get(globalName, &callable))
+        return InterpretResult::INTERPRET_RUNTIME_ERROR;
+    return Call(vm, callable, arguments);
 }
 
 InterpretResult ScriptRuntime::Run(VM& vm, const Script& script,

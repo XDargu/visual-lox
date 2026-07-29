@@ -46,11 +46,13 @@ struct Application
 
 private:
     void RecreateFontAtlas();
+    std::string ResolveResourcePath(const char* path) const;
 
     void Frame();
 
     std::string                 m_Name;
     std::vector<std::string>    m_Arguments;
+    std::string                 m_ExecutableDirectory;
     std::string                 m_IniFilename;
     std::unique_ptr<Platform>   m_Platform;
     std::unique_ptr<Renderer>   m_Renderer;

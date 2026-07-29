@@ -402,6 +402,9 @@ void Example::OnStart()
 
         ScriptUtils::MarkScriptRoots(m_script);
 
+        if (m_visualApplicationContext)
+            m_visualApplicationContext->MarkRoots(vm);
+
         for (const IActionPtr& pAction : pendingActions)
         {
             pAction->MarkRoots();
@@ -414,6 +417,7 @@ void Example::OnStart()
     });
 
     RegisterStandardLibrary(m_NodeRegistry);
+    RegisterVisualApplicationLibrary(m_NodeRegistry);
     m_NodeRegistry.RegisterNatives(vm);
 
     // Script ID
@@ -446,6 +450,8 @@ void Example::OnStart()
 
 void Example::OnStop()
 {
+    StopVisualApplication();
+    DestroyPendingVisualApplicationTextures();
     SaveLayoutSettings();
     m_graphView.Destroy();
     auto releaseTexture = [this](ImTextureID& id)
@@ -2232,7 +2238,16 @@ void Example::ShowOutputPanel()
     if (ImGui::Button(ICON_FA_TRASH_CAN " Clear"))
         m_runOutput.clear();
     ImGui::SameLine();
-    if (ImGui::Button(ICON_FA_PLAY " Run again"))
+    if (m_visualApplicationContext)
+    {
+        if (ImGui::Button(ICON_FA_STOP " Stop"))
+        {
+            StopVisualApplication();
+            m_fileStatus = "Application stopped";
+            m_fileStatusIsError = false;
+        }
+    }
+    else if (ImGui::Button(ICON_FA_PLAY " Run again"))
         CompileScript(true);
     ImGui::Separator();
 
@@ -2342,6 +2357,8 @@ void Example::ShowBottomPanel()
 
 void Example::CompileScript(bool runAfterCompile)
 {
+    StopVisualApplication();
+
     VM& vm = VM::getInstance();
     Utils::CaptureStdout captureCompilation;
     std::cout << "Compiling script...\n";
@@ -2375,20 +2392,38 @@ void Example::CompileScript(bool runAfterCompile)
         return;
     }
 
+    m_visualApplicationContext = std::make_unique<VisualApplicationContext>(VisualApplicationTextureCallbacks{
+        [this](const void* data, int width, int height) { return CreateTexture(data, width, height); },
+        [this](ImTextureID texture) { m_visualApplicationTexturesPendingDestroy.push_back(texture); }
+    });
+
     Utils::CaptureStdout captureExecution;
-    const InterpretResult executionResult =
-        ScriptRuntime::Execute(vm, compileResult.function);
+    InterpretResult executionResult = ScriptRuntime::Execute(vm, compileResult.function);
     m_runOutput = captureExecution.Restore();
 
     if (executionResult == InterpretResult::INTERPRET_OK)
     {
-        m_fileStatus = "Run completed";
-        m_fileStatusIsError = false;
-        if (m_runOutput.empty())
-            m_runOutput = "Program completed with no output.";
+        if (m_visualApplicationContext->HasUpdateFunction())
+        {
+            m_visualApplicationPreviewOpen = true;
+            m_fileStatus = "Application running";
+            m_fileStatusIsError = false;
+            if (m_runOutput.empty())
+                m_runOutput = "Application initialized. Close the preview or press Stop to end it.";
+        }
+        else
+        {
+            m_visualApplicationContext.reset();
+            m_fileStatus = "Run completed";
+            m_fileStatusIsError = false;
+            if (m_runOutput.empty())
+                m_runOutput = "Program completed with no output.";
+        }
     }
-    else
+
+    if (executionResult != InterpretResult::INTERPRET_OK)
     {
+        m_visualApplicationContext.reset();
         m_fileStatus = executionResult == InterpretResult::INTERPRET_COMPILE_ERROR
             ? "Run stopped: compilation error"
             : "Run stopped: runtime error";
@@ -2398,6 +2433,62 @@ void Example::CompileScript(bool runAfterCompile)
     }
 
     SetBottomPanel(BottomPanelTab::Output);
+}
+
+void Example::StopVisualApplication()
+{
+    m_visualApplicationPreviewOpen = false;
+    m_visualApplicationContext.reset();
+}
+
+void Example::DestroyPendingVisualApplicationTextures()
+{
+    for (ImTextureID texture : m_visualApplicationTexturesPendingDestroy)
+        DestroyTexture(texture);
+    m_visualApplicationTexturesPendingDestroy.clear();
+}
+
+void Example::DrawVisualApplicationPreview(float deltaTime)
+{
+    if (!m_visualApplicationContext)
+        return;
+
+    ImGui::SetNextWindowSize(ImVec2(640.0f, 720.0f), ImGuiCond_FirstUseEver);
+    const bool visible = ImGui::Begin("Vlox Application Preview", &m_visualApplicationPreviewOpen);
+    InterpretResult result = InterpretResult::INTERPRET_OK;
+    std::string frameOutput;
+    if (visible)
+    {
+        Utils::CaptureStdout captureExecution;
+        m_visualApplicationContext->BeginFrame();
+        result = ScriptRuntime::Call(VM::getInstance(), m_visualApplicationContext->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+        m_visualApplicationContext->EndFrame();
+        frameOutput = captureExecution.Restore();
+    }
+    ImGui::End();
+
+    if (!frameOutput.empty())
+    {
+        if (m_runOutput == "Application initialized. Close the preview or press Stop to end it.")
+            m_runOutput.clear();
+        m_runOutput += frameOutput;
+    }
+
+    if (!m_visualApplicationPreviewOpen)
+    {
+        StopVisualApplication();
+        m_fileStatus = "Application stopped";
+        m_fileStatusIsError = false;
+    }
+    else if (result != InterpretResult::INTERPRET_OK)
+    {
+        StopVisualApplication();
+        m_fileStatus = "Application stopped: runtime error";
+        m_fileStatusIsError = true;
+        if (m_runOutput.empty())
+            m_runOutput = m_fileStatus;
+        SetBottomPanel(BottomPanelTab::Output);
+    }
 }
 
 void Example::DrawMenuBar()
@@ -2497,7 +2588,16 @@ void Example::DrawMenuBar()
     {
         if (ImGui::MenuItem(ICON_FA_CODE "  Compile", "Ctrl+Enter"))
             CompileScript(false);
-        if (ImGui::MenuItem(ICON_FA_PLAY "  Run", "F5"))
+        if (m_visualApplicationContext)
+        {
+            if (ImGui::MenuItem(ICON_FA_STOP "  Stop", "F5"))
+            {
+                StopVisualApplication();
+                m_fileStatus = "Application stopped";
+                m_fileStatusIsError = false;
+            }
+        }
+        else if (ImGui::MenuItem(ICON_FA_PLAY "  Run", "F5"))
             CompileScript(true);
         ImGui::Separator();
         ImGui::MenuItem("Validate as you edit", nullptr, &m_isRealTimeCompilationEnabled);
@@ -2664,8 +2764,9 @@ void Example::DrawToolbar()
     const float compileWidth =
         ImGui::CalcTextSize(ICON_FA_CODE " Compile").x +
         ImGui::GetStyle().FramePadding.x * 2.0f;
+    const char* runLabel = m_visualApplicationContext ? ICON_FA_STOP " Stop" : ICON_FA_PLAY " Run";
     const float runWidth =
-        ImGui::CalcTextSize(ICON_FA_PLAY " Run").x +
+        ImGui::CalcTextSize(runLabel).x +
         ImGui::GetStyle().FramePadding.x * 2.0f;
     const float actionsWidth = compileWidth + runWidth + ImGui::GetStyle().ItemSpacing.x;
     const float rightX = ImGui::GetWindowWidth() - actionsWidth -
@@ -2716,11 +2817,23 @@ void Example::DrawToolbar()
         CompileScript(false);
     Tooltip("Compile the current script (Ctrl+Enter)");
     ImGui::SameLine();
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.55f, 0.34f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.66f, 0.41f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.13f, 0.47f, 0.29f, 1.0f));
-    if (ImGui::Button(ICON_FA_PLAY " Run"))
-        CompileScript(true);
+    const ImVec4 runColor = m_visualApplicationContext ? ImVec4(0.67f, 0.22f, 0.22f, 1.0f) : ImVec4(0.16f, 0.55f, 0.34f, 1.0f);
+    const ImVec4 runHoverColor = m_visualApplicationContext ? ImVec4(0.78f, 0.28f, 0.28f, 1.0f) : ImVec4(0.20f, 0.66f, 0.41f, 1.0f);
+    const ImVec4 runActiveColor = m_visualApplicationContext ? ImVec4(0.56f, 0.17f, 0.17f, 1.0f) : ImVec4(0.13f, 0.47f, 0.29f, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_Button, runColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, runHoverColor);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, runActiveColor);
+    if (ImGui::Button(runLabel))
+    {
+        if (m_visualApplicationContext)
+        {
+            StopVisualApplication();
+            m_fileStatus = "Application stopped";
+            m_fileStatusIsError = false;
+        }
+        else
+            CompileScript(true);
+    }
     ImGui::PopStyleColor(3);
     Tooltip("Compile and run (F5)");
 
@@ -2774,7 +2887,16 @@ void Example::HandleShortcuts()
     // Function keys are application commands and remain available regardless
     // of which editor panel owns keyboard focus.
     if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
-        CompileScript(true);
+    {
+        if (m_visualApplicationContext)
+        {
+            StopVisualApplication();
+            m_fileStatus = "Application stopped";
+            m_fileStatusIsError = false;
+        }
+        else
+            CompileScript(true);
+    }
     if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F1), false))
         m_showHelp = true;
 
@@ -2852,6 +2974,11 @@ void Example::HandleShortcuts()
 
 void Example::OnFrame(float deltaTime)
 {
+    // Preview shutdown can happen after its image was submitted to ImGui. Keep
+    // those textures alive until DX11 has rendered that frame, then release
+    // them here before any draw commands for the next frame are created.
+    DestroyPendingVisualApplicationTextures();
+
     // Pending actions
     for (auto& action : pendingActions)
     {
@@ -3092,6 +3219,7 @@ void Example::OnFrame(float deltaTime)
 
     DrawStatusBar();
     ShowDocumentDialogs();
+    DrawVisualApplicationPreview(deltaTime);
     DrawToasts();
 }
 
@@ -4160,6 +4288,7 @@ void Example::AddRecentFile(const std::string& path)
 
 void Example::NewScript()
 {
+    StopVisualApplication();
     m_graphView.Destroy();
     m_script = Script();
     m_IDGenerator.Reset();
@@ -4351,6 +4480,7 @@ void Example::SaveScript(const std::string& path)
 
 void Example::LoadScript(const std::string& path)
 {
+    StopVisualApplication();
     Script loadedScript;
     IDGenerator loadedIds;
     const SerializationResult result = ScriptSerializer::Load(path, m_NodeRegistry, loadedScript, loadedIds);

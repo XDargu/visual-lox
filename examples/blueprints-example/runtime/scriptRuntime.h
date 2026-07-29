@@ -35,6 +35,10 @@ public:
     static ScriptCompileResult Compile(VM& vm, const Script& script,
                                        const ScriptCompileOptions& options = {});
     static InterpretResult Execute(VM& vm, ObjFunction* function);
+    static InterpretResult Call(VM& vm, const Value& callable,
+                                const std::vector<Value>& arguments = {});
+    static InterpretResult CallGlobal(VM& vm, const std::string& name,
+                                      const std::vector<Value>& arguments = {});
     static InterpretResult Run(VM& vm, const Script& script,
                                const ScriptCompileOptions& options = {});
 

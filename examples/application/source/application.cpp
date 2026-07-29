@@ -4,6 +4,8 @@
 # include "renderer.h"
 # include "IconsFontAwesome6.h"
 
+# include <filesystem>
+
 extern "C" {
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
@@ -21,6 +23,13 @@ Application::Application(const char* name, int argc, char** argv)
     , m_Platform(CreatePlatform(*this))
     , m_Renderer(CreateRenderer())
 {
+    std::error_code pathError;
+    const std::filesystem::path executablePath =
+        argc > 0 && argv && argv[0] ? std::filesystem::absolute(argv[0], pathError) : std::filesystem::path();
+    m_ExecutableDirectory = !pathError && !executablePath.empty()
+        ? executablePath.parent_path().string()
+        : std::filesystem::current_path().string();
+
     for (int i = 1; i < argc; ++i)
         if (argv && argv[i])
             m_Arguments.emplace_back(argv[i]);
@@ -57,7 +66,7 @@ bool Application::Create(int width /*= -1*/, int height /*= -1*/, bool startMaxi
     if (!m_Renderer->Create(*m_Platform))
         return false;
 
-    m_IniFilename = m_Name + ".ini";
+    m_IniFilename = (std::filesystem::path(m_ExecutableDirectory) / (m_Name + ".ini")).string();
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
@@ -108,7 +117,7 @@ void Application::RecreateFontAtlas()
     config.OversampleV = 4;
     config.PixelSnapH = false;
 
-    auto mergeFontAwesome = [&io](float baseFontSize)
+    auto mergeFontAwesome = [this, &io](float baseFontSize)
     {
         static const ImWchar iconRanges[] = {
             ICON_MIN_FA,
@@ -123,16 +132,13 @@ void Application::RecreateFontAtlas()
         iconConfig.PixelSnapH = true;
         iconConfig.GlyphMinAdvanceX = iconFontSize;
 
-        auto* mergedFont = io.Fonts->AddFontFromFileTTF(
-            "data/" FONT_ICON_FILE_NAME_FAS,
-            iconFontSize,
-            &iconConfig,
-            iconRanges);
+        const std::string iconPath = ResolveResourcePath("data/" FONT_ICON_FILE_NAME_FAS);
+        auto* mergedFont = io.Fonts->AddFontFromFileTTF(iconPath.c_str(), iconFontSize, &iconConfig, iconRanges);
 
         IM_ASSERT(mergedFont != nullptr);
     };
 
-    auto loadInterfaceFont = [&io](float size, ImFontConfig* fontConfig, bool semibold = false)
+    auto loadInterfaceFont = [this, &io](float size, ImFontConfig* fontConfig, bool semibold = false)
     {
         ImFont* font = nullptr;
 #ifdef _WIN32
@@ -143,7 +149,10 @@ void Application::RecreateFontAtlas()
         (void)semibold;
 #endif
         if (!font)
-            font = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", size, fontConfig);
+        {
+            const std::string fallbackPath = ResolveResourcePath("data/Play-Regular.ttf");
+            font = io.Fonts->AddFontFromFileTTF(fallbackPath.c_str(), size, fontConfig);
+        }
         return font;
     };
 
@@ -167,7 +176,10 @@ void Application::RecreateFontAtlas()
     m_MonoFont = io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", 15.0f, &config);
 #endif
     if (!m_MonoFont)
-        m_MonoFont = io.Fonts->AddFontFromFileTTF("data/Play-Regular.ttf", 15.0f, &config);
+    {
+        const std::string fallbackPath = ResolveResourcePath("data/Play-Regular.ttf");
+        m_MonoFont = io.Fonts->AddFontFromFileTTF(fallbackPath.c_str(), 15.0f, &config);
+    }
 
     io.Fonts->Build();
 }
@@ -280,7 +292,8 @@ ImFont* Application::MonoFont() const
 ImTextureID Application::LoadTexture(const char* path)
 {
     int width = 0, height = 0, component = 0;
-    if (auto data = stbi_load(path, &width, &height, &component, 4))
+    const std::string resolvedPath = ResolveResourcePath(path);
+    if (auto data = stbi_load(resolvedPath.c_str(), &width, &height, &component, 4))
     {
         auto texture = CreateTexture(data, width, height);
         stbi_image_free(data);
@@ -288,6 +301,26 @@ ImTextureID Application::LoadTexture(const char* path)
     }
     else
         return nullptr;
+}
+
+std::string Application::ResolveResourcePath(const char* path) const
+{
+    const std::filesystem::path requested(path ? path : "");
+    if (requested.is_absolute())
+        return requested.string();
+
+    const std::filesystem::path executableRelative = std::filesystem::path(m_ExecutableDirectory) / requested;
+    if (std::filesystem::exists(executableRelative))
+        return executableRelative.string();
+
+#ifdef __APPLE__
+    const std::filesystem::path bundleRelative =
+        std::filesystem::path(m_ExecutableDirectory) / ".." / "Resources" / requested;
+    if (std::filesystem::exists(bundleRelative))
+        return bundleRelative.lexically_normal().string();
+#endif
+
+    return requested.string();
 }
 
 ImTextureID Application::CreateTexture(const void* data, int width, int height)

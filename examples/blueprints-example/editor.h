@@ -17,6 +17,7 @@
 #include "script/scriptSerializer.h"
 #include "runtime/scriptRuntime.h"
 #include "runtime/standardLibrary.h"
+#include "apps/visualApplication.h"
 
 #include "graphs/nodeRegistry.h"
 #include "operations/documentOperations.h"
@@ -94,6 +95,9 @@ struct Example :
     void DrawStatusBar();
     void HandleShortcuts();
     void CompileScript(bool runAfterCompile);
+    void DrawVisualApplicationPreview(float deltaTime);
+    void StopVisualApplication();
+    void DestroyPendingVisualApplicationTextures();
     void FocusDiagnostic(const ValidationDiagnostic& diagnostic);
     void ApplyEditorTheme();
     void LoadLayoutSettings();
@@ -242,6 +246,9 @@ struct Example :
     std::vector<ScriptSearchResult> m_searchResults;
     std::string m_compileOutput = "Compile output will appear here.";
     std::string m_runOutput = "Run the script to see its output.";
+    std::unique_ptr<VisualApplicationContext> m_visualApplicationContext;
+    std::vector<ImTextureID> m_visualApplicationTexturesPendingDestroy;
+    bool m_visualApplicationPreviewOpen = false;
     bool m_showScriptExplorer = true;
     bool m_showInspector = true;
     bool m_showBottomPanel = true;

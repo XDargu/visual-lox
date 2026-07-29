@@ -88,6 +88,15 @@ target_link_libraries(visual-lox-core PUBLIC lox imgui_node_editor)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${_VisualLoxCoreSources})
 set_property(TARGET visual-lox-core PROPERTY FOLDER "visual-lox")
 
+add_library(visual-lox-application-api STATIC
+    apps/visualApplication.h
+    apps/visualApplication.cpp
+)
+target_include_directories(visual-lox-application-api PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(visual-lox-application-api PUBLIC visual-lox-core imgui)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES apps/visualApplication.h apps/visualApplication.cpp)
+set_property(TARGET visual-lox-application-api PROPERTY FOLDER "visual-lox")
+
 set(_VisualLoxEditorSources
     blueprints-example.cpp
     editor.h
@@ -107,7 +116,7 @@ set(_VisualLoxEditorSources
 )
 
 add_example_executable(visual-lox-editor ${_VisualLoxEditorSources})
-target_link_libraries(visual-lox-editor PRIVATE visual-lox-core)
+target_link_libraries(visual-lox-editor PRIVATE visual-lox-core visual-lox-application-api)
 set_target_properties(visual-lox-editor PROPERTIES
     FOLDER      "visual-lox"
     OUTPUT_NAME "vlox-editor"
@@ -116,6 +125,25 @@ set_target_properties(visual-lox-editor PROPERTIES
 if (WIN32)
     target_link_libraries(visual-lox-editor PRIVATE comdlg32)
 endif()
+
+add_example_executable(visual-lox-application apps/vloxApplication.cpp)
+target_link_libraries(visual-lox-application PRIVATE visual-lox-core visual-lox-application-api)
+set_target_properties(visual-lox-application PROPERTIES
+    FOLDER      "visual-lox"
+    OUTPUT_NAME "vlox-app"
+)
+
+add_executable(visual-lox-mandelbrot-generator apps/generateMandelbrot.cpp)
+target_link_libraries(visual-lox-mandelbrot-generator PRIVATE visual-lox-core visual-lox-application-api)
+set_target_properties(visual-lox-mandelbrot-generator PROPERTIES
+    FOLDER "visual-lox/examples"
+    RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
+    DEBUG_POSTFIX                           _d
+)
 
 add_executable(visual-lox-cli cli/main.cpp)
 target_link_libraries(visual-lox-cli PRIVATE visual-lox-core)
@@ -161,6 +189,15 @@ set_target_properties(visual-lox-benchmark-generator PROPERTIES
 )
 
 if (BUILD_TESTING)
+    add_test(
+        NAME visual-lox-mandelbrot-application-smoke
+        COMMAND $<TARGET_FILE:visual-lox-mandelbrot-generator>
+                ${CMAKE_CURRENT_BINARY_DIR}/mandelbrot-application-smoke.vlox
+    )
+    set_tests_properties(visual-lox-mandelbrot-application-smoke PROPERTIES
+        PASS_REGULAR_EXPRESSION "pixels=32400"
+    )
+
     add_test(
         NAME visual-lox-benchmark-smoke
         COMMAND $<TARGET_FILE:visual-lox-benchmarks>

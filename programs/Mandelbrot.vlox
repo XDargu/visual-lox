@@ -756,7 +756,7 @@
                 }
               ],
               "reference_id": 12,
-              "state": "{\"location\":{\"x\":1680,\"y\":80}}",
+              "state": "{\"location\":{\"x\":1688,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -832,7 +832,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":968,\"y\":136}}",
+              "state": "{\"location\":{\"x\":976,\"y\":136}}",
               "type_overrides":
               {
               }
@@ -868,7 +868,7 @@
                 }
               ],
               "reference_id": 7,
-              "state": "{\"location\":{\"x\":808,\"y\":168}}",
+              "state": "{\"location\":{\"x\":816,\"y\":168}}",
               "type_overrides":
               {
               }
@@ -944,7 +944,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1112,\"y\":152}}",
+              "state": "{\"location\":{\"x\":1120,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -980,7 +980,7 @@
                 }
               ],
               "reference_id": 5,
-              "state": "{\"location\":{\"x\":1112,\"y\":232}}",
+              "state": "{\"location\":{\"x\":1120,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -1056,7 +1056,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1328,\"y\":152}}",
+              "state": "{\"location\":{\"x\":1336,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -1092,7 +1092,7 @@
                 }
               ],
               "reference_id": 4,
-              "state": "{\"location\":{\"x\":1328,\"y\":232}}",
+              "state": "{\"location\":{\"x\":1336,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -1168,7 +1168,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1504,\"y\":152}}",
+              "state": "{\"location\":{\"x\":1512,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -1275,7 +1275,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":2024,\"y\":80}}",
+              "state": "{\"location\":{\"x\":2024,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -1311,7 +1311,7 @@
                 }
               ],
               "reference_id": 7,
-              "state": "{\"location\":{\"x\":1864,\"y\":136}}",
+              "state": "{\"location\":{\"x\":1864,\"y\":144}}",
               "type_overrides":
               {
               }
@@ -1386,7 +1386,7 @@
                 }
               ],
               "reference_id": 11,
-              "state": "{\"location\":{\"x\":3128,\"y\":88}}",
+              "state": "{\"location\":{\"x\":3128,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -1462,7 +1462,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":2408,\"y\":136}}",
+              "state": "{\"location\":{\"x\":2400,\"y\":144}}",
               "type_overrides":
               {
               }
@@ -1498,7 +1498,7 @@
                 }
               ],
               "reference_id": 7,
-              "state": "{\"location\":{\"x\":2248,\"y\":168}}",
+              "state": "{\"location\":{\"x\":2240,\"y\":176}}",
               "type_overrides":
               {
               }
@@ -1574,7 +1574,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":2552,\"y\":152}}",
+              "state": "{\"location\":{\"x\":2544,\"y\":160}}",
               "type_overrides":
               {
               }
@@ -1610,7 +1610,7 @@
                 }
               ],
               "reference_id": 5,
-              "state": "{\"location\":{\"x\":2552,\"y\":232}}",
+              "state": "{\"location\":{\"x\":2544,\"y\":240}}",
               "type_overrides":
               {
               }
@@ -1686,7 +1686,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":2768,\"y\":152}}",
+              "state": "{\"location\":{\"x\":2760,\"y\":160}}",
               "type_overrides":
               {
               }
@@ -1722,7 +1722,7 @@
                 }
               ],
               "reference_id": 3,
-              "state": "{\"location\":{\"x\":2768,\"y\":232}}",
+              "state": "{\"location\":{\"x\":2760,\"y\":240}}",
               "type_overrides":
               {
               }
@@ -1798,7 +1798,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":2944,\"y\":152}}",
+              "state": "{\"location\":{\"x\":2936,\"y\":160}}",
               "type_overrides":
               {
               }
@@ -1873,7 +1873,7 @@
                 }
               ],
               "reference_id": 13,
-              "state": "{\"location\":{\"x\":3320,\"y\":88}}",
+              "state": "{\"location\":{\"x\":3320,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -1948,7 +1948,7 @@
                 }
               ],
               "reference_id": 14,
-              "state": "{\"location\":{\"x\":3520,\"y\":88}}",
+              "state": "{\"location\":{\"x\":3520,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -2023,7 +2023,7 @@
                 }
               ],
               "reference_id": 16,
-              "state": "{\"location\":{\"x\":3728,\"y\":88}}",
+              "state": "{\"location\":{\"x\":3728,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -2114,7 +2114,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4008,\"y\":336}}",
+              "state": "{\"location\":{\"x\":4232,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -2150,7 +2150,7 @@
                 }
               ],
               "reference_id": 13,
-              "state": "{\"location\":{\"x\":3104,\"y\":392}}",
+              "state": "{\"location\":{\"x\":3312,\"y\":296}}",
               "type_overrides":
               {
               }
@@ -2226,7 +2226,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3240,\"y\":376}}",
+              "state": "{\"location\":{\"x\":3448,\"y\":280}}",
               "type_overrides":
               {
               }
@@ -2262,7 +2262,7 @@
                 }
               ],
               "reference_id": 14,
-              "state": "{\"location\":{\"x\":3104,\"y\":472}}",
+              "state": "{\"location\":{\"x\":3312,\"y\":376}}",
               "type_overrides":
               {
               }
@@ -2338,7 +2338,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3240,\"y\":456}}",
+              "state": "{\"location\":{\"x\":3448,\"y\":360}}",
               "type_overrides":
               {
               }
@@ -2414,7 +2414,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3416,\"y\":376}}",
+              "state": "{\"location\":{\"x\":3624,\"y\":280}}",
               "type_overrides":
               {
               }
@@ -2490,7 +2490,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3600,\"y\":376}}",
+              "state": "{\"location\":{\"x\":3808,\"y\":280}}",
               "type_overrides":
               {
               }
@@ -2526,7 +2526,7 @@
                 }
               ],
               "reference_id": 16,
-              "state": "{\"location\":{\"x\":3416,\"y\":456}}",
+              "state": "{\"location\":{\"x\":3624,\"y\":360}}",
               "type_overrides":
               {
               }
@@ -2602,7 +2602,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3600,\"y\":456}}",
+              "state": "{\"location\":{\"x\":3808,\"y\":360}}",
               "type_overrides":
               {
               }
@@ -2638,7 +2638,7 @@
                 }
               ],
               "reference_id": 6,
-              "state": "{\"location\":{\"x\":3416,\"y\":504}}",
+              "state": "{\"location\":{\"x\":3624,\"y\":408}}",
               "type_overrides":
               {
               }
@@ -2714,7 +2714,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":3800,\"y\":392}}",
+              "state": "{\"location\":{\"x\":4008,\"y\":296}}",
               "type_overrides":
               {
               }
@@ -2789,7 +2789,7 @@
                 }
               ],
               "reference_id": 15,
-              "state": "{\"location\":{\"x\":5160,\"y\":336}}",
+              "state": "{\"location\":{\"x\":5456,\"y\":96}}",
               "type_overrides":
               {
               }
@@ -2825,7 +2825,7 @@
                 }
               ],
               "reference_id": 13,
-              "state": "{\"location\":{\"x\":4488,\"y\":408}}",
+              "state": "{\"location\":{\"x\":4784,\"y\":168}}",
               "type_overrides":
               {
               }
@@ -2901,7 +2901,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4624,\"y\":392}}",
+              "state": "{\"location\":{\"x\":4920,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -2937,7 +2937,7 @@
                 }
               ],
               "reference_id": 14,
-              "state": "{\"location\":{\"x\":4488,\"y\":488}}",
+              "state": "{\"location\":{\"x\":4784,\"y\":248}}",
               "type_overrides":
               {
               }
@@ -3013,7 +3013,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4624,\"y\":472}}",
+              "state": "{\"location\":{\"x\":4920,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -3089,7 +3089,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4800,\"y\":392}}",
+              "state": "{\"location\":{\"x\":5096,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -3125,7 +3125,7 @@
                 }
               ],
               "reference_id": 11,
-              "state": "{\"location\":{\"x\":4800,\"y\":472}}",
+              "state": "{\"location\":{\"x\":5096,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -3201,7 +3201,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4976,\"y\":392}}",
+              "state": "{\"location\":{\"x\":5272,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -3276,7 +3276,7 @@
                 }
               ],
               "reference_id": 14,
-              "state": "{\"location\":{\"x\":5160,\"y\":552}}",
+              "state": "{\"location\":{\"x\":5456,\"y\":328}}",
               "type_overrides":
               {
               }
@@ -3312,7 +3312,7 @@
                 }
               ],
               "reference_id": 13,
-              "state": "{\"location\":{\"x\":4448,\"y\":608}}",
+              "state": "{\"location\":{\"x\":4744,\"y\":384}}",
               "type_overrides":
               {
               }
@@ -3348,7 +3348,7 @@
                 }
               ],
               "reference_id": 14,
-              "state": "{\"location\":{\"x\":4448,\"y\":656}}",
+              "state": "{\"location\":{\"x\":4744,\"y\":432}}",
               "type_overrides":
               {
               }
@@ -3424,7 +3424,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4592,\"y\":608}}",
+              "state": "{\"location\":{\"x\":4888,\"y\":384}}",
               "type_overrides":
               {
               }
@@ -3500,7 +3500,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4768,\"y\":608}}",
+              "state": "{\"location\":{\"x\":5064,\"y\":384}}",
               "type_overrides":
               {
               }
@@ -3536,7 +3536,7 @@
                 }
               ],
               "reference_id": 12,
-              "state": "{\"location\":{\"x\":4768,\"y\":688}}",
+              "state": "{\"location\":{\"x\":5064,\"y\":464}}",
               "type_overrides":
               {
               }
@@ -3612,7 +3612,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4976,\"y\":608}}",
+              "state": "{\"location\":{\"x\":5272,\"y\":384}}",
               "type_overrides":
               {
               }
@@ -3687,7 +3687,7 @@
                 }
               ],
               "reference_id": 13,
-              "state": "{\"location\":{\"x\":5160,\"y\":744}}",
+              "state": "{\"location\":{\"x\":5456,\"y\":536}}",
               "type_overrides":
               {
               }
@@ -3723,7 +3723,7 @@
                 }
               ],
               "reference_id": 15,
-              "state": "{\"location\":{\"x\":4992,\"y\":800}}",
+              "state": "{\"location\":{\"x\":5288,\"y\":592}}",
               "type_overrides":
               {
               }
@@ -3798,7 +3798,7 @@
                 }
               ],
               "reference_id": 16,
-              "state": "{\"location\":{\"x\":5160,\"y\":904}}",
+              "state": "{\"location\":{\"x\":5456,\"y\":728}}",
               "type_overrides":
               {
               }
@@ -3834,7 +3834,7 @@
                 }
               ],
               "reference_id": 16,
-              "state": "{\"location\":{\"x\":4784,\"y\":960}}",
+              "state": "{\"location\":{\"x\":5080,\"y\":784}}",
               "type_overrides":
               {
               }
@@ -3910,7 +3910,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4944,\"y\":960}}",
+              "state": "{\"location\":{\"x\":5240,\"y\":784}}",
               "type_overrides":
               {
               }
@@ -4032,7 +4032,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4352,\"y\":968}}",
+              "state": "{\"location\":{\"x\":4296,\"y\":680}}",
               "type_overrides":
               {
               }
@@ -4077,7 +4077,7 @@
                 }
               ],
               "reference_id": 8,
-              "state": "{\"location\":{\"x\":4200,\"y\":1024}}",
+              "state": "{\"location\":{\"x\":4144,\"y\":736}}",
               "type_overrides":
               {
               }
@@ -4113,7 +4113,7 @@
                 }
               ],
               "reference_id": 16,
-              "state": "{\"location\":{\"x\":4200,\"y\":1072}}",
+              "state": "{\"location\":{\"x\":4144,\"y\":784}}",
               "type_overrides":
               {
               }
@@ -4188,7 +4188,7 @@
                 }
               ],
               "reference_id": 9,
-              "state": "{\"location\":{\"x\":816,\"y\":424}}",
+              "state": "{\"location\":{\"x\":960,\"y\":432}}",
               "type_overrides":
               {
               }
@@ -4224,7 +4224,7 @@
                 }
               ],
               "reference_id": 9,
-              "state": "{\"location\":{\"x\":416,\"y\":480}}",
+              "state": "{\"location\":{\"x\":560,\"y\":488}}",
               "type_overrides":
               {
               }
@@ -4300,7 +4300,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":600,\"y\":480}}",
+              "state": "{\"location\":{\"x\":744,\"y\":488}}",
               "type_overrides":
               {
               }
@@ -4556,63 +4556,63 @@
             },
             {
               "end_pin_id": 415,
-              "id": 453,
+              "id": 454,
               "start_pin_id": 409
             },
             {
               "end_pin_id": 419,
-              "id": 454,
+              "id": 455,
               "start_pin_id": 416
             },
             {
               "end_pin_id": 422,
-              "id": 455,
+              "id": 456,
               "start_pin_id": 420
             },
             {
               "end_pin_id": 425,
-              "id": 456,
-              "start_pin_id": 431
+              "id": 457,
+              "start_pin_id": 432
             },
             {
               "end_pin_id": 426,
-              "id": 457,
-              "start_pin_id": 433
+              "id": 458,
+              "start_pin_id": 434
             },
             {
               "end_pin_id": 427,
-              "id": 458,
-              "start_pin_id": 435
+              "id": 459,
+              "start_pin_id": 436
             },
             {
               "end_pin_id": 428,
-              "id": 459,
-              "start_pin_id": 437
+              "id": 460,
+              "start_pin_id": 438
             },
             {
               "end_pin_id": 429,
-              "id": 460,
-              "start_pin_id": 439
-            },
-            {
-              "end_pin_id": 441,
               "id": 461,
-              "start_pin_id": 423
+              "start_pin_id": 440
             },
             {
-              "end_pin_id": 446,
+              "end_pin_id": 442,
               "id": 462,
-              "start_pin_id": 442
+              "start_pin_id": 423
             },
             {
               "end_pin_id": 447,
               "id": 463,
-              "start_pin_id": 444
+              "start_pin_id": 443
             },
             {
-              "end_pin_id": 451,
+              "end_pin_id": 448,
               "id": 464,
-              "start_pin_id": 448
+              "start_pin_id": 445
+            },
+            {
+              "end_pin_id": 452,
+              "id": 465,
+              "start_pin_id": 449
             }
           ],
           "nodes":
@@ -4664,7 +4664,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "",
+              "state": "{\"location\":{\"x\":0,\"y\":0}}",
               "type_overrides":
               {
               }
@@ -6298,6 +6298,10 @@
                 {
                   "type": "number",
                   "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1
                 }
               ],
               "inputs":
@@ -6422,6 +6426,22 @@
                   "id": 429,
                   "name": "Revision",
                   "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Scale of the image, defaults to 1",
+                  "id": 430,
+                  "name": "Scale",
+                  "type": "number"
                 }
               ],
               "kind": "function.call",
@@ -6453,7 +6473,7 @@
             {
               "definition": "",
               "description": "Gets variable 'Pixels'. ",
-              "id": 430,
+              "id": 431,
               "input_values":
               [
               ],
@@ -6484,7 +6504,7 @@
                     ]
                   },
                   "description": "",
-                  "id": 431,
+                  "id": 432,
                   "name": "Pixels",
                   "type": "list"
                 }
@@ -6498,7 +6518,7 @@
             {
               "definition": "",
               "description": "Gets variable 'Resolution'. ",
-              "id": 432,
+              "id": 433,
               "input_values":
               [
               ],
@@ -6520,7 +6540,7 @@
                     ]
                   },
                   "description": "",
-                  "id": 433,
+                  "id": 434,
                   "name": "Resolution",
                   "type": "number"
                 }
@@ -6534,7 +6554,7 @@
             {
               "definition": "",
               "description": "Gets variable 'Resolution'. ",
-              "id": 434,
+              "id": 435,
               "input_values":
               [
               ],
@@ -6556,7 +6576,7 @@
                     ]
                   },
                   "description": "",
-                  "id": 435,
+                  "id": 436,
                   "name": "Resolution",
                   "type": "number"
                 }
@@ -6570,7 +6590,7 @@
             {
               "definition": "",
               "description": "Gets variable 'MaxIterations'. ",
-              "id": 436,
+              "id": 437,
               "input_values":
               [
               ],
@@ -6592,7 +6612,7 @@
                     ]
                   },
                   "description": "",
-                  "id": 437,
+                  "id": 438,
                   "name": "MaxIterations",
                   "type": "number"
                 }
@@ -6606,7 +6626,7 @@
             {
               "definition": "",
               "description": "Gets variable 'ImageRevision'. ",
-              "id": 438,
+              "id": 439,
               "input_values":
               [
               ],
@@ -6628,7 +6648,7 @@
                     ]
                   },
                   "description": "",
-                  "id": 439,
+                  "id": 440,
                   "name": "ImageRevision",
                   "type": "number"
                 }
@@ -6642,7 +6662,7 @@
             {
               "definition": "UI::Button",
               "description": "Draws a button",
-              "id": 440,
+              "id": 441,
               "input_values":
               [
                 {
@@ -6667,7 +6687,7 @@
                     ]
                   },
                   "description": "Executes this function",
-                  "id": 441,
+                  "id": 442,
                   "name": "",
                   "type": "flow"
                 },
@@ -6683,7 +6703,7 @@
                     ]
                   },
                   "description": "The visible button label",
-                  "id": 443,
+                  "id": 444,
                   "name": "Label",
                   "type": "string"
                 }
@@ -6703,7 +6723,7 @@
                     ]
                   },
                   "description": "Continues after the function returns",
-                  "id": 442,
+                  "id": 443,
                   "name": "",
                   "type": "flow"
                 },
@@ -6719,7 +6739,7 @@
                     ]
                   },
                   "description": "True only on the frame the button is pressed",
-                  "id": 444,
+                  "id": 445,
                   "name": "Pressed",
                   "type": "bool"
                 }
@@ -6733,7 +6753,7 @@
             {
               "definition": "Flow::Branch",
               "description": "Chooses one of two execution paths from a condition",
-              "id": 445,
+              "id": 446,
               "input_values":
               [
                 {
@@ -6758,7 +6778,7 @@
                     ]
                   },
                   "description": "Starts the branch",
-                  "id": 446,
+                  "id": 447,
                   "name": "",
                   "type": "flow"
                 },
@@ -6774,7 +6794,7 @@
                     ]
                   },
                   "description": "Chooses the True path when true and the False path when false",
-                  "id": 447,
+                  "id": 448,
                   "name": "Condition",
                   "type": "bool"
                 }
@@ -6794,7 +6814,7 @@
                     ]
                   },
                   "description": "Runs when Condition is true",
-                  "id": 448,
+                  "id": 449,
                   "name": "True",
                   "type": "flow"
                 },
@@ -6810,7 +6830,7 @@
                     ]
                   },
                   "description": "Runs when Condition is false",
-                  "id": 449,
+                  "id": 450,
                   "name": "False",
                   "type": "flow"
                 }
@@ -6824,7 +6844,7 @@
             {
               "definition": "",
               "description": "Rebuilds the Mandelbrot image values",
-              "id": 450,
+              "id": 451,
               "input_values":
               [
                 {
@@ -6845,7 +6865,7 @@
                     ]
                   },
                   "description": "Executes this function",
-                  "id": 451,
+                  "id": 452,
                   "name": "",
                   "type": "flow"
                 }
@@ -6865,7 +6885,7 @@
                     ]
                   },
                   "description": "Continues after the function returns",
-                  "id": 452,
+                  "id": 453,
                   "name": "",
                   "type": "flow"
                 }
@@ -6991,13 +7011,13 @@
                   ]
                 },
                 "description": "",
-                "id": 466,
+                "id": 467,
                 "name": "Arguments",
                 "type": "list"
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":0,\"y\":0}}",
             "type_overrides":
             {
             }
@@ -7218,7 +7238,7 @@
             "type": "list"
           },
           "description": "",
-          "id": 465,
+          "id": 466,
           "name": "Arguments"
         }
       ],

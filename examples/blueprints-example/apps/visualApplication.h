@@ -33,7 +33,7 @@ public:
     bool HasUpdateFunction() const;
     const Value& GetUpdateFunction() const;
     void MarkRoots(VM& vm);
-    void DrawImage(const std::string& id, ObjList* values, int width, int height, double maximum, double revision);
+    void DrawImage(const std::string& id, ObjList* values, int width, int height, double maximum, double revision, int scale = 1);
 
 private:
     struct CachedTexture

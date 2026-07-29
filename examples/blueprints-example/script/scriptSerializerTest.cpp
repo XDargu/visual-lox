@@ -2,6 +2,7 @@
 
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/begin.h"
+#include "../native/nodes/commentBox.h"
 #include "../native/nodes/function.h"
 #include "../native/nodes/math.h"
 #include "../native/nodes/object.h"
@@ -80,6 +81,9 @@ struct SerializerFixture
         NodePtr mainBegin = BuildBeginNode(ids, script.main);
         mainBegin->State = "{\"location\": [20, 40]}";
         AttachNode(script.main->Graph, mainBegin);
+        NodePtr commentBox = BuildCommentBoxNode(ids, "Inputs are prepared here", CommentBoxColor::Blue);
+        commentBox->State = "{\"location\": [100, 80], \"size\": [360, 220]}";
+        AttachNode(script.main->Graph, commentBox);
 
         ScriptClassPtr student =
             std::make_shared<ScriptClass>(ids.GetNextId(), "Student");
@@ -219,6 +223,14 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     Require(fixture.loaded.main->Graph.GetNodes().size() ==
                 fixture.script.main->Graph.GetNodes().size(),
             "Main graph node count changed.");
+    const NodePtr loadedCommentBox = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->Type == NodeType::CommentBox; });
+    Require(loadedCommentBox && loadedCommentBox->SerializationType == "comment_box" &&
+            loadedCommentBox->Name == "Inputs are prepared here" &&
+            loadedCommentBox->State == "{\"location\": [100, 80], \"size\": [360, 220]}" &&
+            loadedCommentBox->Inputs.empty() && loadedCommentBox->Outputs.empty() &&
+            static_cast<CommentBoxNode*>(loadedCommentBox.get())->BoxColor == CommentBoxColor::Blue,
+            "Comment box text, color, layout state, or pin layout changed.");
     Require(fixture.loaded.functions.size() == 1, "Function count changed.");
     Require(fixture.loaded.functions[0]->Graph.GetLinks().size() == 2,
             "Function graph links were not restored.");

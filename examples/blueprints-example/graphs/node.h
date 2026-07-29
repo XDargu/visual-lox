@@ -108,7 +108,7 @@ enum class NodeType
     Blueprint,
     SimpleGet,
     SimpleLargeBody,
-    Comment,
+    CommentBox,
 };
 
 struct Node;
@@ -162,7 +162,8 @@ enum class NodeCategory
     Return,
     Function,
     Flow,
-    Variable
+    Variable,
+    CommentBox
 };
 
 enum class CompilationStage

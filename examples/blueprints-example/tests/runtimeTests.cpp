@@ -15,6 +15,7 @@
 #include "../validation/scriptValidator.h"
 
 #include <Vm.h>
+#include <Natives.h>
 
 #include <algorithm>
 #include <chrono>
@@ -2125,6 +2126,12 @@ void FilePathAndConsoleNodesOperate()
     std::cin.clear();
     Require(isString(console) && asString(console)->chars == "typed input",
             "Console::Read Input should return one line.");
+
+    setInputProvider([]() { return std::string("provided input"); });
+    const Value providedConsole = fixture.CallNative("Console::Read Input", {});
+    clearInputProvider();
+    Require(isString(providedConsole) && asString(providedConsole)->chars == "provided input",
+            "Console::Read Input should use an installed input provider.");
 
     std::filesystem::remove_all(directory, error);
     Require(!error, "Expected to clean up the standard-library test directory.");

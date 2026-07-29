@@ -6,12 +6,28 @@
 #include <cstdarg>
 #include <cmath>
 #include <time.h>
+#include <utility>
 
 #include "Vm.h"
 #include "Debug.h"
 #include "Compiler.h"
 #include "Object.h"
 #include "VMUtils.h"
+
+namespace
+{
+InputProvider inputProvider;
+}
+
+void setInputProvider(InputProvider provider)
+{
+    inputProvider = std::move(provider);
+}
+
+void clearInputProvider()
+{
+    inputProvider = {};
+}
 
 Value clock(int argCount, Value* args, VM* vm)
 {
@@ -73,8 +89,9 @@ Value inBounds(int argCount, Value* args, VM* vm)
 
 Value readInput(int argCount, Value* args, VM* vm)
 {
-    std::string line;
-    std::getline(std::cin, line);
+    std::string line = inputProvider ? inputProvider() : std::string();
+    if (!inputProvider)
+        std::getline(std::cin, line);
 
     return Value(takeString(line.c_str(), line.length()));
 }

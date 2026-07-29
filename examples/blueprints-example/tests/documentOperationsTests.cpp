@@ -4,6 +4,7 @@
 #include "../graphs/idgeneration.h"
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/begin.h"
+#include "../native/nodes/commentBox.h"
 #include "../native/nodes/variable.h"
 #include "../operations/documentOperations.h"
 #include "../runtime/standardLibrary.h"
@@ -110,6 +111,50 @@ void NodeStateCanBeUndoneAndRedone()
     RequireSuccess(fixture.operations->Redo(), "Redoing a node position failed.");
     fixture.begin = fixture.script.main->Graph.GetNodes().front();
     Require(!fixture.begin->State.empty(), "Redo did not restore the node position.");
+}
+
+void CommentBoxesSupportHistoryColorAndClipboard()
+{
+    OperationsFixture fixture;
+    NodePtr commentBox = BuildCommentBoxNode(fixture.ids, "Explain this section");
+    const ed::NodeId commentBoxId = commentBox->ID;
+    Require(static_cast<CommentBoxNode*>(commentBox.get())->BoxColor == CommentBoxColor::Gray,
+            "Gray should be the default comment box color.");
+    RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, commentBox),
+            "Adding a comment box failed.");
+    RequireSuccess(fixture.operations->ChangeCommentBoxText(
+            fixture.script.main->ID.id, commentBoxId, "Updated explanation"),
+            "Editing a comment box failed.");
+    RequireSuccess(fixture.operations->ChangeCommentBoxColor(
+            fixture.script.main->ID.id, commentBoxId, CommentBoxColor::Green),
+            "Changing a comment box color failed.");
+    commentBox = fixture.script.main->Graph.FindNode(commentBoxId);
+    Require(commentBox->Name == "Updated explanation" &&
+            static_cast<CommentBoxNode*>(commentBox.get())->BoxColor == CommentBoxColor::Green,
+            "The comment box text or color was not updated.");
+
+    RequireSuccess(fixture.operations->Undo(), "Undoing a comment box color failed.");
+    commentBox = fixture.script.main->Graph.FindNode(commentBoxId);
+    Require(static_cast<CommentBoxNode*>(commentBox.get())->BoxColor == CommentBoxColor::Gray,
+            "Undo did not restore the comment box color.");
+    RequireSuccess(fixture.operations->Undo(), "Undoing a comment box edit failed.");
+    Require(fixture.script.main->Graph.FindNode(commentBoxId)->Name == "Explain this section",
+            "Undo did not restore the comment box text.");
+    RequireSuccess(fixture.operations->Redo(), "Redoing a comment box edit failed.");
+    RequireSuccess(fixture.operations->Redo(), "Redoing a comment box color failed.");
+
+    RequireSuccess(fixture.operations->CopyNodes(
+            fixture.script.main->ID.id, { static_cast<int>(commentBoxId.Get()) }),
+            "Copying a comment box failed.");
+    std::vector<int> pasted;
+    RequireSuccess(fixture.operations->PasteNodes(fixture.script.main->ID.id, pasted),
+            "Pasting a comment box failed.");
+    Require(pasted.size() == 1 && pasted.front() != commentBoxId.Get(),
+            "A pasted comment box did not receive a fresh ID.");
+    const NodePtr clone = fixture.script.main->Graph.FindNode(ed::NodeId(pasted.front()));
+    Require(clone && clone->Type == NodeType::CommentBox && clone->Name == "Updated explanation" &&
+            static_cast<CommentBoxNode*>(clone.get())->BoxColor == CommentBoxColor::Green,
+            "A pasted comment box did not preserve its text, color, and type.");
 }
 
 void CompiledDynamicInputsCanBeUndoneAndRedone()
@@ -602,6 +647,7 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("required Begin node cannot be deleted", RequiredBeginCannotBeDeleted);
         runner.Test("Main signature cannot be edited", MainSignatureCannotBeEdited);
         runner.Test("node state can be undone and redone", NodeStateCanBeUndoneAndRedone);
+        runner.Test("comment boxes support history, color, and clipboard", CommentBoxesSupportHistoryColorAndClipboard);
         runner.Test("compiled dynamic inputs can be undone and redone", CompiledDynamicInputsCanBeUndoneAndRedone);
         runner.Test("MakeList type overrides can be undone and redone",
             MakeListTypeOverrideCanBeUndoneAndRedone);

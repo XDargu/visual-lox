@@ -133,7 +133,9 @@ Value UiImage(int, Value* args, VM*)
             static_cast<int>(NumberArgument(args[2])),
             static_cast<int>(NumberArgument(args[3])),
             NumberArgument(args[4], 1.0),
-            NumberArgument(args[5]));
+            NumberArgument(args[5]),
+            static_cast<int>(NumberArgument(args[6]))
+        );
     }
     return Value();
 }
@@ -200,7 +202,7 @@ void VisualApplicationContext::MarkRoots(VM& vm)
     vm.markValue(updateFunction);
 }
 
-void VisualApplicationContext::DrawImage(const std::string& id, ObjList* values, int width, int height, double maximum, double revision)
+void VisualApplicationContext::DrawImage(const std::string& id, ObjList* values, int width, int height, double maximum, double revision, int scale /*= 1*/)
 {
     if (!IsFrameActive() || !ImGui::GetCurrentContext() || !values || width <= 0 || height <= 0 || maximum <= 0.0 || !callbacks.create)
         return;
@@ -236,8 +238,8 @@ void VisualApplicationContext::DrawImage(const std::string& id, ObjList* values,
         return;
 
     const float availableWidth = ImGui::GetContentRegionAvail().x;
-    const float displayWidth = std::min(static_cast<float>(width), availableWidth);
-    const float displayHeight = displayWidth * static_cast<float>(height) / static_cast<float>(width);
+    const float displayWidth = std::min(static_cast<float>(width * scale), availableWidth);
+    const float displayHeight = displayWidth * static_cast<float>(height * scale) / static_cast<float>(width * scale);
     ImGui::Image(cached.texture, ImVec2(displayWidth, displayHeight));
 }
 
@@ -287,9 +289,9 @@ void RegisterVisualApplicationLibrary(NodeRegistry& registry)
     registry.RegisterNativeFunc("UI::Image",
         { { "Id", Value(copyString("Image", 5)), -1, PinType::String },
           { "Values", Value(newList()), -1, TypeRef::List(PinType::Float) },
-          { "Width", Value(1.0) }, { "Height", Value(1.0) }, { "Maximum", Value(1.0) }, { "Revision", Value(0.0) } },
+          { "Width", Value(1.0) }, { "Height", Value(1.0) }, { "Maximum", Value(1.0) }, { "Revision", Value(0.0) }, { "Scale", Value(1.0) } },
         {}, &UiImage, NodeDefinitionFlags::None,
         { "Draws a color-mapped numeric image. A new list value or revision triggers a texture upload",
           { "A stable texture cache key", "Row-major scalar pixel values", "Pixel width", "Pixel height", "The value mapped to black",
-            "Increment this after mutating an existing values list" }, {} });
+            "Increment this after mutating an existing values list", "Scale of the image, defaults to 1"}, {}});
 }

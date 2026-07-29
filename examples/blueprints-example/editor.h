@@ -33,8 +33,12 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <map>
 #include <algorithm>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #include <utility>
 #include <sstream>
 #include <memory>
@@ -95,6 +99,12 @@ struct Example :
     void DrawStatusBar();
     void HandleShortcuts();
     void CompileScript(bool runAfterCompile);
+    void StartScriptExecution(ObjFunction* function);
+    void PollScriptExecution();
+    void StopScriptExecution();
+    void SubmitConsoleInput();
+    bool IsScriptExecutionRunning() const;
+    bool IsScriptWaitingForInput() const;
     void DrawVisualApplicationPreview(float deltaTime);
     void StopVisualApplication();
     void DestroyPendingVisualApplicationTextures();
@@ -248,6 +258,18 @@ struct Example :
     std::vector<ScriptSearchResult> m_searchResults;
     std::string m_compileOutput = "Compile output will appear here.";
     std::string m_runOutput = "Run the script to see its output.";
+    std::string m_consoleDisplay = m_runOutput;
+    std::string m_consoleInput;
+    std::thread m_scriptExecutionThread;
+    mutable std::mutex m_consoleMutex;
+    std::condition_variable m_consoleInputReady;
+    std::deque<std::string> m_consoleInputQueue;
+    InterpretResult m_scriptExecutionResult = InterpretResult::INTERPRET_OK;
+    bool m_scriptExecutionRunning = false;
+    bool m_scriptExecutionFinished = false;
+    bool m_scriptExecutionCancelled = false;
+    bool m_consoleWaitingForInput = false;
+    bool m_focusConsoleInput = false;
     std::unique_ptr<VisualApplicationContext> m_visualApplicationContext;
     std::vector<ImTextureID> m_visualApplicationTexturesPendingDestroy;
     bool m_visualApplicationPreviewOpen = false;

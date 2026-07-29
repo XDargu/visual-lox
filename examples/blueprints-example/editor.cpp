@@ -1,10 +1,13 @@
 #include "editor.h"
 
 #include "native/nodes/begin.h"
+#include "native/nodes/commentBox.h"
 #include "IconsFontAwesome6.h"
 
 
 #include "utilities/utils.h"
+
+#include <Natives.h>
 
 #include <filesystem>
 #include <fstream>
@@ -30,6 +33,10 @@ const ImVec4 kSuccess = ImVec4(0.24f, 0.72f, 0.47f, 1.0f);
 const ImVec4 kWarning = ImVec4(0.96f, 0.67f, 0.24f, 1.0f);
 const ImVec4 kError = ImVec4(0.94f, 0.32f, 0.34f, 1.0f);
 const ImVec4 kMuted = ImVec4(0.58f, 0.62f, 0.70f, 1.0f);
+
+struct ConsoleInputCancelled final : std::exception
+{
+};
 
 std::optional<std::string> SelectVloxFile(bool save, const std::string& currentPath)
 {
@@ -378,6 +385,65 @@ namespace Utils
         std::streambuf* oldCerrStreamBuf;
         std::ostringstream strCout;
     };
+
+    class SynchronizedOutputBuffer final : public std::streambuf
+    {
+    public:
+        SynchronizedOutputBuffer(std::mutex& mutex, std::string& output)
+            : m_mutex(mutex), m_output(output)
+        {
+        }
+
+    protected:
+        int_type overflow(int_type character) override
+        {
+            if (traits_type::eq_int_type(character, traits_type::eof()))
+                return traits_type::not_eof(character);
+
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_output.push_back(traits_type::to_char_type(character));
+            return character;
+        }
+
+        std::streamsize xsputn(const char* text, std::streamsize length) override
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_output.append(text, static_cast<size_t>(length));
+            return length;
+        }
+
+    private:
+        std::mutex& m_mutex;
+        std::string& m_output;
+    };
+
+    struct CaptureSynchronizedStdout
+    {
+        CaptureSynchronizedStdout(std::mutex& mutex, std::string& output)
+            : buffer(mutex, output), oldCoutStreamBuf(std::cout.rdbuf(&buffer)), oldCerrStreamBuf(std::cerr.rdbuf(&buffer))
+        {
+        }
+
+        ~CaptureSynchronizedStdout()
+        {
+            Restore();
+        }
+
+        void Restore()
+        {
+            if (!oldCoutStreamBuf)
+                return;
+
+            std::cout.rdbuf(oldCoutStreamBuf);
+            std::cerr.rdbuf(oldCerrStreamBuf);
+            oldCoutStreamBuf = nullptr;
+            oldCerrStreamBuf = nullptr;
+        }
+
+        SynchronizedOutputBuffer buffer;
+        std::streambuf* oldCoutStreamBuf;
+        std::streambuf* oldCerrStreamBuf;
+    };
 }
 
 void Example::OnStart()
@@ -419,6 +485,21 @@ void Example::OnStart()
     RegisterStandardLibrary(m_NodeRegistry);
     RegisterVisualApplicationLibrary(m_NodeRegistry);
     m_NodeRegistry.RegisterNatives(vm);
+    setInputProvider([this]()
+    {
+        std::unique_lock<std::mutex> lock(m_consoleMutex);
+        m_consoleWaitingForInput = true;
+        m_focusConsoleInput = true;
+        m_consoleInputReady.wait(lock, [this]() { return !m_consoleInputQueue.empty() || m_scriptExecutionCancelled; });
+        m_consoleWaitingForInput = false;
+
+        if (m_scriptExecutionCancelled)
+            throw ConsoleInputCancelled();
+
+        std::string input = std::move(m_consoleInputQueue.front());
+        m_consoleInputQueue.pop_front();
+        return input;
+    });
 
     // Script ID
     m_script.ID = m_IDGenerator.GetNextId();
@@ -450,6 +531,8 @@ void Example::OnStart()
 
 void Example::OnStop()
 {
+    StopScriptExecution();
+    clearInputProvider();
     StopVisualApplication();
     DestroyPendingVisualApplicationTextures();
     SaveLayoutSettings();
@@ -1211,7 +1294,7 @@ void Example::ShowInspector()
         {
             if (NodePtr node = m_graphView.m_pGraph->FindNode(selectedNodes.front()))
             {
-                ImGui::TextDisabled("NODE");
+                ImGui::TextDisabled(node->Type == NodeType::CommentBox ? "COMMENT BOX" : "NODE");
                 ImGui::PushFont(HeaderFont());
                 ImGui::TextWrapped("%s", node->Name.c_str());
                 ImGui::PopFont();
@@ -1219,6 +1302,45 @@ void Example::ShowInspector()
                     m_graphView.m_pScriptFunction
                         ? m_graphView.m_pScriptFunction->functionDef->name.c_str()
                         : "Unknown");
+
+                if (node->Type == NodeType::CommentBox && m_graphView.m_pScriptFunction)
+                {
+                    ImGui::Spacing();
+                    ImGui::TextDisabled("LABEL");
+                    std::string text = node->Name;
+                    ImGui::SetNextItemWidth(-1.0f);
+                    if (ImGui::InputText("##comment-box-text", &text) && !text.empty())
+                    {
+                        const int functionId = m_graphView.m_pScriptFunction->ID.id;
+                        const ed::NodeId nodeId = node->ID;
+                        queueOperation("Comment box updated", [this, functionId, nodeId, text]()
+                        {
+                            return m_operations->ChangeCommentBoxText(functionId, nodeId, text);
+                        });
+                    }
+
+                    ImGui::TextDisabled("COLOR");
+                    CommentBoxNode* commentBox = static_cast<CommentBoxNode*>(node.get());
+                    int selectedColor = static_cast<int>(commentBox->BoxColor);
+                    const auto colorLabel = [](void*, int index, const char** output)
+                    {
+                        if (index < 0 || index >= CommentBoxColorCount)
+                            return false;
+                        *output = CommentBoxColorLabel(static_cast<CommentBoxColor>(index));
+                        return true;
+                    };
+                    ImGui::SetNextItemWidth(-1.0f);
+                    if (ImGui::Combo("##comment-box-color", &selectedColor, colorLabel, nullptr, CommentBoxColorCount))
+                    {
+                        const int functionId = m_graphView.m_pScriptFunction->ID.id;
+                        const ed::NodeId nodeId = node->ID;
+                        const CommentBoxColor color = static_cast<CommentBoxColor>(selectedColor);
+                        queueOperation("Comment box color updated", [this, functionId, nodeId, color]()
+                        {
+                            return m_operations->ChangeCommentBoxColor(functionId, nodeId, color);
+                        });
+                    }
+                }
 
                 if (!node->GenericTypeProperties.empty() && m_graphView.m_pScriptFunction)
                 {
@@ -1249,7 +1371,7 @@ void Example::ShowInspector()
                     }
                 }
 
-                if (ImGui::CollapsingHeader("Inputs", ImGuiTreeNodeFlags_DefaultOpen))
+                if (node->Type != NodeType::CommentBox && ImGui::CollapsingHeader("Inputs", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     if (node->Inputs.empty())
                         ImGui::TextDisabled("This node has no inputs.");
@@ -1298,7 +1420,7 @@ void Example::ShowInspector()
                     }
                 }
 
-                if (ImGui::CollapsingHeader("Outputs", ImGuiTreeNodeFlags_DefaultOpen))
+                if (node->Type != NodeType::CommentBox && ImGui::CollapsingHeader("Outputs", ImGuiTreeNodeFlags_DefaultOpen))
                 {
                     if (node->Outputs.empty())
                         ImGui::TextDisabled("This node has no outputs.");
@@ -2315,29 +2437,72 @@ void Example::ShowSearchPanel()
 void Example::ShowOutputPanel()
 {
     if (ImGui::Button(ICON_FA_TRASH_CAN " Clear"))
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
         m_runOutput.clear();
+        m_consoleDisplay.clear();
+    }
+
+    const bool executionRunning = IsScriptExecutionRunning();
     ImGui::SameLine();
-    if (m_visualApplicationContext)
+    if (executionRunning || m_visualApplicationContext)
     {
         if (ImGui::Button(ICON_FA_STOP " Stop"))
         {
-            StopVisualApplication();
-            m_fileStatus = "Application stopped";
+            if (executionRunning)
+                StopScriptExecution();
+            else
+                StopVisualApplication();
+            m_fileStatus = "Program stopped";
             m_fileStatusIsError = false;
         }
     }
     else if (ImGui::Button(ICON_FA_PLAY " Run again"))
         CompileScript(true);
+
     ImGui::Separator();
 
-    if (m_runOutput.empty())
-        ImGui::TextDisabled("No output.");
-    else
+    bool focusInput = false;
+    bool waitingForInput = false;
     {
-        if (MonoFont()) ImGui::PushFont(MonoFont());
-        ImGui::TextUnformatted(m_runOutput.c_str());
-        if (MonoFont()) ImGui::PopFont();
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        if (m_consoleDisplay != m_runOutput)
+            m_consoleDisplay = m_runOutput;
+        waitingForInput = m_consoleWaitingForInput;
+        focusInput = m_focusConsoleInput;
+        m_focusConsoleInput = false;
     }
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.035f, 0.040f, 0.052f, 1.0f));
+    ImGui::BeginChild("##console", ImVec2(0.0f, 0.0f), true);
+    ImGui::PopStyleColor();
+
+    if (MonoFont())
+        ImGui::PushFont(MonoFont());
+
+    const float inputHeight = waitingForInput ? ImGui::GetFrameHeight() + ImGui::GetStyle().ItemSpacing.y : 0.0f;
+    const float transcriptHeight = ImMax(40.0f, ImGui::GetContentRegionAvail().y - inputHeight);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 0.0f));
+    ImGui::InputTextMultiline("##console-transcript", &m_consoleDisplay, ImVec2(-1.0f, transcriptHeight), ImGuiInputTextFlags_ReadOnly);
+
+    if (waitingForInput)
+    {
+        ImGui::TextUnformatted(">");
+        ImGui::SameLine();
+        if (focusInput)
+            ImGui::SetKeyboardFocusHere();
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::InputText("##console-input", &m_consoleInput, ImGuiInputTextFlags_EnterReturnsTrue))
+            SubmitConsoleInput();
+    }
+
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor();
+    if (MonoFont())
+        ImGui::PopFont();
+    ImGui::EndChild();
 }
 
 void Example::ShowDeveloperPanel()
@@ -2436,6 +2601,15 @@ void Example::ShowBottomPanel()
 
 void Example::CompileScript(bool runAfterCompile)
 {
+    PollScriptExecution();
+    if (IsScriptExecutionRunning())
+    {
+        m_fileStatus = IsScriptWaitingForInput() ? "Program is waiting for input" : "Program is already running";
+        m_fileStatusIsError = false;
+        SetBottomPanel(BottomPanelTab::Output);
+        return;
+    }
+
     StopVisualApplication();
 
     VM& vm = VM::getInstance();
@@ -2476,17 +2650,101 @@ void Example::CompileScript(bool runAfterCompile)
         [this](ImTextureID texture) { m_visualApplicationTexturesPendingDestroy.push_back(texture); }
     });
 
-    Utils::CaptureStdout captureExecution;
-    InterpretResult executionResult = ScriptRuntime::Execute(vm, compileResult.function);
-    m_runOutput = captureExecution.Restore();
+    StartScriptExecution(compileResult.function);
+    m_fileStatus = "Program running";
+    m_fileStatusIsError = false;
+    SetBottomPanel(BottomPanelTab::Output);
+}
 
-    if (executionResult == InterpretResult::INTERPRET_OK)
+void Example::StartScriptExecution(ObjFunction* function)
+{
+    if (m_scriptExecutionThread.joinable())
+        m_scriptExecutionThread.join();
+
     {
-        if (m_visualApplicationContext->HasUpdateFunction())
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        m_runOutput.clear();
+        m_consoleDisplay.clear();
+        m_consoleInput.clear();
+        m_consoleInputQueue.clear();
+        m_scriptExecutionResult = InterpretResult::INTERPRET_OK;
+        m_scriptExecutionRunning = true;
+        m_scriptExecutionFinished = false;
+        m_scriptExecutionCancelled = false;
+        m_consoleWaitingForInput = false;
+        m_focusConsoleInput = false;
+    }
+
+    m_scriptExecutionThread = std::thread([this, function]()
+    {
+        InterpretResult result = InterpretResult::INTERPRET_RUNTIME_ERROR;
+        bool cancelled = false;
+
+        {
+            Utils::CaptureSynchronizedStdout captureExecution(m_consoleMutex, m_runOutput);
+            try
+            {
+                result = ScriptRuntime::Execute(VM::getInstance(), function);
+            }
+            catch (const ConsoleInputCancelled&)
+            {
+                VM::getInstance().resetStack();
+                cancelled = true;
+            }
+            catch (const std::exception& exception)
+            {
+                VM::getInstance().resetStack();
+                std::cerr << "Program stopped: " << exception.what() << '\n';
+            }
+            catch (...)
+            {
+                VM::getInstance().resetStack();
+                std::cerr << "Program stopped by an unexpected runtime error.\n";
+            }
+        }
+
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        m_scriptExecutionResult = result;
+        m_scriptExecutionCancelled = cancelled;
+        m_scriptExecutionRunning = false;
+        m_scriptExecutionFinished = true;
+        m_consoleWaitingForInput = false;
+    });
+}
+
+void Example::PollScriptExecution()
+{
+    InterpretResult result = InterpretResult::INTERPRET_OK;
+    bool cancelled = false;
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        if (!m_scriptExecutionFinished)
+            return;
+
+        result = m_scriptExecutionResult;
+        cancelled = m_scriptExecutionCancelled;
+        m_scriptExecutionFinished = false;
+    }
+
+    if (m_scriptExecutionThread.joinable())
+        m_scriptExecutionThread.join();
+
+    if (cancelled)
+    {
+        m_visualApplicationContext.reset();
+        m_fileStatus = "Program stopped";
+        m_fileStatusIsError = false;
+        return;
+    }
+
+    if (result == InterpretResult::INTERPRET_OK)
+    {
+        if (m_visualApplicationContext && m_visualApplicationContext->HasUpdateFunction())
         {
             m_visualApplicationPreviewOpen = true;
             m_fileStatus = "Application running";
             m_fileStatusIsError = false;
+            std::lock_guard<std::mutex> lock(m_consoleMutex);
             if (m_runOutput.empty())
                 m_runOutput = "Application initialized. Close the preview or press Stop to end it.";
         }
@@ -2495,23 +2753,74 @@ void Example::CompileScript(bool runAfterCompile)
             m_visualApplicationContext.reset();
             m_fileStatus = "Run completed";
             m_fileStatusIsError = false;
+            std::lock_guard<std::mutex> lock(m_consoleMutex);
             if (m_runOutput.empty())
                 m_runOutput = "Program completed with no output.";
         }
     }
 
-    if (executionResult != InterpretResult::INTERPRET_OK)
+    if (result != InterpretResult::INTERPRET_OK)
     {
         m_visualApplicationContext.reset();
-        m_fileStatus = executionResult == InterpretResult::INTERPRET_COMPILE_ERROR
+        m_fileStatus = result == InterpretResult::INTERPRET_COMPILE_ERROR
             ? "Run stopped: compilation error"
             : "Run stopped: runtime error";
         m_fileStatusIsError = true;
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
         if (m_runOutput.empty())
             m_runOutput = m_fileStatus;
     }
+}
 
-    SetBottomPanel(BottomPanelTab::Output);
+void Example::StopScriptExecution()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        if (!m_scriptExecutionThread.joinable())
+            return;
+        m_scriptExecutionCancelled = true;
+        m_consoleWaitingForInput = false;
+    }
+    m_consoleInputReady.notify_all();
+    m_scriptExecutionThread.join();
+
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        m_scriptExecutionRunning = false;
+        m_scriptExecutionFinished = false;
+        m_consoleWaitingForInput = false;
+        m_consoleInputQueue.clear();
+    }
+    m_visualApplicationContext.reset();
+}
+
+void Example::SubmitConsoleInput()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        if (!m_consoleWaitingForInput)
+            return;
+
+        m_runOutput += "> ";
+        m_runOutput += m_consoleInput;
+        m_runOutput.push_back('\n');
+        m_consoleInputQueue.push_back(m_consoleInput);
+        m_consoleInput.clear();
+        m_consoleWaitingForInput = false;
+    }
+    m_consoleInputReady.notify_one();
+}
+
+bool Example::IsScriptExecutionRunning() const
+{
+    std::lock_guard<std::mutex> lock(m_consoleMutex);
+    return m_scriptExecutionRunning;
+}
+
+bool Example::IsScriptWaitingForInput() const
+{
+    std::lock_guard<std::mutex> lock(m_consoleMutex);
+    return m_consoleWaitingForInput;
 }
 
 void Example::StopVisualApplication()
@@ -2529,7 +2838,7 @@ void Example::DestroyPendingVisualApplicationTextures()
 
 void Example::DrawVisualApplicationPreview(float deltaTime)
 {
-    if (!m_visualApplicationContext)
+    if (!m_visualApplicationContext || IsScriptExecutionRunning())
         return;
 
     ImGui::SetNextWindowSize(ImVec2(640.0f, 720.0f), ImGuiCond_FirstUseEver);
@@ -2665,14 +2974,20 @@ void Example::DrawMenuBar()
 
     if (ImGui::BeginMenu("Run"))
     {
+        const bool executionRunning = IsScriptExecutionRunning();
+        ImGuiUtils::BeginDisabled(executionRunning);
         if (ImGui::MenuItem(ICON_FA_CODE "  Compile", "Ctrl+Enter"))
             CompileScript(false);
-        if (m_visualApplicationContext)
+        ImGuiUtils::EndDisabled();
+        if (executionRunning || m_visualApplicationContext)
         {
             if (ImGui::MenuItem(ICON_FA_STOP "  Stop", "F5"))
             {
-                StopVisualApplication();
-                m_fileStatus = "Application stopped";
+                if (executionRunning)
+                    StopScriptExecution();
+                else
+                    StopVisualApplication();
+                m_fileStatus = "Program stopped";
                 m_fileStatusIsError = false;
             }
         }
@@ -2843,7 +3158,9 @@ void Example::DrawToolbar()
     const float compileWidth =
         ImGui::CalcTextSize(ICON_FA_CODE " Compile").x +
         ImGui::GetStyle().FramePadding.x * 2.0f;
-    const char* runLabel = m_visualApplicationContext ? ICON_FA_STOP " Stop" : ICON_FA_PLAY " Run";
+    const bool executionRunning = IsScriptExecutionRunning();
+    const bool programActive = executionRunning || m_visualApplicationContext;
+    const char* runLabel = programActive ? ICON_FA_STOP " Stop" : ICON_FA_PLAY " Run";
     const float runWidth =
         ImGui::CalcTextSize(runLabel).x +
         ImGui::GetStyle().FramePadding.x * 2.0f;
@@ -2892,19 +3209,27 @@ void Example::DrawToolbar()
         ImGui::SameLine();
         ImGui::SetCursorPosX(rightX);
     }
+    ImGuiUtils::BeginDisabled(executionRunning);
     if (ImGui::Button(ICON_FA_CODE " Compile"))
         CompileScript(false);
+    ImGuiUtils::EndDisabled();
     Tooltip("Compile the current script (Ctrl+Enter)");
     ImGui::SameLine();
-    const ImVec4 runColor = m_visualApplicationContext ? ImVec4(0.67f, 0.22f, 0.22f, 1.0f) : ImVec4(0.16f, 0.55f, 0.34f, 1.0f);
-    const ImVec4 runHoverColor = m_visualApplicationContext ? ImVec4(0.78f, 0.28f, 0.28f, 1.0f) : ImVec4(0.20f, 0.66f, 0.41f, 1.0f);
-    const ImVec4 runActiveColor = m_visualApplicationContext ? ImVec4(0.56f, 0.17f, 0.17f, 1.0f) : ImVec4(0.13f, 0.47f, 0.29f, 1.0f);
+    const ImVec4 runColor = programActive ? ImVec4(0.67f, 0.22f, 0.22f, 1.0f) : ImVec4(0.16f, 0.55f, 0.34f, 1.0f);
+    const ImVec4 runHoverColor = programActive ? ImVec4(0.78f, 0.28f, 0.28f, 1.0f) : ImVec4(0.20f, 0.66f, 0.41f, 1.0f);
+    const ImVec4 runActiveColor = programActive ? ImVec4(0.56f, 0.17f, 0.17f, 1.0f) : ImVec4(0.13f, 0.47f, 0.29f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_Button, runColor);
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, runHoverColor);
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, runActiveColor);
     if (ImGui::Button(runLabel))
     {
-        if (m_visualApplicationContext)
+        if (executionRunning)
+        {
+            StopScriptExecution();
+            m_fileStatus = "Program stopped";
+            m_fileStatusIsError = false;
+        }
+        else if (m_visualApplicationContext)
         {
             StopVisualApplication();
             m_fileStatus = "Application stopped";
@@ -2967,7 +3292,13 @@ void Example::HandleShortcuts()
     // of which editor panel owns keyboard focus.
     if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
     {
-        if (m_visualApplicationContext)
+        if (IsScriptExecutionRunning())
+        {
+            StopScriptExecution();
+            m_fileStatus = "Program stopped";
+            m_fileStatusIsError = false;
+        }
+        else if (m_visualApplicationContext)
         {
             StopVisualApplication();
             m_fileStatus = "Application stopped";
@@ -3053,6 +3384,13 @@ void Example::HandleShortcuts()
 
 void Example::OnFrame(float deltaTime)
 {
+    PollScriptExecution();
+    if (IsScriptWaitingForInput())
+    {
+        m_fileStatus = "Waiting for input";
+        m_fileStatusIsError = false;
+    }
+
     // Preview shutdown can happen after its image was submitted to ImGui. Keep
     // those textures alive until DX11 has rendered that frame, then release
     // them here before any draw commands for the next frame are created.
@@ -4456,6 +4794,7 @@ void Example::AddRecentFile(const std::string& path)
 
 void Example::NewScript()
 {
+    StopScriptExecution();
     StopVisualApplication();
     m_graphView.Destroy();
     m_script = Script();
@@ -4648,6 +4987,7 @@ void Example::SaveScript(const std::string& path)
 
 void Example::LoadScript(const std::string& path)
 {
+    StopScriptExecution();
     StopVisualApplication();
     Script loadedScript;
     IDGenerator loadedIds;

@@ -135,7 +135,7 @@ build/bin/vlox_d.exe path/to/script.vlox
 Visual applications initialize through their normal `Main` graph. Call `UI::Start` from `Main` and pass it an update function with one numeric `Delta Time` input; the function can have any name. The application host calls the registered function once per ImGui frame:
 
 ```sh
-build/bin/vlox-app_d.exe examples/blueprints-example/apps/mandelbrot.vlox
+build/bin/vlox-app_d.exe programs/Mandelbrot.vlox
 ```
 
 Opening the same script in `vlox-editor` and pressing Run starts an embedded application preview. Press Stop, F5, or close the preview window to end it.
@@ -149,6 +149,22 @@ build/bin/vlox_d.exe --disassemble path/to/script.vlox
 ```
 
 The CLI returns a non-zero exit code when loading, compilation or execution fails, making it suitable for scripts and CI jobs.
+
+## Generating Example Programs
+
+Build `visual-lox-example-generator`, then run it without arguments to regenerate every registered example in `programs`:
+
+```sh
+build/bin/vlox-example-generator_d.exe
+```
+
+Pass a registry ID to generate one example, or use `--list` to see the available IDs:
+
+```sh
+build/bin/vlox-example-generator_d.exe --example game-of-life
+build/bin/vlox-example-generator_d.exe generated-examples mandelbrot
+build/bin/vlox-example-generator_d.exe --list
+```
 
 ## Tests
 

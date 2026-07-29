@@ -117,7 +117,7 @@ void ValidateGraph(const Script& script, const ScriptFunction& function,
         const bool pureLocalAssignment = localVariableReference && node->SerializationType == "variable.set";
         if (pureGraph && !pureLocalAssignment && node->Category != NodeCategory::Begin &&
             node->Category != NodeCategory::Return &&
-            node->Type != NodeType::Comment && !node->IsPure())
+            node->Type != NodeType::CommentBox && !node->IsPure())
             add(DiagnosticSeverity::Error, "impure-node",
                 "Pure graphs cannot contain the non-pure node '" +
                 node->Name + "'.", node->ID);

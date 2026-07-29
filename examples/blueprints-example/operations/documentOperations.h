@@ -13,6 +13,7 @@
 
 class NodeRegistry;
 struct IDGenerator;
+enum class CommentBoxColor;
 
 struct OperationResult
 {
@@ -39,6 +40,8 @@ public:
     OperationResult Disconnect(int functionId, ed::LinkId linkId);
     OperationResult ChangeNodeInputValue(int functionId, ed::NodeId nodeId, int inputIndex,
                                          const Value& value);
+    OperationResult ChangeCommentBoxText(int functionId, ed::NodeId nodeId, const std::string& text);
+    OperationResult ChangeCommentBoxColor(int functionId, ed::NodeId nodeId, CommentBoxColor color);
     OperationResult ChangeNodeTypeOverride(int functionId, ed::NodeId nodeId,
                                            const std::string& variableName, const TypeRef& type);
     OperationResult ClearNodeTypeOverride(int functionId, ed::NodeId nodeId,

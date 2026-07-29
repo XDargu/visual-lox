@@ -6,6 +6,7 @@
 #include "../native/nodes/return.h"
 #include "../native/nodes/variable.h"
 #include "../script/scriptSerializer.h"
+#include "../native/nodes/commentBox.h"
 #include "../utilities/utils.h"
 
 #include <algorithm>
@@ -251,6 +252,38 @@ OperationResult DocumentOperations::ChangeNodeInputValue(int functionId, ed::Nod
     return Apply("Change node input", [&]
     {
         node->InputValues[inputIndex] = value;
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeCommentBoxText(int functionId, ed::NodeId nodeId,
+                                                          const std::string& text)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    NodePtr node = function ? function->Graph.FindNode(nodeId) : nullptr;
+    if (!node) return Missing("Node", nodeId.Get());
+    if (node->Type != NodeType::CommentBox)
+        return OperationResult::Fail("Only comment boxes have editable text.");
+    if (text.empty())
+        return OperationResult::Fail("Comment box text cannot be empty.");
+    return Apply("Edit comment box", [&]
+    {
+        node->Name = text;
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeCommentBoxColor(int functionId, ed::NodeId nodeId,
+                                                           CommentBoxColor color)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    NodePtr node = function ? function->Graph.FindNode(nodeId) : nullptr;
+    if (!node) return Missing("Node", nodeId.Get());
+    if (node->Type != NodeType::CommentBox)
+        return OperationResult::Fail("Only comment boxes have a comment-box color.");
+    return Apply("Change comment box color", [&]
+    {
+        static_cast<CommentBoxNode*>(node.get())->SetBoxColor(color);
         return OperationResult::Ok();
     });
 }

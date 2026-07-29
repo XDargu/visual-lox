@@ -1,15 +1,9 @@
-#include "visualApplication.h"
+#include "generator.h"
 
-#include "../graphs/idgeneration.h"
-#include "../graphs/nodeRegistry.h"
-#include "../native/nodes/begin.h"
-#include "../native/nodes/function.h"
-#include "../native/nodes/return.h"
-#include "../native/nodes/variable.h"
-#include "../runtime/scriptRuntime.h"
-#include "../runtime/standardLibrary.h"
-#include "../script/scriptSerializer.h"
-#include "../validation/scriptValidator.h"
+#include "../../examples/blueprints-example/native/nodes/begin.h"
+#include "../../examples/blueprints-example/native/nodes/return.h"
+#include "../../examples/blueprints-example/runtime/scriptRuntime.h"
+#include "../../examples/blueprints-example/script/scriptSerializer.h"
 
 #include <Object.h>
 #include <Vm.h>
@@ -22,116 +16,8 @@
 #include <stdexcept>
 #include <string>
 
-namespace
+namespace ExampleGenerator
 {
-struct Builder
-{
-    explicit Builder(const NodeRegistry& registry)
-        : registry(registry)
-    {
-        script.ID = ids.GetNextId();
-        script.main = std::make_shared<ScriptFunction>(ids.GetNextId(), "Main");
-    }
-
-    ScriptPropertyPtr Number(const char* name, double value)
-    {
-        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), name);
-        property->type = PinType::Float;
-        property->defaultValue = Value(value);
-        script.variables.push_back(property);
-        return property;
-    }
-
-    ScriptPropertyPtr NumberList(const char* name)
-    {
-        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), name);
-        property->type = TypeRef::List(PinType::Float);
-        property->defaultValue = Value(newList());
-        script.variables.push_back(property);
-        return property;
-    }
-
-    ScriptPropertyPtr LocalNumber(const ScriptFunctionPtr& function, const char* name, double value)
-    {
-        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), name);
-        property->type = PinType::Float;
-        property->defaultValue = Value(value);
-        function->variables.push_back(property);
-        return property;
-    }
-
-    NodePtr Compiled(const char* name)
-    {
-        CompiledNodeDefPtr definition = registry.FindCompiled(name);
-        if (!definition)
-            throw std::runtime_error(std::string("Missing compiled definition: ") + name);
-        return definition->MakeNode(ids);
-    }
-
-    NodePtr Native(const char* name)
-    {
-        const NativeFunctionDef* definition = registry.FindNative(name);
-        if (!definition)
-            throw std::runtime_error(std::string("Missing native definition: ") + name);
-        return definition->functionDef->MakeNode(ids, ScriptElementID::Invalid);
-    }
-
-    NodePtr Get(const ScriptPropertyPtr& property, const ScriptFunctionPtr& function = nullptr)
-    {
-        return BuildGetVariableNode(ids, property, ScriptElementID::Invalid, function ? function->ID : ScriptElementID::Invalid);
-    }
-
-    NodePtr Set(const ScriptPropertyPtr& property, const ScriptFunctionPtr& function = nullptr)
-    {
-        return BuildSetVariableNode(ids, property, ScriptElementID::Invalid, function ? function->ID : ScriptElementID::Invalid);
-    }
-
-    void Add(Graph& graph, std::initializer_list<NodePtr> nodes)
-    {
-        for (const NodePtr& node : nodes)
-        {
-            NodeUtils::BuildNode(node);
-            graph.AddNode(node);
-        }
-    }
-
-    void Link(Graph& graph, const Pin& output, const Pin& input)
-    {
-        graph.AddLink(::Link(ids.GetNextId(), output.ID, input.ID));
-    }
-
-    Pin& Input(const NodePtr& node, const char* name)
-    {
-        Pin* pin = node->FindInputByName(name);
-        if (!pin)
-            throw std::runtime_error("Missing input '" + std::string(name) + "' on " + node->Name);
-        return *pin;
-    }
-
-    Pin& Output(const NodePtr& node, const char* name)
-    {
-        Pin* pin = node->FindOutputByName(name);
-        if (!pin)
-            throw std::runtime_error("Missing output '" + std::string(name) + "' on " + node->Name);
-        return *pin;
-    }
-
-    void Default(const NodePtr& node, const char* name, Value value)
-    {
-        Pin& pin = Input(node, name);
-        for (size_t index = 0; index < node->Inputs.size(); ++index)
-            if (node->Inputs[index].ID == pin.ID)
-            {
-                node->InputValues[index] = value;
-                return;
-            }
-    }
-
-    const NodeRegistry& registry;
-    IDGenerator ids;
-    Script script;
-};
-
 NodePtr Binary(Builder& builder, const char* name, double right)
 {
     NodePtr node = builder.Compiled(name);
@@ -315,7 +201,7 @@ NodePtr AddSlider(Builder& builder, Graph& graph, const char* label, double mini
     return setValue;
 }
 
-Script MakeApplication(const NodeRegistry& registry)
+Script MakeMandelbrot(const NodeRegistry& registry)
 {
     Builder builder(registry);
     ScriptPropertyPtr centerX = builder.Number("CenterX", -0.5);
@@ -421,76 +307,55 @@ void ValidateApplicationFrame(VM& vm, VisualApplicationContext& applicationConte
     if (!textureCreated || !containsColor)
         throw std::runtime_error("The Mandelbrot image widget did not create a color texture.");
 }
+
+void SmokeTestMandelbrot(VM& vm, const NodeRegistry& registry, const std::filesystem::path& path)
+{
+    Script script;
+    IDGenerator ids;
+    const SerializationResult loaded = ScriptSerializer::Load(path.string(), registry, script, ids);
+    if (!loaded)
+        throw std::runtime_error("Could not load Mandelbrot smoke test: " + loaded.error);
+
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(vm, script);
+    if (!compiled)
+        throw std::runtime_error("Generated Mandelbrot graph failed compilation.");
+
+    int expectedDimension = 180;
+    bool textureCreated = false;
+    bool containsColor = false;
+    VisualApplicationContext applicationContext({
+        [&](const void* data, int width, int height)
+        {
+            textureCreated = width == expectedDimension && height == expectedDimension;
+            const uint8_t* rgba = static_cast<const uint8_t*>(data);
+            for (size_t index = 0; index < static_cast<size_t>(width) * static_cast<size_t>(height); ++index)
+                containsColor = containsColor || rgba[index * 4] != 0 || rgba[index * 4 + 1] != 0 || rgba[index * 4 + 2] != 0;
+            return reinterpret_cast<ImTextureID>(1);
+        },
+        [](ImTextureID) {}
+    });
+    if (ScriptRuntime::Execute(vm, compiled.function) != InterpretResult::INTERPRET_OK)
+        throw std::runtime_error("Generated Mandelbrot graph failed initialization.");
+    if (!applicationContext.HasUpdateFunction())
+        throw std::runtime_error("Generated Mandelbrot graph did not start its visual application.");
+
+    Value pixelValue;
+    if (!vm.globalTable().get(copyString("Pixels", 6), &pixelValue) || !isList(pixelValue))
+        throw std::runtime_error("Generated Mandelbrot graph did not produce its pixel list.");
+    const size_t initialPixelCount = asList(pixelValue)->items.size();
+    if (initialPixelCount != 180 * 180)
+        throw std::runtime_error("The default Mandelbrot resolution produced the wrong pixel count.");
+    ValidateApplicationFrame(vm, applicationContext, textureCreated, containsColor);
+
+    vm.globalTable().set(copyString("Resolution", 10), Value(127.0));
+    if (ScriptRuntime::CallGlobal(vm, "Regenerate") != InterpretResult::INTERPRET_OK)
+        throw std::runtime_error("Regenerating Mandelbrot at a different resolution failed.");
+    if (asList(pixelValue)->items.size() != 127 * 127)
+        throw std::runtime_error("Changing Mandelbrot resolution produced the wrong pixel count.");
+    expectedDimension = 127;
+    ValidateApplicationFrame(vm, applicationContext, textureCreated, containsColor);
+
+    std::cout << "Verified " << path.string() << " (pixels=" << initialPixelCount << ", resized_pixels=" << asList(pixelValue)->items.size() << ")\n";
 }
 
-int main(int argc, char** argv)
-{
-    try
-    {
-        const std::filesystem::path output = argc >= 2 ? argv[1] : std::filesystem::path("examples/blueprints-example/apps/mandelbrot.vlox");
-        VM& vm = VM::getInstance();
-        NodeRegistry registry;
-        RegisterStandardLibrary(registry);
-        RegisterVisualApplicationLibrary(registry);
-        registry.RegisterNatives(vm);
-
-        Script script = MakeApplication(registry);
-        const ValidationReport validation = ScriptValidator::Validate(script);
-        for (const ValidationDiagnostic& diagnostic : validation.diagnostics)
-            std::clog << FormatDiagnostic(diagnostic) << '\n';
-        if (validation.HasErrors())
-            throw std::runtime_error("Generated Mandelbrot graph failed validation.");
-
-        const SerializationResult saved = ScriptSerializer::Save(script, output.string());
-        if (!saved)
-            throw std::runtime_error(saved.error);
-
-        const ScriptCompileResult compiled = ScriptRuntime::Compile(vm, script);
-        if (!compiled)
-            throw std::runtime_error("Generated Mandelbrot graph failed compilation.");
-
-        int expectedDimension = 180;
-        bool textureCreated = false;
-        bool containsColor = false;
-        VisualApplicationContext applicationContext({
-            [&](const void* data, int width, int height)
-            {
-                textureCreated = width == expectedDimension && height == expectedDimension;
-                const uint8_t* rgba = static_cast<const uint8_t*>(data);
-                for (size_t index = 0; index < static_cast<size_t>(width) * static_cast<size_t>(height); ++index)
-                    containsColor = containsColor || rgba[index * 4] != 0 || rgba[index * 4 + 1] != 0 || rgba[index * 4 + 2] != 0;
-                return reinterpret_cast<ImTextureID>(1);
-            },
-            [](ImTextureID) {}
-        });
-        if (ScriptRuntime::Execute(vm, compiled.function) != InterpretResult::INTERPRET_OK)
-            throw std::runtime_error("Generated Mandelbrot graph failed initialization.");
-        if (!applicationContext.HasUpdateFunction())
-            throw std::runtime_error("Generated Mandelbrot graph did not start its visual application.");
-
-        Value pixelValue;
-        if (!vm.globalTable().get(copyString("Pixels", 6), &pixelValue) || !isList(pixelValue))
-            throw std::runtime_error("Generated Mandelbrot graph did not produce its pixel list.");
-        const size_t initialPixelCount = asList(pixelValue)->items.size();
-        if (initialPixelCount != 180 * 180)
-            throw std::runtime_error("The default Mandelbrot resolution produced the wrong pixel count.");
-        ValidateApplicationFrame(vm, applicationContext, textureCreated, containsColor);
-
-        vm.globalTable().set(copyString("Resolution", 10), Value(127.0));
-        if (ScriptRuntime::CallGlobal(vm, "Regenerate") != InterpretResult::INTERPRET_OK)
-            throw std::runtime_error("Regenerating Mandelbrot at a different resolution failed.");
-        if (asList(pixelValue)->items.size() != 127 * 127)
-            throw std::runtime_error("Changing Mandelbrot resolution produced the wrong pixel count.");
-        expectedDimension = 127;
-        ValidateApplicationFrame(vm, applicationContext, textureCreated, containsColor);
-
-        std::cout << "Generated " << output.string() << " (pixels=" << initialPixelCount
-                  << ", resized_pixels=" << asList(pixelValue)->items.size() << ")\n";
-        return 0;
-    }
-    catch (const std::exception& error)
-    {
-        std::cerr << "Generation error: " << error.what() << '\n';
-        return 1;
-    }
 }

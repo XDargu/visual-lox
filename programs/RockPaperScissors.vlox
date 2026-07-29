@@ -1,0 +1,2462 @@
+{
+  "format": "visual-lox",
+  "format_version": 6,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+      {
+        "description": "Chooses the computer move and prints the result",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 17,
+              "id": 20,
+              "start_pin_id": 7
+            },
+            {
+              "end_pin_id": 14,
+              "id": 21,
+              "start_pin_id": 12
+            },
+            {
+              "end_pin_id": 18,
+              "id": 22,
+              "start_pin_id": 15
+            },
+            {
+              "end_pin_id": 40,
+              "id": 43,
+              "start_pin_id": 19
+            },
+            {
+              "end_pin_id": 31,
+              "id": 44,
+              "start_pin_id": 24
+            },
+            {
+              "end_pin_id": 32,
+              "id": 45,
+              "start_pin_id": 29
+            },
+            {
+              "end_pin_id": 36,
+              "id": 46,
+              "start_pin_id": 33
+            },
+            {
+              "end_pin_id": 41,
+              "id": 47,
+              "start_pin_id": 37
+            },
+            {
+              "end_pin_id": 51,
+              "id": 82,
+              "start_pin_id": 8
+            },
+            {
+              "end_pin_id": 52,
+              "id": 83,
+              "start_pin_id": 49
+            },
+            {
+              "end_pin_id": 55,
+              "id": 84,
+              "start_pin_id": 53
+            },
+            {
+              "end_pin_id": 59,
+              "id": 85,
+              "start_pin_id": 57
+            },
+            {
+              "end_pin_id": 63,
+              "id": 86,
+              "start_pin_id": 42
+            },
+            {
+              "end_pin_id": 64,
+              "id": 87,
+              "start_pin_id": 61
+            },
+            {
+              "end_pin_id": 71,
+              "id": 88,
+              "start_pin_id": 66
+            },
+            {
+              "end_pin_id": 75,
+              "id": 89,
+              "start_pin_id": 69
+            },
+            {
+              "end_pin_id": 79,
+              "id": 90,
+              "start_pin_id": 67
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'Play Round'. Chooses the computer move and prints the result",
+              "id": 6,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 7,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Rock is 0, paper is 1, and scissors is 2",
+                  "id": 8,
+                  "name": "Player Move",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":0,\"y\":120}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Random",
+              "description": "Returns a random number between two bounds",
+              "id": 9,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 2.99999899999999986
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The lowest possible value",
+                  "id": 10,
+                  "name": "Min",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The highest possible value",
+                  "id": 11,
+                  "name": "Max",
+                  "type": "number"
+                }
+              ],
+              "kind": "function.call",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "A random number between Min and Max",
+                  "id": 12,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":152,\"y\":240}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Floor",
+              "description": "Rounds a number down to the nearest integer",
+              "id": 13,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The number to round down",
+                  "id": 14,
+                  "name": "Value",
+                  "type": "number"
+                }
+              ],
+              "kind": "function.call",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The rounded-down number",
+                  "id": 15,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":424,\"y\":240}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Sets variable 'Opponent Move'. ",
+              "id": 16,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Executes the assignment",
+                  "id": 17,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 18,
+                  "name": "Opponent Move",
+                  "type": "number"
+                }
+              ],
+              "kind": "variable.set",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Continues after the assignment",
+                  "id": 19,
+                  "name": "",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": 5,
+              "state": "{\"location\":{\"x\":624,\"y\":120}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "List::MakeList",
+              "description": "Collects its inputs into a typed list",
+              "id": 23,
+              "input_values":
+              [
+                {
+                  "type": "string",
+                  "value": "rock"
+                },
+                {
+                  "type": "string",
+                  "value": "paper"
+                },
+                {
+                  "type": "string",
+                  "value": "scissors"
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "A value to append to the list",
+                  "id": 25,
+                  "name": "A",
+                  "type": "variable"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "A value to append to the list",
+                  "id": 26,
+                  "name": "B",
+                  "type": "variable"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "A value to append to the list",
+                  "id": 27,
+                  "name": "C",
+                  "type": "variable"
+                }
+              ],
+              "kind": "function.call",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "list",
+                    "name": "",
+                    "parameters":
+                    [
+                      {
+                        "class_id": -1,
+                        "input_count": -1,
+                        "kind": "variable",
+                        "name": "T",
+                        "parameters":
+                        [
+                        ]
+                      }
+                    ]
+                  },
+                  "description": "A list containing the supplied values",
+                  "id": 24,
+                  "name": "List",
+                  "type": "list"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":808,\"y\":296}}",
+              "type_overrides":
+              {
+                "T":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
+              }
+            },
+            {
+              "definition": "",
+              "description": "Gets variable 'Opponent Move'. ",
+              "id": 28,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "variable.get",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 29,
+                  "name": "Opponent Move",
+                  "type": "number"
+                }
+              ],
+              "reference_id": 5,
+              "state": "{\"location\":{\"x\":808,\"y\":464}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "List::Get By Index",
+              "description": "Returns the list value at an index",
+              "id": 30,
+              "input_values":
+              [
+                {
+                  "items":
+                  [
+                  ],
+                  "type": "list"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "list",
+                    "name": "",
+                    "parameters":
+                    [
+                      {
+                        "class_id": -1,
+                        "input_count": -1,
+                        "kind": "variable",
+                        "name": "T",
+                        "parameters":
+                        [
+                        ]
+                      }
+                    ]
+                  },
+                  "description": "The list to read",
+                  "id": 31,
+                  "name": "List",
+                  "type": "list"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The zero-based index to read",
+                  "id": 32,
+                  "name": "Index",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value at Index, or nil when the index is invalid",
+                  "id": 33,
+                  "name": "Value",
+                  "type": "variable"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":1040,\"y\":296}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "String::Append",
+              "description": "Combines two or more strings in order",
+              "id": 34,
+              "input_values":
+              [
+                {
+                  "type": "string",
+                  "value": "Computer chose "
+                },
+                {
+                  "type": "string",
+                  "value": ""
+                },
+                {
+                  "type": "string",
+                  "value": "."
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first piece of text",
+                  "id": 35,
+                  "name": "A",
+                  "type": "any"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The next piece of text",
+                  "id": 36,
+                  "name": "B",
+                  "type": "any"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Another piece of text to append",
+                  "id": 38,
+                  "name": "C",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "string",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The combined text",
+                  "id": 37,
+                  "name": "Result",
+                  "type": "string"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":1232,\"y\":264}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Debug::Print",
+              "description": "Writes a value to the program output",
+              "id": 39,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "string",
+                  "value": ""
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution input for Print",
+                  "id": 40,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value to display",
+                  "id": 41,
+                  "name": "Content",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution output from Print",
+                  "id": 42,
+                  "name": "",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":1560,\"y\":120}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Gets variable 'Opponent Move'. ",
+              "id": 48,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "variable.get",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 49,
+                  "name": "Opponent Move",
+                  "type": "number"
+                }
+              ],
+              "reference_id": 5,
+              "state": "{\"location\":{\"x\":1704,\"y\":264}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Subtract",
+              "description": "Subtracts each following number from the running result",
+              "id": 50,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The number to subtract from",
+                  "id": 51,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first number to subtract",
+                  "id": 52,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The difference",
+                  "id": 53,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":1896,\"y\":232}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 54,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 55,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 56,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 57,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2072,\"y\":232}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Modulo",
+              "description": "Returns the remainder after dividing two numbers",
+              "id": 58,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The dividend",
+                  "id": 59,
+                  "name": "Dividend",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The divisor",
+                  "id": 60,
+                  "name": "Modulus",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The remainder",
+                  "id": 61,
+                  "name": "Remainder",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2288,\"y\":232}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Flow::Match",
+              "description": "Chooses the first execution path whose pattern equals a value",
+              "id": 62,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts matching Value against the patterns",
+                  "id": 63,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value tested against each pattern in order",
+                  "id": 64,
+                  "name": "Value",
+                  "type": "any"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first pattern to compare with Value",
+                  "id": 65,
+                  "name": "Pattern 1",
+                  "type": "any"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Another pattern to compare with Value",
+                  "id": 68,
+                  "name": "Pattern 2",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Runs when Value matches Pattern 1",
+                  "id": 66,
+                  "name": "Case 1",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Runs when Value matches this pattern",
+                  "id": 69,
+                  "name": "Case 2",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Runs when none of the patterns match",
+                  "id": 67,
+                  "name": "Default",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2648,\"y\":120}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Debug::Print",
+              "description": "Writes a value to the program output",
+              "id": 70,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "string",
+                  "value": "It is a tie."
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution input for Print",
+                  "id": 71,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value to display",
+                  "id": 72,
+                  "name": "Content",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution output from Print",
+                  "id": 73,
+                  "name": "",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2952,\"y\":32}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Debug::Print",
+              "description": "Writes a value to the program output",
+              "id": 74,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "string",
+                  "value": "You win!"
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution input for Print",
+                  "id": 75,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value to display",
+                  "id": 76,
+                  "name": "Content",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution output from Print",
+                  "id": 77,
+                  "name": "",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2952,\"y\":152}}",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Debug::Print",
+              "description": "Writes a value to the program output",
+              "id": 78,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "string",
+                  "value": "The computer wins."
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution input for Print",
+                  "id": 79,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value to display",
+                  "id": 80,
+                  "name": "Content",
+                  "type": "any"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Execution output from Print",
+                  "id": 81,
+                  "name": "",
+                  "type": "flow"
+                }
+              ],
+              "reference_id": -1,
+              "state": "{\"location\":{\"x\":2952,\"y\":272}}",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 3,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "Rock is 0, paper is 1, and scissors is 2",
+            "id": 4,
+            "name": "Player Move"
+          }
+        ],
+        "name": "Play Round",
+        "outputs":
+        [
+        ],
+        "pure": false,
+        "variables":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 5,
+            "name": "Opponent Move"
+          }
+        ]
+      }
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "Reads one move and plays a round of Rock Paper Scissors",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 94,
+            "id": 137,
+            "start_pin_id": 92
+          },
+          {
+            "end_pin_id": 98,
+            "id": 138,
+            "start_pin_id": 96
+          },
+          {
+            "end_pin_id": 102,
+            "id": 139,
+            "start_pin_id": 100
+          },
+          {
+            "end_pin_id": 106,
+            "id": 140,
+            "start_pin_id": 104
+          },
+          {
+            "end_pin_id": 109,
+            "id": 141,
+            "start_pin_id": 107
+          },
+          {
+            "end_pin_id": 112,
+            "id": 142,
+            "start_pin_id": 103
+          },
+          {
+            "end_pin_id": 113,
+            "id": 143,
+            "start_pin_id": 110
+          },
+          {
+            "end_pin_id": 122,
+            "id": 144,
+            "start_pin_id": 115
+          },
+          {
+            "end_pin_id": 126,
+            "id": 145,
+            "start_pin_id": 118
+          },
+          {
+            "end_pin_id": 130,
+            "id": 146,
+            "start_pin_id": 120
+          },
+          {
+            "end_pin_id": 134,
+            "id": 147,
+            "start_pin_id": 116
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. Reads one move and plays a round of Rock Paper Scissors",
+            "id": 91,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 92,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "string",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 149,
+                "name": "Arguments",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":0,\"y\":184}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Debug::Print",
+            "description": "Writes a value to the program output",
+            "id": 93,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": "Rock Paper Scissors"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution input for Print",
+                "id": 94,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to display",
+                "id": 95,
+                "name": "Content",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution output from Print",
+                "id": 96,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":144,\"y\":184}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Debug::Print",
+            "description": "Writes a value to the program output",
+            "id": 97,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": "Choose rock, paper, or scissors:"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution input for Print",
+                "id": 98,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to display",
+                "id": 99,
+                "name": "Content",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution output from Print",
+                "id": 100,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":448,\"y\":184}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Console::Read Input",
+            "description": "Waits for and returns one line of console input",
+            "id": 101,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 102,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 103,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The line entered by the user",
+                "id": 104,
+                "name": "Text",
+                "type": "string"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":816,\"y\":184}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "String::ToLower",
+            "description": "Converts text to lowercase",
+            "id": 105,
+            "input_values":
+            [
+              {
+                "type": "string",
+                "value": ""
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The text to convert",
+                "id": 106,
+                "name": "Text",
+                "type": "string"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The lowercase text",
+                "id": 107,
+                "name": "Lowercase",
+                "type": "string"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":992,\"y\":240}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "String::Trim",
+            "description": "Removes whitespace from both ends of text",
+            "id": 108,
+            "input_values":
+            [
+              {
+                "type": "string",
+                "value": ""
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The text to trim",
+                "id": 109,
+                "name": "Text",
+                "type": "string"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The trimmed text",
+                "id": 110,
+                "name": "Result",
+                "type": "string"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":1208,\"y\":240}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Match",
+            "description": "Chooses the first execution path whose pattern equals a value",
+            "id": 111,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": "rock"
+              },
+              {
+                "type": "string",
+                "value": "paper"
+              },
+              {
+                "type": "string",
+                "value": "scissors"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts matching Value against the patterns",
+                "id": 112,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value tested against each pattern in order",
+                "id": 113,
+                "name": "Value",
+                "type": "any"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first pattern to compare with Value",
+                "id": 114,
+                "name": "Pattern 1",
+                "type": "any"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Another pattern to compare with Value",
+                "id": 117,
+                "name": "Pattern 2",
+                "type": "any"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Another pattern to compare with Value",
+                "id": 119,
+                "name": "Pattern 3",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Value matches Pattern 1",
+                "id": 115,
+                "name": "Case 1",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Value matches this pattern",
+                "id": 118,
+                "name": "Case 2",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Value matches this pattern",
+                "id": 120,
+                "name": "Case 3",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when none of the patterns match",
+                "id": 116,
+                "name": "Default",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":1392,\"y\":120}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Chooses the computer move and prints the result",
+            "id": 121,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 122,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Rock is 0, paper is 1, and scissors is 2",
+                "id": 124,
+                "name": "Player Move",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 123,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 3,
+            "state": "{\"location\":{\"x\":1728,\"y\":-8}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Chooses the computer move and prints the result",
+            "id": 125,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 126,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Rock is 0, paper is 1, and scissors is 2",
+                "id": 128,
+                "name": "Player Move",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 127,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 3,
+            "state": "{\"location\":{\"x\":1728,\"y\":112}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Chooses the computer move and prints the result",
+            "id": 129,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 2
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 130,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Rock is 0, paper is 1, and scissors is 2",
+                "id": 132,
+                "name": "Player Move",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 131,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 3,
+            "state": "{\"location\":{\"x\":1728,\"y\":232}}",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Debug::Print",
+            "description": "Writes a value to the program output",
+            "id": 133,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "string",
+                "value": "That is not a valid move."
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution input for Print",
+                "id": 134,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to display",
+                "id": 135,
+                "name": "Content",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Execution output from Print",
+                "id": 136,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "{\"location\":{\"x\":1728,\"y\":352}}",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+        {
+          "declared_type":
+          {
+            "class_id": -1,
+            "input_count": -1,
+            "kind": "list",
+            "name": "",
+            "parameters":
+            [
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "string",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            ]
+          },
+          "default":
+          {
+            "items":
+            [
+            ],
+            "type": "list"
+          },
+          "description": "",
+          "id": 148,
+          "name": "Arguments"
+        }
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+    ]
+  }
+}

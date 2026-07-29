@@ -3,6 +3,7 @@
 #include "../graphs/idgeneration.h"
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/begin.h"
+#include "../native/nodes/commentBox.h"
 #include "../native/nodes/function.h"
 #include "../native/nodes/return.h"
 #include "../native/nodes/variable.h"
@@ -439,6 +440,11 @@ Json SerializeNode(const Node& node)
     result["reference_id"] = static_cast<double>(node.refId.id);
     result["state"] = node.State;
     result["description"] = node.Description;
+    if (node.Type == NodeType::CommentBox)
+    {
+        result["text"] = node.Name;
+        result["comment_box_color"] = CommentBoxColorName(static_cast<const CommentBoxNode&>(node).BoxColor);
+    }
 
     Json typeOverrides(Object{});
     for (const auto& [name, type] : node.TypeOverrides)
@@ -472,6 +478,9 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
     const ScriptElementID reference(IntField(json, "reference_id"));
 
     if (kind == "begin") return BuildBeginNode(constructionIds, owner);
+    if (kind == "comment_box" || kind == "comment")
+        return BuildCommentBoxNode(constructionIds, OptionalStringField(json, "text", "Comment Box"),
+            ParseCommentBoxColor(OptionalStringField(json, "comment_box_color", "gray")));
     if (kind == "return") return BuildReturnNode(constructionIds, *owner);
     if (kind == "variable.get" || kind == "variable.set")
     {

@@ -136,6 +136,9 @@ struct GraphView
     ImVec2 pendingScriptItemDropPosition = ImVec2(0, 0);
     bool openPaletteForScriptItem = false;
     int focusNodeIdOnNextFrame = -1;
+    int editingCommentBoxId = -1;
+    std::string commentBoxEditText;
+    bool focusCommentBoxEditor = false;
     std::function<void(int)> onGoToOrigin;
     std::function<void(const NodePtr&)> onFindReferences;
 

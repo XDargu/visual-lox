@@ -7,6 +7,7 @@
 #include "nodeRegistry.h"
 
 #include "../native/nodes/begin.h"
+#include "../native/nodes/commentBox.h"
 #include "../native/nodes/return.h"
 #include "../utilities/utils.h"
 
@@ -278,6 +279,9 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     m_pScript = pTargetScript;
     m_pScriptFunction = pScriptFunction;
     hasCanvasMousePosition = false;
+    editingCommentBoxId = -1;
+    commentBoxEditText.clear();
+    focusCommentBoxEditor = false;
     autoLayoutRequested = false;
 
     ed::Config config;
@@ -630,23 +634,53 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             ImGui::PopStyleVar();
         }
 
-        // Comment nodes
+        // Comment boxes
         for (const NodePtr& node : m_pGraph->GetNodes())
         {
-            if (node->Type != NodeType::Comment)
+            if (node->Type != NodeType::CommentBox)
                 continue;
 
-            const float commentAlpha = 0.75f;
+            const float commentBoxAlpha = 0.75f;
+            const auto withAlpha = [](ImColor color, int alpha)
+            {
+                color.Value.w = alpha / 255.0f;
+                return color;
+            };
+            bool commitEdit = false;
+            bool cancelEdit = false;
 
-            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, commentAlpha);
-            ed::PushStyleColor(ed::StyleColor_NodeBg, ImColor(255, 255, 255, 64));
-            ed::PushStyleColor(ed::StyleColor_NodeBorder, ImColor(255, 255, 255, 64));
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, commentBoxAlpha);
+            ed::PushStyleColor(ed::StyleColor_NodeBg, withAlpha(node->Color, 64));
+            ed::PushStyleColor(ed::StyleColor_NodeBorder, withAlpha(node->Color, 128));
             ed::BeginNode(node->ID);
             ImGui::PushID(node->ID.AsPointer());
             ImGui::BeginVertical("content");
             ImGui::BeginHorizontal("horizontal");
             ImGui::Spring(1);
-            ImGui::TextUnformatted(node->Name.c_str());
+            if (editingCommentBoxId == node->ID.Get())
+            {
+                ed::EnableShortcuts(false);
+                if (focusCommentBoxEditor)
+                {
+                    ImGui::SetKeyboardFocusHere();
+                    focusCommentBoxEditor = false;
+                }
+                ImGui::SetNextItemWidth((std::max)(140.0f, node->Size.x - 32.0f));
+                const bool submitted = ImGui::InputText("##comment-box-label", &commentBoxEditText,
+                    ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+                cancelEdit = ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Escape), false);
+                commitEdit = !cancelEdit && (submitted || ImGui::IsItemDeactivated());
+            }
+            else
+            {
+                ImGui::TextUnformatted(node->Name.c_str());
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    editingCommentBoxId = static_cast<int>(node->ID.Get());
+                    commentBoxEditText = node->Name;
+                    focusCommentBoxEditor = true;
+                }
+            }
             ImGui::Spring(1);
             ImGui::EndHorizontal();
             ed::Group(node->Size);
@@ -656,15 +690,21 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             ed::PopStyleColor(2);
             ImGui::PopStyleVar();
 
+            if (cancelEdit || commitEdit)
+            {
+                if (commitEdit && !commentBoxEditText.empty())
+                    ReportOperation(m_pOperations->ChangeCommentBoxText(m_pScriptFunction->ID.id, node->ID, commentBoxEditText));
+                ed::EnableShortcuts(true);
+                editingCommentBoxId = -1;
+                commentBoxEditText.clear();
+                focusCommentBoxEditor = false;
+            }
+
             if (ed::BeginGroupHint(node->ID))
             {
-                //auto alpha   = static_cast<int>(commentAlpha * ImGui::GetStyle().Alpha * 255);
                 auto bgAlpha = static_cast<int>(ImGui::GetStyle().Alpha * 255);
 
-                //ImGui::PushStyleVar(ImGuiStyleVar_Alpha, commentAlpha * ImGui::GetStyle().Alpha);
-
                 auto min = ed::GetGroupMin();
-                //auto max = ed::GetGroupMax();
 
                 ImGui::SetCursorScreenPos(min - ImVec2(-8, ImGui::GetTextLineHeightWithSpacing() + 4));
                 ImGui::BeginGroup();
@@ -679,14 +719,12 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 drawList->AddRectFilled(
                     hintFrameBounds.GetTL(),
                     hintFrameBounds.GetBR(),
-                    IM_COL32(255, 255, 255, 64 * bgAlpha / 255), 4.0f);
+                    withAlpha(node->Color, 64 * bgAlpha / 255), 4.0f);
 
                 drawList->AddRect(
                     hintFrameBounds.GetTL(),
                     hintFrameBounds.GetBR(),
-                    IM_COL32(255, 255, 255, 128 * bgAlpha / 255), 4.0f);
-
-                //ImGui::PopStyleVar();
+                    withAlpha(node->Color, 128 * bgAlpha / 255), 4.0f);
             }
             ed::EndGroupHint();
         }
@@ -959,7 +997,8 @@ void GraphView::DrawContextMenu()
         NodePtr node = m_pGraph->FindNode(contextNodeId);
 
         const bool hasOrigin = node && node->refId.IsValid();
-        const bool canFindReferences = node && (hasOrigin || !node->SerializationType.empty());
+        const bool canFindReferences = node && node->Type != NodeType::CommentBox &&
+            (hasOrigin || !node->SerializationType.empty());
 
         if (ImGui::MenuItem( ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE "  Go to Origin", nullptr, false, hasOrigin) && onGoToOrigin)
             onGoToOrigin(node->refId.id);
@@ -1269,7 +1308,8 @@ void GraphView::DrawContextMenu()
             const std::vector<std::string> tokens = Utils::split(fullName, "::");
             for (const std::string& token : tokens)
             {
-                Data& child = current->children[token];
+                const std::string key = current == &root && token == "Misc" ? "~Misc" : token;
+                Data& child = current->children[key];
                 child.name = token;
                 child.depth = depth++;
                 child.fullName = token;
@@ -1282,6 +1322,9 @@ void GraphView::DrawContextMenu()
                 current = &child;
             }
         };
+
+        if (!hasScriptItemContext && !newNodeLinkPin)
+            AddEntry("Misc::Comment Box", [](IDGenerator& ids) { return BuildCommentBoxNode(ids); });
 
         for (auto& def : m_pNodeRegistry->nativeDefinitions)
         {
@@ -1752,7 +1795,9 @@ void GraphView::DrawContextMenu()
             std::pair<const char*, const char*> presentation = {
                 ICON_FA_CUBE, "Create a graph node"
             };
-            if (fullName.rfind("Flow::", 0) == 0)
+            if (fullName == "Misc::Comment Box")
+                presentation = { ICON_FA_NOTE_STICKY, "Add a resizable annotation around related nodes" };
+            else if (fullName.rfind("Flow::", 0) == 0)
                 presentation = { ICON_FA_CODE_BRANCH, "Control the order in which the graph executes" };
             else if (fullName.rfind("Variables::", 0) == 0)
                 presentation = { ICON_FA_DATABASE, "Read or update script-level data" };
@@ -2303,7 +2348,7 @@ bool GraphView::CanAutoLayout() const
 
     return std::count_if(m_pGraph->GetNodes().begin(), m_pGraph->GetNodes().end(), [](const NodePtr& node)
     {
-        return node && node->Type != NodeType::Comment;
+        return node && node->Type != NodeType::CommentBox;
     }) >= 2;
 }
 
@@ -2316,7 +2361,7 @@ void GraphView::BeginAutoLayout()
     layoutNodes.reserve(m_pGraph->GetNodes().size());
     for (const NodePtr& node : m_pGraph->GetNodes())
     {
-        if (!node || node->Type == NodeType::Comment)
+        if (!node || node->Type == NodeType::CommentBox)
             continue;
 
         const ImVec2 position = ed::GetNodePosition(node->ID);
@@ -2352,7 +2397,7 @@ void GraphView::BeginAutoLayout()
     {
         const Pin* output = m_pGraph->FindPin(link.StartPinID);
         const Pin* input = m_pGraph->FindPin(link.EndPinID);
-        if (!output || !input || !output->Node || !input->Node || output->Node->Type == NodeType::Comment || input->Node->Type == NodeType::Comment)
+        if (!output || !input || !output->Node || !input->Node || output->Node->Type == NodeType::CommentBox || input->Node->Type == NodeType::CommentBox)
             continue;
         const auto [hasOutputOffset, outputOffsetY] = pinOffsetY(*output);
         const auto [hasInputOffset, inputOffsetY] = pinOffsetY(*input);

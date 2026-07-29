@@ -3,6 +3,9 @@
 
 #include "Value.h"
 
+#include <functional>
+#include <string>
+
 class VM;
 
 // Utility
@@ -15,6 +18,9 @@ Value lengthOfIterable(int argCount, Value* args, VM* vm);
 Value inBounds(int argCount, Value* args, VM* vm);
 
 // IO
+using InputProvider = std::function<std::string()>;
+void setInputProvider(InputProvider provider);
+void clearInputProvider();
 Value readInput(int argCount, Value* args, VM* vm);
 Value readFile(int argCount, Value* args, VM* vm);
 Value writeFile(int argCount, Value* args, VM* vm);

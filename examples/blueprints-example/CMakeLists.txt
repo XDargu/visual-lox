@@ -20,6 +20,7 @@ set(_VisualLoxCoreSources
     shared/functionShared.cpp
     native/nodes/begin.h
     native/nodes/begin.cpp
+    native/nodes/commentBox.h
     native/nodes/return.h
     native/nodes/return.cpp
     native/nodes/append.h
@@ -133,10 +134,16 @@ set_target_properties(visual-lox-application PROPERTIES
     OUTPUT_NAME "vlox-app"
 )
 
-add_executable(visual-lox-mandelbrot-generator apps/generateMandelbrot.cpp)
-target_link_libraries(visual-lox-mandelbrot-generator PRIVATE visual-lox-core visual-lox-application-api)
-set_target_properties(visual-lox-mandelbrot-generator PROPERTIES
-    FOLDER "visual-lox/examples"
+add_executable(visual-lox-example-generator
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../programs/generator/generator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../programs/generator/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../programs/generator/mandelbrot.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../programs/generator/standardExamples.cpp
+)
+target_link_libraries(visual-lox-example-generator PRIVATE visual-lox-core visual-lox-application-api)
+set_target_properties(visual-lox-example-generator PROPERTIES
+    FOLDER                                 "visual-lox/examples"
+    OUTPUT_NAME                            "vlox-example-generator"
     RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
@@ -190,12 +197,22 @@ set_target_properties(visual-lox-benchmark-generator PROPERTIES
 
 if (BUILD_TESTING)
     add_test(
-        NAME visual-lox-mandelbrot-application-smoke
-        COMMAND $<TARGET_FILE:visual-lox-mandelbrot-generator>
-                ${CMAKE_CURRENT_BINARY_DIR}/mandelbrot-application-smoke.vlox
+        NAME visual-lox-example-generator-smoke
+        COMMAND $<TARGET_FILE:visual-lox-example-generator>
+                ${CMAKE_CURRENT_BINARY_DIR}/generated-examples
     )
-    set_tests_properties(visual-lox-mandelbrot-application-smoke PROPERTIES
-        PASS_REGULAR_EXPRESSION "pixels=32400"
+    set_tests_properties(visual-lox-example-generator-smoke PROPERTIES
+        PASS_REGULAR_EXPRESSION "Generated 3 examples"
+    )
+
+    add_test(
+        NAME visual-lox-example-generator-single-smoke
+        COMMAND $<TARGET_FILE:visual-lox-example-generator>
+                ${CMAKE_CURRENT_BINARY_DIR}/generated-single-example
+                rock-paper-scissors
+    )
+    set_tests_properties(visual-lox-example-generator-single-smoke PROPERTIES
+        PASS_REGULAR_EXPRESSION "Generated 1 example"
     )
 
     add_test(

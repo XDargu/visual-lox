@@ -516,6 +516,8 @@ void Example::OnStart()
     NodePtr beginMain = BuildBeginNode(m_IDGenerator, m_script.main);
     NodeUtils::BuildNode(beginMain);
     m_script.main->Graph.AddNode(beginMain);
+    // Application::Create renders one hidden frame before showing the maximized window, so place the node on the following frame when the final canvas size is available.
+    m_graphView.FocusNodeOnNextFrame(static_cast<int>(beginMain->ID.Get()), 1.0f / 3.0f, 1.0f, 1);
 
     m_operations = std::make_unique<DocumentOperations>(m_script, m_IDGenerator, m_NodeRegistry);
     m_graphView.setDocumentOperations(*m_operations);
@@ -622,7 +624,7 @@ void Example::ApplyEditorTheme()
     nodeStyle.NodeRounding = 6.0f;
     nodeStyle.NodeBorderWidth = 1.0f;
     nodeStyle.HoveredNodeBorderWidth = 2.0f;
-    nodeStyle.SelectedNodeBorderWidth = 2.0f;
+    nodeStyle.SelectedNodeBorderWidth = 4.0f;
     nodeStyle.LinkStrength = 90.0f;
     nodeStyle.ScrollDuration = 0.22f;
     nodeStyle.Colors[ed::StyleColor_Bg] = ImColor(24, 27, 34, 255);
@@ -630,7 +632,7 @@ void Example::ApplyEditorTheme()
     nodeStyle.Colors[ed::StyleColor_NodeBg] = ImColor(31, 35, 44, 248);
     nodeStyle.Colors[ed::StyleColor_NodeBorder] = ImColor(85, 95, 115, 180);
     nodeStyle.Colors[ed::StyleColor_HovNodeBorder] = ImColor(93, 159, 245, 255);
-    nodeStyle.Colors[ed::StyleColor_SelNodeBorder] = ImColor(107, 174, 255, 255);
+    nodeStyle.Colors[ed::StyleColor_SelNodeBorder] = ImColor(255, 153, 0, 255);
     nodeStyle.Colors[ed::StyleColor_NodeSelRect] = ImColor(64, 140, 242, 40);
     nodeStyle.Colors[ed::StyleColor_NodeSelRectBorder] = ImColor(83, 155, 250, 160);
     nodeStyle.Colors[ed::StyleColor_HovLinkBorder] = ImColor(112, 180, 255, 255);

@@ -76,9 +76,12 @@ void GraphView::setNavigationHandlers(
     onFindReferences = std::move(findReferences);
 }
 
-void GraphView::FocusNodeOnNextFrame(int nodeId)
+void GraphView::FocusNodeOnNextFrame(int nodeId, float horizontalAlignment, float zoom, int delayFrames)
 {
     focusNodeIdOnNextFrame = nodeId;
+    focusNodeHorizontalAlignment = ImClamp(horizontalAlignment, 0.0f, 1.0f);
+    focusNodeZoom = zoom;
+    focusNodeDelayFrames = (std::max)(0, delayFrames);
     m_NavigateToContentOnNextFrame = false;
 }
 
@@ -475,9 +478,8 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             const float alpha = ImGui::GetStyle().Alpha;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
-            if (!nodeDiagnostics.empty())
-                ed::PushStyleColor(ed::StyleColor_NodeBorder,
-                    hasDiagnosticError ? ImColor(255, 55, 55, 255) : ImColor(255, 190, 40, 255));
+            if (hasDiagnosticError)
+                ed::PushStyleColor(ed::StyleColor_NodeBorder, ImColor(255, 55, 55, 255));
 
             builder.Begin(node->ID);
             if (!(isSimpleGet || isSimpleLarge))
@@ -628,7 +630,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             builder.End();
 
-            if (!nodeDiagnostics.empty())
+            if (hasDiagnosticError)
                 ed::PopStyleColor();
 
             ImGui::PopStyleVar();
@@ -868,15 +870,27 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ed::AcceptCreateNode();
         ed::EndShortcut();
     }
-    if (focusNodeIdOnNextFrame >= 0)
+    if (focusNodeIdOnNextFrame >= 0 && focusNodeDelayFrames > 0)
+        --focusNodeDelayFrames;
+    else if (focusNodeIdOnNextFrame >= 0)
     {
         if (m_pGraph->FindNode(ed::NodeId(focusNodeIdOnNextFrame)))
         {
+            const ed::NodeId nodeId(focusNodeIdOnNextFrame);
             ed::ClearSelection();
-            ed::SelectNode(ed::NodeId(focusNodeIdOnNextFrame));
-            ed::NavigateToSelection(false, 0.0f);
+            ed::SelectNode(nodeId);
+
+            auto* internalEditor = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(m_Editor);
+            const ImVec2 nodeCenter = ed::GetNodePosition(nodeId) + ed::GetNodeSize(nodeId) * 0.5f;
+            const ImVec2 canvasSize = internalEditor->GetRect().GetSize();
+            const float viewScale = focusNodeZoom > 0.0f ? focusNodeZoom : internalEditor->GetView().Scale;
+            const ImVec2 targetPosition(canvasSize.x * focusNodeHorizontalAlignment, canvasSize.y * 0.5f);
+            internalEditor->SetView(targetPosition - nodeCenter * viewScale, viewScale);
         }
         focusNodeIdOnNextFrame = -1;
+        focusNodeHorizontalAlignment = 0.5f;
+        focusNodeZoom = -1.0f;
+        focusNodeDelayFrames = 0;
         m_NavigateToContentOnNextFrame = false;
     }
     else if (m_NavigateToContentOnNextFrame)
@@ -2002,6 +2016,7 @@ void GraphView::DrawContextMenu()
 
             amendNextNodePosition.insert(static_cast<int>(node->ID.Get()));
             ed::SetNodePosition(node->ID, newNodePostion);
+            ed::SelectNode(node->ID);
 
             if (auto startPin = newNodeLinkPin)
             {

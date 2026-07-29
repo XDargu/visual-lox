@@ -70,7 +70,7 @@ struct GraphView
                                std::function<void(const NodePtr&)> findReferences);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
                   Graph* pTargetGraph, bool navigateToContent = true);
-    void FocusNodeOnNextFrame(int nodeId);
+    void FocusNodeOnNextFrame(int nodeId, float horizontalAlignment = 0.5f, float zoom = -1.0f, int delayFrames = 0);
     void RegisterNode(const NodePtr& node);
 
     void Destroy();
@@ -136,6 +136,9 @@ struct GraphView
     ImVec2 pendingScriptItemDropPosition = ImVec2(0, 0);
     bool openPaletteForScriptItem = false;
     int focusNodeIdOnNextFrame = -1;
+    float focusNodeHorizontalAlignment = 0.5f;
+    float focusNodeZoom = -1.0f;
+    int focusNodeDelayFrames = 0;
     int editingCommentBoxId = -1;
     std::string commentBoxEditText;
     bool focusCommentBoxEditor = false;

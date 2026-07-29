@@ -2168,15 +2168,11 @@ void ed::EditorContext::LoadSettings()
 {
     ed::Settings::Parse(m_Config.Load(), m_Settings);
 
-    if (ImRect_IsEmpty(m_Settings.m_VisibleRect))
-    {
-        m_NavigateAction.m_Scroll = m_Settings.m_ViewScroll;
-        m_NavigateAction.m_Zoom   = m_Settings.m_ViewZoom;
-    }
-    else
-    {
-        m_NavigateAction.NavigateTo(m_Settings.m_VisibleRect, NavigateAction::ZoomMode::Exact, 0.0f);
-    }
+    // Restore the persisted view directly. Re-fitting the saved visible
+    // rectangle derives a new zoom from the canvas size of the first frame,
+    // which may differ from the final window size and compound across launches.
+    m_NavigateAction.m_Scroll = m_Settings.m_ViewScroll;
+    m_NavigateAction.m_Zoom   = m_Settings.m_ViewZoom;
 }
 
 void ed::EditorContext::SaveSettings()
@@ -3627,6 +3623,15 @@ ImVec2 ed::NavigateAction::GetViewOrigin() const
 float ed::NavigateAction::GetViewScale() const
 {
     return m_Zoom;
+}
+
+void ed::NavigateAction::SetView(const ImGuiEx::CanvasView& view)
+{
+    m_Animation.Stop();
+    m_Scroll = -view.Origin;
+    m_Zoom = view.Scale;
+    m_VisibleRect = m_Canvas.CalcViewRect(view);
+    Editor->MakeDirty(SaveReasonFlags::Navigation);
 }
 
 void ed::NavigateAction::SetViewRect(const ImRect& rect)

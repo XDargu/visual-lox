@@ -864,6 +864,7 @@ struct NavigateAction final: EditorAction
     ImVec2 GetViewOrigin() const;
     float GetViewScale() const;
 
+    void SetView(const ImGuiEx::CanvasView& view);
     void SetViewRect(const ImRect& rect);
     ImRect GetViewRect() const;
 
@@ -1315,7 +1316,10 @@ struct EditorContext
     ShortcutAction& GetShortcut() { return m_ShortcutAction; }
 
     const ImGuiEx::CanvasView& GetView() const { return m_Canvas.View(); }
-    void SetView(const ImVec2& origin, float scale) { m_Canvas.SetView(origin, scale); }
+    void SetView(const ImVec2& origin, float scale)
+    {
+        m_NavigateAction.SetView(ImGuiEx::CanvasView(origin, scale));
+    }
     const ImRect& GetViewRect() const { return m_Canvas.ViewRect(); }
     const ImRect& GetRect() const { return m_Canvas.Rect(); }
 

@@ -160,14 +160,35 @@ def winner(python_ms: float, vlox_ms: float) -> str:
 
 
 def print_table(results: list[dict[str, object]]) -> None:
-    print("| Benchmark | Variant | Size | Python ms | VLox ms | Faster |")
-    print("| --- | --- | ---: | ---: | ---: | --- |")
+    headers = ("Benchmark", "Variant", "Size", "Python ms", "VLox ms", "Faster")
+    rows: list[tuple[str, ...]] = []
     for result in results:
         marker = "*" if result["partial"] else ""
-        print(
-            f"| {result['name']}{marker} | {result['variant']} | {result['size']} | "
-            f"{result['python_ms']:.6f} | {result['vlox_ms']:.6f} | {result['winner']} |"
+        rows.append(
+            (
+                f"{result['name']}{marker}",
+                str(result["variant"]),
+                str(result["size"]),
+                f"{result['python_ms']:.6f}",
+                f"{result['vlox_ms']:.6f}",
+                str(result["winner"]),
+            )
         )
+
+    widths = [max(len(headers[column]), *(len(row[column]) for row in rows)) for column in range(len(headers))]
+    numeric_columns = {2, 3, 4}
+
+    def format_row(row: tuple[str, ...]) -> str:
+        cells = [
+            value.rjust(widths[column]) if column in numeric_columns else value.ljust(widths[column])
+            for column, value in enumerate(row)
+        ]
+        return "  ".join(cells)
+
+    print(format_row(headers))
+    print("  ".join("-" * width for width in widths))
+    for row in rows:
+        print(format_row(row))
 
 
 def select_cases(filters: list[str]) -> list[Case]:

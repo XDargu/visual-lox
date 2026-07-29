@@ -1,0 +1,704 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 8,
+            "id": 36,
+            "start_pin_id": 6
+          },
+          {
+            "end_pin_id": 9,
+            "id": 37,
+            "start_pin_id": 14
+          },
+          {
+            "end_pin_id": 33,
+            "id": 38,
+            "start_pin_id": 10
+          },
+          {
+            "end_pin_id": 16,
+            "id": 39,
+            "start_pin_id": 11
+          },
+          {
+            "end_pin_id": 20,
+            "id": 40,
+            "start_pin_id": 18
+          },
+          {
+            "end_pin_id": 24,
+            "id": 41,
+            "start_pin_id": 22
+          },
+          {
+            "end_pin_id": 29,
+            "id": 42,
+            "start_pin_id": 27
+          },
+          {
+            "end_pin_id": 30,
+            "id": 43,
+            "start_pin_id": 25
+          },
+          {
+            "end_pin_id": 34,
+            "id": 44,
+            "start_pin_id": 31
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 5,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 6,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 7,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 8,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 9,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 10,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 11,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 12,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 13,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 14,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 15,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 2001
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 16,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 17,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 18,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Subtract",
+            "description": "Subtracts each following number from the running result",
+            "id": 19,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1000
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number to subtract from",
+                "id": 20,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first number to subtract",
+                "id": 21,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The difference",
+                "id": 22,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Abs",
+            "description": "Returns the distance of a number from zero",
+            "id": 23,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number whose absolute value is needed",
+                "id": 24,
+                "name": "Value",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The non-negative absolute value",
+                "id": 25,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkChecksum'. ",
+            "id": 26,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 27,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Add",
+            "description": "Adds two or more numbers",
+            "id": 28,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first addend",
+                "id": 29,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second addend",
+                "id": 30,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The sum",
+                "id": 31,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 32,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 33,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 34,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 35,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 2000000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      }
+    ]
+  }
+}

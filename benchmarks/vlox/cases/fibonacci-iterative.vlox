@@ -1,0 +1,1021 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 11,
+            "id": 52,
+            "start_pin_id": 9
+          },
+          {
+            "end_pin_id": 12,
+            "id": 53,
+            "start_pin_id": 17
+          },
+          {
+            "end_pin_id": 19,
+            "id": 54,
+            "start_pin_id": 13
+          },
+          {
+            "end_pin_id": 20,
+            "id": 55,
+            "start_pin_id": 23
+          },
+          {
+            "end_pin_id": 25,
+            "id": 56,
+            "start_pin_id": 21
+          },
+          {
+            "end_pin_id": 29,
+            "id": 57,
+            "start_pin_id": 33
+          },
+          {
+            "end_pin_id": 30,
+            "id": 58,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 37,
+            "id": 59,
+            "start_pin_id": 31
+          },
+          {
+            "end_pin_id": 26,
+            "id": 60,
+            "start_pin_id": 39
+          },
+          {
+            "end_pin_id": 41,
+            "id": 61,
+            "start_pin_id": 27
+          },
+          {
+            "end_pin_id": 42,
+            "id": 62,
+            "start_pin_id": 45
+          },
+          {
+            "end_pin_id": 47,
+            "id": 63,
+            "start_pin_id": 15
+          },
+          {
+            "end_pin_id": 48,
+            "id": 64,
+            "start_pin_id": 51
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 8,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 9,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 10,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 11,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 12,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 13,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 14,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 15,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 16,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 17,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'FibonacciTemporary'. ",
+            "id": 18,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 19,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 20,
+                "name": "FibonacciTemporary",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 21,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 7,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'FibonacciCurrent'. ",
+            "id": 22,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 23,
+                "name": "FibonacciCurrent",
+                "type": "number"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'FibonacciCurrent'. ",
+            "id": 24,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 25,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 26,
+                "name": "FibonacciCurrent",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 27,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Add",
+            "description": "Adds two or more numbers",
+            "id": 28,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first addend",
+                "id": 29,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second addend",
+                "id": 30,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The sum",
+                "id": 31,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'FibonacciPrevious'. ",
+            "id": 32,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 33,
+                "name": "FibonacciPrevious",
+                "type": "number"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'FibonacciCurrent'. ",
+            "id": 34,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 35,
+                "name": "FibonacciCurrent",
+                "type": "number"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 36,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1000000007
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 37,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 38,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 39,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'FibonacciPrevious'. ",
+            "id": 40,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 41,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 42,
+                "name": "FibonacciPrevious",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 43,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'FibonacciTemporary'. ",
+            "id": 44,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 45,
+                "name": "FibonacciTemporary",
+                "type": "number"
+              }
+            ],
+            "reference_id": 7,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 46,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 47,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 48,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 49,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'FibonacciPrevious'. ",
+            "id": 50,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 51,
+                "name": "FibonacciPrevious",
+                "type": "number"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 2000000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 5,
+        "name": "FibonacciPrevious"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 1
+        },
+        "description": "",
+        "id": 6,
+        "name": "FibonacciCurrent"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 7,
+        "name": "FibonacciTemporary"
+      }
+    ]
+  }
+}

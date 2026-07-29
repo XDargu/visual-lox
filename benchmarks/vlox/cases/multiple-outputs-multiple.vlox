@@ -1,0 +1,1226 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+      {
+        "description": "Returns three consecutive values",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 26,
+              "id": 30,
+              "start_pin_id": 11
+            },
+            {
+              "end_pin_id": 14,
+              "id": 31,
+              "start_pin_id": 12
+            },
+            {
+              "end_pin_id": 18,
+              "id": 32,
+              "start_pin_id": 12
+            },
+            {
+              "end_pin_id": 22,
+              "id": 33,
+              "start_pin_id": 12
+            },
+            {
+              "end_pin_id": 27,
+              "id": 34,
+              "start_pin_id": 16
+            },
+            {
+              "end_pin_id": 28,
+              "id": 35,
+              "start_pin_id": 20
+            },
+            {
+              "end_pin_id": 29,
+              "id": 36,
+              "start_pin_id": 24
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'SplitValue'. Returns three consecutive values",
+              "id": 10,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 11,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 12,
+                  "name": "Value",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 13,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 14,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 15,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 16,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 17,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 18,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 19,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 20,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 21,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 22,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 23,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 24,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Returns from 'SplitValue'",
+              "id": 25,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Returns when execution reaches this pin",
+                  "id": 26,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 27,
+                  "name": "First",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 28,
+                  "name": "Second",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 29,
+                  "name": "Third",
+                  "type": "number"
+                }
+              ],
+              "kind": "return",
+              "outputs":
+              [
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 5,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 6,
+            "name": "Value"
+          }
+        ],
+        "name": "SplitValue",
+        "outputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 7,
+            "name": "First"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 8,
+            "name": "Second"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 9,
+            "name": "Third"
+          }
+        ],
+        "pure": true,
+        "variables":
+        [
+        ]
+      }
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 40,
+            "id": 63,
+            "start_pin_id": 38
+          },
+          {
+            "end_pin_id": 41,
+            "id": 64,
+            "start_pin_id": 46
+          },
+          {
+            "end_pin_id": 60,
+            "id": 65,
+            "start_pin_id": 42
+          },
+          {
+            "end_pin_id": 50,
+            "id": 66,
+            "start_pin_id": 48
+          },
+          {
+            "end_pin_id": 68,
+            "id": 72,
+            "start_pin_id": 43
+          },
+          {
+            "end_pin_id": 51,
+            "id": 73,
+            "start_pin_id": 69
+          },
+          {
+            "end_pin_id": 53,
+            "id": 74,
+            "start_pin_id": 70
+          },
+          {
+            "end_pin_id": 54,
+            "id": 75,
+            "start_pin_id": 71
+          },
+          {
+            "end_pin_id": 56,
+            "id": 76,
+            "start_pin_id": 52
+          },
+          {
+            "end_pin_id": 61,
+            "id": 77,
+            "start_pin_id": 58
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 37,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 38,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 39,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 40,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 41,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 42,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 43,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 44,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 45,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 46,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkChecksum'. ",
+            "id": 47,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 48,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Add",
+            "description": "Adds two or more numbers",
+            "id": 49,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first addend",
+                "id": 50,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second addend",
+                "id": 51,
+                "name": "B",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Another number to add",
+                "id": 53,
+                "name": "C",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Another number to add",
+                "id": 54,
+                "name": "D",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The sum",
+                "id": 52,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 55,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 4294967296
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 56,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 57,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 58,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 59,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 60,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 61,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 62,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Returns three consecutive values",
+            "id": 67,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 68,
+                "name": "Value",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 69,
+                "name": "First",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 70,
+                "name": "Second",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 71,
+                "name": "Third",
+                "type": "number"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 2000000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      }
+    ]
+  }
+}

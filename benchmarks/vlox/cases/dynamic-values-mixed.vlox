@@ -1,0 +1,2255 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 12,
+            "id": 22,
+            "start_pin_id": 7
+          },
+          {
+            "end_pin_id": 13,
+            "id": 23,
+            "start_pin_id": 9
+          },
+          {
+            "end_pin_id": 18,
+            "id": 24,
+            "start_pin_id": 14
+          },
+          {
+            "end_pin_id": 20,
+            "id": 25,
+            "start_pin_id": 16
+          },
+          {
+            "end_pin_id": 27,
+            "id": 46,
+            "start_pin_id": 19
+          },
+          {
+            "end_pin_id": 28,
+            "id": 47,
+            "start_pin_id": 33
+          },
+          {
+            "end_pin_id": 39,
+            "id": 48,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 43,
+            "id": 49,
+            "start_pin_id": 30
+          },
+          {
+            "end_pin_id": 40,
+            "id": 50,
+            "start_pin_id": 45
+          },
+          {
+            "end_pin_id": 92,
+            "id": 107,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 98,
+            "id": 108,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 104,
+            "id": 109,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 52,
+            "id": 110,
+            "start_pin_id": 30
+          },
+          {
+            "end_pin_id": 60,
+            "id": 111,
+            "start_pin_id": 29
+          },
+          {
+            "end_pin_id": 56,
+            "id": 112,
+            "start_pin_id": 54
+          },
+          {
+            "end_pin_id": 61,
+            "id": 113,
+            "start_pin_id": 58
+          },
+          {
+            "end_pin_id": 37,
+            "id": 114,
+            "start_pin_id": 62
+          },
+          {
+            "end_pin_id": 69,
+            "id": 115,
+            "start_pin_id": 63
+          },
+          {
+            "end_pin_id": 65,
+            "id": 116,
+            "start_pin_id": 54
+          },
+          {
+            "end_pin_id": 70,
+            "id": 117,
+            "start_pin_id": 67
+          },
+          {
+            "end_pin_id": 90,
+            "id": 118,
+            "start_pin_id": 71
+          },
+          {
+            "end_pin_id": 83,
+            "id": 119,
+            "start_pin_id": 45
+          },
+          {
+            "end_pin_id": 87,
+            "id": 120,
+            "start_pin_id": 84
+          },
+          {
+            "end_pin_id": 93,
+            "id": 121,
+            "start_pin_id": 88
+          },
+          {
+            "end_pin_id": 78,
+            "id": 122,
+            "start_pin_id": 72
+          },
+          {
+            "end_pin_id": 74,
+            "id": 123,
+            "start_pin_id": 54
+          },
+          {
+            "end_pin_id": 79,
+            "id": 124,
+            "start_pin_id": 76
+          },
+          {
+            "end_pin_id": 96,
+            "id": 125,
+            "start_pin_id": 80
+          },
+          {
+            "end_pin_id": 102,
+            "id": 126,
+            "start_pin_id": 81
+          },
+          {
+            "end_pin_id": 131,
+            "id": 134,
+            "start_pin_id": 31
+          },
+          {
+            "end_pin_id": 128,
+            "id": 135,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 132,
+            "id": 136,
+            "start_pin_id": 129
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 6,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 7,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::MakeList",
+            "description": "Collects its inputs into a typed list",
+            "id": 8,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "A value to append to the list",
+                "id": 10,
+                "name": "A",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A list containing the supplied values",
+                "id": 9,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'Values'. ",
+            "id": 11,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 12,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "any",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 13,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 14,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'Values'. ",
+            "id": 15,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "any",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 16,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Clear",
+            "description": "Removes every value from a list",
+            "id": 17,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 18,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to clear",
+                "id": 20,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 19,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after clearing",
+                "id": 21,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 26,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 27,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 28,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 29,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 30,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 31,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 32,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 33,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'Values'. ",
+            "id": 34,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "any",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 35,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Push",
+            "description": "Adds a value to the end of a list",
+            "id": 36,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              },
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 37,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to modify",
+                "id": 39,
+                "name": "List",
+                "type": "list"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to append",
+                "id": 40,
+                "name": "Value",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 38,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after appending",
+                "id": 41,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 42,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1000
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 43,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 44,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 45,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 51,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 4
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 52,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 53,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 54,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Equals",
+            "description": "Checks whether two values are equal",
+            "id": 55,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first value",
+                "id": 56,
+                "name": "",
+                "type": "variable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value compared with A",
+                "id": 57,
+                "name": "",
+                "type": "variable"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "True when A and B are equal",
+                "id": 58,
+                "name": "",
+                "type": "bool"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Branch",
+            "description": "Chooses one of two execution paths from a condition",
+            "id": 59,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "bool",
+                "value": false
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the branch",
+                "id": 60,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Chooses the True path when true and the False path when false",
+                "id": 61,
+                "name": "Condition",
+                "type": "bool"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is true",
+                "id": 62,
+                "name": "True",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is false",
+                "id": 63,
+                "name": "False",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Equals",
+            "description": "Checks whether two values are equal",
+            "id": 64,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first value",
+                "id": 65,
+                "name": "",
+                "type": "variable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value compared with A",
+                "id": 66,
+                "name": "",
+                "type": "variable"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "True when A and B are equal",
+                "id": 67,
+                "name": "",
+                "type": "bool"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Branch",
+            "description": "Chooses one of two execution paths from a condition",
+            "id": 68,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "bool",
+                "value": false
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the branch",
+                "id": 69,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Chooses the True path when true and the False path when false",
+                "id": 70,
+                "name": "Condition",
+                "type": "bool"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is true",
+                "id": 71,
+                "name": "True",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is false",
+                "id": 72,
+                "name": "False",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Equals",
+            "description": "Checks whether two values are equal",
+            "id": 73,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 2
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first value",
+                "id": 74,
+                "name": "",
+                "type": "variable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value compared with A",
+                "id": 75,
+                "name": "",
+                "type": "variable"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "True when A and B are equal",
+                "id": 76,
+                "name": "",
+                "type": "bool"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Branch",
+            "description": "Chooses one of two execution paths from a condition",
+            "id": 77,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "bool",
+                "value": false
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the branch",
+                "id": 78,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "bool",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Chooses the True path when true and the False path when false",
+                "id": 79,
+                "name": "Condition",
+                "type": "bool"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is true",
+                "id": 80,
+                "name": "True",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs when Condition is false",
+                "id": 81,
+                "name": "False",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "String::ToString",
+            "description": "Converts any value to text",
+            "id": 82,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to convert",
+                "id": 83,
+                "name": "Value",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The text representation of Value",
+                "id": 84,
+                "name": "Result",
+                "type": "string"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "String::Append",
+            "description": "Combines two or more strings in order",
+            "id": 85,
+            "input_values":
+            [
+              {
+                "type": "string",
+                "value": "v"
+              },
+              {
+                "type": "string",
+                "value": ""
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first piece of text",
+                "id": 86,
+                "name": "A",
+                "type": "any"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The next piece of text",
+                "id": 87,
+                "name": "B",
+                "type": "any"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "string",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The combined text",
+                "id": 88,
+                "name": "Result",
+                "type": "string"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Push",
+            "description": "Adds a value to the end of a list",
+            "id": 89,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              },
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 90,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to modify",
+                "id": 92,
+                "name": "List",
+                "type": "list"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to append",
+                "id": 93,
+                "name": "Value",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 91,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after appending",
+                "id": 94,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "List::Push",
+            "description": "Adds a value to the end of a list",
+            "id": 95,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              },
+              {
+                "type": "bool",
+                "value": true
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 96,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to modify",
+                "id": 98,
+                "name": "List",
+                "type": "list"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to append",
+                "id": 99,
+                "name": "Value",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 97,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after appending",
+                "id": 100,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "List::Push",
+            "description": "Adds a value to the end of a list",
+            "id": 101,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              },
+              {
+                "type": "nil"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 102,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to modify",
+                "id": 104,
+                "name": "List",
+                "type": "list"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to append",
+                "id": 105,
+                "name": "Value",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 103,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after appending",
+                "id": 106,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "List::Length",
+            "description": "Returns the number of values in a list",
+            "id": 127,
+            "input_values":
+            [
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to measure",
+                "id": 128,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of values",
+                "id": 129,
+                "name": "Length",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 130,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 131,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 132,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 133,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 500000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "list",
+          "name": "",
+          "parameters":
+          [
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "any",
+              "name": "",
+              "parameters":
+              [
+              ]
+            }
+          ]
+        },
+        "default":
+        {
+          "items":
+          [
+          ],
+          "type": "list"
+        },
+        "description": "",
+        "id": 5,
+        "name": "Values"
+      }
+    ]
+  }
+}

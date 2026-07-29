@@ -1,0 +1,872 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+      {
+        "description": "Adds two numbers and applies the benchmark modulus",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 22,
+              "id": 24,
+              "start_pin_id": 10
+            },
+            {
+              "end_pin_id": 14,
+              "id": 25,
+              "start_pin_id": 11
+            },
+            {
+              "end_pin_id": 15,
+              "id": 26,
+              "start_pin_id": 12
+            },
+            {
+              "end_pin_id": 18,
+              "id": 27,
+              "start_pin_id": 16
+            },
+            {
+              "end_pin_id": 23,
+              "id": 28,
+              "start_pin_id": 20
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'AddModulo'. Adds two numbers and applies the benchmark modulus",
+              "id": 9,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 10,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 11,
+                  "name": "Left",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 12,
+                  "name": "Right",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 13,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 14,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 15,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 16,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Modulo",
+              "description": "Returns the remainder after dividing two numbers",
+              "id": 17,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The dividend",
+                  "id": 18,
+                  "name": "Dividend",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The divisor",
+                  "id": 19,
+                  "name": "Modulus",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The remainder",
+                  "id": 20,
+                  "name": "Remainder",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Returns from 'AddModulo'",
+              "id": 21,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Returns when execution reaches this pin",
+                  "id": 22,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 23,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "kind": "return",
+              "outputs":
+              [
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 5,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 6,
+            "name": "Left"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 7,
+            "name": "Right"
+          }
+        ],
+        "name": "AddModulo",
+        "outputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 8,
+            "name": "Result"
+          }
+        ],
+        "pure": true,
+        "variables":
+        [
+        ]
+      }
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 32,
+            "id": 49,
+            "start_pin_id": 30
+          },
+          {
+            "end_pin_id": 33,
+            "id": 50,
+            "start_pin_id": 38
+          },
+          {
+            "end_pin_id": 46,
+            "id": 51,
+            "start_pin_id": 34
+          },
+          {
+            "end_pin_id": 42,
+            "id": 52,
+            "start_pin_id": 40
+          },
+          {
+            "end_pin_id": 43,
+            "id": 53,
+            "start_pin_id": 35
+          },
+          {
+            "end_pin_id": 47,
+            "id": 54,
+            "start_pin_id": 44
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 29,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 30,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 31,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 32,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 33,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 34,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 35,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 36,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 37,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 38,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkChecksum'. ",
+            "id": 39,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 40,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Adds two numbers and applies the benchmark modulus",
+            "id": 41,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 42,
+                "name": "Left",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 43,
+                "name": "Right",
+                "type": "number"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 44,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 45,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 46,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 47,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 48,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 2000000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      }
+    ]
+  }
+}

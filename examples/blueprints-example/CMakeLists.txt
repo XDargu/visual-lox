@@ -128,7 +128,75 @@ set_target_properties(visual-lox-cli PROPERTIES
     DEBUG_POSTFIX                           _d
 )
 
+add_executable(visual-lox-benchmarks
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/main.cpp
+)
+target_link_libraries(visual-lox-benchmarks PRIVATE visual-lox-core)
+set_target_properties(visual-lox-benchmarks PROPERTIES
+    FOLDER "visual-lox/benchmarks"
+    OUTPUT_NAME                            "vlox-benchmark"
+    RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
+    DEBUG_POSTFIX                           _d
+)
+
+add_executable(visual-lox-benchmark-generator
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/generateCases.cpp
+)
+target_link_libraries(visual-lox-benchmark-generator PRIVATE visual-lox-core)
+set_target_properties(visual-lox-benchmark-generator PROPERTIES
+    FOLDER "visual-lox/benchmarks"
+    OUTPUT_NAME                            "vlox-benchmark-generator"
+    RUNTIME_OUTPUT_DIRECTORY                "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/bin"
+    DEBUG_POSTFIX                           _d
+)
+
 if (BUILD_TESTING)
+    add_test(
+        NAME visual-lox-benchmark-smoke
+        COMMAND $<TARGET_FILE:visual-lox-benchmarks>
+                --size 42
+                --warmup 0
+                --repeat 1
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/cases/smoke.vlox
+    )
+    set_tests_properties(visual-lox-benchmark-smoke PROPERTIES
+        PASS_REGULAR_EXPRESSION "checksum=0"
+    )
+
+    add_test(
+        NAME visual-lox-benchmark-fibonacci-iterative
+        COMMAND $<TARGET_FILE:visual-lox-benchmarks>
+                --folding on
+                --size 20
+                --warmup 0
+                --repeat 1
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/cases/fibonacci-iterative.vlox
+    )
+    set_tests_properties(visual-lox-benchmark-fibonacci-iterative PROPERTIES
+        PASS_REGULAR_EXPRESSION "checksum=6765"
+    )
+
+    add_test(
+        NAME visual-lox-benchmark-fibonacci-recursive
+        COMMAND $<TARGET_FILE:visual-lox-benchmarks>
+                --folding on
+                --size 20
+                --warmup 0
+                --repeat 1
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/cases/fibonacci-recursive.vlox
+    )
+    set_tests_properties(visual-lox-benchmark-fibonacci-recursive PROPERTIES
+        PASS_REGULAR_EXPRESSION "checksum=6765"
+    )
+
     add_executable(visual-lox-tests
         tests/main.cpp
         tests/testFramework.h

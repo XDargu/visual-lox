@@ -1,0 +1,3457 @@
+{
+  "format": "visual-lox",
+  "format_version": 5,
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+      {
+        "description": "",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 89,
+              "id": 100,
+              "start_pin_id": 87
+            },
+            {
+              "end_pin_id": 93,
+              "id": 101,
+              "start_pin_id": 91
+            },
+            {
+              "end_pin_id": 97,
+              "id": 102,
+              "start_pin_id": 95
+            },
+            {
+              "end_pin_id": 104,
+              "id": 106,
+              "start_pin_id": 86
+            },
+            {
+              "end_pin_id": 105,
+              "id": 107,
+              "start_pin_id": 99
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'Transform'. ",
+              "id": 85,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 86,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 87,
+                  "name": "Value",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Multiply",
+              "description": "Multiplies two or more numbers",
+              "id": 88,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 3
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first factor",
+                  "id": 89,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second factor",
+                  "id": 90,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The product",
+                  "id": 91,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 92,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 93,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 94,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 95,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Modulo",
+              "description": "Returns the remainder after dividing two numbers",
+              "id": 96,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The dividend",
+                  "id": 97,
+                  "name": "Dividend",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The divisor",
+                  "id": 98,
+                  "name": "Modulus",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The remainder",
+                  "id": 99,
+                  "name": "Remainder",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Returns from 'Transform'",
+              "id": 103,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Returns when execution reaches this pin",
+                  "id": 104,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 105,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "kind": "return",
+              "outputs":
+              [
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 82,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 83,
+            "name": "Value"
+          }
+        ],
+        "name": "Transform",
+        "outputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 84,
+            "name": "Result"
+          }
+        ],
+        "pure": true,
+        "variables":
+        [
+        ]
+      },
+      {
+        "description": "",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 115,
+              "id": 122,
+              "start_pin_id": 113
+            },
+            {
+              "end_pin_id": 119,
+              "id": 123,
+              "start_pin_id": 117
+            },
+            {
+              "end_pin_id": 125,
+              "id": 127,
+              "start_pin_id": 112
+            },
+            {
+              "end_pin_id": 126,
+              "id": 128,
+              "start_pin_id": 121
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'IsEven'. ",
+              "id": 111,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 112,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 113,
+                  "name": "Value",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Modulo",
+              "description": "Returns the remainder after dividing two numbers",
+              "id": 114,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 2
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The dividend",
+                  "id": 115,
+                  "name": "Dividend",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The divisor",
+                  "id": 116,
+                  "name": "Modulus",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The remainder",
+                  "id": 117,
+                  "name": "Remainder",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Equals",
+              "description": "Checks whether two values are equal",
+              "id": 118,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first value",
+                  "id": 119,
+                  "name": "",
+                  "type": "variable"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The value compared with A",
+                  "id": 120,
+                  "name": "",
+                  "type": "variable"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "bool",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "True when A and B are equal",
+                  "id": 121,
+                  "name": "",
+                  "type": "bool"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Returns from 'IsEven'",
+              "id": 124,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "bool",
+                  "value": false
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Returns when execution reaches this pin",
+                  "id": 125,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "bool",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 126,
+                  "name": "Result",
+                  "type": "bool"
+                }
+              ],
+              "kind": "return",
+              "outputs":
+              [
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 108,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 109,
+            "name": "Value"
+          }
+        ],
+        "name": "IsEven",
+        "outputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "bool",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "bool",
+              "value": false
+            },
+            "description": "",
+            "id": 110,
+            "name": "Result"
+          }
+        ],
+        "pure": true,
+        "variables":
+        [
+        ]
+      },
+      {
+        "description": "",
+        "generic_type_properties":
+        [
+        ],
+        "graph":
+        {
+          "links":
+          [
+            {
+              "end_pin_id": 146,
+              "id": 148,
+              "start_pin_id": 134
+            },
+            {
+              "end_pin_id": 138,
+              "id": 149,
+              "start_pin_id": 135
+            },
+            {
+              "end_pin_id": 139,
+              "id": 150,
+              "start_pin_id": 136
+            },
+            {
+              "end_pin_id": 142,
+              "id": 151,
+              "start_pin_id": 140
+            },
+            {
+              "end_pin_id": 147,
+              "id": 152,
+              "start_pin_id": 144
+            }
+          ],
+          "nodes":
+          [
+            {
+              "definition": "",
+              "description": "Entry point for 'ReduceModulo'. ",
+              "id": 133,
+              "input_values":
+              [
+              ],
+              "inputs":
+              [
+              ],
+              "kind": "begin",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Starts execution of this graph",
+                  "id": 134,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 135,
+                  "name": "Total",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 136,
+                  "name": "Value",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Add",
+              "description": "Adds two or more numbers",
+              "id": 137,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The first addend",
+                  "id": 138,
+                  "name": "A",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The second addend",
+                  "id": 139,
+                  "name": "B",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The sum",
+                  "id": 140,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "Math::Modulo",
+              "description": "Returns the remainder after dividing two numbers",
+              "id": 141,
+              "input_values":
+              [
+                {
+                  "type": "number",
+                  "value": 0
+                },
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The dividend",
+                  "id": 142,
+                  "name": "Dividend",
+                  "type": "number"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The divisor",
+                  "id": 143,
+                  "name": "Modulus",
+                  "type": "number"
+                }
+              ],
+              "kind": "compiled",
+              "outputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "The remainder",
+                  "id": 144,
+                  "name": "Remainder",
+                  "type": "number"
+                }
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            },
+            {
+              "definition": "",
+              "description": "Returns from 'ReduceModulo'",
+              "id": 145,
+              "input_values":
+              [
+                {
+                  "type": "nil"
+                },
+                {
+                  "type": "number",
+                  "value": 0
+                }
+              ],
+              "inputs":
+              [
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "flow",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "Returns when execution reaches this pin",
+                  "id": 146,
+                  "name": "",
+                  "type": "flow"
+                },
+                {
+                  "declared_type":
+                  {
+                    "class_id": -1,
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  },
+                  "description": "",
+                  "id": 147,
+                  "name": "Result",
+                  "type": "number"
+                }
+              ],
+              "kind": "return",
+              "outputs":
+              [
+              ],
+              "reference_id": -1,
+              "state": "",
+              "type_overrides":
+              {
+              }
+            }
+          ]
+        },
+        "id": 129,
+        "inputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 130,
+            "name": "Total"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 131,
+            "name": "Value"
+          }
+        ],
+        "name": "ReduceModulo",
+        "outputs":
+        [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 132,
+            "name": "Result"
+          }
+        ],
+        "pure": true,
+        "variables":
+        [
+        ]
+      }
+    ],
+    "id": 1,
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+          {
+            "end_pin_id": 15,
+            "id": 25,
+            "start_pin_id": 10
+          },
+          {
+            "end_pin_id": 16,
+            "id": 26,
+            "start_pin_id": 12
+          },
+          {
+            "end_pin_id": 21,
+            "id": 27,
+            "start_pin_id": 17
+          },
+          {
+            "end_pin_id": 23,
+            "id": 28,
+            "start_pin_id": 19
+          },
+          {
+            "end_pin_id": 30,
+            "id": 69,
+            "start_pin_id": 22
+          },
+          {
+            "end_pin_id": 31,
+            "id": 70,
+            "start_pin_id": 36
+          },
+          {
+            "end_pin_id": 52,
+            "id": 71,
+            "start_pin_id": 32
+          },
+          {
+            "end_pin_id": 40,
+            "id": 72,
+            "start_pin_id": 38
+          },
+          {
+            "end_pin_id": 44,
+            "id": 73,
+            "start_pin_id": 42
+          },
+          {
+            "end_pin_id": 48,
+            "id": 74,
+            "start_pin_id": 46
+          },
+          {
+            "end_pin_id": 53,
+            "id": 75,
+            "start_pin_id": 50
+          },
+          {
+            "end_pin_id": 60,
+            "id": 76,
+            "start_pin_id": 54
+          },
+          {
+            "end_pin_id": 62,
+            "id": 77,
+            "start_pin_id": 56
+          },
+          {
+            "end_pin_id": 66,
+            "id": 78,
+            "start_pin_id": 58
+          },
+          {
+            "end_pin_id": 63,
+            "id": 79,
+            "start_pin_id": 68
+          },
+          {
+            "end_pin_id": 184,
+            "id": 187,
+            "start_pin_id": 34
+          },
+          {
+            "end_pin_id": 160,
+            "id": 188,
+            "start_pin_id": 81
+          },
+          {
+            "end_pin_id": 161,
+            "id": 189,
+            "start_pin_id": 154
+          },
+          {
+            "end_pin_id": 164,
+            "id": 190,
+            "start_pin_id": 162
+          },
+          {
+            "end_pin_id": 165,
+            "id": 191,
+            "start_pin_id": 156
+          },
+          {
+            "end_pin_id": 168,
+            "id": 192,
+            "start_pin_id": 166
+          },
+          {
+            "end_pin_id": 169,
+            "id": 193,
+            "start_pin_id": 158
+          },
+          {
+            "end_pin_id": 173,
+            "id": 194,
+            "start_pin_id": 166
+          },
+          {
+            "end_pin_id": 176,
+            "id": 195,
+            "start_pin_id": 174
+          },
+          {
+            "end_pin_id": 180,
+            "id": 196,
+            "start_pin_id": 178
+          },
+          {
+            "end_pin_id": 181,
+            "id": 197,
+            "start_pin_id": 171
+          },
+          {
+            "end_pin_id": 185,
+            "id": 198,
+            "start_pin_id": 182
+          }
+        ],
+        "nodes":
+        [
+          {
+            "definition": "",
+            "description": "Entry point for 'Main'. ",
+            "id": 9,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "begin",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts execution of this graph",
+                "id": 10,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::MakeList",
+            "description": "Collects its inputs into a typed list",
+            "id": 11,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "A value to append to the list",
+                "id": 13,
+                "name": "A",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A list containing the supplied values",
+                "id": 12,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'Values'. ",
+            "id": 14,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 15,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 16,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 17,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'Values'. ",
+            "id": 18,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 19,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Clear",
+            "description": "Removes every value from a list",
+            "id": 20,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 21,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to clear",
+                "id": 23,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 22,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after clearing",
+                "id": 24,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Flow::Repeat",
+            "description": "Runs a body a fixed number of times",
+            "id": 29,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 1
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Starts the repetition",
+                "id": 30,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of times to run Body",
+                "id": 31,
+                "name": "Count",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs once for each repetition",
+                "id": 32,
+                "name": "Body",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The zero-based index of the current repetition",
+                "id": 33,
+                "name": "Index",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Runs after all repetitions finish",
+                "id": 34,
+                "name": "Completed",
+                "type": "flow"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'BenchmarkSize'. ",
+            "id": 35,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 36,
+                "name": "BenchmarkSize",
+                "type": "number"
+              }
+            ],
+            "reference_id": 3,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'LcgState'. ",
+            "id": 37,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 38,
+                "name": "LcgState",
+                "type": "number"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Multiply",
+            "description": "Multiplies two or more numbers",
+            "id": 39,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1664525
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first factor",
+                "id": 40,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second factor",
+                "id": 41,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The product",
+                "id": 42,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Add",
+            "description": "Adds two or more numbers",
+            "id": 43,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1013904223
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first addend",
+                "id": 44,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second addend",
+                "id": 45,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The sum",
+                "id": 46,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 47,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 4294967296
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 48,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 49,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 50,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'LcgState'. ",
+            "id": 51,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 12648430
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 52,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 53,
+                "name": "LcgState",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 54,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'Values'. ",
+            "id": 55,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 56,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'LcgState'. ",
+            "id": 57,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 58,
+                "name": "LcgState",
+                "type": "number"
+              }
+            ],
+            "reference_id": 6,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Push",
+            "description": "Adds a value to the end of a list",
+            "id": 59,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes this function",
+                "id": 60,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to modify",
+                "id": 62,
+                "name": "List",
+                "type": "list"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "T",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The value to append",
+                "id": 63,
+                "name": "Value",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the function returns",
+                "id": 61,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The list size after appending",
+                "id": 64,
+                "name": "Size",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+              "T":
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
+          },
+          {
+            "definition": "Math::Modulo",
+            "description": "Returns the remainder after dividing two numbers",
+            "id": 65,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1000000
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The dividend",
+                "id": 66,
+                "name": "Dividend",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The divisor",
+                "id": 67,
+                "name": "Modulus",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The remainder",
+                "id": 68,
+                "name": "Remainder",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets variable 'Values'. ",
+            "id": 80,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "variable.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 81,
+                "name": "Values",
+                "type": "list"
+              }
+            ],
+            "reference_id": 5,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets function 'Transform' as a typed value. ",
+            "id": 153,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "function.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 1,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 154,
+                "name": "Transform",
+                "type": "function"
+              }
+            ],
+            "reference_id": 82,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets function 'IsEven' as a typed value. ",
+            "id": 155,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "function.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 1,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "bool",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 156,
+                "name": "IsEven",
+                "type": "function"
+              }
+            ],
+            "reference_id": 108,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Gets function 'ReduceModulo' as a typed value. ",
+            "id": 157,
+            "input_values":
+            [
+            ],
+            "inputs":
+            [
+            ],
+            "kind": "function.get",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 2,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "number",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 158,
+                "name": "ReduceModulo",
+                "type": "function"
+              }
+            ],
+            "reference_id": 129,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Functional::Map",
+            "description": "Transforms every iterable value with a function",
+            "id": 159,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "function"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "iterable",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The values to transform",
+                "id": 160,
+                "name": "Iterable",
+                "type": "iterable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 1,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "U",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The function applied to each value",
+                "id": 161,
+                "name": "Function",
+                "type": "function"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "U",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A list containing each transformed value",
+                "id": 162,
+                "name": "Result",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Functional::Filter",
+            "description": "Keeps the iterable values accepted by a predicate",
+            "id": 163,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "function"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "iterable",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The values to test",
+                "id": 164,
+                "name": "Iterable",
+                "type": "iterable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 1,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "bool",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A function that returns true for values to keep",
+                "id": 165,
+                "name": "Function",
+                "type": "function"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A list containing the accepted values",
+                "id": 166,
+                "name": "Result",
+                "type": "list"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Functional::Reduce",
+            "description": "Combines iterable values into one accumulated result",
+            "id": 167,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "function"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "iterable",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The values to combine",
+                "id": 168,
+                "name": "Iterable",
+                "type": "iterable"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": 2,
+                  "kind": "function",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "U",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    },
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "U",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "A function that combines the accumulator and next value",
+                "id": 169,
+                "name": "Function",
+                "type": "function"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "U",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The initial accumulator value",
+                "id": 170,
+                "name": "Init",
+                "type": "variable"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "variable",
+                  "name": "U",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The final accumulated value",
+                "id": 171,
+                "name": "Result",
+                "type": "variable"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "List::Length",
+            "description": "Returns the number of values in a list",
+            "id": 172,
+            "input_values":
+            [
+              {
+                "items":
+                [
+                ],
+                "type": "list"
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "variable",
+                      "name": "T",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "The list to measure",
+                "id": 173,
+                "name": "List",
+                "type": "list"
+              }
+            ],
+            "kind": "function.call",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The number of values",
+                "id": 174,
+                "name": "Length",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Multiply",
+            "description": "Multiplies two or more numbers",
+            "id": 175,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 1000000007
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first factor",
+                "id": 176,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second factor",
+                "id": 177,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The product",
+                "id": 178,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "Math::Add",
+            "description": "Adds two or more numbers",
+            "id": 179,
+            "input_values":
+            [
+              {
+                "type": "number",
+                "value": 0
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The first addend",
+                "id": 180,
+                "name": "A",
+                "type": "number"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The second addend",
+                "id": 181,
+                "name": "B",
+                "type": "number"
+              }
+            ],
+            "kind": "compiled",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "The sum",
+                "id": 182,
+                "name": "Result",
+                "type": "number"
+              }
+            ],
+            "reference_id": -1,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          },
+          {
+            "definition": "",
+            "description": "Sets variable 'BenchmarkChecksum'. ",
+            "id": 183,
+            "input_values":
+            [
+              {
+                "type": "nil"
+              },
+              {
+                "type": "number",
+                "value": 0
+              }
+            ],
+            "inputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Executes the assignment",
+                "id": 184,
+                "name": "",
+                "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "number",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "",
+                "id": 185,
+                "name": "BenchmarkChecksum",
+                "type": "number"
+              }
+            ],
+            "kind": "variable.set",
+            "outputs":
+            [
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "description": "Continues after the assignment",
+                "id": 186,
+                "name": "",
+                "type": "flow"
+              }
+            ],
+            "reference_id": 4,
+            "state": "",
+            "type_overrides":
+            {
+            }
+          }
+        ]
+      },
+      "id": 2,
+      "inputs":
+      [
+      ],
+      "name": "Main",
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
+    },
+    "variables":
+    [
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 500000
+        },
+        "description": "",
+        "id": 3,
+        "name": "BenchmarkSize"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 4,
+        "name": "BenchmarkChecksum"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "list",
+          "name": "",
+          "parameters":
+          [
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            }
+          ]
+        },
+        "default":
+        {
+          "items":
+          [
+          ],
+          "type": "list"
+        },
+        "description": "",
+        "id": 5,
+        "name": "Values"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 12648430
+        },
+        "description": "",
+        "id": 6,
+        "name": "LcgState"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 7,
+        "name": "SelectedCount"
+      },
+      {
+        "declared_type":
+        {
+          "class_id": -1,
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
+          "type": "number",
+          "value": 0
+        },
+        "description": "",
+        "id": 8,
+        "name": "SelectedTotal"
+      }
+    ]
+  }
+}

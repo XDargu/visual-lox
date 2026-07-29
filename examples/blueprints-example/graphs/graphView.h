@@ -80,6 +80,8 @@ struct GraphView
     void DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, int headerHeight);
     void DrawContextMenu();
     void ReportOperation(const OperationResult& result);
+    void RequestAutoLayout();
+    bool CanAutoLayout() const;
 
     ed::EditorContext* m_Editor = nullptr;
     bool m_NavigateToContentOnNextFrame = false;
@@ -119,6 +121,11 @@ struct GraphView
     bool recordNodeStateHistory = true;
     bool nodePositionDragActive = false;
     std::set<int> amendNextNodePosition;
+    bool autoLayoutRequested = false;
+    bool autoLayoutTransactionActive = false;
+    bool autoLayoutFailed = false;
+    std::set<int> pendingAutoLayoutNodeStates;
+    float nodeGridSpacing = 8.0f;
     ImVec2 lastCanvasMousePosition = ImVec2(0, 0);
     bool hasCanvasMousePosition = false;
     std::vector<std::string> recentNodeTypes;
@@ -131,6 +138,10 @@ struct GraphView
     int focusNodeIdOnNextFrame = -1;
     std::function<void(int)> onGoToOrigin;
     std::function<void(const NodePtr&)> onFindReferences;
+
+private:
+    void BeginAutoLayout();
+    void FinishAutoLayout(bool cancelIfIncomplete = false);
 };
 
 struct GraphViewUtils

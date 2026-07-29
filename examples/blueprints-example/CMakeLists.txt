@@ -10,6 +10,8 @@ set(_VisualLoxCoreSources
     graphs/link.cpp
     graphs/graph.h
     graphs/graph.cpp
+    graphs/graphLayout.h
+    graphs/graphLayout.cpp
     graphs/graphCompiler.h
     graphs/graphCompiler.cpp
     graphs/nodeRegistry.h
@@ -204,6 +206,8 @@ if (BUILD_TESTING)
         tests/runtimeTests.cpp
         tests/documentOperationsTests.h
         tests/documentOperationsTests.cpp
+        tests/graphLayoutTests.h
+        tests/graphLayoutTests.cpp
         tests/scriptSearchTests.h
         tests/scriptSearchTests.cpp
         script/scriptSerializerTest.h

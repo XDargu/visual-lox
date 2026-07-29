@@ -1,5 +1,6 @@
 #include "../script/scriptSerializerTest.h"
 #include "documentOperationsTests.h"
+#include "graphLayoutTests.h"
 #include "runtimeTests.h"
 #include "scriptSearchTests.h"
 #include "testFramework.h"
@@ -12,6 +13,7 @@ int main(int argc, char** argv)
     Tests::Runner runner;
     AddRuntimeTests(runner);
     AddDocumentOperationsTests(runner);
+    AddGraphLayoutTests(runner);
     AddScriptSearchTests(runner);
     AddScriptSerializerTests(runner, outputPath);
     return runner.Finish();

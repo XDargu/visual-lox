@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphView.h"
+#include "graphLayout.h"
 #include "IconsFontAwesome6.h"
 
 #include "nodeRegistry.h"
@@ -26,6 +27,7 @@
 #include <algorithm>
 #include <limits>
 #include <fstream>
+#include <cmath>
 
 namespace Utils
 {
@@ -276,11 +278,13 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
     m_pScript = pTargetScript;
     m_pScriptFunction = pScriptFunction;
     hasCanvasMousePosition = false;
+    autoLayoutRequested = false;
 
     ed::Config config;
 
     config.SettingsFile = "Blueprints.json";
     config.CanvasSizeMode = ed::CanvasSizeMode::CenterOnly;
+    config.GridSpacing = nodeGridSpacing;
 
     config.UserPointer = this;
 
@@ -323,11 +327,18 @@ void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScript
             // not document edits. Persist explicit positions and user resizes.
             if (isPositionChange || (isSizeChange && isUserChange))
             {
-                self->m_pOperations->SetNodeState(
+                const OperationResult operation = self->m_pOperations->SetNodeState(
                     self->m_pScriptFunction->ID.id, nodeId, state,
                     self->recordNodeStateHistory && isPositionChange,
                     dragging && self->nodePositionDragActive,
                     amendCreation);
+                if (!operation)
+                    self->ReportOperation(operation);
+                if (isPositionChange && self->autoLayoutTransactionActive)
+                {
+                    self->autoLayoutFailed |= !operation;
+                    self->pendingAutoLayoutNodeStates.erase(rawNodeId);
+                }
             }
             self->nodePositionDragActive = dragging;
         }
@@ -397,6 +408,7 @@ void GraphView::Destroy()
         m_HasPreservedView = true;
         recordNodeStateHistory = false;
         ed::DestroyEditor(m_Editor);
+        FinishAutoLayout(true);
         recordNodeStateHistory = true;
         m_Editor = nullptr;
         m_pGraph = nullptr;
@@ -421,6 +433,8 @@ void GraphView::OnFrame(float deltaTime)
 
 void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, int headerHeight)
 {
+    BeginAutoLayout();
+
     if (!operationError.empty())
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", operationError.c_str());
 
@@ -840,6 +854,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         hasCanvasMousePosition = true;
     }
     ed::End();
+    FinishAutoLayout();
     const NodePtr hoveredNode = m_pGraph->FindNode(ed::GetHoveredNode());
 
     if (ImGui::BeginDragDropTarget())
@@ -2266,4 +2281,115 @@ void GraphViewUtils::DrawDeclaredTypeSelection(
     DrawTypeRefEditor(script, edited, changed, 0);
     if (changed && (notifyWhenReselected || edited != current))
         onChange(std::move(edited));
+}
+
+void GraphView::RequestAutoLayout()
+{
+    if (CanAutoLayout())
+        autoLayoutRequested = true;
+}
+
+bool GraphView::CanAutoLayout() const
+{
+    if (!m_pGraph || !m_pOperations || !m_pScriptFunction || autoLayoutRequested || autoLayoutTransactionActive)
+        return false;
+
+    return std::count_if(m_pGraph->GetNodes().begin(), m_pGraph->GetNodes().end(), [](const NodePtr& node)
+    {
+        return node && node->Type != NodeType::Comment;
+    }) >= 2;
+}
+
+void GraphView::BeginAutoLayout()
+{
+    if (!autoLayoutRequested || autoLayoutTransactionActive || !m_pGraph || !m_pOperations || !m_pScriptFunction)
+        return;
+
+    std::vector<GraphLayout::Node> layoutNodes;
+    layoutNodes.reserve(m_pGraph->GetNodes().size());
+    for (const NodePtr& node : m_pGraph->GetNodes())
+    {
+        if (!node || node->Type == NodeType::Comment)
+            continue;
+
+        const ImVec2 position = ed::GetNodePosition(node->ID);
+        const ImVec2 size = ed::GetNodeSize(node->ID);
+        if (!std::isfinite(position.x) || !std::isfinite(position.y) || size.x <= 0.0f || size.y <= 0.0f)
+            return;
+        layoutNodes.push_back({ static_cast<int>(node->ID.Get()), position, size, node->Category == NodeCategory::Begin });
+    }
+
+    if (layoutNodes.size() < 2)
+    {
+        autoLayoutRequested = false;
+        return;
+    }
+
+    std::vector<GraphLayout::Edge> layoutEdges;
+    layoutEdges.reserve(m_pGraph->GetLinks().size());
+    for (const Link& link : m_pGraph->GetLinks())
+    {
+        const Pin* output = m_pGraph->FindPin(link.StartPinID);
+        const Pin* input = m_pGraph->FindPin(link.EndPinID);
+        if (!output || !input || !output->Node || !input->Node || output->Node->Type == NodeType::Comment || input->Node->Type == NodeType::Comment)
+            continue;
+        layoutEdges.push_back({
+            static_cast<int>(output->Node->ID.Get()),
+            static_cast<int>(input->Node->ID.Get()),
+            GraphUtils::FindNodeOutputIdx(*output),
+            GraphUtils::FindNodeInputIdx(*input),
+            output->Type == PinType::Flow,
+        });
+    }
+
+    const std::vector<GraphLayout::Position> positions = GraphLayout::Calculate(layoutNodes, layoutEdges);
+    const float gridSpacing = nodeGridSpacing;
+    const auto alignToGrid = [gridSpacing](float value)
+    {
+        return gridSpacing > 0.0f ? std::floor(value / gridSpacing + 0.5f) * gridSpacing : value;
+    };
+
+    std::vector<GraphLayout::Position> changedPositions;
+    for (const GraphLayout::Position& position : positions)
+    {
+        const ImVec2 aligned(alignToGrid(position.value.x), alignToGrid(position.value.y));
+        const ImVec2 current = ed::GetNodePosition(ed::NodeId(position.id));
+        if (current.x != aligned.x || current.y != aligned.y)
+            changedPositions.push_back({ position.id, aligned });
+    }
+    autoLayoutRequested = false;
+    if (changedPositions.empty())
+    {
+        m_NavigateToContentOnNextFrame = true;
+        return;
+    }
+
+    const OperationResult begun = m_pOperations->BeginTransaction("Auto layout");
+    ReportOperation(begun);
+    if (!begun)
+        return;
+
+    autoLayoutTransactionActive = true;
+    autoLayoutFailed = false;
+    pendingAutoLayoutNodeStates.clear();
+    for (const GraphLayout::Position& position : changedPositions)
+        pendingAutoLayoutNodeStates.insert(position.id);
+    for (const GraphLayout::Position& position : changedPositions)
+        ed::SetNodePosition(ed::NodeId(position.id), position.value);
+}
+
+void GraphView::FinishAutoLayout(bool cancelIfIncomplete)
+{
+    if (!autoLayoutTransactionActive || (!pendingAutoLayoutNodeStates.empty() && !cancelIfIncomplete))
+        return;
+
+    const bool complete = pendingAutoLayoutNodeStates.empty() && !autoLayoutFailed;
+    const OperationResult result = complete ? m_pOperations->CommitTransaction() : m_pOperations->CancelTransaction();
+    if (complete || !result)
+        ReportOperation(result);
+    autoLayoutTransactionActive = false;
+    autoLayoutFailed = false;
+    pendingAutoLayoutNodeStates.clear();
+    if (complete && result)
+        m_NavigateToContentOnNextFrame = true;
 }

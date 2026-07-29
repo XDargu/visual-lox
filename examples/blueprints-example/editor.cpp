@@ -2984,7 +2984,14 @@ void Example::OnFrame(float deltaTime)
     if (HeaderFont()) ImGui::PopFont();
 
     ImGui::SameLine(ImMax(ImGui::GetCursorPosX() + 16.0f,
-                          ImGui::GetWindowContentRegionMax().x - 225.0f));
+                          ImGui::GetWindowContentRegionMax().x - 260.0f));
+    const bool canAutoLayout = m_graphView.CanAutoLayout();
+    ImGuiUtils::BeginDisabled(!canAutoLayout);
+    if (ImGui::SmallButton(ICON_FA_SITEMAP "##autoLayoutGraph"))
+        m_graphView.RequestAutoLayout();
+    ImGuiUtils::EndDisabled();
+    Tooltip(canAutoLayout ? "Auto layout graph" : "Auto layout requires at least two nodes");
+    ImGui::SameLine();
     if (ImGui::SmallButton(ICON_FA_CROSSHAIRS "##centerOnSelection"))
         ed::NavigateToSelection(false);
     Tooltip("Center on selection (F)");

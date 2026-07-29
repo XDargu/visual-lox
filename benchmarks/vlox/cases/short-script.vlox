@@ -91,10 +91,35 @@
                 "id": 6,
                 "name": "",
                 "type": "flow"
+              },
+              {
+                "declared_type":
+                {
+                  "class_id": -1,
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "class_id": -1,
+                      "input_count": -1,
+                      "kind": "string",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                },
+                "description": "",
+                "id": 42,
+                "name": "Arguments",
+                "type": "list"
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":64,\"y\":136}}",
             "type_overrides":
             {
             }
@@ -201,7 +226,7 @@
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":304,\"y\":136}}",
             "type_overrides":
             {
             }
@@ -237,7 +262,7 @@
               }
             ],
             "reference_id": 3,
-            "state": "",
+            "state": "{\"location\":{\"x\":80,\"y\":248}}",
             "type_overrides":
             {
             }
@@ -273,7 +298,7 @@
               }
             ],
             "reference_id": 4,
-            "state": "",
+            "state": "{\"location\":{\"x\":208,\"y\":304}}",
             "type_overrides":
             {
             }
@@ -349,7 +374,7 @@
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":432,\"y\":304}}",
             "type_overrides":
             {
             }
@@ -425,7 +450,7 @@
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":728,\"y\":304}}",
             "type_overrides":
             {
             }
@@ -501,7 +526,7 @@
               }
             ],
             "reference_id": -1,
-            "state": "",
+            "state": "{\"location\":{\"x\":912,\"y\":304}}",
             "type_overrides":
             {
             }
@@ -576,7 +601,7 @@
               }
             ],
             "reference_id": 4,
-            "state": "",
+            "state": "{\"location\":{\"x\":1272,\"y\":144}}",
             "type_overrides":
             {
             }
@@ -586,6 +611,37 @@
       "id": 2,
       "inputs":
       [
+        {
+          "declared_type":
+          {
+            "class_id": -1,
+            "input_count": -1,
+            "kind": "list",
+            "name": "",
+            "parameters":
+            [
+              {
+                "class_id": -1,
+                "input_count": -1,
+                "kind": "string",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            ]
+          },
+          "default":
+          {
+            "items":
+            [
+            ],
+            "type": "list"
+          },
+          "description": "",
+          "id": 41,
+          "name": "Arguments"
+        }
       ],
       "name": "Main",
       "outputs":

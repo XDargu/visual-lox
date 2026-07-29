@@ -51,6 +51,15 @@ struct Builder
         return property;
     }
 
+    ScriptPropertyPtr LocalNumber(const ScriptFunctionPtr& function, const char* name, double value)
+    {
+        ScriptPropertyPtr property = std::make_shared<ScriptProperty>(ids.GetNextId(), name);
+        property->type = PinType::Float;
+        property->defaultValue = Value(value);
+        function->variables.push_back(property);
+        return property;
+    }
+
     NodePtr Compiled(const char* name)
     {
         CompiledNodeDefPtr definition = registry.FindCompiled(name);
@@ -67,8 +76,15 @@ struct Builder
         return definition->functionDef->MakeNode(ids, ScriptElementID::Invalid);
     }
 
-    NodePtr Get(const ScriptPropertyPtr& property) { return BuildGetVariableNode(ids, property); }
-    NodePtr Set(const ScriptPropertyPtr& property) { return BuildSetVariableNode(ids, property); }
+    NodePtr Get(const ScriptPropertyPtr& property, const ScriptFunctionPtr& function = nullptr)
+    {
+        return BuildGetVariableNode(ids, property, ScriptElementID::Invalid, function ? function->ID : ScriptElementID::Invalid);
+    }
+
+    NodePtr Set(const ScriptPropertyPtr& property, const ScriptFunctionPtr& function = nullptr)
+    {
+        return BuildSetVariableNode(ids, property, ScriptElementID::Invalid, function ? function->ID : ScriptElementID::Invalid);
+    }
 
     void Add(Graph& graph, std::initializer_list<NodePtr> nodes)
     {
@@ -135,30 +151,30 @@ void BuildRegenerate(Builder& builder, const ScriptFunctionPtr& function,
     Graph& graph = function->Graph;
     NodePtr begin = BuildBeginNode(builder.ids, function);
     NodePtr clear = builder.Native("List::Clear");
-    NodePtr getPixelsForClear = builder.Get(pixels);
+    NodePtr getPixelsForClear = builder.Get(pixels, function);
     NodePtr outerRepeat = builder.Compiled("Flow::Repeat");
-    NodePtr getResolutionOuter = builder.Get(resolution);
-    NodePtr setCoordinateY = builder.Set(coordinateY);
+    NodePtr getResolutionOuter = builder.Get(resolution, function);
+    NodePtr setCoordinateY = builder.Set(coordinateY, function);
     NodePtr divideY = builder.Compiled("Math::Divide");
-    NodePtr getResolutionY = builder.Get(resolution);
+    NodePtr getResolutionY = builder.Get(resolution, function);
     NodePtr normalizeY = Binary(builder, "Math::Subtract", 0.5);
-    NodePtr getScaleY = builder.Get(scale);
+    NodePtr getScaleY = builder.Get(scale, function);
     NodePtr scaleY = builder.Compiled("Math::Multiply");
-    NodePtr getCenterY = builder.Get(centerY);
+    NodePtr getCenterY = builder.Get(centerY, function);
     NodePtr offsetY = builder.Compiled("Math::Add");
     NodePtr innerRepeat = builder.Compiled("Flow::Repeat");
-    NodePtr getResolutionInner = builder.Get(resolution);
-    NodePtr setCoordinateX = builder.Set(coordinateX);
+    NodePtr getResolutionInner = builder.Get(resolution, function);
+    NodePtr setCoordinateX = builder.Set(coordinateX, function);
     NodePtr divideX = builder.Compiled("Math::Divide");
-    NodePtr getResolutionX = builder.Get(resolution);
+    NodePtr getResolutionX = builder.Get(resolution, function);
     NodePtr normalizeX = Binary(builder, "Math::Subtract", 0.5);
-    NodePtr getScaleX = builder.Get(scale);
+    NodePtr getScaleX = builder.Get(scale, function);
     NodePtr scaleX = builder.Compiled("Math::Multiply");
-    NodePtr getCenterX = builder.Get(centerX);
+    NodePtr getCenterX = builder.Get(centerX, function);
     NodePtr offsetX = builder.Compiled("Math::Add");
-    NodePtr setXZero = builder.Set(valueX);
-    NodePtr setYZero = builder.Set(valueY);
-    NodePtr setIterationsZero = builder.Set(iterations);
+    NodePtr setXZero = builder.Set(valueX, function);
+    NodePtr setYZero = builder.Set(valueY, function);
+    NodePtr setIterationsZero = builder.Set(iterations, function);
     setXZero->InputValues[1] = Value(0.0);
     setYZero->InputValues[1] = Value(0.0);
     setIterationsZero->InputValues[1] = Value(0.0);
@@ -195,15 +211,15 @@ void BuildRegenerate(Builder& builder, const ScriptFunctionPtr& function,
     builder.Link(graph, setYZero->Outputs[0], setIterationsZero->Inputs[0]);
 
     NodePtr whileNode = builder.Compiled("Flow::While");
-    NodePtr getXForMagnitude = builder.Get(valueX);
+    NodePtr getXForMagnitude = builder.Get(valueX, function);
     NodePtr squareX = builder.Compiled("Math::Multiply");
-    NodePtr getYForMagnitude = builder.Get(valueY);
+    NodePtr getYForMagnitude = builder.Get(valueY, function);
     NodePtr squareY = builder.Compiled("Math::Multiply");
     NodePtr magnitude = builder.Compiled("Math::Add");
     NodePtr magnitudeLimit = Binary(builder, "Math::Less Or Equal", 4.0);
-    NodePtr getIterationsForLimit = builder.Get(iterations);
+    NodePtr getIterationsForLimit = builder.Get(iterations, function);
     NodePtr iterationLimit = builder.Compiled("Math::Less Than");
-    NodePtr getMaxIterations = builder.Get(maxIterations);
+    NodePtr getMaxIterations = builder.Get(maxIterations, function);
     NodePtr condition = builder.Compiled("Logic::And");
     builder.Add(graph, { whileNode, getXForMagnitude, squareX, getYForMagnitude, squareY, magnitude, magnitudeLimit,
         getIterationsForLimit, iterationLimit, getMaxIterations, condition });
@@ -221,25 +237,25 @@ void BuildRegenerate(Builder& builder, const ScriptFunctionPtr& function,
     builder.Link(graph, iterationLimit->Outputs[0], condition->Inputs[1]);
     builder.Link(graph, condition->Outputs[0], whileNode->Inputs[1]);
 
-    NodePtr setTemporaryX = builder.Set(temporaryX);
-    NodePtr getXForTemp = builder.Get(valueX);
+    NodePtr setTemporaryX = builder.Set(temporaryX, function);
+    NodePtr getXForTemp = builder.Get(valueX, function);
     NodePtr tempSquareX = builder.Compiled("Math::Multiply");
-    NodePtr getYForTemp = builder.Get(valueY);
+    NodePtr getYForTemp = builder.Get(valueY, function);
     NodePtr tempSquareY = builder.Compiled("Math::Multiply");
     NodePtr subtractSquares = builder.Compiled("Math::Subtract");
-    NodePtr getCoordinateX = builder.Get(coordinateX);
+    NodePtr getCoordinateX = builder.Get(coordinateX, function);
     NodePtr addCoordinateX = builder.Compiled("Math::Add");
-    NodePtr setNextY = builder.Set(valueY);
-    NodePtr getXForY = builder.Get(valueX);
-    NodePtr getYForY = builder.Get(valueY);
+    NodePtr setNextY = builder.Set(valueY, function);
+    NodePtr getXForY = builder.Get(valueX, function);
+    NodePtr getYForY = builder.Get(valueY, function);
     NodePtr multiplyXY = builder.Compiled("Math::Multiply");
     NodePtr doubleXY = Binary(builder, "Math::Multiply", 2.0);
-    NodePtr getCoordinateY = builder.Get(coordinateY);
+    NodePtr getCoordinateY = builder.Get(coordinateY, function);
     NodePtr addCoordinateY = builder.Compiled("Math::Add");
-    NodePtr setNextX = builder.Set(valueX);
-    NodePtr getTemporaryX = builder.Get(temporaryX);
-    NodePtr setNextIterations = builder.Set(iterations);
-    NodePtr getIterationsForIncrement = builder.Get(iterations);
+    NodePtr setNextX = builder.Set(valueX, function);
+    NodePtr getTemporaryX = builder.Get(temporaryX, function);
+    NodePtr setNextIterations = builder.Set(iterations, function);
+    NodePtr getIterationsForIncrement = builder.Get(iterations, function);
     NodePtr incrementIterations = Binary(builder, "Math::Add", 1.0);
     builder.Add(graph, { setTemporaryX, getXForTemp, tempSquareX, getYForTemp, tempSquareY, subtractSquares, getCoordinateX,
         addCoordinateX, setNextY, getXForY, getYForY, multiplyXY, doubleXY, getCoordinateY, addCoordinateY, setNextX,
@@ -268,10 +284,10 @@ void BuildRegenerate(Builder& builder, const ScriptFunctionPtr& function,
     builder.Link(graph, incrementIterations->Outputs[0], setNextIterations->Inputs[1]);
 
     NodePtr pushPixel = builder.Native("List::Push");
-    NodePtr getPixelsForPush = builder.Get(pixels);
-    NodePtr getPixelIteration = builder.Get(iterations);
-    NodePtr setRevision = builder.Set(revision);
-    NodePtr getRevision = builder.Get(revision);
+    NodePtr getPixelsForPush = builder.Get(pixels, function);
+    NodePtr getPixelIteration = builder.Get(iterations, function);
+    NodePtr setRevision = builder.Set(revision, function);
+    NodePtr getRevision = builder.Get(revision, function);
     NodePtr incrementRevision = Binary(builder, "Math::Add", 1.0);
     builder.Add(graph, { pushPixel, getPixelsForPush, getPixelIteration, setRevision, getRevision, incrementRevision });
     builder.Link(graph, whileNode->Outputs[1], pushPixel->Inputs[0]);
@@ -309,16 +325,16 @@ Script MakeApplication(const NodeRegistry& registry)
     ScriptPropertyPtr resolution = builder.Number("Resolution", 180.0);
     ScriptPropertyPtr pixels = builder.NumberList("Pixels");
     ScriptPropertyPtr revision = builder.Number("ImageRevision", 0.0);
-    ScriptPropertyPtr coordinateX = builder.Number("CoordinateX", 0.0);
-    ScriptPropertyPtr coordinateY = builder.Number("CoordinateY", 0.0);
-    ScriptPropertyPtr valueX = builder.Number("ValueX", 0.0);
-    ScriptPropertyPtr valueY = builder.Number("ValueY", 0.0);
-    ScriptPropertyPtr temporaryX = builder.Number("TemporaryX", 0.0);
-    ScriptPropertyPtr iterations = builder.Number("Iterations", 0.0);
 
     ScriptFunctionPtr regenerate = std::make_shared<ScriptFunction>(builder.ids.GetNextId(), "Regenerate");
     regenerate->functionDef->description = "Rebuilds the Mandelbrot image values";
     builder.script.functions.push_back(regenerate);
+    ScriptPropertyPtr coordinateX = builder.LocalNumber(regenerate, "CoordinateX", 0.0);
+    ScriptPropertyPtr coordinateY = builder.LocalNumber(regenerate, "CoordinateY", 0.0);
+    ScriptPropertyPtr valueX = builder.LocalNumber(regenerate, "ValueX", 0.0);
+    ScriptPropertyPtr valueY = builder.LocalNumber(regenerate, "ValueY", 0.0);
+    ScriptPropertyPtr temporaryX = builder.LocalNumber(regenerate, "TemporaryX", 0.0);
+    ScriptPropertyPtr iterations = builder.LocalNumber(regenerate, "Iterations", 0.0);
     BuildRegenerate(builder, regenerate, centerX, centerY, scale, maxIterations, resolution, pixels, revision,
         coordinateX, coordinateY, valueX, valueY, temporaryX, iterations);
 

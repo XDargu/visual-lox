@@ -391,7 +391,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":0,\"y\":112}}",
+              "state": "{\"location\":{\"x\":0,\"y\":80}}",
               "type_overrides":
               {
               }
@@ -493,7 +493,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":232,\"y\":96}}",
+              "state": "{\"location\":{\"x\":232,\"y\":80}}",
               "type_overrides":
               {
               }
@@ -538,7 +538,7 @@
                 }
               ],
               "reference_id": 8,
-              "state": "{\"location\":{\"x\":96,\"y\":152}}",
+              "state": "{\"location\":{\"x\":96,\"y\":136}}",
               "type_overrides":
               {
               }
@@ -755,8 +755,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 11,
-              "state": "{\"location\":{\"x\":1664,\"y\":0}}",
+              "reference_id": 12,
+              "state": "{\"location\":{\"x\":1680,\"y\":80}}",
               "type_overrides":
               {
               }
@@ -832,7 +832,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":952,\"y\":40}}",
+              "state": "{\"location\":{\"x\":968,\"y\":136}}",
               "type_overrides":
               {
               }
@@ -868,7 +868,7 @@
                 }
               ],
               "reference_id": 7,
-              "state": "{\"location\":{\"x\":792,\"y\":72}}",
+              "state": "{\"location\":{\"x\":808,\"y\":168}}",
               "type_overrides":
               {
               }
@@ -944,7 +944,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1096,\"y\":56}}",
+              "state": "{\"location\":{\"x\":1112,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -980,7 +980,7 @@
                 }
               ],
               "reference_id": 5,
-              "state": "{\"location\":{\"x\":1096,\"y\":136}}",
+              "state": "{\"location\":{\"x\":1112,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -1056,7 +1056,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1312,\"y\":56}}",
+              "state": "{\"location\":{\"x\":1328,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -1092,7 +1092,7 @@
                 }
               ],
               "reference_id": 4,
-              "state": "{\"location\":{\"x\":1312,\"y\":136}}",
+              "state": "{\"location\":{\"x\":1328,\"y\":232}}",
               "type_overrides":
               {
               }
@@ -1168,7 +1168,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":1488,\"y\":56}}",
+              "state": "{\"location\":{\"x\":1504,\"y\":152}}",
               "type_overrides":
               {
               }
@@ -1385,8 +1385,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 10,
-              "state": "{\"location\":{\"x\":3128,\"y\":96}}",
+              "reference_id": 11,
+              "state": "{\"location\":{\"x\":3128,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -1872,8 +1872,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 12,
-              "state": "{\"location\":{\"x\":3320,\"y\":96}}",
+              "reference_id": 13,
+              "state": "{\"location\":{\"x\":3320,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -1947,8 +1947,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 13,
-              "state": "{\"location\":{\"x\":3520,\"y\":96}}",
+              "reference_id": 14,
+              "state": "{\"location\":{\"x\":3520,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -2022,8 +2022,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 15,
-              "state": "{\"location\":{\"x\":3728,\"y\":96}}",
+              "reference_id": 16,
+              "state": "{\"location\":{\"x\":3728,\"y\":88}}",
               "type_overrides":
               {
               }
@@ -2114,7 +2114,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4848,\"y\":96}}",
+              "state": "{\"location\":{\"x\":4008,\"y\":336}}",
               "type_overrides":
               {
               }
@@ -2149,8 +2149,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 12,
-              "state": "{\"location\":{\"x\":3944,\"y\":152}}",
+              "reference_id": 13,
+              "state": "{\"location\":{\"x\":3104,\"y\":392}}",
               "type_overrides":
               {
               }
@@ -2226,7 +2226,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4080,\"y\":136}}",
+              "state": "{\"location\":{\"x\":3240,\"y\":376}}",
               "type_overrides":
               {
               }
@@ -2261,8 +2261,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 13,
-              "state": "{\"location\":{\"x\":3944,\"y\":232}}",
+              "reference_id": 14,
+              "state": "{\"location\":{\"x\":3104,\"y\":472}}",
               "type_overrides":
               {
               }
@@ -2338,7 +2338,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4080,\"y\":216}}",
+              "state": "{\"location\":{\"x\":3240,\"y\":456}}",
               "type_overrides":
               {
               }
@@ -2414,7 +2414,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4256,\"y\":136}}",
+              "state": "{\"location\":{\"x\":3416,\"y\":376}}",
               "type_overrides":
               {
               }
@@ -2490,7 +2490,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4440,\"y\":136}}",
+              "state": "{\"location\":{\"x\":3600,\"y\":376}}",
               "type_overrides":
               {
               }
@@ -2525,8 +2525,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 15,
-              "state": "{\"location\":{\"x\":4256,\"y\":216}}",
+              "reference_id": 16,
+              "state": "{\"location\":{\"x\":3416,\"y\":456}}",
               "type_overrides":
               {
               }
@@ -2602,7 +2602,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4440,\"y\":216}}",
+              "state": "{\"location\":{\"x\":3600,\"y\":456}}",
               "type_overrides":
               {
               }
@@ -2638,7 +2638,7 @@
                 }
               ],
               "reference_id": 6,
-              "state": "{\"location\":{\"x\":4256,\"y\":264}}",
+              "state": "{\"location\":{\"x\":3416,\"y\":504}}",
               "type_overrides":
               {
               }
@@ -2714,7 +2714,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":4640,\"y\":152}}",
+              "state": "{\"location\":{\"x\":3800,\"y\":392}}",
               "type_overrides":
               {
               }
@@ -2788,8 +2788,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 14,
-              "state": "{\"location\":{\"x\":5768,\"y\":0}}",
+              "reference_id": 15,
+              "state": "{\"location\":{\"x\":5160,\"y\":336}}",
               "type_overrides":
               {
               }
@@ -2824,8 +2824,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 12,
-              "state": "{\"location\":{\"x\":5096,\"y\":72}}",
+              "reference_id": 13,
+              "state": "{\"location\":{\"x\":4488,\"y\":408}}",
               "type_overrides":
               {
               }
@@ -2901,7 +2901,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":5232,\"y\":56}}",
+              "state": "{\"location\":{\"x\":4624,\"y\":392}}",
               "type_overrides":
               {
               }
@@ -2936,8 +2936,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 13,
-              "state": "{\"location\":{\"x\":5096,\"y\":152}}",
+              "reference_id": 14,
+              "state": "{\"location\":{\"x\":4488,\"y\":488}}",
               "type_overrides":
               {
               }
@@ -3013,7 +3013,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":5232,\"y\":136}}",
+              "state": "{\"location\":{\"x\":4624,\"y\":472}}",
               "type_overrides":
               {
               }
@@ -3089,7 +3089,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":5408,\"y\":56}}",
+              "state": "{\"location\":{\"x\":4800,\"y\":392}}",
               "type_overrides":
               {
               }
@@ -3124,8 +3124,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 10,
-              "state": "{\"location\":{\"x\":5408,\"y\":136}}",
+              "reference_id": 11,
+              "state": "{\"location\":{\"x\":4800,\"y\":472}}",
               "type_overrides":
               {
               }
@@ -3201,7 +3201,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":5584,\"y\":56}}",
+              "state": "{\"location\":{\"x\":4976,\"y\":392}}",
               "type_overrides":
               {
               }
@@ -3275,8 +3275,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 13,
-              "state": "{\"location\":{\"x\":6672,\"y\":96}}",
+              "reference_id": 14,
+              "state": "{\"location\":{\"x\":5160,\"y\":552}}",
               "type_overrides":
               {
               }
@@ -3311,8 +3311,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 12,
-              "state": "{\"location\":{\"x\":5960,\"y\":152}}",
+              "reference_id": 13,
+              "state": "{\"location\":{\"x\":4448,\"y\":608}}",
               "type_overrides":
               {
               }
@@ -3347,8 +3347,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 13,
-              "state": "{\"location\":{\"x\":5960,\"y\":200}}",
+              "reference_id": 14,
+              "state": "{\"location\":{\"x\":4448,\"y\":656}}",
               "type_overrides":
               {
               }
@@ -3424,7 +3424,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":6104,\"y\":152}}",
+              "state": "{\"location\":{\"x\":4592,\"y\":608}}",
               "type_overrides":
               {
               }
@@ -3500,7 +3500,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":6280,\"y\":152}}",
+              "state": "{\"location\":{\"x\":4768,\"y\":608}}",
               "type_overrides":
               {
               }
@@ -3535,8 +3535,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 11,
-              "state": "{\"location\":{\"x\":6280,\"y\":232}}",
+              "reference_id": 12,
+              "state": "{\"location\":{\"x\":4768,\"y\":688}}",
               "type_overrides":
               {
               }
@@ -3612,7 +3612,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":6488,\"y\":152}}",
+              "state": "{\"location\":{\"x\":4976,\"y\":608}}",
               "type_overrides":
               {
               }
@@ -3686,8 +3686,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 12,
-              "state": "{\"location\":{\"x\":7008,\"y\":96}}",
+              "reference_id": 13,
+              "state": "{\"location\":{\"x\":5160,\"y\":744}}",
               "type_overrides":
               {
               }
@@ -3722,8 +3722,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 14,
-              "state": "{\"location\":{\"x\":6840,\"y\":152}}",
+              "reference_id": 15,
+              "state": "{\"location\":{\"x\":4992,\"y\":800}}",
               "type_overrides":
               {
               }
@@ -3797,8 +3797,8 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 15,
-              "state": "{\"location\":{\"x\":7544,\"y\":96}}",
+              "reference_id": 16,
+              "state": "{\"location\":{\"x\":5160,\"y\":904}}",
               "type_overrides":
               {
               }
@@ -3833,8 +3833,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 15,
-              "state": "{\"location\":{\"x\":7168,\"y\":152}}",
+              "reference_id": 16,
+              "state": "{\"location\":{\"x\":4784,\"y\":960}}",
               "type_overrides":
               {
               }
@@ -3910,7 +3910,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":7328,\"y\":152}}",
+              "state": "{\"location\":{\"x\":4944,\"y\":960}}",
               "type_overrides":
               {
               }
@@ -4032,7 +4032,7 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":5248,\"y\":248}}",
+              "state": "{\"location\":{\"x\":4352,\"y\":968}}",
               "type_overrides":
               {
               }
@@ -4077,7 +4077,7 @@
                 }
               ],
               "reference_id": 8,
-              "state": "{\"location\":{\"x\":5096,\"y\":304}}",
+              "state": "{\"location\":{\"x\":4200,\"y\":1024}}",
               "type_overrides":
               {
               }
@@ -4112,8 +4112,8 @@
                   "type": "number"
                 }
               ],
-              "reference_id": 15,
-              "state": "{\"location\":{\"x\":5096,\"y\":352}}",
+              "reference_id": 16,
+              "state": "{\"location\":{\"x\":4200,\"y\":1072}}",
               "type_overrides":
               {
               }
@@ -4188,7 +4188,7 @@
                 }
               ],
               "reference_id": 9,
-              "state": "{\"location\":{\"x\":1192,\"y\":232}}",
+              "state": "{\"location\":{\"x\":816,\"y\":424}}",
               "type_overrides":
               {
               }
@@ -4224,7 +4224,7 @@
                 }
               ],
               "reference_id": 9,
-              "state": "{\"location\":{\"x\":792,\"y\":288}}",
+              "state": "{\"location\":{\"x\":416,\"y\":480}}",
               "type_overrides":
               {
               }
@@ -4300,14 +4300,14 @@
                 }
               ],
               "reference_id": -1,
-              "state": "{\"location\":{\"x\":976,\"y\":288}}",
+              "state": "{\"location\":{\"x\":600,\"y\":480}}",
               "type_overrides":
               {
               }
             }
           ]
         },
-        "id": 16,
+        "id": 10,
         "inputs":
         [
         ],
@@ -4318,6 +4318,126 @@
         "pure": false,
         "variables":
         [
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 11,
+            "name": "CoordinateX"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 12,
+            "name": "CoordinateY"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 13,
+            "name": "ValueX"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 14,
+            "name": "ValueY"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 15,
+            "name": "TemporaryX"
+          },
+          {
+            "declared_type":
+            {
+              "class_id": -1,
+              "input_count": -1,
+              "kind": "number",
+              "name": "",
+              "parameters":
+              [
+              ]
+            },
+            "default":
+            {
+              "type": "number",
+              "value": 0
+            },
+            "description": "",
+            "id": 16,
+            "name": "Iterations"
+          }
         ]
       },
       {
@@ -5950,7 +6070,7 @@
                 },
                 {
                   "type": "number",
-                  "value": 350
+                  "value": 180
                 }
               ],
               "inputs":
@@ -6750,7 +6870,7 @@
                   "type": "flow"
                 }
               ],
-              "reference_id": 16,
+              "reference_id": 10,
               "state": "{\"location\":{\"x\":4952,\"y\":0}}",
               "type_overrides":
               {
@@ -6931,7 +7051,7 @@
                 "type": "flow"
               }
             ],
-            "reference_id": 16,
+            "reference_id": 10,
             "state": "{\"location\":{\"x\":144,\"y\":0}}",
             "type_overrides":
             {
@@ -7207,7 +7327,7 @@
         "default":
         {
           "type": "number",
-          "value": 350
+          "value": 180
         },
         "description": "",
         "id": 7,
@@ -7263,126 +7383,6 @@
         "description": "",
         "id": 9,
         "name": "ImageRevision"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 10,
-        "name": "CoordinateX"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 11,
-        "name": "CoordinateY"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 12,
-        "name": "ValueX"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 13,
-        "name": "ValueY"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 14,
-        "name": "TemporaryX"
-      },
-      {
-        "declared_type":
-        {
-          "class_id": -1,
-          "input_count": -1,
-          "kind": "number",
-          "name": "",
-          "parameters":
-          [
-          ]
-        },
-        "default":
-        {
-          "type": "number",
-          "value": 0
-        },
-        "description": "",
-        "id": 15,
-        "name": "Iterations"
       }
     ]
   }

@@ -135,7 +135,8 @@ struct Example :
 
     // Tree Node Handling TODO: Move somewhere else
     TreeNode MakeFunctionNode(int funId, const std::string& name);
-    TreeNode MakeVariableNode(int varId, const std::string& name);
+    TreeNode MakeVariableNode(int varId, const std::string& name,
+                              int ownerFunctionId = ScriptElementID::Invalid);
     TreeNode MakeInputNode(int funId, int inputId, const std::string& name);
     TreeNode MakeOutputNode(int funId, int outputId, const std::string& name);
     TreeNode MakeClassNode(const ScriptClassPtr& scriptClass);
@@ -151,6 +152,7 @@ struct Example :
     void AddFunction(const ScriptFunctionPtr& pExistingFunction);
     void AddVariable(int id);
     void AddVariable(const ScriptPropertyPtr& pVariable);
+    void AddFunctionVariable(int functionId, int id);
 
     void ChangeVariableValue(int id, Value& value);
 

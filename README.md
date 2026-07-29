@@ -36,9 +36,9 @@ The IsEven function is implemented like this:
 
 ![IsEven function](https://github.com/XDargu/visual-lox/blob/main/resources/Visual%20Lox%20Is%20Even%20Function.png)
 
-### Global Variables
+### Variables
 
-You can declare, get and set global variables in Visual Lox.
+You can declare, get and set global variables in Visual Lox. Functions, methods, constructors, and `Main` can also declare local variables. A local is visible only in its owning graph and receives a fresh default value on every invocation.
 
 ### Ranges
 
@@ -93,7 +93,7 @@ Both applications use the same standard node library and the same compile-and-ex
 
 All editor chnges pass through the core `DocumentOperations`.
 
-Use `Ctrl+C` and `Ctrl+V` to copy and paste selected graph nodes or the selected function, variable, function input, or function output. Pasted fragments receive new IDs; links and references within the copied fragment are remapped to those IDs.
+Use `Ctrl+C` and `Ctrl+V` to copy and paste selected graph nodes or the selected function, global or local variable, function input, or function output. Pasted fragments receive new IDs; links and references within the copied fragment are remapped to those IDs.
 
 Undo and redo are available through the editor buttons or with `Ctrl+Z` and `Ctrl+Y` (`Ctrl+Shift+Z` also redoes).
 

@@ -20,6 +20,13 @@ void EmitPropertyInitializer(Compiler& compiler, const ScriptProperty& property)
                              compiler.identifierConstant(propertyToken));
     compiler.emitByte(OpByte(OpCode::OP_POP));
 }
+
+void EmitLocalInitializer(Compiler& compiler, const ScriptProperty& variable)
+{
+    GraphCompiler::CompileLiteral(compiler, variable.defaultValue);
+    const Token token(TokenType::VAR, variable.Name.c_str(), variable.Name.length(), 0);
+    compiler.defineVariable(compiler.parseVariableDirectly(false, token));
+}
 }
 
 void ScriptRuntime::CompileGraph(const Script& script, const ScriptFunction& function,
@@ -125,6 +132,9 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
             compiler.defineVariable(compiler.parseVariableDirectly(false, inputToken));
         }
 
+        for (const ScriptPropertyPtr& variable : scriptFunction->variables)
+            EmitLocalInitializer(compiler, *variable);
+
         if (propertyOwner)
             for (const ScriptPropertyPtr& property : propertyOwner->properties)
                 EmitPropertyInitializer(compiler, *property);
@@ -197,6 +207,8 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     GraphCompiler::CompileLiteral(compiler, programArgumentsValue);
     compiler.addLocal(argumentsToken, true);
     compiler.emitVariable(argumentsToken, true, true);
+    for (const ScriptPropertyPtr& variable : script.main->variables)
+        EmitLocalInitializer(compiler, *variable);
     CompileGraph(script, *script.main, compiler, folding.values, folding.nodeIds);
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();

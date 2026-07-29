@@ -1407,16 +1407,20 @@ void GraphView::DrawContextMenu()
             }
         }
 
-        for (auto& def : m_pScript->variables)
+        const auto addVariableDefinitions = [&](const ScriptPropertyPtr& def, bool local)
         {
             const ScriptPropertyPtr capturedVariable = def;
+            const ScriptElementID functionId = m_pScriptFunction ? m_pScriptFunction->ID : ScriptElementID::Invalid;
+            const std::string category = local ? "Local Variables" : "Global Variables";
+            const bool draggedVariableMatches = !hasScriptItemContext ||
+                (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
+                 paletteScriptItem.id == def->ID.id &&
+                 (!local || paletteScriptItem.ownerId == functionId.id));
             // Get
             {
-                const std::string getVar = "Variables::Get::" + def->Name;
+                const std::string getVar = category + "::Get::" + def->Name;
 
-                if ((!hasScriptItemContext ||
-                     (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
-                      paletteScriptItem.id == def->ID.id)) &&
+                if (draggedVariableMatches &&
                     Utils::FilterString(Utils::to_lower(getVar), searchFilterLower) &&
                     FilterContextVar(def))
                 {
@@ -1436,9 +1440,9 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = getVar;
-                            child.creationFun = [capturedVariable](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedVariable, functionId](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildGetVariableNode(IDGenerator, capturedVariable);
+                                return BuildGetVariableNode(IDGenerator, capturedVariable, ScriptElementID::Invalid, functionId);
                             };
                         }
 
@@ -1450,12 +1454,9 @@ void GraphView::DrawContextMenu()
 
             // Set
             {
-                const std::string setVar = "Variables::Set::" + def->Name;
+                const std::string setVar = category + "::Set::" + def->Name;
 
-                if (!pureGraph &&
-                    (!hasScriptItemContext ||
-                     (paletteScriptItem.kind == Editor::TreeNodeKind::Variable &&
-                      paletteScriptItem.id == def->ID.id)) &&
+                if ((!pureGraph || local) && draggedVariableMatches &&
                     Utils::FilterString(Utils::to_lower(setVar), searchFilterLower) &&
                     FilterContextVar(def))
                 {
@@ -1475,9 +1476,9 @@ void GraphView::DrawContextMenu()
                         {
                             // Last element!
                             child.fullName = setVar;
-                            child.creationFun = [capturedVariable](IDGenerator& IDGenerator) -> NodePtr
+                            child.creationFun = [capturedVariable, functionId](IDGenerator& IDGenerator) -> NodePtr
                             {
-                                return BuildSetVariableNode(IDGenerator, capturedVariable);
+                                return BuildSetVariableNode(IDGenerator, capturedVariable, ScriptElementID::Invalid, functionId);
                             };
                         }
 
@@ -1486,7 +1487,13 @@ void GraphView::DrawContextMenu()
                     }
                 }
             }
-        }
+        };
+
+        if (m_pScriptFunction)
+            for (const ScriptPropertyPtr& variable : m_pScriptFunction->variables)
+                addVariableDefinitions(variable, true);
+        for (const ScriptPropertyPtr& variable : m_pScript->variables)
+            addVariableDefinitions(variable, false);
 
         for (auto& def : m_pScript->functions)
         {

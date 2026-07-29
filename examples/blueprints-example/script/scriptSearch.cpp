@@ -174,7 +174,8 @@ void AddFunctionMatches(
 
 void AddPropertyMatch(
     const ScriptPropertyPtr& property, const std::string& query,
-    const std::string& location, std::vector<ScriptSearchResult>& results)
+    const std::string& location, std::vector<ScriptSearchResult>& results,
+    int functionId = ScriptElementID::Invalid)
 {
     if (!property)
         return;
@@ -194,7 +195,7 @@ void AddPropertyMatch(
         results.push_back({
             ScriptSearchResultKind::Definition,
             property->ID.id,
-            ScriptElementID::Invalid,
+            functionId,
             -1,
             property->Name,
             detail,
@@ -326,6 +327,24 @@ bool AddDefinitionById(
             };
         found = findPort(function->functionDef->inputs, "Input") ||
                 findPort(function->functionDef->outputs, "Output");
+        if (found)
+            return;
+        for (const ScriptPropertyPtr& property : function->variables)
+        {
+            if (!property || property->ID.id != definitionId)
+                continue;
+            results.push_back({
+                ScriptSearchResultKind::Definition,
+                definitionId,
+                function->ID.id,
+                -1,
+                property->Name,
+                "Definition",
+                FunctionLocation(script, function),
+            });
+            found = true;
+            return;
+        }
     });
     if (found)
         return true;
@@ -394,6 +413,9 @@ std::vector<ScriptSearchResult> ScriptSearch::Text(
     ForEachFunction(script, [&](const ScriptFunctionPtr& function)
     {
         AddFunctionMatches(script, function, normalizedQuery, results);
+        if (function)
+            for (const ScriptPropertyPtr& property : function->variables)
+                AddPropertyMatch(property, normalizedQuery, FunctionLocation(script, function), results, function->ID.id);
     });
 
     for (const ScriptPropertyPtr& property : script.variables)

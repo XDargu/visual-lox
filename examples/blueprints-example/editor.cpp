@@ -1122,6 +1122,18 @@ void Example::ShowScriptExplorer()
 
         const bool selectedMain =
             selectedFunction && m_script.main == selectedFunction;
+        if (selectedFunction)
+        {
+            ImGui::TextDisabled("%s locals", selectedFunction->functionDef->name.c_str());
+            if (ImGui::MenuItem(ICON_FA_DATABASE "  Local Variable"))
+            {
+                const int functionId = selectedFunction->ID.id;
+                const int variableId = m_IDGenerator.GetNextId();
+                pendingActions.push_back(std::make_shared<DeferredAction>(
+                    [this, functionId, variableId]() { AddFunctionVariable(functionId, variableId); }));
+            }
+            ImGui::Separator();
+        }
         if (selectedFunction && !selectedMain)
         {
             ImGui::TextDisabled("%s ports",
@@ -1490,29 +1502,43 @@ void Example::ShowInspector()
 
     if (property)
     {
-        const ScriptClassPtr owner =
+        const ScriptClassPtr classOwner =
             ScriptUtils::FindOwningClass(m_script, property->ID.id);
-        const bool isClassProperty = owner != nullptr;
-        ImGui::TextDisabled(isClassProperty ? "CLASS PROPERTY" : "VARIABLE");
+        const ScriptFunctionPtr functionOwner = function &&
+            ScriptUtils::FindFunctionVariableById(function, property->ID.id) ? function : nullptr;
+        const bool isClassProperty = classOwner != nullptr;
+        const bool isLocalVariable = functionOwner != nullptr;
+        ImGui::TextDisabled(isClassProperty ? "CLASS PROPERTY" : isLocalVariable ? "LOCAL VARIABLE" : "GLOBAL VARIABLE");
         ImGui::PushFont(HeaderFont());
         ImGui::TextWrapped("%s", property->Name.c_str());
         ImGui::PopFont();
-        if (owner)
-            ImGui::TextDisabled("Class: %s", owner->Name.c_str());
+        if (classOwner)
+            ImGui::TextDisabled("Class: %s", classOwner->Name.c_str());
+        else if (functionOwner)
+            ImGui::TextDisabled("Function: %s", functionOwner->functionDef->name.c_str());
 
         std::string name = property->Name;
         ImGui::SetNextItemWidth(-1.0f);
         if (ImGui::InputText("Name", &name))
         {
             const int propertyId = property->ID.id;
-            if (owner)
+            if (classOwner)
             {
-                const int classId = owner->ID.id;
+                const int classId = classOwner->ID.id;
                 queueOperation("Property renamed",
                     [this, classId, propertyId, name]()
                     {
                         return m_operations->RenameClassProperty(
                             classId, propertyId, name);
+                    }, true);
+            }
+            else if (functionOwner)
+            {
+                const int functionId = functionOwner->ID.id;
+                queueOperation("Local variable renamed",
+                    [this, functionId, propertyId, name]()
+                    {
+                        return m_operations->RenameFunctionVariable(functionId, propertyId, name);
                     }, true);
             }
             else
@@ -1531,14 +1557,23 @@ void Example::ShowInspector()
                 "Description", &description, ImVec2(-1.0f, 72.0f)))
         {
             const int propertyId = property->ID.id;
-            if (owner)
+            if (classOwner)
             {
-                const int classId = owner->ID.id;
+                const int classId = classOwner->ID.id;
                 queueOperation("Property description updated",
                     [this, classId, propertyId, description]()
                     {
                         return m_operations->ChangeClassPropertyDescription(
                             classId, propertyId, description);
+                    }, true);
+            }
+            else if (functionOwner)
+            {
+                const int functionId = functionOwner->ID.id;
+                queueOperation("Local variable description updated",
+                    [this, functionId, propertyId, description]()
+                    {
+                        return m_operations->ChangeFunctionVariableDescription(functionId, propertyId, description);
                     }, true);
             }
             else
@@ -1555,16 +1590,25 @@ void Example::ShowInspector()
         ImGui::Spacing();
         GraphViewUtils::DrawDeclaredTypeSelection(
             m_script, property->type,
-            [this, owner, propertyId = property->ID.id, &queueOperation](TypeRef type)
+            [this, classOwner, functionOwner, propertyId = property->ID.id, &queueOperation](TypeRef type)
             {
-                if (owner)
+                if (classOwner)
                 {
-                    const int classId = owner->ID.id;
+                    const int classId = classOwner->ID.id;
                     queueOperation("Property type updated",
                         [this, classId, propertyId, type]()
                         {
                             return m_operations->ChangeClassPropertyType(
                                 classId, propertyId, type);
+                        }, true);
+                }
+                else if (functionOwner)
+                {
+                    const int functionId = functionOwner->ID.id;
+                    queueOperation("Local variable type updated",
+                        [this, functionId, propertyId, type]()
+                        {
+                            return m_operations->ChangeFunctionVariableType(functionId, propertyId, type);
                         }, true);
                 }
                 else
@@ -1584,14 +1628,23 @@ void Example::ShowInspector()
                 0, &property->type))
         {
             const int propertyId = property->ID.id;
-            if (owner)
+            if (classOwner)
             {
-                const int classId = owner->ID.id;
+                const int classId = classOwner->ID.id;
                 queueOperation("Property value updated",
                     [this, classId, propertyId, value]()
                     {
                         return m_operations->ChangeClassPropertyValue(
                             classId, propertyId, value);
+                    });
+            }
+            else if (functionOwner)
+            {
+                const int functionId = functionOwner->ID.id;
+                queueOperation("Local variable value updated",
+                    [this, functionId, propertyId, value]()
+                    {
+                        return m_operations->ChangeFunctionVariableValue(functionId, propertyId, value);
                     });
             }
             else
@@ -1611,14 +1664,23 @@ void Example::ShowInspector()
                 ImVec2(-1, 0)))
         {
             const int propertyId = property->ID.id;
-            if (owner)
+            if (classOwner)
             {
-                const int classId = owner->ID.id;
+                const int classId = classOwner->ID.id;
                 queueOperation("Property deleted",
                     [this, classId, propertyId]()
                     {
                         return m_operations->RemoveClassProperty(
                             classId, propertyId);
+                    }, true);
+            }
+            else if (functionOwner)
+            {
+                const int functionId = functionOwner->ID.id;
+                queueOperation("Local variable deleted",
+                    [this, functionId, propertyId]()
+                    {
+                        return m_operations->RemoveFunctionVariable(functionId, propertyId);
                     }, true);
             }
             else
@@ -1677,6 +1739,15 @@ void Example::ShowInspector()
                     return m_operations->ChangeFunctionDescription(
                         functionId, functionDescription);
                 }, true);
+        }
+
+        ImGui::Spacing();
+        ImGui::Text("%zu local variable%s", function->variables.size(), function->variables.size() == 1 ? "" : "s");
+        if (ImGui::Button(ICON_FA_DATABASE " Add local variable", ImVec2(-1, 0)))
+        {
+            const int variableId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>(
+                [this, functionId, variableId]() { AddFunctionVariable(functionId, variableId); }));
         }
 
         if (isMain)
@@ -2091,6 +2162,14 @@ void Example::FocusSearchResult(const ScriptSearchResult& result)
                 : ScriptUtils::FindFunctionById(m_script, result.functionId);
         if (function)
             ChangeGraph(function);
+        return;
+    }
+
+    if (result.functionId != ScriptElementID::Invalid)
+    {
+        ScriptFunctionPtr owner = ScriptUtils::FindAnyFunctionById(m_script, result.functionId);
+        if (owner)
+            ChangeGraph(owner);
         return;
     }
 
@@ -3250,6 +3329,12 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
                 ICON_FA_MAGNIFYING_GLASS "  Find References"))
             FindReferences(funId);
         ImGui::Separator();
+        if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Local Variable"))
+        {
+            const int variableId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>(
+                [this, funId, variableId]() { AddFunctionVariable(funId, variableId); }));
+        }
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(
                 this, funId, m_IDGenerator.GetNextId()));
@@ -3275,7 +3360,7 @@ TreeNode Example::MakeFunctionNode(int funId, const std::string& name)
     return funcNode;
 }
 
-TreeNode Example::MakeVariableNode(int varId, const std::string& name)
+TreeNode Example::MakeVariableNode(int varId, const std::string& name, int ownerFunctionId)
 {
     TreeNode varNode;
     varNode.kind = TreeNodeKind::Variable;
@@ -3284,14 +3369,26 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
     varNode.icon = m_VariableIcon;
     varNode.iconText = ICON_FA_DATABASE;
     varNode.id = varId;
+    varNode.dragOwnerId = ownerFunctionId;
     varNode.onclick = []() { ed::ClearSelection(); };
-    varNode.onRename = [this, varId](std::string newName)
+    varNode.onRename = [this, varId, ownerFunctionId](std::string newName)
     {
-        pendingActions.push_back(std::make_shared<RenameVariableAction>(this, varId, newName.c_str()));
+        pendingActions.push_back(std::make_shared<DeferredAction>([this, varId, ownerFunctionId, newName]()
+        {
+            const OperationResult result = ownerFunctionId >= 0
+                ? m_operations->RenameFunctionVariable(ownerFunctionId, varId, newName)
+                : m_operations->RenameVariable(varId, newName);
+            m_fileStatusIsError = !result;
+            m_fileStatus = result ? "Variable renamed" : result.error;
+            if (result) RebuildScriptTree();
+        }));
     };
-    varNode.contextMenu = [this, varId]()
+    varNode.contextMenu = [this, varId, ownerFunctionId]()
     {
-        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+        ScriptPropertyPtr variable = ownerFunctionId >= 0
+            ? ScriptUtils::FindFunctionVariableById(m_script, ownerFunctionId, varId)
+            : ScriptUtils::FindVariableById(m_script, varId);
+        if (variable)
         {
             if (ImGui::MenuItem(
                     ICON_FA_MAGNIFYING_GLASS "  Find References"))
@@ -3300,21 +3397,34 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name)
             if (ImGui::MenuItem("Rename"))
                 m_editingItemId = varId;
             if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete"))
-                pendingActions.push_back(
-                    std::make_shared<DeleteVariableAction>(this, pVar));
+                pendingActions.push_back(std::make_shared<DeferredAction>([this, varId, ownerFunctionId]()
+                {
+                    const OperationResult result = ownerFunctionId >= 0
+                        ? m_operations->RemoveFunctionVariable(ownerFunctionId, varId)
+                        : m_operations->RemoveVariable(varId);
+                    m_fileStatusIsError = !result;
+                    m_fileStatus = result ? "Variable deleted" : result.error;
+                    if (result) RebuildScriptTree();
+                }));
         }
     };
-    varNode.afterLabel = [this, varId]()
+    varNode.afterLabel = [this, varId, ownerFunctionId]()
     {
-        if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+        ScriptPropertyPtr variable = ownerFunctionId >= 0
+            ? ScriptUtils::FindFunctionVariableById(m_script, ownerFunctionId, varId)
+            : ScriptUtils::FindVariableById(m_script, varId);
+        if (variable)
         {
             ImGui::SameLine();
-            ImGui::TextDisabled("%s", pVar->type.ToString().c_str());
+            ImGui::TextDisabled("%s", variable->type.ToString().c_str());
         }
     };
-    if (ScriptPropertyPtr pVar = ScriptUtils::FindVariableById(m_script, varId))
+    ScriptPropertyPtr variable = ownerFunctionId >= 0
+        ? ScriptUtils::FindFunctionVariableById(m_script, ownerFunctionId, varId)
+        : ScriptUtils::FindVariableById(m_script, varId);
+    if (variable)
     {
-        varNode.pElement = std::static_pointer_cast<IScriptElement>(pVar);
+        varNode.pElement = std::static_pointer_cast<IScriptElement>(variable);
     }
 
     return varNode;
@@ -3482,6 +3592,36 @@ void Example::AddVariable(const ScriptPropertyPtr& pVariable)
     m_fileStatusIsError = !result;
     m_fileStatus = result ? "Variable added" : result.error;
     if (result) RebuildScriptTree();
+}
+
+void Example::AddFunctionVariable(int functionId, int id)
+{
+    ScriptFunctionPtr function = ScriptUtils::FindAnyFunctionById(m_script, functionId);
+    if (!function)
+    {
+        m_fileStatusIsError = true;
+        m_fileStatus = "Function not found";
+        return;
+    }
+
+    const std::string base = "Local Variable";
+    std::string name = base;
+    int suffix = 1;
+    const auto nameExists = [&]
+    {
+        const bool localExists = std::any_of(function->variables.begin(), function->variables.end(),
+            [&](const ScriptPropertyPtr& variable) { return variable && variable->Name == name; });
+        const bool inputExists = std::any_of(function->functionDef->inputs.begin(), function->functionDef->inputs.end(),
+            [&](const BasicFunctionDef::Input& input) { return input.name == name; });
+        return localExists || inputExists;
+    };
+    while (nameExists())
+        name = base + std::to_string(suffix++);
+
+    const OperationResult result = m_operations->AddFunctionVariable(functionId, id, name);
+    m_fileStatusIsError = !result;
+    m_fileStatus = result ? "Local variable added" : result.error;
+    if (result) RebuildScriptTree(id);
 }
 
 void Example::ChangeVariableValue(int id, Value& value)
@@ -3883,6 +4023,14 @@ void Example::RebuildScriptTree(int createdItemId)
             if (ImGui::MenuItem(
                     ICON_FA_MAGNIFYING_GLASS "  Find References"))
                 FindReferences(m_script.main->ID.id);
+            ImGui::Separator();
+            if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Local Variable"))
+            {
+                const int functionId = m_script.main->ID.id;
+                const int variableId = m_IDGenerator.GetNextId();
+                pendingActions.push_back(std::make_shared<DeferredAction>(
+                    [this, functionId, variableId]() { AddFunctionVariable(functionId, variableId); }));
+            }
         };
         if (!m_script.main->functionDef->inputs.empty())
         {
@@ -3903,6 +4051,8 @@ void Example::RebuildScriptTree(int createdItemId)
             };
             mainNode.AddChild(argumentsNode);
         }
+        for (const ScriptPropertyPtr& variable : m_script.main->variables)
+            mainNode.AddChild(MakeVariableNode(variable->ID.id, variable->Name, m_script.main->ID.id));
         m_scriptTreeView.AddChild(mainNode);
     }
 
@@ -3916,6 +4066,8 @@ void Example::RebuildScriptTree(int createdItemId)
             functionNode->AddChild(MakeInputNode(function->ID, input.id, input.name));
         for (const BasicFunctionDef::Input& output : function->functionDef->outputs)
             functionNode->AddChild(MakeOutputNode(function->ID, output.id, output.name));
+        for (const ScriptPropertyPtr& variable : function->variables)
+            functionNode->AddChild(MakeVariableNode(variable->ID.id, variable->Name, function->ID.id));
     }
 
     for (const ScriptClassPtr& scriptClass : m_script.classes)
@@ -4070,6 +4222,12 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
                 ICON_FA_MAGNIFYING_GLASS "  Find References"))
             FindReferences(id);
         ImGui::Separator();
+        if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Local Variable"))
+        {
+            const int variableId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>(
+                [this, id, variableId]() { AddFunctionVariable(id, variableId); }));
+        }
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Output"))
@@ -4091,6 +4249,8 @@ TreeNode Example::MakeClassMethodNode(int classId, const ScriptFunctionPtr& meth
         node.AddChild(MakeInputNode(method->ID.id, input.id, input.name));
     for (const auto& output : method->functionDef->outputs)
         node.AddChild(MakeOutputNode(method->ID.id, output.id, output.name));
+    for (const ScriptPropertyPtr& variable : method->variables)
+        node.AddChild(MakeVariableNode(variable->ID.id, variable->Name, method->ID.id));
     return node;
 }
 
@@ -4112,6 +4272,12 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
                 ICON_FA_MAGNIFYING_GLASS "  Find References"))
             FindReferences(classId, id);
         ImGui::Separator();
+        if (ImGui::MenuItem(ICON_FA_DATABASE "  Add Local Variable"))
+        {
+            const int variableId = m_IDGenerator.GetNextId();
+            pendingActions.push_back(std::make_shared<DeferredAction>(
+                [this, id, variableId]() { AddFunctionVariable(id, variableId); }));
+        }
         if (ImGui::MenuItem(ICON_FA_PLUS "  Add Input"))
             pendingActions.push_back(std::make_shared<AddFunctionInputAction>(this, id, m_IDGenerator.GetNextId()));
         ImGui::Separator();
@@ -4127,6 +4293,8 @@ TreeNode Example::MakeConstructorNode(int classId, const ScriptFunctionPtr& cons
     };
     for (const auto& input : constructor->functionDef->inputs)
         node.AddChild(MakeInputNode(constructor->ID.id, input.id, input.name));
+    for (const ScriptPropertyPtr& variable : constructor->variables)
+        node.AddChild(MakeVariableNode(variable->ID.id, variable->Name, constructor->ID.id));
     return node;
 }
 

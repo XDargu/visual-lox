@@ -475,10 +475,13 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
     if (kind == "return") return BuildReturnNode(constructionIds, *owner);
     if (kind == "variable.get" || kind == "variable.set")
     {
-        ScriptPropertyPtr property = ScriptUtils::FindVariableById(script, reference);
+        const ScriptElementID ownerId = owner ? owner->ID : ScriptElementID::Invalid;
+        ScriptPropertyPtr property = owner
+            ? ScriptUtils::FindVisibleVariableById(script, owner->ID.id, reference.id)
+            : ScriptUtils::FindVariableById(script, reference);
         NodePtr node = kind == "variable.get"
-            ? BuildGetVariableNode(constructionIds, property, reference)
-            : BuildSetVariableNode(constructionIds, property, reference);
+            ? BuildGetVariableNode(constructionIds, property, reference, ownerId)
+            : BuildSetVariableNode(constructionIds, property, reference, ownerId);
         if (!property)
             node->Refresh(script, constructionIds);
         return node;
@@ -1096,6 +1099,18 @@ SerializationResult ScriptSerializer::CloneNodes(const Script& source, int sourc
             return SerializationResult::Fail("The source or destination function no longer exists.");
 
         std::set<int> selected(nodeIds.begin(), nodeIds.end());
+        if (sourceFunctionId != destinationFunctionId)
+        {
+            for (const NodePtr& node : sourceFunction->Graph.GetNodes())
+            {
+                if (selected.count(node->ID.Get()) == 0)
+                    continue;
+                if ((node->SerializationType == "variable.get" || node->SerializationType == "variable.set") &&
+                    ScriptUtils::FindFunctionVariableById(sourceFunction, node->refId.id))
+                    return SerializationResult::Fail("Nodes that reference local variables can only be pasted into their owning function.");
+            }
+        }
+
         std::map<int, int> pinMap;
         std::map<int, int> referenceMap;
         pastedNodeIds.clear();
@@ -1201,6 +1216,35 @@ SerializationResult ScriptSerializer::CloneVariable(const Script& source, int va
         clone->type = variable->type;
         clone->defaultValue = CloneValue(variable->defaultValue);
         destination.variables.push_back(clone);
+        return SerializationResult::Ok();
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what());
+    }
+}
+
+SerializationResult ScriptSerializer::CloneFunctionVariable(const Script& source, int sourceFunctionId,
+                                                              int variableId, Script& destination,
+                                                              int destinationFunctionId, IDGenerator& ids,
+                                                              int& pastedVariableId)
+{
+    ScriptFunctionPtr sourceFunction = FindAnyFunction(source, sourceFunctionId);
+    ScriptFunctionPtr destinationFunction = FindAnyFunction(destination, destinationFunctionId);
+    if (!sourceFunction || !destinationFunction)
+        return SerializationResult::Fail("The source or destination function no longer exists.");
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(sourceFunction, variableId);
+    if (!variable)
+        return SerializationResult::Fail("The copied local variable no longer exists.");
+    try
+    {
+        GarbageCollectionPause pause;
+        pastedVariableId = ids.GetNextId();
+        ScriptPropertyPtr clone = std::make_shared<ScriptProperty>(pastedVariableId, variable->Name.c_str());
+        clone->Description = variable->Description;
+        clone->type = variable->type;
+        clone->defaultValue = CloneValue(variable->defaultValue);
+        destinationFunction->variables.push_back(clone);
         return SerializationResult::Ok();
     }
     catch (const std::exception& exception)

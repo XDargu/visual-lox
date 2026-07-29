@@ -41,6 +41,11 @@ struct SearchFixture
         function->functionDef->inputs.emplace_back(
             "Multiplier", Value(2.0), 5, PinType::Float,
             "Reward multiplier");
+        localVariable = std::make_shared<ScriptProperty>(6, "Running Bonus");
+        localVariable->Description = "Intermediate reward";
+        localVariable->type = PinType::Float;
+        localVariable->defaultValue = Value(1.0);
+        function->variables.push_back(localVariable);
         script.functions.push_back(function);
 
         IDGenerator callIds;
@@ -79,6 +84,7 @@ struct SearchFixture
 
     Script script;
     ScriptPropertyPtr variable;
+    ScriptPropertyPtr localVariable;
     ScriptFunctionPtr function;
     ScriptClassPtr scriptClass;
     NodePtr node;
@@ -165,6 +171,27 @@ void ReferenceSearchIncludesDefinitionAndEveryUsage()
         "Reference search omitted a graph usage.");
 }
 
+void SearchIncludesFunctionLocalDefinitions()
+{
+    SearchFixture fixture;
+    const auto textResults = ScriptSearch::Text(fixture.script, "intermediate reward");
+    const auto textMatch = std::find_if(textResults.begin(), textResults.end(),
+        [&](const ScriptSearchResult& result)
+        {
+            return result.kind == ScriptSearchResultKind::Definition &&
+                   result.elementId == fixture.localVariable->ID.id &&
+                   result.functionId == fixture.function->ID.id;
+        });
+    Require(textMatch != textResults.end(),
+            "Text search omitted a function-local variable or its owning graph.");
+
+    const auto referenceResults = ScriptSearch::References(
+        fixture.script, fixture.localVariable->ID.id, fixture.localVariable->ID.id);
+    Require(HasResult(referenceResults, ScriptSearchResultKind::Definition,
+                      fixture.localVariable->ID.id),
+            "Reference search omitted a function-local definition.");
+}
+
 void ConstructorReferencesUseTheClassIdentity()
 {
     SearchFixture fixture;
@@ -242,6 +269,9 @@ void AddScriptSearchTests(Tests::Runner& runner)
         runner.Test(
             "Reference search includes definition and usages",
             ReferenceSearchIncludesDefinitionAndEveryUsage);
+        runner.Test(
+            "Search includes function-local definitions",
+            SearchIncludesFunctionLocalDefinitions);
         runner.Test(
             "Constructor references use class identity",
             ConstructorReferencesUseTheClassIdentity);

@@ -85,6 +85,14 @@ void ValidateGraph(const Script& script, const ScriptFunction& function,
         if (HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
             add(DiagnosticSeverity::Error, "invalid-reference",
                 node->Error.empty() ? "Node contains an invalid reference." : node->Error, node->ID);
+        const bool variableNode = node->SerializationType == "variable.get" || node->SerializationType == "variable.set";
+        const bool localVariableReference = variableNode && std::any_of(
+            function.variables.begin(), function.variables.end(),
+            [&](const ScriptPropertyPtr& variable) { return variable && variable->ID == node->refId; });
+        if (variableNode && ScriptUtils::FindAnyVariableById(script, node->refId.id) &&
+            !ScriptUtils::FindVisibleVariableById(script, function.ID.id, node->refId.id))
+            add(DiagnosticSeverity::Error, "variable-scope",
+                "A local variable can only be used in its owning function.", node->ID);
         if (const Pin* receiver = GraphUtils::FindReceiverInput(*node);
             receiver && !graph.IsPinLinked(receiver->ID))
         {
@@ -106,7 +114,8 @@ void ValidateGraph(const Script& script, const ScriptFunction& function,
         if (isConstructor && node->Category == NodeCategory::Return)
             add(DiagnosticSeverity::Error, "constructor-return",
                 "Constructors return their instance implicitly and cannot contain Return nodes.", node->ID);
-        if (pureGraph && node->Category != NodeCategory::Begin &&
+        const bool pureLocalAssignment = localVariableReference && node->SerializationType == "variable.set";
+        if (pureGraph && !pureLocalAssignment && node->Category != NodeCategory::Begin &&
             node->Category != NodeCategory::Return &&
             node->Type != NodeType::Comment && !node->IsPure())
             add(DiagnosticSeverity::Error, "impure-node",
@@ -419,6 +428,26 @@ ValidationReport ScriptValidator::Validate(const Script& script)
             if (!outputNames.insert(output.name).second)
                 addScriptError("duplicate-output", "Function '" + function->functionDef->name +
                     "' has duplicate output name '" + output.name + "'.");
+        }
+        std::set<std::string> localNames;
+        for (const ScriptPropertyPtr& variable : function->variables)
+        {
+            if (!variable)
+            {
+                addScriptError("null-local-variable", "Function '" + function->functionDef->name +
+                    "' contains a null local variable definition.");
+                continue;
+            }
+            claimScriptId(variable->ID.id, "Local variable");
+            validateDeclaredType(variable->type,
+                "Local variable '" + variable->Name + "' of function '" +
+                function->functionDef->name + "'", genericTypeNames, validateDeclaredType);
+            if (!localNames.insert(variable->Name).second)
+                addScriptError("duplicate-local-variable", "Function '" + function->functionDef->name +
+                    "' has duplicate local variable name '" + variable->Name + "'.");
+            if (inputNames.count(variable->Name))
+                addScriptError("local-input-conflict", "Function '" + function->functionDef->name +
+                    "' has an input and local variable named '" + variable->Name + "'.");
         }
         if (isConstructor && !function->functionDef->outputs.empty())
             addScriptError("constructor-output", "Constructors cannot declare output values.");

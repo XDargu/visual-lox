@@ -13,6 +13,52 @@ ScriptPropertyPtr ScriptUtils::FindVariableById(Script& script, int varId)
     return nullptr;
 }
 
+ScriptPropertyPtr ScriptUtils::FindFunctionVariableById(const ScriptFunctionPtr& function, int varId)
+{
+    if (!function) return nullptr;
+    const auto it = std::find_if(function->variables.begin(), function->variables.end(),
+        [varId](const ScriptPropertyPtr& variable) { return variable && variable->ID == varId; });
+    return it == function->variables.end() ? nullptr : *it;
+}
+
+ScriptFunctionPtr ScriptUtils::FindAnyFunctionById(Script& script, int funId)
+{
+    if (script.main && script.main->ID == funId) return script.main;
+    return FindFunctionById(script, funId);
+}
+
+ScriptPropertyPtr ScriptUtils::FindFunctionVariableById(Script& script, int functionId, int varId)
+{
+    return FindFunctionVariableById(FindAnyFunctionById(script, functionId), varId);
+}
+
+ScriptFunctionPtr ScriptUtils::FindVariableOwner(Script& script, int varId)
+{
+    if (script.main && FindFunctionVariableById(script.main, varId)) return script.main;
+    for (const ScriptFunctionPtr& function : script.functions)
+        if (FindFunctionVariableById(function, varId)) return function;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor && FindFunctionVariableById(scriptClass->constructor, varId))
+            return scriptClass->constructor;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (FindFunctionVariableById(method, varId)) return method;
+    }
+    return nullptr;
+}
+
+ScriptPropertyPtr ScriptUtils::FindAnyVariableById(Script& script, int varId)
+{
+    if (ScriptPropertyPtr global = FindVariableById(script, varId)) return global;
+    return FindFunctionVariableById(FindVariableOwner(script, varId), varId);
+}
+
+ScriptPropertyPtr ScriptUtils::FindVisibleVariableById(Script& script, int functionId, int varId)
+{
+    if (ScriptPropertyPtr local = FindFunctionVariableById(script, functionId, varId)) return local;
+    return FindVariableById(script, varId);
+}
+
 ScriptFunctionPtr ScriptUtils::FindFunctionById(Script& script, int funId)
 {
     auto it = std::find_if(script.functions.begin(), script.functions.end(), [funId](const ScriptFunctionPtr& f) { return f->ID == funId; });
@@ -58,6 +104,44 @@ ScriptPropertyPtr ScriptUtils::FindVariableById(const Script& script, int varId)
     }
 
     return nullptr;
+}
+
+ScriptFunctionPtr ScriptUtils::FindAnyFunctionById(const Script& script, int funId)
+{
+    if (script.main && script.main->ID == funId) return script.main;
+    return FindFunctionById(script, funId);
+}
+
+ScriptPropertyPtr ScriptUtils::FindFunctionVariableById(const Script& script, int functionId, int varId)
+{
+    return FindFunctionVariableById(FindAnyFunctionById(script, functionId), varId);
+}
+
+ScriptFunctionPtr ScriptUtils::FindVariableOwner(const Script& script, int varId)
+{
+    if (script.main && FindFunctionVariableById(script.main, varId)) return script.main;
+    for (const ScriptFunctionPtr& function : script.functions)
+        if (FindFunctionVariableById(function, varId)) return function;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor && FindFunctionVariableById(scriptClass->constructor, varId))
+            return scriptClass->constructor;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (FindFunctionVariableById(method, varId)) return method;
+    }
+    return nullptr;
+}
+
+ScriptPropertyPtr ScriptUtils::FindAnyVariableById(const Script& script, int varId)
+{
+    if (ScriptPropertyPtr global = FindVariableById(script, varId)) return global;
+    return FindFunctionVariableById(FindVariableOwner(script, varId), varId);
+}
+
+ScriptPropertyPtr ScriptUtils::FindVisibleVariableById(const Script& script, int functionId, int varId)
+{
+    if (ScriptPropertyPtr local = FindFunctionVariableById(script, functionId, varId)) return local;
+    return FindVariableById(script, varId);
 }
 
 ScriptFunctionPtr ScriptUtils::FindFunctionById(const Script& script, int funId)

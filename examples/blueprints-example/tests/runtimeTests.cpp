@@ -2438,6 +2438,119 @@ void DeclaredTypesDoNotFollowDefaults()
     Require(variable->type == students && isList(variable->defaultValue),
             "Changing a declaration should create a suitable fresh default.");
 }
+
+void FunctionLocalsAreFreshPerInvocation()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    NodePtr mainBegin = BuildBeginNode(fixture.ids, script.main);
+    AttachNode(script.main->Graph, mainBegin);
+
+    ScriptPropertyPtr first = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "First");
+    first->type = PinType::Float;
+    first->defaultValue = Value(0.0);
+    script.variables.push_back(first);
+    ScriptPropertyPtr second = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Second");
+    second->type = PinType::Float;
+    second->defaultValue = Value(0.0);
+    script.variables.push_back(second);
+    ScriptPropertyPtr mainObserved = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "MainObserved");
+    mainObserved->type = PinType::Float;
+    mainObserved->defaultValue = Value(0.0);
+    script.variables.push_back(mainObserved);
+    ScriptPropertyPtr mainLocal = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "MainLocal");
+    mainLocal->type = PinType::Float;
+    mainLocal->defaultValue = Value(4.0);
+    script.main->variables.push_back(mainLocal);
+
+    ScriptFunctionPtr increment = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "IncrementLocal");
+    increment->functionDef->outputs.push_back({ "Result", Value(0.0), fixture.ids.GetNextId() });
+    ScriptPropertyPtr counter = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Counter");
+    counter->type = PinType::Float;
+    counter->defaultValue = Value(0.0);
+    increment->variables.push_back(counter);
+    script.functions.push_back(increment);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, increment);
+    NodePtr getForAdd = BuildGetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
+    NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
+    add->InputValues[1] = Value(1.0);
+    NodePtr setCounter = BuildSetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
+    NodePtr getForReturn = BuildGetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
+    NodePtr returnNode = BuildReturnNode(fixture.ids, *increment);
+    for (const NodePtr& node : { begin, getForAdd, add, setCounter, getForReturn, returnNode })
+        AttachNode(increment->Graph, node);
+    increment->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, setCounter->Inputs[0].ID));
+    increment->Graph.AddLink(Link(fixture.ids.GetNextId(), getForAdd->Outputs[0].ID, add->Inputs[0].ID));
+    increment->Graph.AddLink(Link(fixture.ids.GetNextId(), add->Outputs[0].ID, setCounter->Inputs[1].ID));
+    increment->Graph.AddLink(Link(fixture.ids.GetNextId(), setCounter->Outputs[0].ID, returnNode->Inputs[0].ID));
+    increment->Graph.AddLink(Link(fixture.ids.GetNextId(), getForReturn->Outputs[0].ID, returnNode->Inputs[1].ID));
+
+    NodePtr callFirst = increment->functionDef->MakeNode(fixture.ids, increment->ID);
+    NodePtr getMainLocal = BuildGetVariableNode(fixture.ids, mainLocal, ScriptElementID::Invalid, script.main->ID);
+    NodePtr storeMainLocal = BuildSetVariableNode(fixture.ids, mainObserved);
+    NodePtr storeFirst = BuildSetVariableNode(fixture.ids, first);
+    NodePtr callSecond = increment->functionDef->MakeNode(fixture.ids, increment->ID);
+    NodePtr storeSecond = BuildSetVariableNode(fixture.ids, second);
+    for (const NodePtr& node : { getMainLocal, storeMainLocal, callFirst, storeFirst, callSecond, storeSecond })
+        AttachNode(script.main->Graph, node);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), mainBegin->Outputs[0].ID, storeMainLocal->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), getMainLocal->Outputs[0].ID, storeMainLocal->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), storeMainLocal->Outputs[0].ID, callFirst->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), callFirst->Outputs[0].ID, storeFirst->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), callFirst->Outputs[1].ID, storeFirst->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), storeFirst->Outputs[0].ID, callSecond->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), callSecond->Outputs[0].ID, storeSecond->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), callSecond->Outputs[1].ID, storeSecond->Inputs[1].ID));
+
+    Require(ScriptRuntime::Run(fixture.vm, script) == InterpretResult::INTERPRET_OK,
+            "A function using a local variable did not execute.");
+    Require(isNumber(ReadGlobal(fixture.vm, "First")) && asNumber(ReadGlobal(fixture.vm, "First")) == 1.0,
+            "The first invocation did not read and write its local variable.");
+    Require(isNumber(ReadGlobal(fixture.vm, "Second")) && asNumber(ReadGlobal(fixture.vm, "Second")) == 1.0,
+            "A local variable was not initialized freshly for the second invocation.");
+    Require(isNumber(ReadGlobal(fixture.vm, "MainObserved")) && asNumber(ReadGlobal(fixture.vm, "MainObserved")) == 4.0,
+            "Main did not initialize and expose its local variable.");
+}
+
+void FunctionLocalValidationEnforcesScopeAndAllowsPureAssignment()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    ScriptFunctionPtr pure = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "PureWithLocal");
+    pure->functionDef->flags |= NodeDefinitionFlags::Pure;
+    ScriptPropertyPtr local = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Scratch");
+    local->type = PinType::Float;
+    local->defaultValue = Value(0.0);
+    pure->variables.push_back(local);
+    NodePtr begin = BuildBeginNode(fixture.ids, pure);
+    NodePtr setLocal = BuildSetVariableNode(fixture.ids, local, ScriptElementID::Invalid, pure->ID);
+    AttachNode(pure->Graph, begin);
+    AttachNode(pure->Graph, setLocal);
+    pure->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, setLocal->Inputs[0].ID));
+    script.functions.push_back(pure);
+
+    const ValidationReport valid = ScriptValidator::Validate(script);
+    Require(!HasCode(valid, "impure-node"),
+            "Assigning a function local incorrectly made a pure graph impure.");
+
+    NodePtr invalidReference = BuildGetVariableNode(fixture.ids, local, ScriptElementID::Invalid, script.main->ID);
+    AttachNode(script.main->Graph, invalidReference);
+    const ValidationReport wrongScope = ScriptValidator::Validate(script);
+    Require(HasCode(wrongScope, "variable-scope"),
+            "Validation accepted a function local in a different graph.");
+
+    pure->functionDef->inputs.push_back({ "Scratch", Value(0.0), fixture.ids.GetNextId() });
+    const ValidationReport conflictingName = ScriptValidator::Validate(script);
+    Require(HasCode(conflictingName, "local-input-conflict"),
+            "Validation accepted an input and local variable with the same name.");
+}
 }
 
 void AddRuntimeTests(Tests::Runner& runner)
@@ -2467,6 +2580,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             MainReceivesProgramArgumentsAsAStringList);
         runner.Test("functions and methods support multiple outputs",
             FunctionsAndMethodsSupportMultipleOutputs);
+        runner.Test("function locals are fresh per invocation",
+            FunctionLocalsAreFreshPerInvocation);
     });
     runner.Group("Runtime / validation and compilation", [&]()
     {
@@ -2506,5 +2621,7 @@ void AddRuntimeTests(Tests::Runner& runner)
             DeclaredTypesDoNotFollowDefaults);
         runner.Test("pure graphs reject impure nodes",
             PureGraphsRejectImpureNodes);
+        runner.Test("function-local validation enforces scope and purity",
+            FunctionLocalValidationEnforcesScopeAndAllowsPureAssignment);
     });
 }

@@ -4,6 +4,7 @@
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/begin.h"
 #include "../native/nodes/return.h"
+#include "../native/nodes/variable.h"
 #include "../script/scriptSerializer.h"
 #include "../utilities/utils.h"
 
@@ -170,8 +171,18 @@ OperationResult DocumentOperations::AddNode(int functionId, const NodePtr& node)
     if (!node) return OperationResult::Fail("Cannot add an empty node.");
     if (function->Graph.FindNode(node->ID))
         return OperationResult::Fail("A node with this ID already exists.");
+    if (node->SerializationType == "variable.get" || node->SerializationType == "variable.set")
+    {
+        ScriptFunctionPtr variableOwner = ScriptUtils::FindVariableOwner(m_script, node->refId.id);
+        if (variableOwner && variableOwner->ID != function->ID)
+            return OperationResult::Fail("A local variable can only be used in its owning function.");
+    }
     return Apply("Add node", [&]
     {
+        if (node->SerializationType == "variable.get")
+            static_cast<GetVariableNode*>(node.get())->ownerFunctionId = function->ID;
+        else if (node->SerializationType == "variable.set")
+            static_cast<SetVariableNode*>(node.get())->ownerFunctionId = function->ID;
         NodeUtils::BuildNode(node);
         function->Graph.AddNode(node);
         return OperationResult::Ok();
@@ -424,10 +435,21 @@ OperationResult DocumentOperations::CopyScriptElement(int elementId)
         kind = ClipboardKind::Function;
     else if (ScriptUtils::FindVariableById(m_script, elementId))
         kind = ClipboardKind::Variable;
+    else if (ScriptFunctionPtr owner = ScriptUtils::FindVariableOwner(m_script, elementId))
+    {
+        kind = ClipboardKind::FunctionVariable;
+        ownerId = owner->ID.id;
+    }
     else
     {
-        std::vector<ScriptFunctionPtr> functions = m_script.functions;
+        std::vector<ScriptFunctionPtr> functions;
         if (m_script.main) functions.push_back(m_script.main);
+        functions.insert(functions.end(), m_script.functions.begin(), m_script.functions.end());
+        for (const ScriptClassPtr& scriptClass : m_script.classes)
+        {
+            if (scriptClass->constructor) functions.push_back(scriptClass->constructor);
+            functions.insert(functions.end(), scriptClass->methods.begin(), scriptClass->methods.end());
+        }
         for (const ScriptFunctionPtr& function : functions)
         {
             if (function->functionDef->FindInputByID(elementId))
@@ -494,6 +516,32 @@ OperationResult DocumentOperations::PasteScriptElement(int targetFunctionId, int
                     [](const ScriptPropertyPtr& item) { return item->Name; });
             }
             break;
+        case ClipboardKind::FunctionVariable:
+        {
+            ScriptFunctionPtr target = FindFunction(targetFunctionId);
+            if (!target) return Missing("Function", targetFunctionId);
+            cloned = ScriptSerializer::CloneFunctionVariable(source, m_clipboard.ownerId,
+                m_clipboard.elementIds.front(), m_script, targetFunctionId, m_ids, pastedElementId);
+            if (cloned)
+            {
+                ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(target, pastedElementId);
+                std::vector<ScriptPropertyPtr> others;
+                for (const ScriptPropertyPtr& item : target->variables)
+                    if (item->ID != pastedElementId) others.push_back(item);
+                variable->Name = UniqueName(variable->Name, others,
+                    [](const ScriptPropertyPtr& item) { return item->Name; });
+                const std::string requested = variable->Name;
+                int suffix = 1;
+                const auto conflictsWithInput = [&]
+                {
+                    return std::any_of(target->functionDef->inputs.begin(), target->functionDef->inputs.end(),
+                        [&](const BasicFunctionDef::Input& input) { return input.name == variable->Name; });
+                };
+                while (conflictsWithInput())
+                    variable->Name = requested + std::to_string(suffix++);
+            }
+            break;
+        }
         case ClipboardKind::FunctionInput:
         case ClipboardKind::FunctionOutput:
         {
@@ -870,7 +918,7 @@ OperationResult DocumentOperations::RemoveClassConstructor(int classId)
 
 OperationResult DocumentOperations::AddVariable(int id, const std::string& name, const Value& value)
 {
-    if (ScriptUtils::FindVariableById(m_script, id))
+    if (ScriptUtils::FindAnyVariableById(m_script, id))
         return OperationResult::Fail("A variable with this ID already exists.");
     return Apply("Add variable", [&]
     {
@@ -936,6 +984,93 @@ OperationResult DocumentOperations::ChangeVariableType(int id, const TypeRef& ty
     ScriptPropertyPtr variable = ScriptUtils::FindVariableById(m_script, id);
     if (!variable) return Missing("Variable", id);
     return Apply("Change variable type", [&]
+    {
+        variable->type = type;
+        variable->defaultValue = MakeValueFromType(type);
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::AddFunctionVariable(int functionId, int id, const std::string& name, const Value& value)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    if (ScriptUtils::FindAnyVariableById(m_script, id))
+        return OperationResult::Fail("A variable with this ID already exists.");
+    return Apply("Add local variable", [&]
+    {
+        ScriptPropertyPtr variable = std::make_shared<ScriptProperty>(id, name.c_str());
+        variable->type = TypeOfValue(value);
+        if (variable->type == PinType::Nil) variable->type = PinType::Any;
+        variable->defaultValue = value;
+        function->variables.push_back(variable);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RemoveFunctionVariable(int functionId, int id)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    if (!ScriptUtils::FindFunctionVariableById(function, id)) return Missing("Local variable", id);
+    return Apply("Delete local variable", [&]
+    {
+        stl::erase_if(function->variables, [&](const ScriptPropertyPtr& item) { return item->ID == id; });
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::RenameFunctionVariable(int functionId, int id, const std::string& name)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(function, id);
+    if (!variable) return Missing("Local variable", id);
+    return Apply("Rename local variable", [&]
+    {
+        variable->Name = name;
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionVariableDescription(int functionId, int id, const std::string& description)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(function, id);
+    if (!variable) return Missing("Local variable", id);
+    return Apply("Change local variable description", [&]
+    {
+        variable->Description = description;
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionVariableValue(int functionId, int id, const Value& value)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(function, id);
+    if (!variable) return Missing("Local variable", id);
+    return Apply("Change local variable value", [&]
+    {
+        variable->defaultValue = value;
+        ScriptUtils::RefreshVariableRefs(m_script, id, m_ids);
+        return OperationResult::Ok();
+    });
+}
+
+OperationResult DocumentOperations::ChangeFunctionVariableType(int functionId, int id, const TypeRef& type)
+{
+    ScriptFunctionPtr function = FindFunction(functionId);
+    if (!function) return Missing("Function", functionId);
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(function, id);
+    if (!variable) return Missing("Local variable", id);
+    return Apply("Change local variable type", [&]
     {
         variable->type = type;
         variable->defaultValue = MakeValueFromType(type);

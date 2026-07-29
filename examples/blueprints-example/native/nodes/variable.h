@@ -17,9 +17,11 @@ namespace ed = ax::NodeEditor;
 
 struct GetVariableNode : public Node
 {
-    GetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID)
+    GetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID,
+                    ScriptElementID functionID = ScriptElementID::Invalid)
         : Node(id, name, ImColor(255, 128, 128))
         , pPropertyDef(pProperty)
+        , ownerFunctionId(functionID)
     {
         refId = varID;
         Category = NodeCategory::Variable;
@@ -54,19 +56,23 @@ struct GetVariableNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        pPropertyDef = ScriptUtils::FindVariableById(script, refId);
+        pPropertyDef = ownerFunctionId.IsValid()
+            ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id)
+            : ScriptUtils::FindVariableById(script, refId);
     }
 
     ScriptPropertyPtr pPropertyDef;
+    ScriptElementID ownerFunctionId;
 };
 
 static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty,
-                                    ScriptElementID varID = ScriptElementID::Invalid)
+                                    ScriptElementID varID = ScriptElementID::Invalid,
+                                    ScriptElementID functionID = ScriptElementID::Invalid)
 {
     if (pProperty)
         varID = pProperty->ID;
 
-    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID);
+    NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID, functionID);
     node->SerializationType = "variable.get";
     if (pProperty)
     {
@@ -81,9 +87,11 @@ static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptProper
 
 struct SetVariableNode : public Node
 {
-    SetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID)
+    SetVariableNode(int id, const char* name, const ScriptPropertyPtr& pProperty, ScriptElementID varID,
+                    ScriptElementID functionID = ScriptElementID::Invalid)
         : Node(id, name, ImColor(255, 128, 128))
         , pPropertyDef(pProperty)
+        , ownerFunctionId(functionID)
     {
         refId = varID;
         Category = NodeCategory::Variable;
@@ -148,19 +156,23 @@ struct SetVariableNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        pPropertyDef = ScriptUtils::FindVariableById(script, refId);
+        pPropertyDef = ownerFunctionId.IsValid()
+            ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id)
+            : ScriptUtils::FindVariableById(script, refId);
     }
 
     ScriptPropertyPtr pPropertyDef;
+    ScriptElementID ownerFunctionId;
 };
 
 static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptPropertyPtr& pProperty,
-                                    ScriptElementID varID = ScriptElementID::Invalid)
+                                    ScriptElementID varID = ScriptElementID::Invalid,
+                                    ScriptElementID functionID = ScriptElementID::Invalid)
 {
     if (pProperty)
         varID = pProperty->ID;
 
-    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, varID);
+    NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, varID, functionID);
     node->SerializationType = "variable.set";
     if (pProperty)
     {

@@ -513,6 +513,62 @@ void DanglingVariableReferencesRecover()
             "GetVariableNode did not recover when its definition became available.");
 }
 
+void FunctionVariablesSupportHistoryClipboardAndScope()
+{
+    OperationsFixture fixture;
+    ScriptFunctionPtr worker = fixture.AddWorker();
+    const int functionId = worker->ID.id;
+    const int variableId = fixture.ids.GetNextId();
+    RequireSuccess(fixture.operations->AddFunctionVariable(functionId, variableId, "Counter", Value(3.0)),
+            "Adding a local variable failed.");
+    RequireSuccess(fixture.operations->RenameFunctionVariable(functionId, variableId, "Local Counter"),
+            "Renaming a local variable failed.");
+    RequireSuccess(fixture.operations->RemoveFunctionVariable(functionId, variableId),
+            "Removing a local variable failed.");
+    RequireSuccess(fixture.operations->Undo(), "Undoing local-variable removal failed.");
+
+    worker = ScriptUtils::FindFunctionById(fixture.script, functionId);
+    ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(worker, variableId);
+    Require(variable && variable->Name == "Local Counter",
+            "Undo did not restore the local variable to its owning function.");
+    Require(!ScriptUtils::FindVariableById(fixture.script, variableId),
+            "A function local leaked into the global variable collection.");
+
+    NodePtr reference = BuildGetVariableNode(fixture.ids, variable, ScriptElementID::Invalid, worker->ID);
+    RequireSuccess(fixture.operations->AddNode(functionId, reference),
+            "Adding a local-variable reference failed.");
+
+    RequireSuccess(fixture.operations->CopyScriptElement(variableId),
+            "Copying a local variable failed.");
+    int pastedVariableId = 0;
+    RequireSuccess(fixture.operations->PasteScriptElement(functionId, pastedVariableId),
+            "Pasting a local variable failed.");
+    Require(pastedVariableId != variableId &&
+            ScriptUtils::FindFunctionVariableById(worker, pastedVariableId),
+            "A pasted local variable did not receive a fresh ID in the target function.");
+
+    RequireSuccess(fixture.operations->CopyScriptElement(functionId),
+            "Copying a function with locals failed.");
+    int pastedFunctionId = 0;
+    RequireSuccess(fixture.operations->PasteScriptElement(fixture.script.main->ID.id, pastedFunctionId),
+            "Pasting a function with locals failed.");
+    ScriptFunctionPtr pastedFunction = ScriptUtils::FindFunctionById(fixture.script, pastedFunctionId);
+    Require(pastedFunction && !pastedFunction->variables.empty(),
+            "Function cloning omitted local variables.");
+    NodePtr pastedReference = pastedFunction->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->SerializationType == "variable.get"; });
+    Require(pastedReference && pastedReference->refId != variableId &&
+            ScriptUtils::FindFunctionVariableById(pastedFunction, pastedReference->refId.id) &&
+            !HasFlag(pastedReference->InstanceFlags, NodeInstanceFlags::Error),
+            "Function cloning did not remap and resolve its local-variable references.");
+
+    RequireSuccess(fixture.operations->CopyNodes(functionId, { static_cast<int>(reference->ID.Get()) }),
+            "Copying a local-variable node failed.");
+    std::vector<int> pastedNodes;
+    Require(!fixture.operations->PasteNodes(fixture.script.main->ID.id, pastedNodes),
+            "A local-variable node was pasted outside its owning function.");
+}
+
 void DanglingFunctionReferencesRecover()
 {
     OperationsFixture fixture;
@@ -563,6 +619,8 @@ void AddDocumentOperationsTests(Tests::Runner& runner)
         runner.Test("pasted variables use fresh IDs", PastedVariablesUseFreshIds);
         runner.Test("function inputs can be pasted to another function", FunctionInputsCanBePastedToAnotherFunction);
         runner.Test("function outputs can be pasted to another function", FunctionOutputsCanBePastedToAnotherFunction);
+        runner.Test("function variables preserve history, clipboard, and scope",
+            FunctionVariablesSupportHistoryClipboardAndScope);
     });
     runner.Group("Document operations / dangling references", [&]()
     {

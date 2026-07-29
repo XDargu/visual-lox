@@ -22,13 +22,24 @@ struct Script
 struct ScriptUtils
 {
     static ScriptPropertyPtr FindVariableById(Script& script, int varId);
+    static ScriptPropertyPtr FindFunctionVariableById(const ScriptFunctionPtr& function, int varId);
+    static ScriptPropertyPtr FindFunctionVariableById(Script& script, int functionId, int varId);
+    static ScriptPropertyPtr FindAnyVariableById(Script& script, int varId);
+    static ScriptPropertyPtr FindVisibleVariableById(Script& script, int functionId, int varId);
+    static ScriptFunctionPtr FindVariableOwner(Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(Script& script, int funId);
+    static ScriptFunctionPtr FindAnyFunctionById(Script& script, int funId);
     static ScriptClassPtr FindClassById(Script& script, int classId);
     static ScriptPropertyPtr FindClassPropertyById(Script& script, int propertyId);
     static ScriptClassPtr FindOwningClass(const Script& script, int elementId);
 
     static ScriptPropertyPtr FindVariableById(const Script& script, int varId);
+    static ScriptPropertyPtr FindFunctionVariableById(const Script& script, int functionId, int varId);
+    static ScriptPropertyPtr FindAnyVariableById(const Script& script, int varId);
+    static ScriptPropertyPtr FindVisibleVariableById(const Script& script, int functionId, int varId);
+    static ScriptFunctionPtr FindVariableOwner(const Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(const Script& script, int funId);
+    static ScriptFunctionPtr FindAnyFunctionById(const Script& script, int funId);
     static ScriptClassPtr FindClassById(const Script& script, int classId);
     static ScriptPropertyPtr FindClassPropertyById(const Script& script, int propertyId);
 

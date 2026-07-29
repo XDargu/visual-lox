@@ -52,6 +52,10 @@ public:
     static SerializationResult CloneVariable(const Script& source, int variableId,
                                              Script& destination, IDGenerator& ids,
                                              int& pastedVariableId);
+    static SerializationResult CloneFunctionVariable(const Script& source, int sourceFunctionId,
+                                                     int variableId, Script& destination,
+                                                     int destinationFunctionId, IDGenerator& ids,
+                                                     int& pastedVariableId);
     static SerializationResult CloneFunctionPort(const Script& source, int sourceFunctionId,
                                                  int portId, bool output, Script& destination,
                                                  int destinationFunctionId, IDGenerator& ids,

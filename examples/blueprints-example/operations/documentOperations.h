@@ -87,6 +87,13 @@ public:
     OperationResult ChangeVariableValue(int id, const Value& value);
     OperationResult ChangeVariableType(int id, const TypeRef& type);
 
+    OperationResult AddFunctionVariable(int functionId, int id, const std::string& name = "Local Variable", const Value& value = Value());
+    OperationResult RemoveFunctionVariable(int functionId, int id);
+    OperationResult RenameFunctionVariable(int functionId, int id, const std::string& name);
+    OperationResult ChangeFunctionVariableDescription(int functionId, int id, const std::string& description);
+    OperationResult ChangeFunctionVariableValue(int functionId, int id, const Value& value);
+    OperationResult ChangeFunctionVariableType(int functionId, int id, const TypeRef& type);
+
     OperationResult AddFunctionInput(int functionId, int inputId, const std::string& name = "Input",
                                      const Value& value = Value());
     OperationResult RemoveFunctionInput(int functionId, int inputId);
@@ -117,7 +124,7 @@ public:
     bool IsTransactionActive() const { return m_transactionDepth > 0; }
 
 private:
-    enum class ClipboardKind { None, Nodes, Function, Variable, FunctionInput, FunctionOutput };
+    enum class ClipboardKind { None, Nodes, Function, Variable, FunctionVariable, FunctionInput, FunctionOutput };
     struct Clipboard
     {
         ClipboardKind kind = ClipboardKind::None;

@@ -47,6 +47,8 @@ void ChainMovesLeftToRight()
     const auto positions = Positions(GraphLayout::Calculate(nodes, edges));
     Require(positions.at(1).x < positions.at(2).x && positions.at(2).x < positions.at(3).x, "A chain was not arranged left to right.");
     Require(std::abs(positions.at(1).x - 20.0f) < 0.001f, "The layout did not preserve the graph's left edge.");
+    Require(std::abs(positions.at(2).x - positions.at(1).x - nodes[0].size.x - GraphLayout::Options().columnGap) < 0.001f,
+            "A simple flow chain uses more than the configured compact gap.");
     RequireNoOverlap(nodes, positions);
 }
 
@@ -100,23 +102,26 @@ void DataDependenciesClusterAroundTheirExecutionConsumer()
         { 12, ImVec2(100, 500), ImVec2(140, 70), false, false },
     };
     const std::vector<GraphLayout::Edge> edges = {
-        { 1, 2, 0, 0, true },
-        { 2, 3, 0, 0, true },
-        { 10, 11, 0, 0, false },
-        { 12, 11, 0, 1, false },
-        { 11, 2, 0, 1, false },
+        { 1, 2, 0, 0, true, true, 20.0f, 24.0f },
+        { 2, 3, 0, 0, true, true, 24.0f, 16.0f },
+        { 10, 11, 0, 0, false, true, 20.0f, 40.0f },
+        { 12, 11, 0, 1, false, true, 20.0f, 65.0f },
+        { 11, 2, 0, 1, false, true, 20.0f, 70.0f },
     };
     const auto positions = Positions(GraphLayout::Calculate(nodes, edges));
     Require(positions.at(1).x < positions.at(2).x && positions.at(2).x < positions.at(3).x, "Data dependencies distorted the execution order.");
     Require(positions.at(10).x < positions.at(11).x && positions.at(11).x < positions.at(2).x, "Pulled data nodes were not placed upstream of their consumer.");
     const float directGap = positions.at(2).x - (positions.at(11).x + nodes[4].size.x);
     Require(std::abs(directGap - GraphLayout::Options().dataColumnGap) < 0.001f, "A direct data dependency was not kept close to its consumer.");
-    Require(positions.at(11).y + nodes[4].size.y < positions.at(2).y, "Pulled data nodes obstruct the execution-flow row.");
-    const float beginCenter = positions.at(1).y + nodes[0].size.y * 0.5f;
-    const float consumerCenter = positions.at(2).y + nodes[1].size.y * 0.5f;
-    const float returnCenter = positions.at(3).y + nodes[2].size.y * 0.5f;
-    Require(std::abs(beginCenter - consumerCenter) < 0.001f && std::abs(consumerCenter - returnCenter) < 0.001f,
-            "Data clusters pulled execution nodes away from the flow backbone.");
+    Require(positions.at(11).y > positions.at(2).y, "Pulled data nodes were not placed below the execution-flow row.");
+    Require(std::abs(positions.at(11).y + 20.0f - positions.at(2).y - 70.0f) < 0.001f,
+            "A direct data dependency was not aligned with its consumer input pin.");
+    const float beginFlowY = positions.at(1).y + 20.0f;
+    const float consumerInputFlowY = positions.at(2).y + 24.0f;
+    const float consumerOutputFlowY = positions.at(2).y + 24.0f;
+    const float returnFlowY = positions.at(3).y + 16.0f;
+    Require(std::abs(beginFlowY - consumerInputFlowY) < 0.001f && std::abs(consumerOutputFlowY - returnFlowY) < 0.001f,
+            "A non-branching execution path does not have straight flow links.");
     RequireNoOverlap(nodes, positions);
 }
 

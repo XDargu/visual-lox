@@ -22,15 +22,18 @@ struct Edge
     int sourceOrder = 0;
     int targetOrder = 0;
     bool flow = false;
+    bool hasPinOffsets = false;
+    float sourceOffsetY = 0.0f;
+    float targetOffsetY = 0.0f;
 };
 
 struct Options
 {
-    float columnGap = 120.0f;
-    float rowGap = 60.0f;
-    float componentGap = 160.0f;
-    float dataColumnGap = 70.0f;
-    float dataRowGap = 35.0f;
+    float columnGap = 32.0f;
+    float rowGap = 32.0f;
+    float componentGap = 64.0f;
+    float dataColumnGap = 32.0f;
+    float dataRowGap = 16.0f;
     int crossingReductionPasses = 4;
 };
 

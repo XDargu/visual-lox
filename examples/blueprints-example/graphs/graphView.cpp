@@ -2333,18 +2333,31 @@ void GraphView::BeginAutoLayout()
 
     std::vector<GraphLayout::Edge> layoutEdges;
     layoutEdges.reserve(m_pGraph->GetLinks().size());
+    auto* internalEditor = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(m_Editor);
+    const auto pinOffsetY = [&](const Pin& pin)
+    {
+        const ax::NodeEditor::Detail::Pin* editorPin = internalEditor ? internalEditor->FindPin(pin.ID) : nullptr;
+        if (!editorPin || editorPin->m_Bounds.GetHeight() <= 0.0f)
+            return std::pair<bool, float>(false, 0.0f);
+        return std::pair<bool, float>(true, editorPin->m_Pivot.GetCenter().y - ed::GetNodePosition(pin.Node->ID).y);
+    };
     for (const Link& link : m_pGraph->GetLinks())
     {
         const Pin* output = m_pGraph->FindPin(link.StartPinID);
         const Pin* input = m_pGraph->FindPin(link.EndPinID);
         if (!output || !input || !output->Node || !input->Node || output->Node->Type == NodeType::Comment || input->Node->Type == NodeType::Comment)
             continue;
+        const auto [hasOutputOffset, outputOffsetY] = pinOffsetY(*output);
+        const auto [hasInputOffset, inputOffsetY] = pinOffsetY(*input);
         layoutEdges.push_back({
             static_cast<int>(output->Node->ID.Get()),
             static_cast<int>(input->Node->ID.Get()),
             GraphUtils::FindNodeOutputIdx(*output),
             GraphUtils::FindNodeInputIdx(*input),
             output->Type == PinType::Flow,
+            hasOutputOffset && hasInputOffset,
+            outputOffsetY,
+            inputOffsetY,
         });
     }
 

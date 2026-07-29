@@ -413,8 +413,8 @@ void ExpandBounds(ImVec2 position, ImVec2 size, ImVec2& minimum, ImVec2& maximum
     maximum.y = (std::max)(maximum.y, position.y + (std::max)(1.0f, size.y));
 }
 
-DataCluster BuildDataCluster(size_t ownerIndex, const std::vector<GraphLayout::Node>& nodes, const std::vector<DataAssignment>& assignments,
-                             const GraphLayout::Options& options)
+DataCluster BuildDataCluster(size_t ownerIndex, const std::vector<GraphLayout::Node>& nodes, const std::vector<GraphLayout::Edge>& edges,
+                             const std::map<int, size_t>& nodeById, const std::vector<DataAssignment>& assignments, const GraphLayout::Options& options)
 {
     DataCluster cluster;
     cluster.ownerIndex = ownerIndex;
@@ -437,8 +437,32 @@ DataCluster BuildDataCluster(size_t ownerIndex, const std::vector<GraphLayout::N
         if (column.empty())
             continue;
 
+        std::map<size_t, float> desiredY;
+        for (size_t nodeIndex : column)
+        {
+            float total = 0.0f;
+            int count = 0;
+            for (const GraphLayout::Edge& edge : edges)
+            {
+                if (edge.flow || edge.from != nodes[nodeIndex].id)
+                    continue;
+                const size_t targetIndex = nodeById.at(edge.to);
+                const auto targetPosition = cluster.localPositions.find(targetIndex);
+                if (targetPosition == cluster.localPositions.end())
+                    continue;
+                total += edge.hasPinOffsets
+                    ? targetPosition->second.y + edge.targetOffsetY - edge.sourceOffsetY
+                    : targetPosition->second.y + (NodeHeight(nodes[targetIndex]) - NodeHeight(nodes[nodeIndex])) * 0.5f;
+                ++count;
+            }
+            desiredY[nodeIndex] = count > 0 ? (std::max)(0.0f, total / static_cast<float>(count))
+                                            : NodeHeight(nodes[ownerIndex]) + options.dataRowGap;
+        }
+
         std::stable_sort(column.begin(), column.end(), [&](size_t left, size_t right)
         {
+            if (desiredY[left] != desiredY[right])
+                return desiredY[left] < desiredY[right];
             if (assignments[left].inputOrder != assignments[right].inputOrder)
                 return assignments[left].inputOrder < assignments[right].inputOrder;
             if (nodes[left].position.y != nodes[right].position.y)
@@ -447,23 +471,18 @@ DataCluster BuildDataCluster(size_t ownerIndex, const std::vector<GraphLayout::N
         });
 
         float columnWidth = 0.0f;
-        float columnHeight = 0.0f;
         for (size_t nodeIndex : column)
-        {
             columnWidth = (std::max)(columnWidth, NodeWidth(nodes[nodeIndex]));
-            columnHeight += NodeHeight(nodes[nodeIndex]);
-        }
-        if (column.size() > 1)
-            columnHeight += options.dataRowGap * static_cast<float>(column.size() - 1);
 
         const float columnLeft = nextColumnRight - columnWidth;
-        float y = -options.dataRowGap - columnHeight;
+        float previousBottom = -std::numeric_limits<float>::max();
         for (size_t nodeIndex : column)
         {
+            const float y = (std::max)(desiredY[nodeIndex], previousBottom + options.dataRowGap);
             const ImVec2 position(columnLeft, y);
             cluster.localPositions[nodeIndex] = position;
             ExpandBounds(position, nodes[nodeIndex].size, cluster.minimum, cluster.maximum);
-            y += NodeHeight(nodes[nodeIndex]) + options.dataRowGap;
+            previousBottom = y + NodeHeight(nodes[nodeIndex]);
         }
         nextColumnRight = columnLeft - options.dataColumnGap;
     }
@@ -482,6 +501,88 @@ std::map<int, ImVec2> IndexPositions(const std::vector<GraphLayout::Position>& p
     for (const GraphLayout::Position& position : positions)
         result[position.id] = position.value;
     return result;
+}
+
+void AlignLinearFlowComponents(std::vector<GraphLayout::Position>& positions, const std::vector<GraphLayout::Node>& nodes,
+                               const std::vector<GraphLayout::Edge>& flowEdges, const std::map<int, DataCluster>& clusters)
+{
+    std::map<int, size_t> positionById;
+    for (size_t index = 0; index < positions.size(); ++index)
+        positionById[positions[index].id] = index;
+
+    std::map<int, std::vector<const GraphLayout::Edge*>> outgoing;
+    std::map<int, std::vector<int>> undirected;
+    std::map<int, int> indegree;
+    for (const GraphLayout::Node& node : nodes)
+    {
+        if (!node.execution)
+            continue;
+        outgoing[node.id];
+        undirected[node.id];
+        indegree[node.id] = 0;
+    }
+    for (const GraphLayout::Edge& edge : flowEdges)
+    {
+        outgoing[edge.from].push_back(&edge);
+        undirected[edge.from].push_back(edge.to);
+        undirected[edge.to].push_back(edge.from);
+        ++indegree[edge.to];
+    }
+
+    std::set<int> visitedComponents;
+    for (const auto& [nodeId, neighbors] : undirected)
+    {
+        (void)neighbors;
+        if (visitedComponents.count(nodeId))
+            continue;
+
+        std::vector<int> component;
+        std::queue<int> remaining;
+        remaining.push(nodeId);
+        visitedComponents.insert(nodeId);
+        while (!remaining.empty())
+        {
+            const int current = remaining.front();
+            remaining.pop();
+            component.push_back(current);
+            for (int neighbor : undirected[current])
+            {
+                if (visitedComponents.insert(neighbor).second)
+                    remaining.push(neighbor);
+            }
+        }
+
+        const bool branches = std::any_of(component.begin(), component.end(), [&](int id)
+        {
+            return outgoing[id].size() > 1 || indegree[id] > 1;
+        });
+        if (branches || component.size() < 2)
+            continue;
+
+        const auto start = std::find_if(component.begin(), component.end(), [&](int id) { return indegree[id] == 0; });
+        if (start == component.end())
+            continue;
+
+        std::set<int> visitedPath;
+        int current = *start;
+        visitedPath.insert(current);
+        while (outgoing[current].size() == 1)
+        {
+            const GraphLayout::Edge& edge = *outgoing[current].front();
+            if (!visitedPath.insert(edge.to).second)
+                break;
+            const float desiredY = positions[positionById.at(current)].value.y +
+                (edge.hasPinOffsets ? edge.sourceOffsetY - edge.targetOffsetY : 0.0f);
+            const float translationY = desiredY - positions[positionById.at(edge.to)].value.y;
+            const DataCluster& targetCluster = clusters.at(edge.to);
+            for (const auto& [clusterNodeIndex, localPosition] : targetCluster.localPositions)
+            {
+                (void)localPosition;
+                positions[positionById.at(nodes[clusterNodeIndex].id)].value.y += translationY;
+            }
+            current = edge.to;
+        }
+    }
 }
 }
 
@@ -556,7 +657,7 @@ std::vector<GraphLayout::Position> GraphLayout::Calculate(const std::vector<Node
     {
         if (!nodes[index].execution)
             continue;
-        DataCluster cluster = BuildDataCluster(index, nodes, assignments, options);
+        DataCluster cluster = BuildDataCluster(index, nodes, edges, nodeById, assignments, options);
         compoundNodes.push_back({
             nodes[index].id,
             ImVec2(nodes[index].position.x + cluster.minimum.x, nodes[index].position.y + cluster.minimum.y),
@@ -586,6 +687,7 @@ std::vector<GraphLayout::Position> GraphLayout::Calculate(const std::vector<Node
         for (const auto& [nodeIndex, localPosition] : cluster.localPositions)
             result.push_back({ nodes[nodeIndex].id, ImVec2(ownerPosition.x + localPosition.x, ownerPosition.y + localPosition.y) });
     }
+    AlignLinearFlowComponents(result, nodes, flowEdges, clusters);
 
     std::vector<Node> orphanNodes;
     std::set<int> orphanIds;

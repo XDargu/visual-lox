@@ -415,6 +415,55 @@ void RepeatedInterpretationReleasesStack()
     }
 }
 
+void GarbageCollectionTracksConcreteObjectSizes()
+{
+    RuntimeFixture fixture;
+    const size_t before = fixture.vm.getAllocatedBytes();
+    ObjFunction* function = newFunction();
+
+    Require(function->allocationSize == sizeof(ObjFunction),
+            "A function allocation should retain its concrete object size.");
+    Require(fixture.vm.getAllocatedBytes() - before == sizeof(ObjFunction),
+            "VM allocation accounting should use the concrete function size.");
+}
+
+void CompilerTemporariesSurviveGarbageCollection()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "GcMain");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    ScriptFunctionPtr function = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "GcNamedFunction");
+    AttachNode(function->Graph, BuildBeginNode(fixture.ids, function));
+    script.functions.push_back(function);
+
+    ScriptClassPtr scriptClass = std::make_shared<ScriptClass>(fixture.ids.GetNextId(), "GcClass");
+    ScriptPropertyPtr property = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Value");
+    property->type = PinType::Float;
+    property->defaultValue = Value(42.0);
+    scriptClass->properties.push_back(property);
+    script.classes.push_back(scriptClass);
+
+    ObjFunction* compiledFunction = nullptr;
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+        if (compiledFunction)
+            fixture.vm.markObject(compiledFunction);
+    });
+    fixture.vm.allowGarbageCollection(true);
+
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script);
+    compiledFunction = compiled.function;
+    Require(static_cast<bool>(compiled),
+            "Named functions and implicit class initializers should compile while GC is enabled.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiledFunction) == InterpretResult::INTERPRET_OK,
+            "A script compiled while GC was enabled should execute.");
+}
+
 void LargeListLiteralsPreserveItems()
 {
     RuntimeFixture fixture;
@@ -2579,6 +2628,8 @@ void AddRuntimeTests(Tests::Runner& runner)
     runner.Group("Runtime / VM boundaries", [&]()
     {
         runner.Test("repeated interpretation releases the stack", RepeatedInterpretationReleasesStack);
+        runner.Test("GC tracks concrete object sizes", GarbageCollectionTracksConcreteObjectSizes);
+        runner.Test("compiler temporaries survive GC", CompilerTemporariesSurviveGarbageCollection);
         runner.Test("large list literals preserve their items", LargeListLiteralsPreserveItems);
         runner.Test("Flow For In keeps a constant stack footprint", ForInKeepsConstantStackFootprint);
         runner.Test("Flow For In iterates ranges and strings",

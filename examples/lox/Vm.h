@@ -14,6 +14,7 @@
 #include "Compiler.h"
 
 class Compiler;
+class ScopedGcRoot;
 
 enum class InterpretResult 
 {
@@ -67,7 +68,7 @@ public:
     Table& globalTable() { return globals; }
 
     // Memory. TODO: Separate from the VM
-    void addObject(Obj* obj);
+    void addObject(Obj* obj, size_t allocationSize);
     void freeAllObjects();
     void collectGarbage();
     void markRoots();
@@ -92,6 +93,7 @@ public:
 
     size_t getFrameCount() const { return frameCount; }
     size_t getStackSize() const { return static_cast<size_t>(stackTop - stack.data()); }
+    size_t getAllocatedBytes() const { return bytesAllocated; }
 
     void defineNative(const char* name, uint8_t arity, NativeFn function);
     void defineNativeClass(const char* name, std::vector<NativeMethodDef>&& methods);
@@ -100,6 +102,7 @@ public:
 
     void resetStack();
 private:
+    friend class ScopedGcRoot;
 
     void runtimeError(const char* format, ...);
     bool validateBinaryOperator();
@@ -116,9 +119,12 @@ private:
     Value instanceToString(const Value& instanceVal);
     ObjString* valueToStringWithOverrides(const Value& value);
     void printValueWithOverrides(const Value& value);
+    void pushTemporaryRoot(Value value);
+    void popTemporaryRoot();
 
     static constexpr size_t STACK_MAX = 256;
     static constexpr size_t FRAMES_MAX = 255;
+    static constexpr size_t MINIMUM_GC_THRESHOLD = 1024 * 1024;
 
     std::array<CallFrame, FRAMES_MAX> frames;
     size_t frameCount;
@@ -134,8 +140,24 @@ private:
 
     ExternalMarkingFunc externalMarkingFunc;
     std::vector<Obj*> grayNodes;
+    std::vector<Value> temporaryRoots;
     size_t bytesAllocated = 0;
-    size_t nextGC = 256;
+    size_t nextGC = MINIMUM_GC_THRESHOLD;
+};
+
+class ScopedGcRoot
+{
+public:
+    ScopedGcRoot(VM& vm, Value value);
+    ~ScopedGcRoot();
+
+    ScopedGcRoot(const ScopedGcRoot&) = delete;
+    ScopedGcRoot& operator=(const ScopedGcRoot&) = delete;
+    ScopedGcRoot(ScopedGcRoot&&) = delete;
+    ScopedGcRoot& operator=(ScopedGcRoot&&) = delete;
+
+private:
+    VM& vm;
 };
 
 #endif

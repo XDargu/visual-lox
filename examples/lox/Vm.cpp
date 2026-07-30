@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <cassert>
 #include <cstdarg>
 #include <cmath>
 #include <time.h>
@@ -13,6 +14,17 @@
 #include "VMUtils.h"
 
 constexpr int GC_HEAP_GROW_FACTOR = 2;
+
+ScopedGcRoot::ScopedGcRoot(VM& vm, Value value)
+    : vm(vm)
+{
+    vm.pushTemporaryRoot(value);
+}
+
+ScopedGcRoot::~ScopedGcRoot()
+{
+    vm.popTemporaryRoot();
+}
 
 VM::VM()
     : stackTop(nullptr)
@@ -87,15 +99,14 @@ InterpretResult VM::interpret(const std::string& source)
     return result;
 }
 
-void VM::addObject(Obj* obj)
+void VM::addObject(Obj* obj, size_t allocationSize)
 {
-    bytesAllocated += sizeof(*obj);
-    if (bytesAllocated > nextGC)
-    {
+    if (bytesAllocated + allocationSize > nextGC)
         collectGarbage();
-    }
 
+    obj->allocationSize = allocationSize;
     objects.push_back(obj);
+    bytesAllocated += allocationSize;
 }
 
 void VM::freeAllObjects()
@@ -106,7 +117,8 @@ void VM::freeAllObjects()
 
     for (Obj* obj : objects)
     {
-        bytesAllocated -= sizeof(*obj);
+        assert(bytesAllocated >= obj->allocationSize);
+        bytesAllocated -= obj->allocationSize;
         delete obj;
     }
 
@@ -135,7 +147,7 @@ void VM::collectGarbage()
     strings.removeWhite();
     sweep();
 
-    nextGC = bytesAllocated * GC_HEAP_GROW_FACTOR;
+    nextGC = std::max(bytesAllocated * GC_HEAP_GROW_FACTOR, MINIMUM_GC_THRESHOLD);
 
 #ifdef DEBUG_LOG_GC
     std::cout << "-- gc end" << std::endl;
@@ -146,6 +158,9 @@ void VM::collectGarbage()
 
 void VM::markRoots()
 {
+    for (Value& value : temporaryRoots)
+        markValue(value);
+
     for (Value* slot = &stack[0]; slot < stackTop; slot++)
     {
         markValue(*slot);
@@ -190,7 +205,8 @@ void VM::sweep()
         }
         else
         {
-            bytesAllocated -= sizeof(*object);
+            assert(bytesAllocated >= object->allocationSize);
+            bytesAllocated -= object->allocationSize;
             delete object;
             it = objects.erase(it);
         }
@@ -234,6 +250,17 @@ void VM::markCompilerRoots()
     {
         markObject(compilerScope->function);
     }
+}
+
+void VM::pushTemporaryRoot(Value value)
+{
+    temporaryRoots.push_back(value);
+}
+
+void VM::popTemporaryRoot()
+{
+    assert(!temporaryRoots.empty());
+    temporaryRoots.pop_back();
 }
 
 void VM::blackenObject(Obj* object)

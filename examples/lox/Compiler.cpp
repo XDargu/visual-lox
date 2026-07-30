@@ -5,6 +5,7 @@
 
 #include "Debug.h"
 #include "Object.h"
+#include "Vm.h"
 
 Precedence nextPrecedence(Precedence precedence) { return static_cast<Precedence>(static_cast<int>(precedence) + 1); }
 
@@ -25,6 +26,7 @@ CompilerScope::CompilerScope(FunctionType type, CompilerScope* enclosing, Token*
     , scopeDepth(0)
 {
     function = newFunction();
+    ScopedGcRoot functionRoot(VM::getInstance(), Value(function));
 
     Local& local = locals[localCount++];
 

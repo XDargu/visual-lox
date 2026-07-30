@@ -16,7 +16,7 @@ T* allocate(Args&&... args)
 #ifdef DEBUG_STRESS_GC
     VM::getInstance().collectGarbage();
 #endif
-    VM::getInstance().addObject(obj);
+    VM::getInstance().addObject(obj, sizeof(T));
     return obj;
 }
 

@@ -253,6 +253,26 @@ if (BUILD_TESTING)
         PASS_REGULAR_EXPRESSION "checksum=6765"
     )
 
+    add_test(
+        NAME visual-lox-benchmark-gc-objects
+        COMMAND $<TARGET_FILE:visual-lox-benchmarks>
+                --gc on
+                --size 100
+                --warmup 0
+                --repeat 1
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/cases/objects.vlox
+    )
+
+    add_test(
+        NAME visual-lox-benchmark-gc-pressure
+        COMMAND $<TARGET_FILE:visual-lox-benchmarks>
+                --gc on
+                --size 100
+                --warmup 0
+                --repeat 1
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/vlox/cases/gc-pressure.vlox
+    )
+
     add_executable(visual-lox-tests
         tests/main.cpp
         tests/testFramework.h

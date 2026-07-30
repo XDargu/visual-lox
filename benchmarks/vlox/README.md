@@ -47,7 +47,7 @@ The generator creates these cases:
 
 Some checksums are different from their Python versions because of the node types currently available in Visual Lox. These versions still test the same work and give the runner a consistent result to check.
 
-For now, use `--gc off` with `objects.vlox` and `gc-pressure.vlox`. When GC is enabled, creating objects can fail and the allocation test becomes unstable with larger inputs. This is a known runtime issue.
+`objects.vlox` and `gc-pressure.vlox` support both `--gc on` and `--gc off`. The CTest suite runs both workloads with GC enabled as regressions for object allocation and collection.
 
 ## Building
 
@@ -82,6 +82,8 @@ build/bin/vlox-benchmark.exe --mode run benchmarks/vlox/cases/number-loop.vlox
 ```
 
 The runner supports `--folding on|off` and `--gc on|off`. Both values are shown in the normal output. Garbage collection is disabled by default, which matches the current initial state of the VM.
+
+To collect before every managed object allocation while diagnosing GC-rooting bugs, configure the build with `-DVLOX_STRESS_GC=ON`. Stress GC is disabled by default.
 
 Only use `--no-checksum` for debugging or when measuring compilation. Execution benchmarks should always check `BenchmarkChecksum`.
 

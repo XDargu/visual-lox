@@ -54,6 +54,7 @@ struct Obj
         : type(type)
         , hash(0)
         , isMarked(false)
+        , allocationSize(0)
     {}
 
     virtual ~Obj() {}
@@ -61,6 +62,7 @@ struct Obj
     ObjType type;
     uint32_t hash;
     bool isMarked;
+    size_t allocationSize;
 };
 
 struct ObjString : Obj

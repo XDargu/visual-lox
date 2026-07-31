@@ -1097,6 +1097,7 @@ void GraphView::DrawContextMenu()
                 case PinType::Float: inputValue = Value(0.0); break;
                 case PinType::String: inputValue = Value(takeString("", 0)); break;
                 case PinType::List: inputValue = Value(newList()); break;
+                case PinType::Map: inputValue = Value(newMap()); break;
                 case PinType::Range: inputValue = Value(newRange(0.0, 1.0)); break;
                 case PinType::Object: inputValue = Value(); break;
                 case PinType::Function: inputValue = Value(newFunction()); break;
@@ -2188,15 +2189,17 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(Pin
         currentIdx = 2;
     else if (isList(inputValue))
         currentIdx = 3;
-    else if (isFunction(inputValue))
+    else if (isMap(inputValue))
         currentIdx = 4;
-    else if (isRange(inputValue))
+    else if (isFunction(inputValue))
         currentIdx = 5;
-    else
+    else if (isRange(inputValue))
         currentIdx = 6;
+    else
+        currentIdx = 7;
 
     ImGui::PushItemWidth(80.0f);
-    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Function\0Range\0Any\0"))
+    if (ImGui::Combo("Type", &currentIdx, "Bool\0Number\0String\0List\0Map\0Function\0Range\0Any\0"))
     {
         if (currentIdx == 0)
             onChange(PinType::Bool);
@@ -2207,8 +2210,10 @@ void GraphViewUtils::DrawTypeSelection(Value& inputValue, std::function<void(Pin
         else if (currentIdx == 3)
             onChange(PinType::List);
         else if (currentIdx == 4)
-            onChange(PinType::Function);
+            onChange(PinType::Map);
         else if (currentIdx == 5)
+            onChange(PinType::Function);
+        else if (currentIdx == 6)
             onChange(PinType::Range);
         else
             onChange(PinType::Any);
@@ -2234,6 +2239,7 @@ void DrawTypeRefEditor(const Script& script, TypeRef& type, bool& changed,
         TypeRef(PinType::String),
         TypeRef(PinType::Range),
         TypeRef::List(PinType::Any),
+        TypeRef::Map(PinType::Any, PinType::Any),
         TypeRef::Function({}, {}),
     };
     for (const ScriptClassPtr& scriptClass : script.classes)
@@ -2274,6 +2280,24 @@ void DrawTypeRefEditor(const Script& script, TypeRef& type, bool& changed,
         ImGui::TextDisabled("Element type");
         ImGui::PushID("list-element");
         DrawTypeRefEditor(script, type.parameters[0], changed, depth + 1);
+        ImGui::PopID();
+        ImGui::Unindent();
+    }
+    else if (type.kind == PinType::Map)
+    {
+        if (type.parameters.size() != 2)
+        {
+            type = TypeRef::Map(PinType::Any, PinType::Any);
+            changed = true;
+        }
+        ImGui::Indent();
+        ImGui::TextDisabled("Key type");
+        ImGui::PushID("map-key");
+        DrawTypeRefEditor(script, type.parameters[0], changed, depth + 1);
+        ImGui::PopID();
+        ImGui::TextDisabled("Value type");
+        ImGui::PushID("map-value");
+        DrawTypeRefEditor(script, type.parameters[1], changed, depth + 1);
         ImGui::PopID();
         ImGui::Unindent();
     }

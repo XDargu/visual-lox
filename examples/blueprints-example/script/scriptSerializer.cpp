@@ -128,6 +128,7 @@ const char* PinTypeName(PinType type)
     case PinType::Float: return "number";
     case PinType::String: return "string";
     case PinType::List: return "list";
+    case PinType::Map: return "map";
     case PinType::Range: return "range";
     case PinType::Object: return "object";
     case PinType::Function: return "function";
@@ -149,6 +150,7 @@ PinType ParsePinType(const std::string& type)
     if (type == "number") return PinType::Float;
     if (type == "string") return PinType::String;
     if (type == "list") return PinType::List;
+    if (type == "map") return PinType::Map;
     if (type == "range") return PinType::Range;
     if (type == "object") return PinType::Object;
     if (type == "function") return PinType::Function;
@@ -198,6 +200,8 @@ TypeRef DeserializeTypeRef(const Json& json, int depth = 0)
     if ((result.kind == PinType::List || result.kind == PinType::Iterable) &&
         result.parameters.size() != 1)
         throw SerializationError("Container types require one element type.");
+    if (result.kind == PinType::Map && result.parameters.size() != 2)
+        throw SerializationError("Map types require a key type and a value type.");
     // Version 3 briefly persisted Optional<T>. Nil is now permitted by every
     // value type, so loading that declaration simply recovers T.
     if (legacyOptional)
@@ -249,6 +253,21 @@ Json SerializeValue(const Value& value, int depth = 0)
             items.push_back(SerializeValue(item, depth + 1));
         result["items"] = std::move(items);
     }
+    else if (isMap(value))
+    {
+        result["type"] = "map";
+        Json entries(Array{});
+        for (const MapEntry& entry : asMap(value)->entries)
+        {
+            if (!entry.active)
+                continue;
+            Json serializedEntry(Object{});
+            serializedEntry["key"] = SerializeValue(entry.key, depth + 1);
+            serializedEntry["value"] = SerializeValue(entry.value, depth + 1);
+            entries.push_back(std::move(serializedEntry));
+        }
+        result["entries"] = std::move(entries);
+    }
     else if (isRange(value))
     {
         result["type"] = "range";
@@ -299,6 +318,18 @@ Value DeserializeValue(const Json& json, int depth = 0)
         for (const Json& item : items)
             list->append(DeserializeValue(item, depth + 1));
         return Value(list);
+    }
+    if (type == "map")
+    {
+        ObjMap* map = newMap();
+        const Array& entries = Field(json, "entries", crude_json::type_t::array).get<Array>();
+        for (const Json& entry : entries)
+        {
+            const Value key = DeserializeValue(Field(entry, "key", crude_json::type_t::object), depth + 1);
+            const Value value = DeserializeValue(Field(entry, "value", crude_json::type_t::object), depth + 1);
+            map->set(key, value);
+        }
+        return Value(map);
     }
     if (type == "range")
     {

@@ -141,6 +141,15 @@ struct SerializerFixture
         sorter->defaultValue = Value();
         script.variables.push_back(sorter);
 
+        ScriptPropertyPtr scores = std::make_shared<ScriptProperty>(ids.GetNextId(), "Scores");
+        scores->Description = "Scores by student name.";
+        scores->type = TypeRef::Map(PinType::String, PinType::Float);
+        ObjMap* scoreValues = newMap();
+        scoreValues->set(Value(copyString("Ada", 3)), Value(9.5));
+        scoreValues->set(Value(copyString("Linus", 5)), Value(8.0));
+        scores->defaultValue = Value(scoreValues);
+        script.variables.push_back(scores);
+
         const CompiledNodeDefPtr addDefinition = registry.FindCompiled("Math::Add");
         Require(static_cast<bool>(addDefinition), "Compiled definition was not registered.");
         NodePtr add = addDefinition->MakeNode(ids);
@@ -234,7 +243,7 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     Require(fixture.loaded.functions.size() == 1, "Function count changed.");
     Require(fixture.loaded.functions[0]->Graph.GetLinks().size() == 2,
             "Function graph links were not restored.");
-    Require(fixture.loaded.variables.size() == 3 &&
+    Require(fixture.loaded.variables.size() == 4 &&
             isList(fixture.loaded.variables[0]->defaultValue),
             "List property was not restored.");
     Require(asList(fixture.loaded.variables[0]->defaultValue)->items.size() == 3,
@@ -252,6 +261,12 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             fixture.loaded.variables[2]->type.parameters[1].kind ==
                 PinType::Function,
             "Nested function signatures changed.");
+    Require(fixture.loaded.variables[3]->type == TypeRef::Map(PinType::String, PinType::Float) && isMap(fixture.loaded.variables[3]->defaultValue) &&
+            asMap(fixture.loaded.variables[3]->defaultValue)->size() == 2,
+            "Map declarations or default entries changed.");
+    Value adaScore;
+    Require(asMap(fixture.loaded.variables[3]->defaultValue)->get(Value(copyString("Ada", 3)), &adaScore) && isNumber(adaScore) && asNumber(adaScore) == 9.5,
+            "Map keys and values were not restored.");
     Require(fixture.loaded.variables[0]->Description ==
                 "Mixed sample values." &&
             fixture.loaded.functions[0]->functionDef->description ==

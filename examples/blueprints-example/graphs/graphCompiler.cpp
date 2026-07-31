@@ -164,9 +164,23 @@ void GraphCompiler::RegisterNatives(VM& vm)
 
 void GraphCompiler::CompileLiteral(Compiler& compiler, const Value& value)
 {
-    if (!isList(value))
+    if (!isList(value) && !isMap(value))
     {
         compiler.emitConstant(value);
+        return;
+    }
+
+    if (isMap(value))
+    {
+        compiler.emitByte(OpByte(OpCode::OP_BUILD_MAP));
+        for (const MapEntry& entry : asMap(value)->entries)
+        {
+            if (!entry.active)
+                continue;
+            CompileLiteral(compiler, entry.key);
+            CompileLiteral(compiler, entry.value);
+            compiler.emitByte(OpByte(OpCode::OP_INSERT_MAP));
+        }
         return;
     }
 

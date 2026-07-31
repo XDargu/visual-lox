@@ -63,6 +63,21 @@ std::string SearchableValueText(const Value& value, int depth = 0)
         }
         return text;
     }
+    case ObjType::MAP:
+    {
+        if (depth >= 64)
+            return "<nested map>";
+        std::string text;
+        for (const MapEntry& entry : asMap(value)->entries)
+        {
+            if (!entry.active)
+                continue;
+            if (!text.empty())
+                text += ",";
+            text += SearchableValueText(entry.key, depth + 1) + ":" + SearchableValueText(entry.value, depth + 1);
+        }
+        return text;
+    }
     case ObjType::CLASS:
         return "<class>";
     case ObjType::INSTANCE:

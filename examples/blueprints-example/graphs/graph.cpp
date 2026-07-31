@@ -12,6 +12,11 @@
 
 #include <imgui_node_editor_internal.h>
 
+namespace
+{
+TypeRef ResolveTypeForLink(const TypeRef& pattern, const std::map<std::string, TypeRef>& bindings);
+}
+
 NodePtr Graph::FindNode(ed::NodeId id)
 {
     for (auto& node : m_Nodes)
@@ -139,8 +144,14 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
         input.DeclaredType.kind == PinType::Iterable &&
         IsPinLinked(input.ID) &&
         GraphUtils::AreTypesCompatible(output.Type, input.DeclaredType);
-    if (!GraphUtils::AreTypesCompatible(output.Type, input.Type) &&
-        !replacesIterableConstraint)
+    bool compatible = GraphUtils::AreTypesCompatible(output.Type, input.Type);
+    if (!compatible && (output.DeclaredType.IsGeneric() || input.DeclaredType.IsGeneric()))
+    {
+        const TypeRef inferredOutput = ResolveTypeForLink(output.DeclaredType, output.Node->ResolvedTypeVariables);
+        const TypeRef inferredInput = ResolveTypeForLink(input.DeclaredType, input.Node->ResolvedTypeVariables);
+        compatible = GraphUtils::AreTypesCompatible(inferredOutput, inferredInput);
+    }
+    if (!compatible && !replacesIterableConstraint)
         return ELinkQueryResult::IncompatibleType;
 
     auto aProcessedNode = std::find_if(processedNodes.begin(), processedNodes.end(), [&](const ProcessedNode& pnode) { return pnode.node->ID == a->Node->ID; });
@@ -245,6 +256,20 @@ TypeRef ResolveType(const TypeRef& pattern, const TypeBindings& bindings)
     TypeRef result = pattern;
     for (TypeRef& parameter : result.parameters)
         parameter = ResolveType(parameter, bindings);
+    return result;
+}
+
+TypeRef ResolveTypeForLink(const TypeRef& pattern, const TypeBindings& bindings)
+{
+    if (pattern.kind == PinType::TypeVariable)
+    {
+        const auto found = bindings.find(pattern.name);
+        return found == bindings.end() ? pattern : found->second;
+    }
+
+    TypeRef result = pattern;
+    for (TypeRef& parameter : result.parameters)
+        parameter = ResolveTypeForLink(parameter, bindings);
     return result;
 }
 
@@ -373,6 +398,8 @@ void Graph::RefreshTypes()
             Value& value = node->InputValues[i];
             if (!input.DeclaredType.IsGeneric() || IsPinLinked(input.ID) ||
                 input.Type == PinType::Any || input.Type == PinType::Flow)
+                continue;
+            if (input.Type == PinType::Map && (input.Type.KeyType() == PinType::Any || input.Type.ValueType() == PinType::Any))
                 continue;
             const TypeRef valueType = TypeOfValue(value);
             if (isNil(value) || !CanAssign(valueType, input.Type, false))

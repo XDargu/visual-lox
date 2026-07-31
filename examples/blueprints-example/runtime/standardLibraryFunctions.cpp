@@ -369,6 +369,91 @@ Value ListZip(int, Value* args, VM* vm)
     return Value(result);
 }
 
+Value MapMake(int, Value*, VM*)
+{
+    return Value(newMap());
+}
+
+Value MapLength(int, Value* args, VM*)
+{
+    return isMap(args[0]) ? Value(static_cast<double>(asMap(args[0])->size())) : Value();
+}
+
+Value MapFind(int, Value* args, VM* vm)
+{
+    ObjList* result = BeginPackage(vm);
+    Value value;
+    const bool found = isMap(args[0]) && asMap(args[0])->get(args[1], &value);
+    result->append(Value(found));
+    result->append(found ? value : Value());
+    return EndPackage(vm, result);
+}
+
+Value MapContainsKey(int, Value* args, VM*)
+{
+    return Value(isMap(args[0]) && asMap(args[0])->get(args[1], nullptr));
+}
+
+Value MapSet(int, Value* args, VM*)
+{
+    if (!isMap(args[0]))
+        return Value();
+    return Value(asMap(args[0])->set(args[1], args[2]));
+}
+
+Value MapRemove(int, Value* args, VM* vm)
+{
+    ObjList* result = BeginPackage(vm);
+    Value value;
+    const bool found = isMap(args[0]) && asMap(args[0])->remove(args[1], &value);
+    result->append(Value(found));
+    result->append(found ? value : Value());
+    return EndPackage(vm, result);
+}
+
+Value MapClear(int, Value* args, VM*)
+{
+    if (!isMap(args[0]))
+        return Value();
+    asMap(args[0])->clear();
+    return Value(0.0);
+}
+
+Value MapKeys(int, Value* args, VM* vm)
+{
+    if (!isMap(args[0]))
+        return Value();
+    ObjList* result = BeginPackage(vm);
+    for (const MapEntry& entry : asMap(args[0])->entries)
+        if (entry.active)
+            result->append(entry.key);
+    return EndPackage(vm, result);
+}
+
+Value MapValues(int, Value* args, VM* vm)
+{
+    if (!isMap(args[0]))
+        return Value();
+    ObjList* result = BeginPackage(vm);
+    for (const MapEntry& entry : asMap(args[0])->entries)
+        if (entry.active)
+            result->append(entry.value);
+    return EndPackage(vm, result);
+}
+
+Value MapCopy(int, Value* args, VM* vm)
+{
+    if (!isMap(args[0]))
+        return Value();
+    ObjMap* result = newMap();
+    vm->push(Value(result));
+    for (const MapEntry& entry : asMap(args[0])->entries)
+        if (entry.active)
+            result->set(entry.key, entry.value);
+    vm->pop();
+    return Value(result);
+}
+
 Value RangeMakeAdvanced(int, Value* args, VM*)
 {
     if (!NumberArgs(args, 3) || !isBoolean(args[3]) || !isBoolean(args[4]) ||

@@ -50,6 +50,8 @@ set(_VisualLoxCoreSources
     native/nodes/object.cpp
     native/nodes/list.h
     native/nodes/list.cpp
+    native/nodes/map.h
+    native/nodes/map.cpp
     native/nodes/variable.h
     native/nodes/variable.cpp
     native/nodes/function.h

@@ -33,6 +33,17 @@ Value ListDistinct(int, Value*, VM*);
 Value ListEnumerate(int, Value*, VM*);
 Value ListZip(int, Value*, VM*);
 
+Value MapMake(int, Value*, VM*);
+Value MapLength(int, Value*, VM*);
+Value MapFind(int, Value*, VM*);
+Value MapContainsKey(int, Value*, VM*);
+Value MapSet(int, Value*, VM*);
+Value MapRemove(int, Value*, VM*);
+Value MapClear(int, Value*, VM*);
+Value MapKeys(int, Value*, VM*);
+Value MapValues(int, Value*, VM*);
+Value MapCopy(int, Value*, VM*);
+
 Value RangeMakeAdvanced(int, Value*, VM*);
 
 Value FileReadText(int, Value*, VM*);

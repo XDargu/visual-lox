@@ -316,6 +316,9 @@ ValidationReport ScriptValidator::Validate(const Script& script)
         if (type.kind == PinType::List && type.parameters.size() != 1)
             addScriptError("invalid-type",
                 owner + " has a malformed " + type.ToString() + " declaration.");
+        if (type.kind == PinType::Map && type.parameters.size() != 2)
+            addScriptError("invalid-type",
+                owner + " has a malformed " + type.ToString() + " declaration.");
         if (type.kind == PinType::Object && type.classId >= 0 &&
             classIds.count(type.classId) == 0)
             addScriptError("missing-type",

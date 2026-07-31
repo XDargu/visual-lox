@@ -2120,6 +2120,123 @@ void ExpandedListAndRangeNodesOperate()
             "Advanced ranges should honor step and endpoint inclusion.");
 }
 
+void MapForEachIteratesKeysAndValues()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "MapLoopMain");
+
+    ScriptPropertyPtr observedKey = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "ObservedMapKey");
+    observedKey->type = PinType::String;
+    observedKey->defaultValue = StringValue("");
+    script.variables.push_back(observedKey);
+    ScriptPropertyPtr observedValue = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "ObservedMapValue");
+    observedValue->type = PinType::Float;
+    observedValue->defaultValue = Value(-1.0);
+    script.variables.push_back(observedValue);
+
+    ObjMap* values = newMap();
+    values->set(StringValue("first"), Value(1.0));
+    values->set(StringValue("second"), Value(2.0));
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr loop = fixture.registry.FindCompiled("Map::For Each")->MakeNode(fixture.ids);
+    NodePtr storeKey = BuildSetVariableNode(fixture.ids, observedKey);
+    NodePtr storeValue = BuildSetVariableNode(fixture.ids, observedValue);
+    for (const NodePtr& node : { begin, loop, storeKey, storeValue })
+        AttachNode(script.main->Graph, node);
+    loop->InputValues[1] = Value(values);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, loop->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), loop->Outputs[0].ID, storeKey->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), loop->Outputs[1].ID, storeKey->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), storeKey->Outputs[0].ID, storeValue->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), loop->Outputs[2].ID, storeValue->Inputs[1].ID));
+
+    fixture.vm.setExternalMarkingFunc([&]()
+    {
+        MarkNodeRegistryRoots(fixture.registry, fixture.vm);
+        ScriptUtils::MarkScriptRoots(script);
+    });
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script);
+    Require(static_cast<bool>(compiled), "Map::For Each should compile with typed key and value outputs.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_OK,
+            "Map::For Each should execute.");
+    Require(isString(ReadGlobal(fixture.vm, "ObservedMapKey")) && asString(ReadGlobal(fixture.vm, "ObservedMapKey"))->chars == "second" &&
+            isNumber(ReadGlobal(fixture.vm, "ObservedMapValue")) && asNumber(ReadGlobal(fixture.vm, "ObservedMapValue")) == 2.0,
+            "Map::For Each should expose keys and values in insertion order.");
+}
+
+void MapNodesOperateAndPreserveInsertionOrder()
+{
+    RuntimeFixture fixture;
+    const Value made = fixture.CallNative("Map::Make Map", {});
+    Require(isMap(made), "Map::Make Map should create a map.");
+    ObjMap* map = asMap(made);
+
+    Require(asBoolean(fixture.CallNative("Map::Set", { made, StringValue("first"), Value(1.0) })),
+            "Map::Set should report a newly added key.");
+    Require(asBoolean(fixture.CallNative("Map::Set", { made, StringValue("second"), Value(2.0) })),
+            "Map::Set should add a second key.");
+    Require(!asBoolean(fixture.CallNative("Map::Set", { made, StringValue("first"), Value(3.0) })),
+            "Map::Set should report replacement of an existing key.");
+    Require(map->size() == 2 && map->entries.size() == 2,
+            "Replacing a map value should update its entry in place.");
+    Require(map->replaceKey(StringValue("first"), StringValue("renamed")) && map->entries.size() == 2 &&
+            asString(map->entryAt(0)->key)->chars == "renamed" && asNumber(map->entryAt(1)->value) == 2.0,
+            "Editing one map key should preserve its entry position and the other entries.");
+    Require(!map->replaceKey(StringValue("renamed"), StringValue("second")) && map->get(StringValue("renamed"), nullptr) &&
+            map->get(StringValue("second"), nullptr) && map->replaceKey(StringValue("renamed"), StringValue("first")),
+            "Editing a key to an existing key should not overwrite either entry.");
+
+    const Value found = fixture.CallCollectionNode("Map::Find", { made, StringValue("first") });
+    Require(isList(found) && asList(found)->items.size() == 2 && isBoolean(asList(found)->items[0]) && asBoolean(asList(found)->items[0]) &&
+            isNumber(asList(found)->items[1]) && asNumber(asList(found)->items[1]) == 3.0,
+            "Map::Find should return Found followed by the associated value.");
+    const Value missing = fixture.CallCollectionNode("Map::Find", { made, StringValue("missing") });
+    Require(isList(missing) && !asBoolean(asList(missing)->items[0]) && isNil(asList(missing)->items[1]),
+            "Map::Find should return false and nil for an absent key.");
+    Require(asBoolean(fixture.CallCollectionNode("Map::Contains Key", { made, StringValue("second") })),
+            "Map::Contains Key should find an existing key.");
+    Require(asNumber(fixture.CallCollectionNode("Map::Length", { made })) == 2.0,
+            "Map::Length should count active entries.");
+
+    const Value keys = fixture.CallCollectionNode("Map::Keys", { made });
+    const Value values = fixture.CallCollectionNode("Map::Values", { made });
+    Require(isList(keys) && asList(keys)->items.size() == 2 && asString(asList(keys)->items[0])->chars == "first" && asString(asList(keys)->items[1])->chars == "second",
+            "Map::Keys should preserve insertion order after replacement.");
+    Require(isList(values) && asNumber(asList(values)->items[0]) == 3.0 && asNumber(asList(values)->items[1]) == 2.0,
+            "Map::Values should match key insertion order.");
+
+    const Value removed = fixture.CallNative("Map::Remove", { made, StringValue("first") });
+    Require(isList(removed) && asBoolean(asList(removed)->items[0]) && asNumber(asList(removed)->items[1]) == 3.0 && map->size() == 1,
+            "Map::Remove should return Found and the removed value.");
+    fixture.CallNative("Map::Set", { made, StringValue("first"), Value(4.0) });
+    const Value reorderedKeys = fixture.CallCollectionNode("Map::Keys", { made });
+    Require(asString(asList(reorderedKeys)->items[0])->chars == "second" && asString(asList(reorderedKeys)->items[1])->chars == "first",
+            "Removing and re-adding a key should move it to the end.");
+
+    ObjClass* klass = newClass(copyString("Key", 3));
+    ObjInstance* firstInstance = newInstance(klass);
+    ObjInstance* secondInstance = newInstance(klass);
+    fixture.CallNative("Map::Set", { made, Value(firstInstance), StringValue("identity") });
+    const Value sameInstance = fixture.CallCollectionNode("Map::Find", { made, Value(firstInstance) });
+    const Value otherInstance = fixture.CallCollectionNode("Map::Find", { made, Value(secondInstance) });
+    Require(asBoolean(asList(sameInstance)->items[0]) && asString(asList(sameInstance)->items[1])->chars == "identity" && !asBoolean(asList(otherInstance)->items[0]),
+            "Class instances should use identity semantics as map keys.");
+
+    const Value copied = fixture.CallCollectionNode("Map::Copy", { made });
+    Require(isMap(copied) && asMap(copied) != map && asMap(copied)->size() == map->size(),
+            "Map::Copy should create a shallow container copy.");
+    fixture.CallNative("Map::Clear", { made });
+    Require(map->size() == 0, "Map::Clear should remove every entry.");
+
+    const NativeFunctionDef* makeDefinition = fixture.registry.FindNative("Map::Make Map");
+    const NativeFunctionDef* findDefinition = fixture.registry.FindNative("Map::Find");
+    Require(makeDefinition && makeDefinition->functionDef->genericTypeProperties.size() == 2 && findDefinition &&
+            findDefinition->functionDef->outputs[0].name == "Found" && findDefinition->functionDef->outputs[1].name == "Value",
+            "Map definitions should expose key/value generics and the requested Find output order.");
+}
+
 void FilePathAndConsoleNodesOperate()
 {
     RuntimeFixture fixture;
@@ -2247,6 +2364,23 @@ void TypeDescriptorsAreDirectionalAndComposable()
     ObjList* strings = MakeList({ StringValue("Ada"), StringValue("Grace") });
     Require(TypeOfValue(Value(strings)) == stringList,
             "List literal inference should inspect its element values.");
+
+    const TypeRef scoreMap = TypeRef::Map(PinType::String, PinType::Float);
+    ObjMap* scores = newMap();
+    scores->set(StringValue("Ada"), Value(10.0));
+    Require(TypeOfValue(Value(scores)) == scoreMap && scoreMap.ToString() == "Map<String, Number>",
+            "Map inference and display should retain key and value types.");
+    Require(CanAssign(scoreMap, scoreMap) && !CanAssign(scoreMap, TypeRef::Map(PinType::Any, PinType::Float)) &&
+            !CanAssign(TypeRef::Map(PinType::String, PinType::Any), scoreMap),
+            "Mutable map key and value parameters should be invariant.");
+
+    ObjMap* numericKeys = newMap();
+    numericKeys->set(Value(0.0), StringValue("preserved"));
+    Value nextKey;
+    Value originalValue;
+    Require(MakeUniqueMapKey(*numericKeys, PinType::Int, nextKey) && isNumber(nextKey) && asNumber(nextKey) == 1.0 &&
+            numericKeys->get(Value(0.0), &originalValue) && isString(originalValue) && asString(originalValue)->chars == "preserved",
+            "Adding a default map entry should choose an unused key without replacing the existing entry.");
 
     const TypeRef signature = TypeRef::Function(
         { PinType::String, TypeRef::List(TypeRef::Object(10, "Student")) },
@@ -2387,6 +2521,21 @@ void GenericNodesInferAcrossConnections()
             isNumber(numericEquals->InputValues[1]) &&
             asNumber(numericEquals->InputValues[1]) == 0.0,
             "An inferred numeric Equals operand should receive a numeric zero default.");
+
+    ScriptPropertyPtr labels = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Labels");
+    labels->type = TypeRef::Map(PinType::Int, PinType::String);
+    labels->defaultValue = Value(newMap());
+    script.variables.push_back(labels);
+    NodePtr labelsSource = BuildGetVariableNode(fixture.ids, labels);
+    NodePtr find = fixture.registry.FindNative("Map::Find")->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid);
+    AttachNode(script.main->Graph, labelsSource);
+    AttachNode(script.main->Graph, find);
+    Require(script.main->Graph.CanCreateLink(&labelsSource->Outputs[0], &find->Inputs[0], {}) == ELinkQueryResult::Possible,
+            "A concrete Map<Int, String> should connect to an unbound Map<K, V> input.");
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), labelsSource->Outputs[0].ID, find->Inputs[0].ID));
+    Require(find->Inputs[0].Type == TypeRef::Map(PinType::Int, PinType::String) && find->Inputs[1].Type == PinType::Int && find->Outputs[1].Type == PinType::String &&
+            find->ResolvedTypeVariables.at("K") == PinType::Int && find->ResolvedTypeVariables.at("V") == PinType::String,
+            "Map nodes should infer K and V from a connected concrete map.");
 }
 
 void PureGraphsRejectImpureNodes()
@@ -2624,6 +2773,8 @@ void AddRuntimeTests(Tests::Runner& runner)
             ExpandedMathAndStringNodesOperate);
         runner.Test("expanded list and range nodes operate",
             ExpandedListAndRangeNodesOperate);
+        runner.Test("map nodes operate and preserve insertion order",
+            MapNodesOperateAndPreserveInsertionOrder);
     });
     runner.Group("Runtime / VM boundaries", [&]()
     {
@@ -2634,6 +2785,8 @@ void AddRuntimeTests(Tests::Runner& runner)
         runner.Test("Flow For In keeps a constant stack footprint", ForInKeepsConstantStackFootprint);
         runner.Test("Flow For In iterates ranges and strings",
             ForInIteratesRangesAndStrings);
+        runner.Test("Map For Each iterates keys and values",
+            MapForEachIteratesKeysAndValues);
         runner.Test("Main receives program arguments as a string list",
             MainReceivesProgramArgumentsAsAStringList);
         runner.Test("functions and methods support multiple outputs",

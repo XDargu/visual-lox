@@ -5,6 +5,7 @@
 #include <string_view>
 #include <iostream>
 #include <cmath>
+#include <unordered_map>
 
 #include "Common.h"
 #include "Chunk.h"
@@ -25,6 +26,7 @@ enum class ObjType
     INSTANCE,
     RANGE,
     LIST,
+    MAP,
 
     COUNT
 };
@@ -43,9 +45,10 @@ inline const char* objTypeToString(const ObjType type)
     case ObjType::INSTANCE: return "INSTANCE";
     case ObjType::RANGE: return "RANGE";
     case ObjType::LIST: return "LIST";
+    case ObjType::MAP: return "MAP";
     }
     return "UNKNOWN";
-    static_assert(static_cast<int>(ObjType::COUNT) == 10, "Missing enum value");
+    static_assert(static_cast<int>(ObjType::COUNT) == 11, "Missing enum value");
 }
 
 struct Obj
@@ -288,6 +291,36 @@ struct ObjList : Obj
     std::vector<Value> items;
 };
 
+struct ValueHasher
+{
+    size_t operator()(const Value& value) const;
+};
+
+struct MapEntry
+{
+    Value key;
+    Value value;
+    bool active = true;
+};
+
+struct ObjMap : Obj
+{
+    ObjMap()
+        : Obj(ObjType::MAP)
+    {}
+
+    bool set(const Value& key, const Value& value);
+    bool get(const Value& key, Value* value) const;
+    bool remove(const Value& key, Value* value = nullptr);
+    bool replaceKey(const Value& oldKey, const Value& newKey);
+    void clear();
+    size_t size() const { return indices.size(); }
+    const MapEntry* entryAt(size_t index) const;
+
+    std::vector<MapEntry> entries;
+    std::unordered_map<Value, size_t, ValueHasher> indices;
+};
+
 inline ObjType getObjType(const Value& value) { return asObject(value)->type; }
 inline bool isObjType(const Value& value, const ObjType type)
 {
@@ -302,6 +335,7 @@ inline bool isFunction(const Value& value) { return isObjType(value, ObjType::FU
 inline bool isNative(const Value& value) { return isObjType(value, ObjType::NATIVE); }
 inline bool isRange(const Value& value) { return isObjType(value, ObjType::RANGE); }
 inline bool isList(const Value& value) { return isObjType(value, ObjType::LIST); }
+inline bool isMap(const Value& value) { return isObjType(value, ObjType::MAP); }
 
 inline const char* asCString(const Value& value) { return static_cast<ObjString*>(asObject(value))->chars.c_str(); }
 
@@ -314,6 +348,7 @@ inline ObjFunction* asFunction(const Value& value) { return static_cast<ObjFunct
 inline ObjNative* asNative(const Value& value) { return static_cast<ObjNative*>(asObject(value)); }
 inline ObjRange* asRange(const Value& value) { return static_cast<ObjRange*>(asObject(value)); }
 inline ObjList* asList(const Value& value) { return static_cast<ObjList*>(asObject(value)); }
+inline ObjMap* asMap(const Value& value) { return static_cast<ObjMap*>(asObject(value)); }
 
 ObjString* copyString(const char* chars, int length);
 ObjString* takeString(const char* chars);
@@ -333,6 +368,7 @@ ObjNative* newNative(uint8_t arity, NativeFn function, bool isMethod);
 ObjRange* newRange(double min, double max, double step = 1.0,
                    bool includeStart = true, bool includeEnd = true);
 ObjList* newList();
+ObjMap* newMap();
 
 void printObject(const Value& value);
 size_t sizeOfObject(const Value& value);

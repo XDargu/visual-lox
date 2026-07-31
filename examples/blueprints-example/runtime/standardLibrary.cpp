@@ -6,6 +6,7 @@
 #include "../native/nodes/expressions.h"
 #include "../native/nodes/for-in.h"
 #include "../native/nodes/list.h"
+#include "../native/nodes/map.h"
 #include "../native/nodes/math.h"
 #include "../native/nodes/match.h"
 #include "../native/nodes/print.h"
@@ -305,6 +306,21 @@ void RegisterStandardLibrary(NodeRegistry& registry)
             "Replaces the list value at an index",
             { "The list to modify", "The zero-based index to update", "The replacement value" },
             { "The modified list" }
+        });
+
+    registry.RegisterCompiledNode("Map::For Each", &BuildMapForEachNode,
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")),
+            "The map to iterate." } },
+        { { "Key", Value(), -1, TypeRef::Variable("K"),
+            "The key at the current iteration." },
+          { "Value", Value(), -1, TypeRef::Variable("V"),
+            "The value at the current iteration." } },
+        NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Runs a body once for every key and value in a map",
+            { "The map to iterate" },
+            { "The key for the current iteration", "The value for the current iteration" }
         });
 
     registry.RegisterDefinitions();

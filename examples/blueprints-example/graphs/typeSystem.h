@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+struct ObjMap;
+
 enum class PinType
 {
     Flow,
@@ -14,6 +16,7 @@ enum class PinType
     Float,
     String,
     List,
+    Map,
     Range,
     Object,
     Function,
@@ -55,6 +58,7 @@ struct TypeRef
     operator PinType() const { return kind; }
 
     static TypeRef List(TypeRef element = TypeRef(PinType::Any));
+    static TypeRef Map(TypeRef key = TypeRef(PinType::Any), TypeRef value = TypeRef(PinType::Any));
     static TypeRef Tuple(std::vector<TypeRef> elements);
     static TypeRef Iterable(TypeRef element = TypeRef(PinType::Any));
     static TypeRef Function(std::vector<TypeRef> inputs = {},
@@ -64,6 +68,8 @@ struct TypeRef
     static TypeRef Variable(std::string variableName);
 
     const TypeRef& ElementType() const;
+    const TypeRef& KeyType() const;
+    const TypeRef& ValueType() const;
     bool ContainsVariable(const std::string& variableName) const;
     bool IsGeneric() const;
     std::string ToString() const;
@@ -78,6 +84,7 @@ inline bool operator!=(PinType lhs, const TypeRef& rhs) { return !(rhs == lhs); 
 
 TypeRef TypeOfValue(const Value& value);
 Value MakeValueFromType(const TypeRef& type);
+bool MakeUniqueMapKey(const ObjMap& map, const TypeRef& keyType, Value& key);
 
 // Assignment is directional. Any is the dynamic escape hatch, List<T> is
 // covariant for reads, and nil is permitted by every runtime value type.

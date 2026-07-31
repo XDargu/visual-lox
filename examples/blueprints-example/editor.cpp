@@ -95,13 +95,22 @@ void PanelHeading(ImFont* font, const char* icon, const char* title)
 
 Value CloneInspectorValue(const Value& source)
 {
-    if (!isList(source))
-        return source;
-
-    ObjList* clone = newList();
-    for (const Value& item : asList(source)->items)
-        clone->append(CloneInspectorValue(item));
-    return Value(clone);
+    if (isList(source))
+    {
+        ObjList* clone = newList();
+        for (const Value& item : asList(source)->items)
+            clone->append(CloneInspectorValue(item));
+        return Value(clone);
+    }
+    if (isMap(source))
+    {
+        ObjMap* clone = newMap();
+        for (const MapEntry& entry : asMap(source)->entries)
+            if (entry.active)
+                clone->set(CloneInspectorValue(entry.key), CloneInspectorValue(entry.value));
+        return Value(clone);
+    }
+    return source;
 }
 
 std::string InspectorTypeName(const TypeRef& type)
@@ -117,24 +126,25 @@ bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange
 
     if (allowTypeChange)
     {
-        int currentType = 6;
+        int currentType = 7;
         switch (TypeOfValue(value))
         {
         case PinType::Bool: currentType = 0; break;
         case PinType::Float: currentType = 1; break;
         case PinType::String: currentType = 2; break;
         case PinType::List: currentType = 3; break;
-        case PinType::Function: currentType = 4; break;
-        case PinType::Range: currentType = 5; break;
+        case PinType::Map: currentType = 4; break;
+        case PinType::Function: currentType = 5; break;
+        case PinType::Range: currentType = 6; break;
         default: break;
         }
         ImGui::SetNextItemWidth(-1.0f);
         if (ImGui::Combo("##type", &currentType,
-                         "Bool\0Number\0String\0List\0Function\0Range\0Any\0"))
+                         "Bool\0Number\0String\0List\0Map\0Function\0Range\0Any\0"))
         {
             static const PinType types[] = {
                 PinType::Bool, PinType::Float, PinType::String, PinType::List,
-                PinType::Function, PinType::Range, PinType::Any
+                PinType::Map, PinType::Function, PinType::Range, PinType::Any
             };
             value = MakeValueFromType(types[currentType]);
             changed = true;
@@ -235,6 +245,76 @@ bool DrawInspectorValueEditor(const char* id, Value& value, bool allowTypeChange
                         depth + 1, elementType))
                 {
                     list->setValue(i, item);
+                    changed = true;
+                }
+                ImGui::PopID();
+            }
+        }
+    }
+    else if (type == PinType::Map)
+    {
+        ObjMap* map = asMap(value);
+        ImGui::TextDisabled("%zu entr%s", map->size(), map->size() == 1 ? "y" : "ies");
+        ImGui::SameLine();
+        if (ImGui::SmallButton(ICON_FA_PLUS " Add entry"))
+        {
+            const TypeRef keyType = declaredType && declaredType->kind == PinType::Map ? declaredType->KeyType() : TypeRef(PinType::Any);
+            const TypeRef valueType = declaredType && declaredType->kind == PinType::Map ? declaredType->ValueType() : TypeRef(PinType::Any);
+            Value key;
+            if (MakeUniqueMapKey(*map, keyType, key))
+            {
+                map->set(key, MakeValueFromType(valueType));
+                changed = true;
+            }
+        }
+
+        if (depth >= 4)
+        {
+            ImGui::TextDisabled("Nested map depth limit reached.");
+        }
+        else
+        {
+            for (size_t i = 0; i < map->entries.size(); ++i)
+            {
+                if (!map->entries[i].active)
+                    continue;
+                ImGui::PushID(static_cast<int>(i));
+                ImGui::Separator();
+                ImGui::Text("Entry %zu", i + 1);
+                const Value oldKey = map->entries[i].key;
+                Value key = oldKey;
+                Value mappedValue = CloneInspectorValue(map->entries[i].value);
+                const TypeRef* keyType = declaredType && declaredType->kind == PinType::Map ? &declaredType->KeyType() : nullptr;
+                const TypeRef* valueType = declaredType && declaredType->kind == PinType::Map ? &declaredType->ValueType() : nullptr;
+                bool remove = ImGui::SmallButton(ICON_FA_TRASH_CAN " Remove");
+                ImGui::TextDisabled("Key");
+                const bool keyChanged = DrawInspectorValueEditor("key", key, !keyType || keyType->kind == PinType::Any, depth + 1, keyType);
+                ImGui::TextDisabled("Value");
+                const bool valueChanged = DrawInspectorValueEditor("value", mappedValue, !valueType || valueType->kind == PinType::Any, depth + 1, valueType);
+                if (remove)
+                {
+                    map->remove(oldKey);
+                    changed = true;
+                    ImGui::PopID();
+                    continue;
+                }
+                if (keyChanged)
+                {
+                    if (map->replaceKey(oldKey, key))
+                    {
+                        if (valueChanged)
+                            map->set(key, mappedValue);
+                        changed = true;
+                    }
+                    else if (valueChanged)
+                    {
+                        map->set(oldKey, mappedValue);
+                        changed = true;
+                    }
+                }
+                else if (valueChanged)
+                {
+                    map->set(oldKey, mappedValue);
                     changed = true;
                 }
                 ImGui::PopID();

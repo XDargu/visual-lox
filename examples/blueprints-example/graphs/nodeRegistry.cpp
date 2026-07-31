@@ -617,6 +617,118 @@ void NodeRegistry::RegisterDefinitions()
             { "A list of (A, B) tuples, limited by the shorter input" }
         });
 
+    RegisterNativeFunc("Map::Make Map",
+        {},
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        &MapMake, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates an empty typed map",
+            {},
+            { "A new empty map" }
+        },
+        { { "K", "Key Type" }, { "V", "Value Type" } });
+    RegisterNativeFunc("Map::Length",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        { { "Length", Value(0.0) } },
+        &MapLength, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Returns the number of entries in a map",
+            { "The map to measure" },
+            { "The number of entries" }
+        });
+    RegisterNativeFunc("Map::Find",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) },
+          { "Key", Value(), -1, TypeRef::Variable("K") } },
+        { { "Found", Value(false) },
+          { "Value", Value(), -1, TypeRef::Variable("V") } },
+        &MapFind, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Finds a value by key and reports whether the key exists",
+            { "The map to search", "The key to find" },
+            { "True when the key exists", "The associated value, or nil when absent" }
+        });
+    RegisterNativeFunc("Map::Contains Key",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) },
+          { "Key", Value(), -1, TypeRef::Variable("K") } },
+        { { "Result", Value(false) } },
+        &MapContainsKey, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Checks whether a map contains a key",
+            { "The map to search", "The key to find" },
+            { "True when the key exists" }
+        });
+    RegisterNativeFunc("Map::Set",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) },
+          { "Key", Value(), -1, TypeRef::Variable("K") },
+          { "Value", Value(), -1, TypeRef::Variable("V") } },
+        { { "Added", Value(false) } },
+        &MapSet, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Adds or replaces a map entry",
+            { "The map to modify", "The key to set", "The value to associate with the key" },
+            { "True when a new key was added; false when an existing value was replaced" }
+        });
+    RegisterNativeFunc("Map::Remove",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) },
+          { "Key", Value(), -1, TypeRef::Variable("K") } },
+        { { "Found", Value(false) },
+          { "Value", Value(), -1, TypeRef::Variable("V") } },
+        &MapRemove, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Removes an entry by key",
+            { "The map to modify", "The key to remove" },
+            { "True when an entry was removed", "The removed value, or nil when absent" }
+        });
+    RegisterNativeFunc("Map::Clear",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        { { "Size", Value(0.0) } },
+        &MapClear, NodeDefinitionFlags::None,
+        NodeDocumentation{
+            "Removes every entry from a map",
+            { "The map to clear" },
+            { "The map size after clearing" }
+        });
+    RegisterNativeFunc("Map::Keys",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        { { "Keys", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("K")) } },
+        &MapKeys, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Copies the keys from a map in insertion order",
+            { "The map to read" },
+            { "A list containing the map keys" }
+        });
+    RegisterNativeFunc("Map::Values",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        { { "Values", Value(newList()), -1,
+            TypeRef::List(TypeRef::Variable("V")) } },
+        &MapValues, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Copies the values from a map in insertion order",
+            { "The map to read" },
+            { "A list containing the map values" }
+        });
+    RegisterNativeFunc("Map::Copy",
+        { { "Map", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        { { "Result", Value(newMap()), -1,
+            TypeRef::Map(TypeRef::Variable("K"), TypeRef::Variable("V")) } },
+        &MapCopy, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
+        NodeDocumentation{
+            "Creates a shallow copy of a map",
+            { "The map to copy" },
+            { "A new map containing the same keys and values" }
+        });
+
     RegisterNativeFunc("File::ReadFile",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) } },

@@ -25,12 +25,13 @@ struct SerializationResult
 // Version 3 stores declared types independently from runtime default values.
 // Version 5 stores generic type properties and explicit bindings on node instances.
 // Version 6 adds persisted comment boxes.
+// Version 7 adds Map<K, V> declarations and ordered map values.
 // Loading remains backward-compatible with version 1 and is transactional: outputScript and
 // idGenerator are only replaced after the complete document has been checked.
 class ScriptSerializer
 {
 public:
-    static constexpr int FormatVersion = 6;
+    static constexpr int FormatVersion = 7;
 
     static SerializationResult Save(const Script& script, const std::string& path);
     static SerializationResult Load(const std::string& path, const NodeRegistry& registry,

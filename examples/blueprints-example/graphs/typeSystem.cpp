@@ -28,6 +28,14 @@ TypeRef TypeRef::List(TypeRef element)
     return result;
 }
 
+TypeRef TypeRef::Map(TypeRef key, TypeRef value)
+{
+    TypeRef result(PinType::Map);
+    result.parameters.push_back(std::move(key));
+    result.parameters.push_back(std::move(value));
+    return result;
+}
+
 TypeRef TypeRef::Tuple(std::vector<TypeRef> elements)
 {
     TypeRef result(PinType::Tuple);
@@ -80,6 +88,16 @@ const TypeRef& TypeRef::ElementType() const
     return parameters.empty() ? kAny : parameters.front();
 }
 
+const TypeRef& TypeRef::KeyType() const
+{
+    return parameters.empty() ? kAny : parameters[0];
+}
+
+const TypeRef& TypeRef::ValueType() const
+{
+    return parameters.size() < 2 ? kAny : parameters[1];
+}
+
 bool TypeRef::ContainsVariable(const std::string& variableName) const
 {
     if (kind == PinType::TypeVariable && name == variableName)
@@ -111,6 +129,7 @@ std::string TypeRef::ToString() const
     case PinType::Float: return "Number";
     case PinType::String: return "String";
     case PinType::List: return "List<" + ElementType().ToString() + ">";
+    case PinType::Map: return "Map<" + KeyType().ToString() + ", " + ValueType().ToString() + ">";
     case PinType::Range: return "Range";
     case PinType::Object:
         if (!name.empty()) return name;
@@ -173,6 +192,24 @@ TypeRef TypeOfValue(const Value& value)
             }
             return TypeRef::List(element);
         }
+        case ObjType::MAP:
+        {
+            const ObjMap* map = asMap(value);
+            TypeRef key(PinType::Any);
+            TypeRef mappedValue(PinType::Any);
+            bool hasEntry = false;
+            for (const MapEntry& entry : map->entries)
+            {
+                if (!entry.active)
+                    continue;
+                const TypeRef entryKey = TypeOfValue(entry.key);
+                const TypeRef entryValue = TypeOfValue(entry.value);
+                key = hasEntry ? CommonType(key, entryKey) : entryKey;
+                mappedValue = hasEntry ? CommonType(mappedValue, entryValue) : entryValue;
+                hasEntry = true;
+            }
+            return TypeRef::Map(key, mappedValue);
+        }
         case ObjType::RANGE: return TypeRef(PinType::Range);
         case ObjType::CLASS:
             return TypeRef::Object(asClass(value)->name ? asClass(value)->name->chars : "");
@@ -198,10 +235,48 @@ Value MakeValueFromType(const TypeRef& type)
     case PinType::Float: return Value(0.0);
     case PinType::String: return Value(takeString("", 0));
     case PinType::List: return Value(newList());
+    case PinType::Map: return Value(newMap());
     case PinType::Range: return Value(newRange(0.0, 0.0));
     case PinType::Function: return Value(newFunction());
     default: return Value();
     }
+}
+
+bool MakeUniqueMapKey(const ObjMap& map, const TypeRef& keyType, Value& key)
+{
+    key = MakeValueFromType(keyType);
+    if (!map.get(key, nullptr))
+        return true;
+
+    if (keyType.kind == PinType::Bool)
+    {
+        key = Value(true);
+        return !map.get(key, nullptr);
+    }
+
+    if (keyType.kind == PinType::Int || keyType.kind == PinType::Float || keyType.kind == PinType::Any)
+    {
+        for (size_t candidate = 0; candidate <= map.size(); ++candidate)
+        {
+            key = Value(static_cast<double>(candidate));
+            if (!map.get(key, nullptr))
+                return true;
+        }
+        return false;
+    }
+
+    if (keyType.kind == PinType::String)
+    {
+        for (size_t candidate = 1; candidate <= map.size() + 1; ++candidate)
+        {
+            const std::string text = candidate == 1 ? "Key" : "Key " + std::to_string(candidate);
+            key = Value(copyString(text.c_str(), static_cast<int>(text.size())));
+            if (!map.get(key, nullptr))
+                return true;
+        }
+    }
+
+    return false;
 }
 
 bool CanAssign(const TypeRef& source, const TypeRef& destination, bool allowDynamicCheck)
@@ -241,6 +316,12 @@ bool CanAssign(const TypeRef& source, const TypeRef& destination, bool allowDyna
 
     if (source.kind == PinType::List)
         return CanAssign(source.ElementType(), destination.ElementType(), false);
+    if (source.kind == PinType::Map)
+    {
+        const bool keysMatch = CanAssign(source.KeyType(), destination.KeyType(), false) && CanAssign(destination.KeyType(), source.KeyType(), false);
+        const bool valuesMatch = CanAssign(source.ValueType(), destination.ValueType(), false) && CanAssign(destination.ValueType(), source.ValueType(), false);
+        return keysMatch && valuesMatch;
+    }
     if (source.kind == PinType::Tuple)
     {
         if (source.parameters.size() != destination.parameters.size())
@@ -290,6 +371,8 @@ TypeRef CommonType(const TypeRef& lhs, const TypeRef& rhs)
     if (rhs.kind == PinType::Nil) return lhs;
     if (lhs.kind == PinType::List && rhs.kind == PinType::List)
         return TypeRef::List(CommonType(lhs.ElementType(), rhs.ElementType()));
+    if (lhs.kind == PinType::Map && rhs.kind == PinType::Map)
+        return TypeRef::Map(CommonType(lhs.KeyType(), rhs.KeyType()), CommonType(lhs.ValueType(), rhs.ValueType()));
     if (CanAssign(lhs, rhs, false)) return rhs;
     if (CanAssign(rhs, lhs, false)) return lhs;
     return TypeRef(PinType::Any);

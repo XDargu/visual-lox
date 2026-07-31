@@ -285,6 +285,18 @@ void VM::blackenObject(Obj* object)
         }
         break;
     }
+    case ObjType::MAP:
+    {
+        ObjMap* map = static_cast<ObjMap*>(object);
+        for (MapEntry& entry : map->entries)
+        {
+            if (!entry.active)
+                continue;
+            markValue(entry.key);
+            markValue(entry.value);
+        }
+        break;
+    }
     case ObjType::UPVALUE:
         markValue((static_cast<ObjUpvalue*>(object)->closed));
         break;
@@ -330,7 +342,7 @@ void VM::blackenObject(Obj* object)
     }
     }
 
-    static_assert(static_cast<int>(ObjType::COUNT) == 10, "Missing enum value");
+    static_assert(static_cast<int>(ObjType::COUNT) == 11, "Missing enum value");
 }
 
 InterpretResult VM::run(int depth)
@@ -759,11 +771,69 @@ InterpretResult VM::run(int depth)
                 asList(peek(0))->append(item);
                 break;
             }
+            case OpCode::OP_BUILD_MAP:
+            {
+                push(Value(newMap()));
+                break;
+            }
+            case OpCode::OP_INSERT_MAP:
+            {
+                // Stack before: [..., map, key, value] and after: [..., map].
+                const Value value = pop();
+                const Value key = pop();
+                if (!isMap(peek(0)))
+                {
+                    runtimeError("Can only insert map literal entries into a map.");
+                    return InterpretResult::INTERPRET_RUNTIME_ERROR;
+                }
+                asMap(peek(0))->set(key, value);
+                break;
+            }
+            case OpCode::OP_MAP_IN_BOUNDS:
+            {
+                const Value index = pop();
+                const Value map = pop();
+                if (!isMap(map) || !isNumber(index))
+                {
+                    runtimeError("Map iteration requires a map and numeric index.");
+                    return InterpretResult::INTERPRET_RUNTIME_ERROR;
+                }
+                const int idx = static_cast<int>(asNumber(index));
+                push(Value(idx >= 0 && static_cast<size_t>(idx) < asMap(map)->size()));
+                break;
+            }
+            case OpCode::OP_MAP_KEY_AT:
+            case OpCode::OP_MAP_VALUE_AT:
+            {
+                const Value index = pop();
+                const Value map = pop();
+                if (!isMap(map) || !isNumber(index))
+                {
+                    runtimeError("Map iteration requires a map and numeric index.");
+                    return InterpretResult::INTERPRET_RUNTIME_ERROR;
+                }
+                const int idx = static_cast<int>(asNumber(index));
+                const MapEntry* entry = idx < 0 ? nullptr : asMap(map)->entryAt(static_cast<size_t>(idx));
+                if (!entry)
+                {
+                    push(Value());
+                    break;
+                }
+                push(instruction == OpCode::OP_MAP_KEY_AT ? entry->key : entry->value);
+                break;
+            }
             case OpCode::OP_INDEX_SUBSCR:
             {
                 // stack is: [...,source,index] and after: [item]
                 Value index = pop();
                 Value source = pop();
+
+                if (isMap(source))
+                {
+                    Value value;
+                    push(asMap(source)->get(index, &value) ? value : Value());
+                    break;
+                }
 
                 if (isInstance(source))
                 {
@@ -852,6 +922,13 @@ InterpretResult VM::run(int depth)
                 Value item = pop();
                 Value index = pop();
                 Value source = pop();
+
+                if (isMap(source))
+                {
+                    asMap(source)->set(index, item);
+                    push(item);
+                    break;
+                }
 
                 if (isInstance(source))
                 {
@@ -1115,7 +1192,7 @@ InterpretResult VM::run(int depth)
                 defineMethod(readStringLong());
                 break;
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 59, "Missing operations in the VM");
+        static_assert(static_cast<int>(OpCode::COUNT) == 64, "Missing operations in the VM");
     }
 }
 
@@ -1443,6 +1520,24 @@ ObjString* VM::valueToStringWithOverrides(const Value& value)
         return takeString(std::move(result));
     }
 
+    if (isMap(value))
+    {
+        std::string result = "{";
+        bool first = true;
+        for (const MapEntry& entry : asMap(value)->entries)
+        {
+            if (!entry.active)
+                continue;
+            if (!first)
+                result += ", ";
+            result += valueToStringWithOverrides(entry.key)->chars;
+            result += ": ";
+            result += valueToStringWithOverrides(entry.value)->chars;
+            first = false;
+        }
+        return takeString(result + "}");
+    }
+
     return valueAsString(value);
 }
 
@@ -1465,6 +1560,25 @@ void VM::printValueWithOverrides(const Value& value)
             printValueWithOverrides(items[i]);
         }
         std::cout << "]";
+        return;
+    }
+
+    if (isMap(value))
+    {
+        std::cout << "{";
+        bool first = true;
+        for (const MapEntry& entry : asMap(value)->entries)
+        {
+            if (!entry.active)
+                continue;
+            if (!first)
+                std::cout << ", ";
+            printValueWithOverrides(entry.key);
+            std::cout << ": ";
+            printValueWithOverrides(entry.value);
+            first = false;
+        }
+        std::cout << "}";
         return;
     }
 

@@ -200,6 +200,16 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return simpleInstruction("OP_BUILD_LIST", offset);
     case OpCode::OP_APPEND_LIST:
         return simpleInstruction("OP_APPEND_LIST", offset);
+    case OpCode::OP_BUILD_MAP:
+        return simpleInstruction("OP_BUILD_MAP", offset);
+    case OpCode::OP_INSERT_MAP:
+        return simpleInstruction("OP_INSERT_MAP", offset);
+    case OpCode::OP_MAP_IN_BOUNDS:
+        return simpleInstruction("OP_MAP_IN_BOUNDS", offset);
+    case OpCode::OP_MAP_KEY_AT:
+        return simpleInstruction("OP_MAP_KEY_AT", offset);
+    case OpCode::OP_MAP_VALUE_AT:
+        return simpleInstruction("OP_MAP_VALUE_AT", offset);
     case OpCode::OP_INDEX_SUBSCR:
         return simpleInstruction("OP_INDEX_SUBSCR", offset);
     case OpCode::OP_STORE_SUBSCR:
@@ -286,5 +296,5 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return offset + 1;
     }
 
-    static_assert(static_cast<int>(OpCode::COUNT) == 59, "Missing operations in the Debug");
+    static_assert(static_cast<int>(OpCode::COUNT) == 64, "Missing operations in the Debug");
 }

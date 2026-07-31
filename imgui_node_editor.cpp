@@ -3755,8 +3755,9 @@ ed::EditorAction::AcceptResult ed::SizeAction::Accept(const Control& control)
         //const auto mousePos     = to_point(ImGui::GetMousePos());
         //const auto closestPoint = control.ActiveNode->Bounds.get_closest_point_hollow(mousePos, static_cast<int>(control.ActiveNode->Rounding));
 
-        auto pivot = GetRegion(control.ActiveNode);
-        if (pivot != NodeRegion::Header && pivot != NodeRegion::Center)
+        const int dragButton = Editor->GetConfig().DragButtonIndex;
+        const auto pivot = control.ActiveNode->GetRegion(ImGui::GetIO().MouseClickedPos[dragButton]);
+        if (pivot != NodeRegion::None && pivot != NodeRegion::Header && pivot != NodeRegion::Center)
         {
             m_StartBounds      = control.ActiveNode->m_Bounds;
             m_StartGroupBounds = control.ActiveNode->m_GroupBounds;

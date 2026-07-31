@@ -282,6 +282,8 @@ if (BUILD_TESTING)
         tests/documentOperationsTests.cpp
         tests/graphLayoutTests.h
         tests/graphLayoutTests.cpp
+        tests/nodeEditorTests.h
+        tests/nodeEditorTests.cpp
         tests/scriptSearchTests.h
         tests/scriptSearchTests.cpp
         script/scriptSerializerTest.h

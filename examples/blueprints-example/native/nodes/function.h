@@ -107,8 +107,10 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
 {
     NodePtr node = std::make_shared<GetFunctionNode>(IDGenerator.GetNextId(), "", pFunctionDef, funcID);
     node->SerializationType = "function.get";
-    if (!funcID.IsValid() && pFunctionDef)
-        node->DefinitionId = pFunctionDef->name;
+    node->DefinitionId = funcID.IsValid()
+        ? "vlox.script.function.get"
+        : pFunctionDef ? pFunctionDef->id : std::string();
+    node->DefinitionRevision = pFunctionDef ? pFunctionDef->revision : 1;
     if (pFunctionDef)
     {
         node->DefinitionFlags |= NodeDefinitionFlags::Pure;

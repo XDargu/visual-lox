@@ -16,6 +16,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <cctype>
 #include <map>
 #include <set>
 #include <stdexcept>
@@ -1545,6 +1546,98 @@ void NodeRegistry::RegisterDefinitions()
 
 namespace
 {
+std::string StableKey(std::string_view name)
+{
+    std::string result;
+    bool needsSeparator = false;
+    for (char character : name)
+    {
+        const unsigned char value = static_cast<unsigned char>(character);
+        if (std::isalnum(value))
+        {
+            if (needsSeparator && !result.empty())
+                result.push_back('_');
+            result.push_back(static_cast<char>(std::tolower(value)));
+            needsSeparator = false;
+        }
+        else
+        {
+            needsSeparator = true;
+        }
+    }
+    return result;
+}
+
+std::string StableDefinitionId(std::string_view kind, std::string_view name)
+{
+    std::string result = "vlox.std.";
+    result += kind;
+    result.push_back('.');
+    for (size_t index = 0; index < name.size(); ++index)
+    {
+        if (index + 1 < name.size() && name[index] == ':' && name[index + 1] == ':')
+        {
+            result.push_back('.');
+            ++index;
+            continue;
+        }
+        const unsigned char value = static_cast<unsigned char>(name[index]);
+        if (std::isalnum(value))
+            result.push_back(static_cast<char>(std::tolower(value)));
+        else if (!result.empty() && result.back() != '.' && result.back() != '_')
+            result.push_back('_');
+    }
+    while (!result.empty() && result.back() == '_')
+        result.pop_back();
+    return result;
+}
+
+void ApplyStablePortKeys(BasicFunctionDef& definition)
+{
+    const auto apply = [&](std::vector<BasicFunctionDef::Input>& ports, const char* direction)
+    {
+        std::set<std::string> keys;
+        for (size_t index = 0; index < ports.size(); ++index)
+        {
+            BasicFunctionDef::Input& port = ports[index];
+            if (port.key.empty())
+                port.key = StableKey(port.name);
+            if (port.key.empty())
+                throw std::invalid_argument(definition.name + " has an empty stable " + direction + " port key at index " + std::to_string(index));
+            if (!keys.insert(port.key).second)
+                throw std::invalid_argument(definition.name + " declares duplicate " + direction + " port key '" + port.key + "'");
+        }
+    };
+
+    apply(definition.inputs, "input");
+    apply(definition.outputs, "output");
+
+    std::set<std::string> genericKeys;
+    for (GenericTypeProperty& property : definition.genericTypeProperties)
+    {
+        if (property.key.empty())
+            property.key = StableKey(property.variableName);
+        if (property.key.empty() || !genericKeys.insert(property.key).second)
+            throw std::invalid_argument(definition.name + " declares an empty or duplicate generic parameter key");
+    }
+
+    if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
+    {
+        if (definition.dynamicInputProps.familyKey.empty() || definition.dynamicInputProps.memberKey.empty() ||
+            definition.dynamicInputProps.orderingMemberKey.empty())
+            throw std::invalid_argument(definition.name + " has an incomplete dynamic port identity");
+    }
+}
+
+void ApplyStableDefinitionSchema(BasicFunctionDef& definition, std::string_view kind)
+{
+    if (definition.id.empty())
+        definition.id = StableDefinitionId(kind, definition.name);
+    if (definition.id.empty() || definition.revision == 0)
+        throw std::invalid_argument(definition.name + " has an invalid stable definition schema");
+    ApplyStablePortKeys(definition);
+}
+
 std::string DisplayDefinitionName(const std::string& name)
 {
     const size_t separator = name.rfind("::");
@@ -1645,6 +1738,11 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->flags = flags;
     ApplyDocumentation(*nativeFunc, documentation);
     ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
+    ApplyStableDefinitionSchema(*nativeFunc, "native");
+
+    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing)
+        { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
+        throw std::invalid_argument("Duplicate native definition ID '" + nativeFunc->id + "'");
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1669,6 +1767,11 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->dynamicInputProps = dynamicProps;
     ApplyDocumentation(*nativeFunc, documentation);
     ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
+    ApplyStableDefinitionSchema(*nativeFunc, "native");
+
+    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing)
+        { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
+        throw std::invalid_argument("Duplicate native definition ID '" + nativeFunc->id + "'");
 
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
@@ -1699,8 +1802,15 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     funtionDef->flags = flags;
     ApplyDocumentation(*funtionDef, documentation);
     ApplyGenericTypeProperties(*funtionDef, std::move(genericTypeProperties));
+    ApplyStableDefinitionSchema(*funtionDef, "compiled");
+
+    if (std::any_of(compiledDefinitions.begin(), compiledDefinitions.end(), [&](const CompiledNodeDefPtr& existing)
+        { return existing && existing->id == funtionDef->id; }))
+        throw std::invalid_argument("Duplicate compiled definition ID '" + funtionDef->id + "'");
 
     compiledNodeDef->functionDef = funtionDef;
+    compiledNodeDef->id = funtionDef->id;
+    compiledNodeDef->revision = funtionDef->revision;
 
     compiledDefinitions.push_back(compiledNodeDef);
 }
@@ -1725,7 +1835,14 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     ValidateDynamicInputProperties(*functionDef);
     ApplyDocumentation(*functionDef, documentation);
     ApplyGenericTypeProperties(*functionDef, std::move(genericTypeProperties));
+    ApplyStableDefinitionSchema(*functionDef, "compiled");
 
+    if (std::any_of(compiledDefinitions.begin(), compiledDefinitions.end(), [&](const CompiledNodeDefPtr& existing)
+        { return existing && existing->id == functionDef->id; }))
+        throw std::invalid_argument("Duplicate compiled definition ID '" + functionDef->id + "'");
+
+    compiledNodeDef->id = functionDef->id;
+    compiledNodeDef->revision = functionDef->revision;
     compiledNodeDef->functionDef = std::move(functionDef);
     compiledDefinitions.push_back(std::move(compiledNodeDef));
 }
@@ -1734,7 +1851,8 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
 {
     NodePtr node = nodeCreationFunc(IDGenerator);
     node->SerializationType = "compiled";
-    node->DefinitionId = name;
+    node->DefinitionId = id;
+    node->DefinitionRevision = revision;
     node->DefinitionFlags = functionDef->flags;
     node->Description = functionDef->description;
     node->GenericTypeProperties = functionDef->genericTypeProperties;
@@ -1745,11 +1863,16 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     {
         if (pin.Type == PinType::Flow)
         {
+            if (pin.Identity.kind == PortIdentityKind::None) pin.Identity = PortIdentity::Fixed("execute");
             if (pin.Description.empty())
                 pin.Description = "Execution input for " +
                     DisplayDefinitionName(name);
             continue;
         }
+        if (pin.Identity.kind == PortIdentityKind::None && !HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs) && inputIndex < functionDef->inputs.size())
+            pin.Identity = PortIdentity::Fixed(functionDef->inputs[inputIndex].key);
+        else if (pin.Identity.kind == PortIdentityKind::None && HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs))
+            pin.Identity = PortIdentity::Dynamic(functionDef->dynamicInputProps.familyKey, DynamicSlotId::New(), functionDef->dynamicInputProps.memberKey);
         if (pin.Description.empty())
         {
             if (inputIndex < functionDef->inputs.size())
@@ -1764,16 +1887,23 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
         }
         ++inputIndex;
     }
+    const size_t flowOutputCount = static_cast<size_t>(std::count_if(node->Outputs.begin(), node->Outputs.end(), [](const Pin& pin) { return pin.Type == PinType::Flow; }));
+    size_t flowOutputIndex = 0;
     size_t outputIndex = 0;
     for (Pin& pin : node->Outputs)
     {
         if (pin.Type == PinType::Flow)
         {
+            if (pin.Identity.kind == PortIdentityKind::None)
+                pin.Identity = PortIdentity::Fixed(flowOutputCount == 1 ? "then" : "branch_" + std::to_string(flowOutputIndex));
+            ++flowOutputIndex;
             if (pin.Description.empty())
                 pin.Description = "Execution output from " +
                     DisplayDefinitionName(name);
             continue;
         }
+        if (pin.Identity.kind == PortIdentityKind::None && outputIndex < functionDef->outputs.size())
+            pin.Identity = PortIdentity::Fixed(functionDef->outputs[outputIndex].key);
         if (pin.Description.empty())
         {
             if (outputIndex < functionDef->outputs.size())
@@ -1789,9 +1919,11 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
 
 const NativeFunctionDef* NodeRegistry::FindNative(const std::string& name) const
 {
+    const auto alias = nativeAliases.find(name);
+    const std::string& resolvedName = alias == nativeAliases.end() ? name : alias->second;
     for (const NativeFunctionDef& definition : nativeDefinitions)
     {
-        if (definition.functionDef && definition.functionDef->name == name)
+        if (definition.functionDef && (definition.functionDef->name == resolvedName || definition.functionDef->id == resolvedName))
             return &definition;
     }
 
@@ -1800,11 +1932,25 @@ const NativeFunctionDef* NodeRegistry::FindNative(const std::string& name) const
 
 CompiledNodeDefPtr NodeRegistry::FindCompiled(const std::string& name) const
 {
+    const auto alias = compiledAliases.find(name);
+    const std::string& resolvedName = alias == compiledAliases.end() ? name : alias->second;
     for (const CompiledNodeDefPtr& definition : compiledDefinitions)
     {
-        if (definition && definition->name == name)
+        if (definition && (definition->name == resolvedName || definition->id == resolvedName))
             return definition;
     }
 
     return nullptr;
+}
+
+void NodeRegistry::RegisterNativeAlias(std::string alias, std::string definitionId)
+{
+    if (alias.empty() || definitionId.empty() || !FindNative(definitionId)) throw std::invalid_argument("Invalid native definition alias.");
+    if (!nativeAliases.emplace(std::move(alias), std::move(definitionId)).second) throw std::invalid_argument("Duplicate native definition alias.");
+}
+
+void NodeRegistry::RegisterCompiledAlias(std::string alias, std::string definitionId)
+{
+    if (alias.empty() || definitionId.empty() || !FindCompiled(definitionId)) throw std::invalid_argument("Invalid compiled definition alias.");
+    if (!compiledAliases.emplace(std::move(alias), std::move(definitionId)).second) throw std::invalid_argument("Duplicate compiled definition alias.");
 }

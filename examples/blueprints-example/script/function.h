@@ -18,6 +18,7 @@ struct ScriptFunction : public IScriptElement
         ID = id;
         Type = ScriptElementType::Function;
         functionDef = std::make_shared<BasicFunctionDef>();
+        functionDef->scriptId = PersistentId;
         functionDef->name = name;
     }
 

@@ -15,6 +15,7 @@
 
 #include <Vm.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include <sstream>
@@ -227,6 +228,8 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     fixture.SaveAndLoad(files.first);
     Require(fixture.loaded.ID.id == fixture.script.ID.id,
             "Script ID changed during round trip.");
+    Require(fixture.loaded.ModuleIdentity == fixture.script.ModuleIdentity,
+            "Module UUID changed during round trip.");
     Require(fixture.loaded.main && fixture.loaded.main->functionDef->name == "Main",
             "Main function was not restored.");
     Require(fixture.loaded.main->Graph.GetNodes().size() ==
@@ -241,8 +244,13 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             static_cast<CommentBoxNode*>(loadedCommentBox.get())->BoxColor == CommentBoxColor::Blue,
             "Comment box text, color, layout state, or pin layout changed.");
     Require(fixture.loaded.functions.size() == 1, "Function count changed.");
+    Require(fixture.loaded.functions[0]->PersistentId == fixture.script.functions[0]->PersistentId &&
+            fixture.loaded.functions[0]->functionDef->inputs[0].persistentId == fixture.script.functions[0]->functionDef->inputs[0].persistentId,
+            "Script element or script port UUID changed during round trip.");
     Require(fixture.loaded.functions[0]->Graph.GetLinks().size() == 2,
             "Function graph links were not restored.");
+    Require(fixture.loaded.functions[0]->Graph.GetLinks()[0].PersistentId == fixture.script.functions[0]->Graph.GetLinks()[0].PersistentId,
+            "Link UUID changed during round trip.");
     Require(fixture.loaded.variables.size() == 4 &&
             isList(fixture.loaded.variables[0]->defaultValue),
             "List property was not restored.");
@@ -302,14 +310,14 @@ void RoundTripPreservesStructure(const std::string& outputPath)
                 TypeRef::Function({ PinType::String }, { PinType::Bool }),
             "Method Get nodes and their function signatures were not restored.");
     const NodePtr loadedAnyList = fixture.loaded.main->Graph.FindNodeIf(
-        [](const NodePtr& node) { return node->DefinitionId == "List::MakeList"; });
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.list.makelist"; });
     Require(loadedAnyList && loadedAnyList->TypeOverrides.at("T") == PinType::Any &&
             loadedAnyList->Outputs[0].Type == TypeRef::List(PinType::Any) &&
             loadedAnyList->GenericTypeProperties.size() == 1 &&
             loadedAnyList->GenericTypeProperties[0].variableName == "T",
             "The explicit MakeList element type changed.");
     const NodePtr loadedAdd = fixture.loaded.main->Graph.FindNodeIf(
-        [](const NodePtr& node) { return node->DefinitionId == "Math::Add"; });
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
     Require(loadedAdd && loadedAdd->Inputs.size() == 4 && loadedAdd->InputValues.size() == 4 &&
             isNumber(loadedAdd->InputValues[3]) && asNumber(loadedAdd->InputValues[3]) == 5.0 &&
             loadedAdd->CanAddInput() && loadedAdd->CanRemoveInput(loadedAdd->Inputs[3].ID),
@@ -345,6 +353,118 @@ void RoundTrippedScriptCompilesAndExecutes(const std::string& outputPath)
                 InterpretResult::INTERPRET_OK,
             "The round-tripped script did not execute successfully.");
 }
+
+void AddedNativeInputUsesCurrentDefault(const std::string& outputPath)
+{
+    TemporaryRoundTripFiles files(outputPath + ".added-native-input");
+    SerializerFixture fixture;
+    SerializationResult result = ScriptSerializer::Save(fixture.script, files.first);
+    Require(result.success, result.error.c_str());
+
+    const NativeFunctionDef* square = fixture.registry.FindNative("Math::Square");
+    Require(square && square->functionDef, "Square definition was not registered.");
+    BasicFunctionDef::Input added("Precision", Value(6.0), -1, PinType::Float, "New optional precision input.");
+    added.key = "precision";
+    square->functionDef->inputs.push_back(std::move(added));
+
+    result = ScriptSerializer::Load(files.first, fixture.registry, fixture.loaded, fixture.loadedIds);
+    Require(result.success, result.error.c_str());
+    const NodePtr loadedSquare = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; });
+    Require(loadedSquare && loadedSquare->Inputs.size() == 2 && loadedSquare->InputValues.size() == 2,
+        "Adding a native input prevented the old node layout from reconciling.");
+    Require(isNumber(loadedSquare->InputValues[0]) && asNumber(loadedSquare->InputValues[0]) == 7.0 &&
+        isNumber(loadedSquare->InputValues[1]) && asNumber(loadedSquare->InputValues[1]) == 6.0,
+        "The saved value or current default moved to the wrong native input.");
+}
+
+void ScriptPortIdentitySurvivesDefinitionEvolution()
+{
+    SerializerFixture fixture;
+    const ScriptFunctionPtr function = fixture.script.functions.front();
+    const NodePtr call = fixture.script.main->Graph.FindNodeIf([&](const NodePtr& node)
+    {
+        return node->SerializationType == "function.call" && node->refId.id == function->ID.id;
+    });
+    Require(call && call->Inputs.size() == 1, "Echo call node was not created.");
+
+    const ed::PinId originalPinId = call->Inputs[0].ID;
+    const int originalPortId = function->functionDef->inputs[0].id;
+    const ScriptPortId originalPersistentPortId = function->functionDef->inputs[0].persistentId;
+    call->InputValues[0] = Value(copyString("custom", 6));
+    const NodePtr sourceCall = function->functionDef->MakeNode(fixture.ids, function->ID);
+    AttachNode(fixture.script.main->Graph, sourceCall);
+    Link preservedLink(fixture.ids.GetNextId(), sourceCall->Outputs[0].ID, originalPinId);
+    fixture.script.main->Graph.AddLink(preservedLink);
+
+    BasicFunctionDef::Input added("Prefix", Value(copyString("prefix", 6)), fixture.ids.GetNextId(), TypeRef::Variable("T"), "Text prefix.");
+    function->functionDef->inputs.insert(function->functionDef->inputs.begin(), std::move(added));
+    function->functionDef->inputs[1].name = "Renamed Value";
+    call->Refresh(fixture.script, fixture.ids);
+
+    Require(call->Inputs.size() == 2 && call->Inputs[1].ID == originalPinId && call->Inputs[1].Identity.legacyScriptPortId == originalPortId,
+        "Renaming or reordering a script port changed its call-site identity.");
+    Require(isString(call->InputValues[0]) && asString(call->InputValues[0])->chars == "prefix" &&
+        isString(call->InputValues[1]) && asString(call->InputValues[1])->chars == "custom",
+        "Renaming or reordering a script port moved its literal value.");
+
+    function->functionDef->inputs.erase(function->functionDef->inputs.begin() + 1);
+    call->Refresh(fixture.script, fixture.ids);
+    fixture.script.main->Graph.RefreshTypes();
+    Require(call->Inputs.size() == 1 && call->UnresolvedInputs.size() == 1 && call->UnresolvedInputs[0].ID == originalPinId &&
+        fixture.script.main->Graph.FindPin(originalPinId) == &call->UnresolvedInputs[0],
+        "Removing a script port did not preserve its recoverable call-site data.");
+    Require(fixture.script.main->Graph.GetLinks().back().PersistentId == preservedLink.PersistentId && !fixture.script.main->Graph.GetLinks().back().IsResolved,
+        "A link to a removed script port was discarded or left active.");
+
+    BasicFunctionDef::Input restored("Restored Value", Value(copyString("default", 7)), originalPortId, TypeRef::Variable("T"), "Restored value.");
+    restored.persistentId = originalPersistentPortId;
+    function->functionDef->inputs.push_back(std::move(restored));
+    call->Refresh(fixture.script, fixture.ids);
+    fixture.script.main->Graph.RefreshTypes();
+    Require(call->UnresolvedInputs.empty() && call->Inputs[1].ID == originalPinId && isString(call->InputValues[1]) && asString(call->InputValues[1])->chars == "custom",
+        "Restoring a script port did not resolve its original pin and value.");
+    Require(fixture.script.main->Graph.GetLinks().back().IsResolved,
+        "Restoring a script port did not reactivate its preserved link.");
+}
+
+void UnavailableDefinitionRemainsRecoverable()
+{
+    SerializerFixture fixture;
+    const NodePtr source = fixture.script.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
+    Require(source != nullptr, "Add node was not created.");
+    const GraphNodeId sourceId = source->PersistentId;
+    const size_t inputCount = source->Inputs.size();
+    source->SerializedExtensions["plugin_payload"] = "{\"mode\":\"preserve-me\",\"revision\":3}";
+
+    fixture.registry.compiledDefinitions.erase(std::remove_if(fixture.registry.compiledDefinitions.begin(), fixture.registry.compiledDefinitions.end(),
+        [](const CompiledNodeDefPtr& definition) { return definition && definition->id == "vlox.std.compiled.math.add"; }), fixture.registry.compiledDefinitions.end());
+
+    std::string document;
+    SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
+    Require(result.success, result.error.c_str());
+    result = ScriptSerializer::DeserializeFromString(document, fixture.registry, fixture.loaded, fixture.loadedIds);
+    Require(result.success, result.error.c_str());
+    const NodePtr missing = fixture.loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
+    Require(missing && HasFlag(missing->InstanceFlags, NodeInstanceFlags::Error) && missing->PersistentId == sourceId && missing->Inputs.size() == inputCount &&
+        missing->SerializedExtensions.at("plugin_payload") == "{\"mode\":\"preserve-me\",\"revision\":3}",
+        "An unavailable definition did not load as a recoverable node.");
+
+    std::string savedAgain;
+    result = ScriptSerializer::SerializeToString(fixture.loaded, savedAgain);
+    Require(result.success, result.error.c_str());
+    Script reloaded;
+    IDGenerator reloadedIds;
+    result = ScriptSerializer::DeserializeFromString(savedAgain, fixture.registry, reloaded, reloadedIds);
+    Require(result.success, result.error.c_str());
+    const NodePtr missingAgain = reloaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
+    Require(missingAgain && missingAgain->PersistentId == sourceId && missingAgain->Inputs.size() == inputCount &&
+        missingAgain->SerializedExtensions.at("plugin_payload") == "{\"mode\":\"preserve-me\",\"revision\":3}",
+        "A recoverable unavailable node did not survive load-save-load.");
+}
 }
 
 void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPath)
@@ -363,5 +483,11 @@ void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPa
         {
             RoundTrippedScriptCompilesAndExecutes(outputPath);
         });
+        runner.Test("an added native input uses its current default", [&]()
+        {
+            AddedNativeInputUsesCurrentDefault(outputPath);
+        });
+        runner.Test("script ports survive rename, reorder, removal, and restoration", ScriptPortIdentitySurvivesDefinitionEvolution);
+        runner.Test("an unavailable definition remains recoverable", UnavailableDefinitionRemainsRecoverable);
     });
 }

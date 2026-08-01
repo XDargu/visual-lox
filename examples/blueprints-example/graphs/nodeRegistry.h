@@ -9,6 +9,7 @@
 #include <Vm.h>
 
 #include <memory>
+#include <map>
 
 using NodeCreationFun = NodePtr(*)(IDGenerator& IDGenerator);
 
@@ -25,6 +26,8 @@ struct CompiledNodeDef : public std::enable_shared_from_this<CompiledNodeDef>
     NodePtr MakeNode(IDGenerator& IDGenerator);
     
     std::string name;
+    std::string id;
+    uint32_t revision = 1;
     NodeCreationFun nodeCreationFunc;
     BasicFunctionDefPtr functionDef; // Only used to check the layout
 };
@@ -67,7 +70,13 @@ public:
 
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;
+    void RegisterNativeAlias(std::string alias, std::string definitionId);
+    void RegisterCompiledAlias(std::string alias, std::string definitionId);
 
     std::vector<NativeFunctionDef> nativeDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
+
+private:
+    std::map<std::string, std::string> nativeAliases;
+    std::map<std::string, std::string> compiledAliases;
 };

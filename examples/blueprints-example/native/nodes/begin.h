@@ -32,31 +32,35 @@ struct BeginNode : public Node
     {
         Description = "Entry point for '" + functionDef->name + "'. " +
             functionDef->description;
-        // Add missing outputs
-        const int startingOutput = 1;
+        std::vector<Pin> saved;
+        for (const Pin& output : Outputs)
+            if (output.Type != PinType::Flow)
+                saved.push_back(output);
+        saved.insert(saved.end(), UnresolvedOutputs.begin(), UnresolvedOutputs.end());
 
-        for (int i = 0; i < functionDef->inputs.size(); ++i)
+        std::vector<Pin> refreshed;
+        const auto flow = std::find_if(Outputs.begin(), Outputs.end(), [](const Pin& output) { return output.Type == PinType::Flow; });
+        Pin flowPin = flow != Outputs.end() ? *flow : Pin(IDGenerator.GetNextId(), "", PinType::Flow, "Starts execution of this graph.");
+        flowPin.Identity = PortIdentity::Fixed("start");
+        refreshed.push_back(std::move(flowPin));
+
+        for (const BasicFunctionDef::Input& input : functionDef->inputs)
         {
-            const BasicFunctionDef::Input& input = functionDef->inputs[i];
-
-            if (Pin* existingOutput = FindOutputByName(input.name))
+            const auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& output)
             {
-                existingOutput->Type = existingOutput->DeclaredType = input.type;
-                existingOutput->Description = input.description;
-            }
-            else
-            {
-                Outputs.insert(Outputs.begin() + startingOutput + i,
-                    { IDGenerator.GetNextId(), input.name.c_str(), input.type,
-                      input.description });
-            }
+                return output.Identity.kind == PortIdentityKind::Script
+                    ? PortIdentitiesMatch(output.Identity, PortIdentity::Script(input.id, input.persistentId)) : output.Name == input.name;
+            });
+            Pin output = existing != saved.end() ? *existing : Pin(IDGenerator.GetNextId(), input.name.c_str(), input.type, input.description);
+            if (existing != saved.end()) saved.erase(existing);
+            output.Name = input.name;
+            output.Type = output.DeclaredType = input.type;
+            output.Description = input.description;
+            output.Identity = PortIdentity::Script(input.id, input.persistentId);
+            refreshed.push_back(std::move(output));
         }
-
-        // Remove outputs that are no longer there
-        stl::erase_if(Outputs, [&](const Pin& output)
-        {
-            return output.Type != PinType::Flow && functionDef->FindInputByName(output.Name) == nullptr;
-        });
+        Outputs = std::move(refreshed);
+        UnresolvedOutputs = std::move(saved);
     }
 
     BasicFunctionDefPtr functionDef;
@@ -66,17 +70,20 @@ static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr&
 {
     NodePtr node = std::make_shared<BeginNode>(IDGenerator.GetNextId(), "Begin", function->functionDef);
     node->SerializationType = "begin";
+    node->DefinitionId = "vlox.core.begin";
     node->Description = "Entry point for '" + function->functionDef->name + "'. " +
         function->functionDef->description;
     node->DefinitionFlags |= NodeDefinitionFlags::Protected;
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
         "Starts execution of this graph.");
+    node->Outputs.back().Identity = PortIdentity::Fixed("start");
 
     for (int i = 0; i < function->functionDef->inputs.size(); ++i)
     {
         const BasicFunctionDef::Input& input = function->functionDef->inputs[i];
         node->Outputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
             input.description);
+        node->Outputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
     }
 
     return node;

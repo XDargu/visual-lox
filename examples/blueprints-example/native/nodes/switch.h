@@ -85,16 +85,19 @@ struct SwitchFlowNode : public Node
     void AddInput(IDGenerator& ids) override
     {
         const int caseNumber = static_cast<int>(Inputs.size());
+        const DynamicSlotId slot = DynamicSlotId::New();
         Inputs.emplace_back(
             ids.GetNextId(), ("Condition " + std::to_string(caseNumber)).c_str(),
             PinType::Bool,
             "Another condition to evaluate in order.");
+        Inputs.back().Identity = PortIdentity::Dynamic("case", slot, "condition");
         InputValues.emplace_back(Value(false));
         Outputs.insert(
             Outputs.end() - 1,
             Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
                 PinType::Flow,
                 "Runs when this is the first true condition."));
+        (Outputs.end() - 2)->Identity = PortIdentity::Dynamic("case", slot, "branch");
     }
 
     void RemoveInput(ed::PinId pinId) override
@@ -136,6 +139,9 @@ inline NodePtr BuildSwitchFlowNode(IDGenerator& ids)
     node->Inputs.emplace_back(
         ids.GetNextId(), "Condition 1", PinType::Bool,
         "The first condition to evaluate.");
+    node->Inputs[0].Identity = PortIdentity::Fixed("execute");
+    const DynamicSlotId firstSlot = DynamicSlotId::New();
+    node->Inputs[1].Identity = PortIdentity::Dynamic("case", firstSlot, "condition");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(false));
     node->Outputs.emplace_back(
@@ -144,5 +150,7 @@ inline NodePtr BuildSwitchFlowNode(IDGenerator& ids)
     node->Outputs.emplace_back(
         ids.GetNextId(), "Default", PinType::Flow,
         "Runs when none of the conditions are true.");
+    node->Outputs[0].Identity = PortIdentity::Dynamic("case", firstSlot, "branch");
+    node->Outputs[1].Identity = PortIdentity::Fixed("default");
     return node;
 }

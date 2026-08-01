@@ -70,15 +70,18 @@ struct MatchFlowNode : public Node
     void AddInput(IDGenerator& ids) override
     {
         const int caseNumber = static_cast<int>(Inputs.size()) - 1;
+        const DynamicSlotId slot = DynamicSlotId::New();
         Inputs.emplace_back(
             ids.GetNextId(),
             ("Pattern " + std::to_string(caseNumber)).c_str(), PinType::Any,
             "Another pattern to compare with Value.");
+        Inputs.back().Identity = PortIdentity::Dynamic("case", slot, "pattern");
         InputValues.emplace_back(Value(0.0));
         Outputs.insert(Outputs.end() - 1,
             Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
                 PinType::Flow,
                 "Runs when Value matches this pattern."));
+        (Outputs.end() - 2)->Identity = PortIdentity::Dynamic("case", slot, "branch");
     }
 
     void RemoveInput(ed::PinId pinId) override
@@ -121,6 +124,10 @@ inline NodePtr BuildMatchFlowNode(IDGenerator& ids)
     node->Inputs.emplace_back(
         ids.GetNextId(), "Pattern 1", PinType::Any,
         "The first pattern to compare with Value.");
+    node->Inputs[0].Identity = PortIdentity::Fixed("execute");
+    node->Inputs[1].Identity = PortIdentity::Fixed("value");
+    const DynamicSlotId firstSlot = DynamicSlotId::New();
+    node->Inputs[2].Identity = PortIdentity::Dynamic("case", firstSlot, "pattern");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value(0.0));
@@ -130,5 +137,7 @@ inline NodePtr BuildMatchFlowNode(IDGenerator& ids)
     node->Outputs.emplace_back(
         ids.GetNextId(), "Default", PinType::Flow,
         "Runs when none of the patterns match.");
+    node->Outputs[0].Identity = PortIdentity::Dynamic("case", firstSlot, "branch");
+    node->Outputs[1].Identity = PortIdentity::Fixed("default");
     return node;
 }

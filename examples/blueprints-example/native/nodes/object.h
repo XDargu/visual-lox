@@ -38,34 +38,50 @@ inline void RefreshCallInputs(Node& node, IDGenerator& ids,
                               const std::vector<BasicFunctionDef::Input>& parameters,
                               int fixedInputs)
 {
-    for (size_t i = 0; i < parameters.size(); ++i)
+    std::vector<std::pair<Pin, Value>> saved;
+    for (size_t index = static_cast<size_t>(fixedInputs); index < node.Inputs.size(); ++index)
+        saved.emplace_back(node.Inputs[index], node.InputValues[index]);
+    for (size_t index = 0; index < node.UnresolvedInputs.size(); ++index)
+        saved.emplace_back(node.UnresolvedInputs[index], node.UnresolvedInputValues[index]);
+
+    node.Inputs.erase(node.Inputs.begin() + fixedInputs, node.Inputs.end());
+    node.InputValues.erase(node.InputValues.begin() + fixedInputs, node.InputValues.end());
+    for (const BasicFunctionDef::Input& parameter : parameters)
     {
-        const BasicFunctionDef::Input& parameter = parameters[i];
-        const size_t index = static_cast<size_t>(fixedInputs) + i;
-        if (index < node.Inputs.size())
+        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const auto& item)
         {
-            node.Inputs[index].Name = parameter.name;
-            node.Inputs[index].Type = node.Inputs[index].DeclaredType = parameter.type;
-            node.Inputs[index].Description = parameter.description;
-            node.InputValues[index] = parameter.value;
-        }
-        else
-        {
-            node.Inputs.emplace_back(ids.GetNextId(), parameter.name.c_str(), parameter.type,
-                parameter.description);
-            node.InputValues.emplace_back(parameter.value);
-        }
+            return item.first.Identity.kind == PortIdentityKind::Script
+                ? PortIdentitiesMatch(item.first.Identity, PortIdentity::Script(parameter.id, parameter.persistentId)) : item.first.Name == parameter.name;
+        });
+        Pin input = existing != saved.end() ? existing->first : Pin(ids.GetNextId(), parameter.name.c_str(), parameter.type, parameter.description);
+        Value value = existing != saved.end() ? existing->second : parameter.value;
+        if (existing != saved.end()) saved.erase(existing);
+        input.Name = parameter.name;
+        input.Type = input.DeclaredType = parameter.type;
+        input.Description = parameter.description;
+        input.Identity = PortIdentity::Script(parameter.id, parameter.persistentId);
+        node.Inputs.push_back(std::move(input));
+        node.InputValues.push_back(value);
     }
-    const size_t targetSize = static_cast<size_t>(fixedInputs) + parameters.size();
-    if (node.Inputs.size() > targetSize)
-        node.Inputs.erase(node.Inputs.begin() + targetSize, node.Inputs.end());
-    node.InputValues.resize(node.Inputs.size());
+
+    node.UnresolvedInputs.clear();
+    node.UnresolvedInputValues.clear();
+    for (auto& [pin, value] : saved)
+    {
+        node.UnresolvedInputs.push_back(std::move(pin));
+        node.UnresolvedInputValues.push_back(value);
+    }
 }
 
 inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
                                const std::vector<BasicFunctionDef::Input>& results,
                                int fixedOutputs)
 {
+    std::vector<Pin> saved;
+    for (size_t index = static_cast<size_t>(fixedOutputs); index < node.Outputs.size(); ++index)
+        saved.push_back(node.Outputs[index]);
+    saved.insert(saved.end(), node.UnresolvedOutputs.begin(), node.UnresolvedOutputs.end());
+
     std::vector<Pin> refreshed;
     refreshed.reserve(static_cast<size_t>(fixedOutputs) + results.size());
     for (int i = 0; i < fixedOutputs && i < static_cast<int>(node.Outputs.size()); ++i)
@@ -73,25 +89,29 @@ inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
 
     for (const BasicFunctionDef::Input& result : results)
     {
-        const auto existing = std::find_if(
-            node.Outputs.begin() + std::min(
-                static_cast<size_t>(fixedOutputs), node.Outputs.size()),
-            node.Outputs.end(),
-            [&](const Pin& output) { return output.Name == result.name; });
-        if (existing != node.Outputs.end())
+        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& output)
+            {
+                return output.Identity.kind == PortIdentityKind::Script
+                    ? PortIdentitiesMatch(output.Identity, PortIdentity::Script(result.id, result.persistentId)) : output.Name == result.name;
+            });
+        if (existing != saved.end())
         {
             Pin output = *existing;
+            saved.erase(existing);
             output.Type = output.DeclaredType = result.type;
             output.Description = result.description;
+            output.Name = result.name;
+            output.Identity = PortIdentity::Script(result.id, result.persistentId);
             refreshed.push_back(std::move(output));
         }
         else
         {
-            refreshed.emplace_back(
-                ids.GetNextId(), result.name.c_str(), result.type, result.description);
+            refreshed.emplace_back(ids.GetNextId(), result.name.c_str(), result.type, result.description);
+            refreshed.back().Identity = PortIdentity::Script(result.id, result.persistentId);
         }
     }
     node.Outputs = std::move(refreshed);
+    node.UnresolvedOutputs = std::move(saved);
 }
 
 inline TypeRef FunctionType(const BasicFunctionDef& definition)
@@ -162,25 +182,30 @@ inline NodePtr BuildConstructObjectNode(IDGenerator& ids, const ScriptClassPtr& 
     if (scriptClass) classId = scriptClass->ID;
     NodePtr node = std::make_shared<ConstructObjectNode>(ids.GetNextId(), scriptClass, classId);
     node->SerializationType = "class.construct";
+    node->DefinitionId = "vlox.script.class.construct";
     node->Description = scriptClass
         ? "Constructs an instance of '" + scriptClass->Name + "'."
         : "Constructs an object instance.";
     node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Executes the constructor.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("execute");
     node->InputValues.emplace_back(Value());
     if (scriptClass && scriptClass->constructor)
         for (const auto& input : scriptClass->constructor->functionDef->inputs)
         {
             node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
                 input.description);
+            node->Inputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
             node->InputValues.emplace_back(input.value);
         }
     node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Continues after construction.");
+    node->Outputs.back().Identity = PortIdentity::Fixed("then");
     node->Outputs.emplace_back(ids.GetNextId(), "Instance",
         scriptClass ? TypeRef::Object(scriptClass->ID.id, scriptClass->Name)
                     : TypeRef(PinType::Object),
         "The newly constructed instance.");
+    node->Outputs.back().Identity = PortIdentity::Fixed("instance");
     return node;
 }
 
@@ -209,6 +234,7 @@ inline NodePtr BuildThisNode(IDGenerator& ids,
 {
     NodePtr node = std::make_shared<ThisNode>(ids.GetNextId());
     node->SerializationType = "class.this";
+    node->DefinitionId = "vlox.script.class.this";
     node->Description = "Gets the current class instance.";
     node->Outputs.emplace_back(ids.GetNextId(), "This", std::move(thisType),
         "The current class instance.");
@@ -272,6 +298,7 @@ inline NodePtr BuildGetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     if (property) propertyId = property->ID;
     NodePtr node = std::make_shared<GetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.get";
+    node->DefinitionId = "vlox.script.property.get";
     node->Description = property
         ? "Gets property '" + property->Name + "'. " + property->Description
         : "Gets an object property.";
@@ -343,6 +370,7 @@ inline NodePtr BuildSetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     if (property) propertyId = property->ID;
     NodePtr node = std::make_shared<SetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.set";
+    node->DefinitionId = "vlox.script.property.set";
     node->Description = property
         ? "Sets property '" + property->Name + "'. " + property->Description
         : "Sets an object property.";
@@ -437,6 +465,7 @@ inline NodePtr BuildGetMethodNode(
     NodePtr node =
         std::make_shared<GetMethodNode>(ids.GetNextId(), method, methodId);
     node->SerializationType = "method.get";
+    node->DefinitionId = "vlox.script.method.get";
     node->Description = method
         ? "Gets method '" + method->functionDef->name +
             "' from a specific instance."
@@ -542,6 +571,7 @@ struct MethodCallNode : public Node
                 Inputs.insert(Inputs.begin(),
                     Pin(ids.GetNextId(), "", PinType::Flow,
                         "Executes this method."));
+                Inputs.front().Identity = PortIdentity::Fixed("execute");
                 InputValues.insert(InputValues.begin(), Value());
             }
             if (std::none_of(Outputs.begin(), Outputs.end(),
@@ -550,6 +580,7 @@ struct MethodCallNode : public Node
                 Outputs.insert(Outputs.begin(),
                     Pin(ids.GetNextId(), "", PinType::Flow,
                         "Continues after the method returns."));
+                Outputs.front().Identity = PortIdentity::Fixed("then");
             }
         }
         const int instanceIndex = expressionOnly ? 0 : 1;
@@ -573,6 +604,7 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     if (method) methodId = method->ID;
     NodePtr node = std::make_shared<MethodCallNode>(ids.GetNextId(), method, methodId);
     node->SerializationType = "method.call";
+    node->DefinitionId = "vlox.script.method.call";
     if (method)
     {
         node->Description = method->functionDef->description;
@@ -586,8 +618,11 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     if (!expressionOnly)
         node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
             "Executes this method.");
+    if (!expressionOnly)
+        node->Inputs.back().Identity = PortIdentity::Fixed("execute");
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance on which to call the method.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("instance");
     if (!expressionOnly)
         node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
@@ -595,11 +630,14 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     {
         node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
             input.description);
+        node->Inputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
         node->InputValues.emplace_back(input.value);
     }
     if (!expressionOnly)
         node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
             "Continues after the method returns.");
+    if (!expressionOnly)
+        node->Outputs.back().Identity = PortIdentity::Fixed("then");
     if (method)
     {
         for (const auto& output : method->functionDef->outputs)
@@ -607,6 +645,7 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
             node->Outputs.emplace_back(
                 ids.GetNextId(), output.name.c_str(), output.type,
                 output.description);
+            node->Outputs.back().Identity = PortIdentity::Script(output.id, output.persistentId);
         }
     }
     return node;

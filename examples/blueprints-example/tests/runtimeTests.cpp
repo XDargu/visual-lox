@@ -80,7 +80,7 @@ struct RuntimeFixture
                 "Collection query nodes should be read-only and pure.");
         NodePtr node = definition->functionDef->MakeNode(
             ids, ScriptElementID::Invalid);
-        Require(node && node->DefinitionId == name,
+        Require(node && node->DefinitionId == definition->functionDef->id,
                 "Collection query definitions should construct callable nodes.");
         return definition->nativeFun(static_cast<int>(arguments.size()), arguments.data(), &vm);
     }
@@ -1685,7 +1685,7 @@ void FlowSwitchEvaluatesConditionsInOrder()
     const NodePtr restoredSwitch = restored.main->Graph.FindNodeIf(
         [](const NodePtr& node)
         {
-            return node->DefinitionId == "Flow::Switch";
+            return node->DefinitionId == "vlox.std.compiled.flow.switch";
         });
     Require(restoredSwitch && restoredSwitch->Inputs.size() == 3 &&
                 restoredSwitch->Outputs.size() == 3,

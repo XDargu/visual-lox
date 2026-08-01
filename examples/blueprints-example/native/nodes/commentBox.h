@@ -76,6 +76,7 @@ struct CommentBoxNode : public Node
         Type = NodeType::CommentBox;
         Category = NodeCategory::CommentBox;
         SerializationType = "comment_box";
+        DefinitionId = "vlox.editor.comment_box";
         Description = "A resizable annotation box that groups and documents nodes without affecting execution.";
         Size = ImVec2(300.0f, 200.0f);
     }

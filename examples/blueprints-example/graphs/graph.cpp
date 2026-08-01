@@ -49,6 +49,12 @@ Pin* Graph::FindPin(ed::PinId id)
         for (auto& pin : node->Outputs)
             if (pin.ID == id)
                 return &pin;
+        for (auto& pin : node->UnresolvedInputs)
+            if (pin.ID == id)
+                return &pin;
+        for (auto& pin : node->UnresolvedOutputs)
+            if (pin.ID == id)
+                return &pin;
     }
 
     return nullptr;
@@ -84,6 +90,12 @@ const Pin* Graph::FindPin(ed::PinId id) const
                 return &pin;
 
         for (auto& pin : node->Outputs)
+            if (pin.ID == id)
+                return &pin;
+        for (auto& pin : node->UnresolvedInputs)
+            if (pin.ID == id)
+                return &pin;
+        for (auto& pin : node->UnresolvedOutputs)
             if (pin.ID == id)
                 return &pin;
     }
@@ -186,6 +198,10 @@ bool Graph::DeleteNode(ed::NodeId id)
     for (const Pin& pin : (*nodeIt)->Inputs)
         pins.insert(pin.ID.Get());
     for (const Pin& pin : (*nodeIt)->Outputs)
+        pins.insert(pin.ID.Get());
+    for (const Pin& pin : (*nodeIt)->UnresolvedInputs)
+        pins.insert(pin.ID.Get());
+    for (const Pin& pin : (*nodeIt)->UnresolvedOutputs)
         pins.insert(pin.ID.Get());
     m_Links.erase(std::remove_if(m_Links.begin(), m_Links.end(), [&](const Link& link)
     {
@@ -342,6 +358,18 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
 
 void Graph::RefreshTypes()
 {
+    const auto isActive = [](const Pin* pin)
+    {
+        if (!pin || !pin->Node || pin->Node->IsSerializationPlaceholder) return false;
+        const Node& node = *pin->Node;
+        const auto contains = [&](const std::vector<Pin>& pins)
+        {
+            return std::any_of(pins.begin(), pins.end(), [&](const Pin& candidate) { return candidate.ID == pin->ID; });
+        };
+        return contains(node.Inputs) || contains(node.Outputs);
+    };
+    for (Link& link : m_Links) link.IsResolved = isActive(FindPin(link.StartPinID)) && isActive(FindPin(link.EndPinID));
+
     std::map<const Node*, TypeBindings> bindings;
     for (const NodePtr& node : m_Nodes)
     {
@@ -361,6 +389,7 @@ void Graph::RefreshTypes()
         bool changed = false;
         for (const Link& link : m_Links)
         {
+            if (!link.IsResolved) continue;
             Pin* output = FindPin(link.StartPinID);
             Pin* input = FindPin(link.EndPinID);
             if (!output || !input) continue;
@@ -384,6 +413,13 @@ void Graph::RefreshTypes()
 
     for (const NodePtr& node : m_Nodes)
         node->ResolvedTypeVariables = bindings[node.get()];
+
+    for (Link& link : m_Links)
+    {
+        const Pin* output = FindPin(link.StartPinID);
+        const Pin* input = FindPin(link.EndPinID);
+        link.IsResolved = isActive(output) && isActive(input) && GraphUtils::AreTypesCompatible(output->Type, input->Type);
+    }
 
     // Generic node defaults are placeholders until a connection binds their
     // type. Keep an unconnected default's runtime representation in sync with
@@ -500,6 +536,7 @@ void Graph::RefreshTypes()
 
      for (const Link& link : graph.GetLinks())
      {
+         if (!link.IsResolved) continue;
          if (link.StartPinID == outputPin.ID)
          {
              inputs.push_back(graph.FindPin(link.EndPinID));
@@ -515,6 +552,7 @@ void Graph::RefreshTypes()
 
      for (const Link& link : graph.GetLinks())
      {
+         if (!link.IsResolved) continue;
          if (link.EndPinID == inputPin.ID)
          {
              inputs.push_back(graph.FindPin(link.StartPinID));
@@ -528,6 +566,7 @@ void Graph::RefreshTypes()
  {
      for (const Link& link : graph.GetLinks())
      {
+         if (!link.IsResolved) continue;
          if (link.EndPinID == inputPin.ID)
          {
              return graph.FindPin(link.StartPinID);
@@ -543,6 +582,7 @@ void Graph::RefreshTypes()
 
      for (const Link& link : graph.GetLinks())
      {
+         if (!link.IsResolved) continue;
          if (link.EndPinID == inputPin.ID)
          {
              links.push_back(&link);
@@ -558,6 +598,7 @@ void Graph::RefreshTypes()
 
      for (const Link& link : graph.GetLinks())
      {
+         if (!link.IsResolved) continue;
          if (link.StartPinID == outputPin.ID)
          {
              links.push_back(&link);

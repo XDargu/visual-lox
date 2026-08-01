@@ -10,15 +10,40 @@
 class NodeRegistry;
 struct IDGenerator;
 
+enum class SerializationDiagnosticSeverity
+{
+    Information,
+    Warning,
+    Error,
+};
+
+struct SerializationDiagnostic
+{
+    SerializationDiagnosticSeverity severity = SerializationDiagnosticSeverity::Information;
+    std::string code;
+    std::string path;
+    std::string identity;
+    std::string message;
+};
+
 struct SerializationResult
 {
     bool success = false;
     std::string error;
+    std::vector<SerializationDiagnostic> diagnostics;
 
     explicit operator bool() const { return success; }
 
-    static SerializationResult Ok() { return { true, {} }; }
-    static SerializationResult Fail(std::string message) { return { false, std::move(message) }; }
+    static SerializationResult Ok(std::vector<SerializationDiagnostic> diagnostics = {})
+    {
+        return { true, {}, std::move(diagnostics) };
+    }
+
+    static SerializationResult Fail(std::string message, std::string code = "serialization.error", std::string path = {})
+    {
+        SerializationDiagnostic diagnostic{ SerializationDiagnosticSeverity::Error, std::move(code), std::move(path), {}, message };
+        return { false, std::move(message), { std::move(diagnostic) } };
+    }
 };
 
 // Version 2 adds script-level classes, properties, methods and constructors.

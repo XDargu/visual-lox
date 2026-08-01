@@ -63,41 +63,47 @@ struct ReturnNode : public Node
     virtual void Refresh(const Script& script, IDGenerator& IDGenerator) override
     {
         Description = "Returns from '" + pFunctionDef->name + "'.";
-        // Add missing inputs
-        const int startingInput = 1;
+        std::vector<std::pair<Pin, Value>> saved;
+        for (size_t index = 0; index < Inputs.size(); ++index)
+            if (Inputs[index].Type != PinType::Flow)
+                saved.emplace_back(Inputs[index], InputValues[index]);
+        for (size_t index = 0; index < UnresolvedInputs.size(); ++index)
+            saved.emplace_back(UnresolvedInputs[index], UnresolvedInputValues[index]);
 
-        for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
+        std::vector<Pin> refreshedInputs;
+        std::vector<Value> refreshedValues;
+        const auto flow = std::find_if(Inputs.begin(), Inputs.end(), [](const Pin& input) { return input.Type == PinType::Flow; });
+        Pin flowPin = flow != Inputs.end() ? *flow : Pin(IDGenerator.GetNextId(), "", PinType::Flow, "Returns from this function.");
+        flowPin.Identity = PortIdentity::Fixed("execute");
+        refreshedInputs.push_back(std::move(flowPin));
+        refreshedValues.emplace_back();
+
+        for (const BasicFunctionDef::Input& output : pFunctionDef->outputs)
         {
-            const BasicFunctionDef::Input& output = pFunctionDef->outputs[i];
-
-            if (Pin* existingInput = FindInputByName(output.name))
+            const auto existing = std::find_if(saved.begin(), saved.end(), [&](const auto& item)
             {
-                existingInput->Type = existingInput->DeclaredType = output.type;
-                existingInput->Description = output.description;
-            }
-            else
-            {
-                Inputs.insert(Inputs.begin() + startingInput + i,
-                    { IDGenerator.GetNextId(), output.name.c_str(), output.type,
-                      output.description });
-            }
+                return item.first.Identity.kind == PortIdentityKind::Script
+                    ? PortIdentitiesMatch(item.first.Identity, PortIdentity::Script(output.id, output.persistentId)) : item.first.Name == output.name;
+            });
+            Pin input = existing != saved.end() ? existing->first : Pin(IDGenerator.GetNextId(), output.name.c_str(), output.type, output.description);
+            Value value = existing != saved.end() ? existing->second : output.value;
+            if (existing != saved.end()) saved.erase(existing);
+            input.Name = output.name;
+            input.Type = input.DeclaredType = output.type;
+            input.Description = output.description;
+            input.Identity = PortIdentity::Script(output.id, output.persistentId);
+            refreshedInputs.push_back(std::move(input));
+            refreshedValues.push_back(value);
         }
-
-        // Redo input values
-        InputValues.resize(pFunctionDef->outputs.size() + startingInput);
-
-        InputValues[0] = Value(); // Flow node
-
-        for (int i = 0; i < pFunctionDef->outputs.size(); ++i)
+        Inputs = std::move(refreshedInputs);
+        InputValues = std::move(refreshedValues);
+        UnresolvedInputs.clear();
+        UnresolvedInputValues.clear();
+        for (auto& [pin, value] : saved)
         {
-            InputValues[i + startingInput] = pFunctionDef->outputs[i].value;
+            UnresolvedInputs.push_back(std::move(pin));
+            UnresolvedInputValues.push_back(value);
         }
-
-        // Remove outputs that are no longer there
-        stl::erase_if(Inputs, [&](const Pin& input)
-        {
-            return input.Type != PinType::Flow && pFunctionDef->FindOutputByName(input.Name) == nullptr;
-        });
     }
 
     BasicFunctionDefPtr pFunctionDef;
@@ -107,9 +113,11 @@ static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& f
 {
     NodePtr node = std::make_shared<ReturnNode>(IDGenerator.GetNextId(), "Return", function.functionDef);
     node->SerializationType = "return";
+    node->DefinitionId = "vlox.core.return";
     node->Description = "Returns from '" + function.functionDef->name + "'.";
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
         "Returns when execution reaches this pin.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("execute");
     node->InputValues.emplace_back(Value());
 
     for (int i = 0; i < function.functionDef->outputs.size(); ++i)
@@ -117,6 +125,7 @@ static NodePtr BuildReturnNode(IDGenerator& IDGenerator, const ScriptFunction& f
         const BasicFunctionDef::Input& output = function.functionDef->outputs[i];
         node->Inputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), output.type,
             output.description);
+        node->Inputs.back().Identity = PortIdentity::Script(output.id, output.persistentId);
         node->InputValues.emplace_back(output.value);
     }
 

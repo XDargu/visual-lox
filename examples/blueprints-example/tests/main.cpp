@@ -3,6 +3,7 @@
 #include "graphLayoutTests.h"
 #include "nodeEditorTests.h"
 #include "runtimeTests.h"
+#include "serializationIdentityTests.h"
 #include "scriptSearchTests.h"
 #include "testFramework.h"
 
@@ -17,6 +18,7 @@ int main(int argc, char** argv)
     AddGraphLayoutTests(runner);
     AddNodeEditorTests(runner);
     AddScriptSearchTests(runner);
+    AddSerializationIdentityTests(runner);
     AddScriptSerializerTests(runner, outputPath);
     return runner.Finish();
 }

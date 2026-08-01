@@ -11,6 +11,7 @@
 struct Script
 {
     ScriptElementID ID;
+    ModuleId ModuleIdentity{ Uuid::NewV4() };
     
     std::vector<ScriptClassPtr> classes;
     std::vector<ScriptPropertyPtr> variables;

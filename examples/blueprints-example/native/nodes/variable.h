@@ -74,6 +74,7 @@ static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptProper
 
     NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID, functionID);
     node->SerializationType = "variable.get";
+    node->DefinitionId = "vlox.script.variable.get";
     if (pProperty)
     {
         node->Description = "Gets variable '" + pProperty->Name + "'. " +
@@ -174,6 +175,7 @@ static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptProper
 
     NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, varID, functionID);
     node->SerializationType = "variable.set";
+    node->DefinitionId = "vlox.script.variable.set";
     if (pProperty)
     {
         node->Description = "Sets variable '" + pProperty->Name + "'. " +

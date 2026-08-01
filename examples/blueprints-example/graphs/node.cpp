@@ -41,6 +41,18 @@ void NodeUtils::BuildNode(const NodePtr& node)
         output.Node = node;
         output.Kind = PinKind::Output;
     }
+
+    for (Pin& input : node->UnresolvedInputs)
+    {
+        input.Node = node;
+        input.Kind = PinKind::Input;
+    }
+
+    for (Pin& output : node->UnresolvedOutputs)
+    {
+        output.Node = node;
+        output.Kind = PinKind::Output;
+    }
 }
 
 void NodeUtils::NormalizeDocumentation(const NodePtr& node)
@@ -55,5 +67,9 @@ void NodeUtils::NormalizeDocumentation(const NodePtr& node)
     for (Pin& input : node->Inputs)
         removeTerminalPeriod(input.Description);
     for (Pin& output : node->Outputs)
+        removeTerminalPeriod(output.Description);
+    for (Pin& input : node->UnresolvedInputs)
+        removeTerminalPeriod(input.Description);
+    for (Pin& output : node->UnresolvedOutputs)
         removeTerminalPeriod(output.Description);
 }

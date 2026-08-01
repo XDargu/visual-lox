@@ -2,6 +2,7 @@
 
 #include "../script/scriptElement.h"
 #include "typeSystem.h"
+#include "uuid.h"
 
 #include "../utilities/drawing.h"
 
@@ -120,10 +121,11 @@ struct GenericTypeProperty
 {
     std::string variableName;
     std::string label = "Type";
+    std::string key;
 
     bool operator==(const GenericTypeProperty& other) const
     {
-        return variableName == other.variableName && label == other.label;
+        return key == other.key && variableName == other.variableName && label == other.label;
     }
 };
 
@@ -134,7 +136,76 @@ struct DynamicInputProps
     TypeRef type = PinType::Any;
     Value defaultValue;
     std::string description;
+    std::string familyKey = "item";
+    std::string memberKey = "value";
+    std::string orderingMemberKey = "value";
 };
+
+enum class PortIdentityKind
+{
+    None,
+    Fixed,
+    Script,
+    Dynamic,
+};
+
+struct PortIdentity
+{
+    PortIdentityKind kind = PortIdentityKind::None;
+    std::string key;
+    int legacyScriptPortId = -1;
+    ScriptPortId scriptPortId;
+    DynamicSlotId dynamicSlot;
+    std::string family;
+    std::string member;
+
+    static PortIdentity Fixed(std::string key)
+    {
+        PortIdentity result;
+        result.kind = PortIdentityKind::Fixed;
+        result.key = std::move(key);
+        return result;
+    }
+
+    static PortIdentity Script(int legacyPortId, ScriptPortId persistentPortId = {})
+    {
+        PortIdentity result;
+        result.kind = PortIdentityKind::Script;
+        result.legacyScriptPortId = legacyPortId;
+        result.scriptPortId = persistentPortId;
+        return result;
+    }
+
+    static PortIdentity Dynamic(std::string familyKey, DynamicSlotId slotId, std::string memberKey)
+    {
+        PortIdentity result;
+        result.kind = PortIdentityKind::Dynamic;
+        result.family = std::move(familyKey);
+        result.dynamicSlot = slotId;
+        result.member = std::move(memberKey);
+        return result;
+    }
+
+    bool operator==(const PortIdentity& other) const
+    {
+        return kind == other.kind && key == other.key && legacyScriptPortId == other.legacyScriptPortId && scriptPortId == other.scriptPortId && dynamicSlot == other.dynamicSlot &&
+            family == other.family && member == other.member;
+    }
+};
+
+inline bool PortIdentitiesMatch(const PortIdentity& left, const PortIdentity& right)
+{
+    if (left.kind != right.kind) return false;
+    if (left.kind == PortIdentityKind::Script)
+    {
+        if (left.scriptPortId.IsValid() && right.scriptPortId.IsValid()) return left.scriptPortId == right.scriptPortId;
+        return left.legacyScriptPortId == right.legacyScriptPortId;
+    }
+    if (left.kind == PortIdentityKind::Fixed) return left.key == right.key;
+    if (left.kind == PortIdentityKind::Dynamic)
+        return left.family == right.family && left.dynamicSlot == right.dynamicSlot && left.member == right.member;
+    return true;
+}
 
 struct Pin
 {
@@ -147,6 +218,8 @@ struct Pin
     // pins this is identical to Type.
     TypeRef     DeclaredType;
     PinKind     Kind;
+    PortIdentity Identity;
+    std::map<std::string, std::string> SerializedExtensions;
 
     Pin(int id, const char* name, TypeRef type, std::string description = {}) :
         ID(id), Node(nullptr), Name(name), Description(std::move(description)),
@@ -194,10 +267,14 @@ struct IDGenerator;
 struct Node
 {
     ed::NodeId       ID;
+    GraphNodeId      PersistentId{ Uuid::NewV4() };
     std::string      Name;
     std::string      Description;
     std::vector<Pin> Inputs;
     std::vector<Pin> Outputs;
+    std::vector<Pin> UnresolvedInputs;
+    std::vector<Value> UnresolvedInputValues;
+    std::vector<Pin> UnresolvedOutputs;
     ImColor          Color;
     NodeType         Type = NodeType::Blueprint;
     NodeCategory     Category = NodeCategory::Begin;
@@ -206,6 +283,7 @@ struct Node
     bool             ShowOutputPinNames = true;
     NodeDefinitionFlags DefinitionFlags = NodeDefinitionFlags::None;
     NodeInstanceFlags   InstanceFlags = NodeInstanceFlags::None;
+    bool IsSerializationPlaceholder = false;
 
     std::vector<Value> InputValues;
 
@@ -218,6 +296,7 @@ struct Node
     // identifiers: compiled nodes such as Math::Add are displayed as "+".
     std::string SerializationType;
     std::string DefinitionId;
+    uint32_t DefinitionRevision = 1;
 
     // Explicit bindings for generic type variables on this node instance.
     // Missing entries remain inferred from connected pins.
@@ -226,9 +305,12 @@ struct Node
     // Inspector. ResolvedTypeVariables is transient graph-inference state.
     std::vector<GenericTypeProperty> GenericTypeProperties;
     std::map<std::string, TypeRef> ResolvedTypeVariables;
+    std::map<std::string, std::string> SerializedExtensions;
 
     // Reference to: functionId, variableId
     ScriptElementID refId;
+    ModuleId refModuleId;
+    ScriptElementUuid refPersistentId;
 
     Node(int id, const char* name, ImColor color = ImColor(255, 255, 255),
          std::string description = {}) :

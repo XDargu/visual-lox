@@ -411,6 +411,7 @@ void NodeFragmentsPreserveLinksAndUseFreshIds()
 
     const size_t nodesBeforePaste = fixture.script.main->Graph.GetNodes().size();
     const size_t linksBeforePaste = fixture.script.main->Graph.GetLinks().size();
+    const PersistentLinkId copiedLinkId = fixture.script.main->Graph.GetLinks().back().PersistentId;
     RequireSuccess(fixture.operations->CopyNodes(fixture.script.main->ID.id,
                     { static_cast<int>(first->ID.Get()), static_cast<int>(second->ID.Get()) }),
             "Copying nodes failed.");
@@ -422,6 +423,12 @@ void NodeFragmentsPreserveLinksAndUseFreshIds()
             "Pasted nodes were not added to the destination graph.");
     Require(fixture.script.main->Graph.GetLinks().size() == linksBeforePaste + 1,
             "The internal link between pasted nodes was not recreated.");
+    const NodePtr pastedFirst = fixture.script.main->Graph.FindNode(ed::NodeId(pastedNodes[0]));
+    const NodePtr pastedSecond = fixture.script.main->Graph.FindNode(ed::NodeId(pastedNodes[1]));
+    Require(pastedFirst && pastedSecond && pastedFirst->PersistentId != first->PersistentId && pastedSecond->PersistentId != second->PersistentId,
+            "Pasted nodes reused durable node UUIDs.");
+    Require(fixture.script.main->Graph.GetLinks().back().PersistentId != copiedLinkId,
+            "The pasted link reused its durable link UUID.");
 
     std::set<int> uniqueNodeIds;
     for (const NodePtr& node : fixture.script.main->Graph.GetNodes())
@@ -525,6 +532,8 @@ void PastedFunctionsRemapInternalReferences()
     Require(pastedFunction && pastedFunction->Graph.GetNodes().size() == 2,
             "Pasted function did not retain its graph nodes.");
     Require(pastedFunctionId != worker->ID.id, "Pasted function reused its source ID.");
+    Require(pastedFunction->PersistentId != worker->PersistentId,
+            "Pasted function reused its source UUID.");
     NodePtr pastedRecursiveCall = pastedFunction->Graph.FindNodeIf([](const NodePtr& node)
     {
         return node->SerializationType == "function.call";
@@ -543,8 +552,9 @@ void PastedVariablesUseFreshIds()
     int pastedVariableId = 0;
     RequireSuccess(fixture.operations->PasteScriptElement(fixture.script.main->ID.id, pastedVariableId),
             "Pasting a variable failed.");
-    Require(pastedVariableId != variableId &&
-            ScriptUtils::FindVariableById(fixture.script, pastedVariableId),
+    const ScriptPropertyPtr original = ScriptUtils::FindVariableById(fixture.script, variableId);
+    const ScriptPropertyPtr pasted = ScriptUtils::FindVariableById(fixture.script, pastedVariableId);
+    Require(pastedVariableId != variableId && pasted && original && pasted->PersistentId != original->PersistentId,
             "Pasted variable did not receive a fresh ID.");
 }
 

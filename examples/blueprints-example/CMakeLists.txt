@@ -2,6 +2,8 @@ set(_VisualLoxCoreSources
     utilities/utils.h
     utilities/utils.cpp
     graphs/idgeneration.h
+    graphs/uuid.h
+    graphs/uuid.cpp
     graphs/typeSystem.h
     graphs/typeSystem.cpp
     graphs/node.h
@@ -288,6 +290,8 @@ if (BUILD_TESTING)
         tests/nodeEditorTests.cpp
         tests/scriptSearchTests.h
         tests/scriptSearchTests.cpp
+        tests/serializationIdentityTests.h
+        tests/serializationIdentityTests.cpp
         script/scriptSerializerTest.h
         script/scriptSerializerTest.cpp
     )

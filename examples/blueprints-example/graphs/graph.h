@@ -61,6 +61,8 @@ inline const char* LinkQueryResultToString(ELinkQueryResult result)
 
 struct Graph
 {
+    std::map<std::string, std::string> SerializedExtensions;
+
     NodePtr FindNode(ed::NodeId id);
     Link* FindLink(ed::LinkId id);
     Pin* FindPin(ed::PinId id);

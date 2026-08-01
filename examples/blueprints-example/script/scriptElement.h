@@ -1,5 +1,7 @@
 # pragma once
 
+#include "../graphs/uuid.h"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -28,5 +30,6 @@ struct IScriptElement
     virtual ~IScriptElement() {};
 
     ScriptElementID ID;
+    ScriptElementUuid PersistentId{ Uuid::NewV4() };
     ScriptElementType Type;
 };

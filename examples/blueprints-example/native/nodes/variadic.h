@@ -23,6 +23,7 @@ struct VariadicInputNode : public Node
 
         const int inputNumber = DataInputCount();
         Inputs.emplace_back(ids.GetNextId(), DynamicInputName(inputNumber).c_str(), dynamicInputProps.type, dynamicInputProps.description);
+        Inputs.back().Identity = PortIdentity::Dynamic(dynamicInputProps.familyKey, DynamicSlotId::New(), dynamicInputProps.memberKey);
         InputValues.emplace_back(dynamicInputProps.defaultValue);
     }
 

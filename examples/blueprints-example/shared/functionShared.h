@@ -12,16 +12,19 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 {
     struct Input
     {
+        std::string key;
         std::string name;
         Value value;
         int id = -1;
         TypeRef type;
         std::string description;
+        ScriptPortId persistentId{ Uuid::NewV4() };
 
         Input() = default;
         Input(std::string portName, Value defaultValue, int portId = -1,
@@ -50,6 +53,9 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 
     DynamicInputProps dynamicInputProps;
 
+    std::string id;
+    uint32_t revision = 1;
+    ScriptElementUuid scriptId;
     std::string name;
     std::string description;
 

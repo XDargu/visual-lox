@@ -136,7 +136,7 @@ private:
     Table globals;
     Compiler compiler;
     bool nativesDefined = false;
-    bool canCollectGarbage = false;
+    bool canCollectGarbage = true;
 
     ExternalMarkingFunc externalMarkingFunc;
     std::vector<Obj*> grayNodes;

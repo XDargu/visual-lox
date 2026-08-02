@@ -241,6 +241,7 @@ void PressReleaseKeys(const std::vector<WORD>& keys)
 void NodeRegistry::RegisterDefinitions()
 {
     nativeDefinitions.clear();
+    nativeClassDefinitions.clear();
 
     RegisterNativeFunc("Math::Square",
         { { "Value", Value(0.0) } },
@@ -1814,8 +1815,19 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeDefinitions.push_back({ nativeFunc, fun });
 }
 
+void NodeRegistry::RegisterNativeClass(const char* name, std::vector<NativeMethodDef> methods)
+{
+    if (!name || !*name)
+        throw std::invalid_argument("Native class names cannot be empty");
+    if (std::any_of(nativeClassDefinitions.begin(), nativeClassDefinitions.end(), [name](const NativeClassDefinition& definition) { return definition.name == name; }))
+        throw std::invalid_argument("Duplicate native class name '" + std::string(name) + "'");
+    nativeClassDefinitions.push_back({ name, std::move(methods) });
+}
+
 void NodeRegistry::RegisterNatives(VM& vm)
 {
+    for (const NativeClassDefinition& definition : nativeClassDefinitions)
+        vm.defineNativeClass(definition.name.c_str(), std::vector<NativeMethodDef>(definition.methods));
     for (NativeFunctionDef& def : nativeDefinitions)
     {
         vm.defineNative(def.functionDef->name.c_str(), def.functionDef->inputs.size(), def.nativeFun);

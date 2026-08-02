@@ -235,7 +235,10 @@ bool ConvertTextForEncoding(const std::string& text, std::string encoding, bool 
     return false;
 }
 
-bool JsonFromValue(const Value& source, crude_json::value& destination, std::unordered_set<const Obj*>& active, std::string& error)
+constexpr const char* JsonValueClassName = "JsonValue";
+constexpr const char* JsonValuePayloadField = "__json_value";
+
+bool JsonFromNativeValue(const Value& source, crude_json::value& destination, std::unordered_set<const Obj*>& active, std::string& error)
 {
     if (isNil(source)) { destination = nullptr; return true; }
     if (isBoolean(source)) { destination = asBoolean(source); return true; }
@@ -264,7 +267,7 @@ bool JsonFromValue(const Value& source, crude_json::value& destination, std::uno
         for (const Value& item : asList(source)->items)
         {
             crude_json::value converted;
-            if (!JsonFromValue(item, converted, active, error)) { active.erase(object); return false; }
+            if (!JsonFromNativeValue(item, converted, active, error)) { active.erase(object); return false; }
             values.push_back(std::move(converted));
         }
         destination = std::move(values);
@@ -278,7 +281,7 @@ bool JsonFromValue(const Value& source, crude_json::value& destination, std::uno
                 continue;
             if (!isString(entry.key)) { error = "JSON object keys must be strings."; active.erase(object); return false; }
             crude_json::value converted;
-            if (!JsonFromValue(entry.value, converted, active, error)) { active.erase(object); return false; }
+            if (!JsonFromNativeValue(entry.value, converted, active, error)) { active.erase(object); return false; }
             values[asString(entry.key)->chars] = std::move(converted);
         }
         destination = std::move(values);
@@ -287,7 +290,7 @@ bool JsonFromValue(const Value& source, crude_json::value& destination, std::uno
     return true;
 }
 
-Value ValueFromJson(const crude_json::value& source, VM* vm)
+Value NativeValueFromJson(const crude_json::value& source, VM* vm)
 {
     using crude_json::type_t;
     switch (source.type())
@@ -300,7 +303,7 @@ Value ValueFromJson(const crude_json::value& source, VM* vm)
     {
         ObjList* list = BeginList(vm);
         for (const crude_json::value& item : source.get<crude_json::array>())
-            list->append(ValueFromJson(item, vm));
+            list->append(NativeValueFromJson(item, vm));
         return EndList(vm, list);
     }
     case type_t::object:
@@ -309,7 +312,7 @@ Value ValueFromJson(const crude_json::value& source, VM* vm)
         vm->push(Value(map));
         for (const auto& entry : source.get<crude_json::object>())
         {
-            Value value = ValueFromJson(entry.second, vm);
+            Value value = NativeValueFromJson(entry.second, vm);
             vm->push(value);
             Value key = StringValue(entry.first);
             map->set(key, value);
@@ -320,6 +323,106 @@ Value ValueFromJson(const crude_json::value& source, VM* vm)
     }
     default: return Value();
     }
+}
+
+bool GetJsonValuePayload(const Value& source, VM* vm, Value& payload)
+{
+    Value classValue;
+    if (!isInstance(source) || !vm->globalTable().get(copyString(JsonValueClassName, static_cast<int>(std::strlen(JsonValueClassName))), &classValue) ||
+        !isClass(classValue) || asInstance(source)->klass != asClass(classValue))
+        return false;
+    return asInstance(source)->fields.get(copyString(JsonValuePayloadField, static_cast<int>(std::strlen(JsonValuePayloadField))), &payload);
+}
+
+Value WrapJsonValue(const Value& payload, VM* vm)
+{
+    vm->push(payload);
+    Value classValue;
+    if (!vm->globalTable().get(copyString(JsonValueClassName, static_cast<int>(std::strlen(JsonValueClassName))), &classValue) || !isClass(classValue))
+    {
+        vm->pop();
+        return Value();
+    }
+
+    ObjInstance* instance = newInstance(asClass(classValue));
+    vm->push(Value(instance));
+    instance->fields.set(copyString(JsonValuePayloadField, static_cast<int>(std::strlen(JsonValuePayloadField))), payload);
+    vm->pop();
+    vm->pop();
+    return Value(instance);
+}
+
+Value JsonValueFromJson(const crude_json::value& source, VM* vm)
+{
+    return WrapJsonValue(NativeValueFromJson(source, vm), vm);
+}
+
+const char* JsonKindName(const Value& payload)
+{
+    if (isNil(payload)) return "Null";
+    if (isBoolean(payload)) return "Boolean";
+    if (isNumber(payload)) return "Number";
+    if (isString(payload)) return "String";
+    if (isList(payload)) return "Array";
+    if (isMap(payload)) return "Object";
+    return "Invalid";
+}
+
+bool JsonFromWrappedValue(const Value& source, VM* vm, crude_json::value& destination, std::string& error)
+{
+    Value payload;
+    if (!GetJsonValuePayload(source, vm, payload))
+    {
+        error = "Value must be a JsonValue.";
+        return false;
+    }
+    std::unordered_set<const Obj*> active;
+    return JsonFromNativeValue(payload, destination, active, error);
+}
+
+Value JsonValueResult(VM* vm, const Value& value, bool success, std::string error = {})
+{
+    vm->push(value);
+    ObjList* result = BeginList(vm);
+    result->append(value);
+    result->append(Value(success));
+    result->append(StringValue(std::move(error)));
+    Value packaged = EndList(vm, result);
+    vm->pop();
+    return packaged;
+}
+
+Value JsonValueInit(int, Value* args, VM*)
+{
+    ObjInstance* instance = asInstance(args[0]);
+    instance->fields.set(copyString(JsonValuePayloadField, static_cast<int>(std::strlen(JsonValuePayloadField))), Value());
+    return args[0];
+}
+
+Value JsonValueKindMethod(int, Value* args, VM* vm)
+{
+    Value payload;
+    return StringValue(GetJsonValuePayload(args[0], vm, payload) ? JsonKindName(payload) : "Invalid");
+}
+
+Value JsonValueIsNullMethod(int, Value* args, VM* vm)
+{
+    Value payload;
+    return Value(GetJsonValuePayload(args[0], vm, payload) && isNil(payload));
+}
+
+Value JsonValueToStringMethod(int, Value* args, VM* vm)
+{
+    crude_json::value json;
+    std::string error;
+    return JsonFromWrappedValue(args[0], vm, json, error) ? StringValue(json.dump()) : StringValue("<invalid JsonValue>");
+}
+
+Value JsonValueToNativeMethod(int, Value* args, VM* vm)
+{
+    crude_json::value json;
+    std::string error;
+    return JsonFromWrappedValue(args[0], vm, json, error) ? NativeValueFromJson(json, vm) : Value();
 }
 
 Value JsonParse(int, Value* args, VM* vm)
@@ -337,7 +440,7 @@ Value JsonParse(int, Value* args, VM* vm)
             error = "Invalid JSON.";
         else
         {
-            value = ValueFromJson(parsed, vm);
+            value = JsonValueFromJson(parsed, vm);
             success = true;
         }
     }
@@ -353,8 +456,7 @@ Value JsonStringifyImpl(Value* args, VM* vm, bool pretty)
     std::string text;
     std::string error;
     crude_json::value json;
-    std::unordered_set<const Obj*> active;
-    const bool success = JsonFromValue(args[0], json, active, error);
+    const bool success = JsonFromWrappedValue(args[0], vm, json, error);
     if (success)
     {
         const int indent = pretty ? std::clamp(ClampedInt(args[1], 2), 0, 16) : -1;
@@ -369,19 +471,108 @@ Value JsonStringifyImpl(Value* args, VM* vm, bool pretty)
 Value JsonStringify(int, Value* args, VM* vm) { return JsonStringifyImpl(args, vm, false); }
 Value JsonPrettyPrint(int, Value* args, VM* vm) { return JsonStringifyImpl(args, vm, true); }
 
+Value JsonKind(int, Value* args, VM* vm) { return JsonValueKindMethod(0, args, vm); }
+Value JsonIsNull(int, Value* args, VM* vm) { return JsonValueIsNullMethod(0, args, vm); }
+
+Value JsonFromNative(int, Value* args, VM* vm)
+{
+    crude_json::value json;
+    std::unordered_set<const Obj*> active;
+    std::string error;
+    if (!JsonFromNativeValue(args[0], json, active, error))
+        return JsonValueResult(vm, Value(), false, std::move(error));
+    return JsonValueResult(vm, JsonValueFromJson(json, vm), true);
+}
+
+Value JsonToNative(int, Value* args, VM* vm)
+{
+    crude_json::value json;
+    std::string error;
+    if (!JsonFromWrappedValue(args[0], vm, json, error))
+        return JsonValueResult(vm, Value(), false, std::move(error));
+    return JsonValueResult(vm, NativeValueFromJson(json, vm), true);
+}
+
+Value JsonAsString(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, StringValue(""), false, "Value must be a JsonValue.");
+    if (!isString(payload)) return JsonValueResult(vm, StringValue(""), false, std::string("JSON value is ") + JsonKindName(payload) + ", not String.");
+    return JsonValueResult(vm, payload, true);
+}
+
+Value JsonAsNumber(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, Value(0.0), false, "Value must be a JsonValue.");
+    if (!isNumber(payload)) return JsonValueResult(vm, Value(0.0), false, std::string("JSON value is ") + JsonKindName(payload) + ", not Number.");
+    return JsonValueResult(vm, payload, true);
+}
+
+Value JsonAsBoolean(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, Value(false), false, "Value must be a JsonValue.");
+    if (!isBoolean(payload)) return JsonValueResult(vm, Value(false), false, std::string("JSON value is ") + JsonKindName(payload) + ", not Boolean.");
+    return JsonValueResult(vm, payload, true);
+}
+
+Value JsonAsArray(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, Value(newList()), false, "Value must be a JsonValue.");
+    if (!isList(payload)) return JsonValueResult(vm, Value(newList()), false, std::string("JSON value is ") + JsonKindName(payload) + ", not Array.");
+    ObjList* values = BeginList(vm);
+    for (const Value& item : asList(payload)->items)
+        values->append(WrapJsonValue(item, vm));
+    Value result = EndList(vm, values);
+    return JsonValueResult(vm, result, true);
+}
+
+Value JsonAsObject(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, Value(newMap()), false, "Value must be a JsonValue.");
+    if (!isMap(payload)) return JsonValueResult(vm, Value(newMap()), false, std::string("JSON value is ") + JsonKindName(payload) + ", not Object.");
+    ObjMap* values = newMap();
+    vm->push(Value(values));
+    for (const MapEntry& entry : asMap(payload)->entries)
+    {
+        if (!entry.active) continue;
+        Value wrapped = WrapJsonValue(entry.value, vm);
+        vm->push(wrapped);
+        values->set(entry.key, wrapped);
+        vm->pop();
+    }
+    vm->pop();
+    return JsonValueResult(vm, Value(values), true);
+}
+
+Value JsonGet(int, Value* args, VM* vm)
+{
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload)) return JsonValueResult(vm, Value(), false, "Value must be a JsonValue.");
+    if (!isString(args[1])) return JsonValueResult(vm, Value(), false, "Key must be a string.");
+    if (!isMap(payload)) return JsonValueResult(vm, Value(), false, std::string("JSON value is ") + JsonKindName(payload) + ", not Object.");
+    Value value;
+    if (!asMap(payload)->get(args[1], &value)) return JsonValueResult(vm, Value(), false);
+    return JsonValueResult(vm, WrapJsonValue(value, vm), true);
+}
+
 Value JsonObjectToEntries(int, Value* args, VM* vm)
 {
-    if (!isMap(args[0]))
+    Value payload;
+    if (!GetJsonValuePayload(args[0], vm, payload) || !isMap(payload))
         return Value();
     ObjList* result = BeginList(vm);
-    for (const MapEntry& entry : asMap(args[0])->entries)
+    for (const MapEntry& entry : asMap(payload)->entries)
     {
         if (!entry.active)
             continue;
         ObjList* pair = newList();
         pair->append(entry.key);
-        pair->append(entry.value);
         result->append(Value(pair));
+        pair->append(WrapJsonValue(entry.value, vm));
     }
     return EndList(vm, result);
 }
@@ -389,8 +580,8 @@ Value JsonObjectToEntries(int, Value* args, VM* vm)
 Value JsonEntriesToObject(int, Value* args, VM* vm)
 {
     ObjList* result = BeginList(vm);
-    ObjMap* map = newMap();
-    result->append(Value(map));
+    crude_json::object object;
+    result->append(Value());
     bool success = isList(args[0]);
     std::string error = success ? "" : "Entries must be a list.";
     if (success)
@@ -403,9 +594,19 @@ Value JsonEntriesToObject(int, Value* args, VM* vm)
                 error = "Every entry must be a two-item list with a string key.";
                 break;
             }
-            map->set(asList(entry)->items[0], asList(entry)->items[1]);
+            crude_json::value value;
+            std::string conversionError;
+            if (!JsonFromWrappedValue(asList(entry)->items[1], vm, value, conversionError))
+            {
+                success = false;
+                error = "Every entry value must be a JsonValue.";
+                break;
+            }
+            object[asString(asList(entry)->items[0])->chars] = std::move(value);
         }
     }
+    if (success)
+        result->items[0] = JsonValueFromJson(crude_json::value(std::move(object)), vm);
     result->append(Value(success));
     result->append(StringValue(std::move(error)));
     return EndList(vm, result);
@@ -437,7 +638,7 @@ Value JsonReadFile(int, Value* args, VM* vm)
                     error = "File does not contain valid JSON.";
                 else
                 {
-                    value = ValueFromJson(parsed, vm);
+                    value = JsonValueFromJson(parsed, vm);
                     success = true;
                 }
             }
@@ -457,9 +658,8 @@ Value JsonWriteFile(int, Value* args, VM* vm)
     if (!asBoolean(args[4]) && std::filesystem::exists(path))
         return StatusResult(vm, false, "The destination exists and Overwrite is false.");
     crude_json::value json;
-    std::unordered_set<const Obj*> active;
     std::string error;
-    if (!JsonFromValue(args[1], json, active, error))
+    if (!JsonFromWrappedValue(args[1], vm, json, error))
         return StatusResult(vm, false, std::move(error));
     const int indent = asBoolean(args[2]) ? std::clamp(ClampedInt(args[3], 2), 0, 16) : -1;
     const std::string text = json.dump(indent);
@@ -2353,22 +2553,60 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
     const TypeRef stringList = TypeRef::List(PinType::String);
     const TypeRef byteList = TypeRef::List(PinType::Int);
     const TypeRef timerCallback = TypeRef::Function({}, {});
+    const TypeRef jsonValue = TypeRef::Object(JsonValueClassName);
+    const TypeRef jsonArray = TypeRef::List(jsonValue);
+    const TypeRef jsonObject = TypeRef::Map(PinType::String, jsonValue);
+
+    registry.RegisterNativeClass(JsonValueClassName,
+    {
+        { "init", 0, &JsonValueInit },
+        { "kind", 0, &JsonValueKindMethod },
+        { "isNull", 0, &JsonValueIsNullMethod },
+        { "toNative", 0, &JsonValueToNativeMethod },
+        { "toString", 0, &JsonValueToStringMethod }
+    });
 
     RegisterNode(registry, "JSON::Parse", { { "Text", emptyString } },
-        { { "Value", Value() }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonParse, pure, "Parses JSON text into native lists, maps, and primitive values");
-    RegisterNode(registry, "JSON::Stringify", { { "Value", Value() } },
-        { { "Text", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonStringify, pure, "Serializes a native value as compact JSON text");
-    RegisterNode(registry, "JSON::Pretty Print", { { "Value", Value() }, { "Indent", Value(2.0) } },
-        { { "Text", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonPrettyPrint, pure, "Serializes a native value as indented JSON text");
-    RegisterNode(registry, "JSON::Object To Entries", { { "Object", Value(newMap()) } }, { { "Entries", Value(newList()) } },
-        &JsonObjectToEntries, pure, "Maps a JSON-style object to key and value pairs");
+        { { "Value", Value(), -1, jsonValue }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonParse, pure, "Parses text into a typed JsonValue");
+    RegisterNode(registry, "JSON::Stringify", { { "Value", Value(), -1, jsonValue } },
+        { { "Text", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonStringify, pure, "Serializes a JsonValue as compact JSON text");
+    RegisterNode(registry, "JSON::Pretty Print", { { "Value", Value(), -1, jsonValue }, { "Indent", Value(2.0) } },
+        { { "Text", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonPrettyPrint, pure, "Serializes a JsonValue as indented JSON text");
+    RegisterNode(registry, "JSON::Kind", { { "Value", Value(), -1, jsonValue } }, { { "Kind", emptyString } }, &JsonKind, pure,
+        "Returns Object, Array, String, Number, Boolean, Null, or Invalid");
+    RegisterNode(registry, "JSON::Is Null", { { "Value", Value(), -1, jsonValue } }, { { "Is Null", Value(false) } }, &JsonIsNull, pure,
+        "Checks whether a JsonValue contains JSON null");
+    RegisterNode(registry, "JSON::From Native", { { "Value", Value() } },
+        { { "JSON", Value(), -1, jsonValue }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonFromNative, pure,
+        "Copies nil, a boolean, number, string, list, or string-keyed map into a JsonValue");
+    RegisterNode(registry, "JSON::To Native", { { "JSON", Value(), -1, jsonValue } },
+        { { "Value", Value() }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonToNative, pure,
+        "Copies a JsonValue into ordinary Vlox values");
+    RegisterNode(registry, "JSON::As String", { { "Value", Value(), -1, jsonValue } },
+        { { "String", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonAsString, pure, "Reads a JSON string without returning Any");
+    RegisterNode(registry, "JSON::As Number", { { "Value", Value(), -1, jsonValue } },
+        { { "Number", Value(0.0) }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonAsNumber, pure, "Reads a JSON number without returning Any");
+    RegisterNode(registry, "JSON::As Boolean", { { "Value", Value(), -1, jsonValue } },
+        { { "Boolean", Value(false) }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonAsBoolean, pure, "Reads a JSON boolean without returning Any");
+    RegisterNode(registry, "JSON::As Array", { { "Value", Value(), -1, jsonValue } },
+        { { "Array", Value(newList()), -1, jsonArray }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonAsArray, pure,
+        "Reads a JSON array as a typed list of JsonValue elements");
+    RegisterNode(registry, "JSON::As Object", { { "Value", Value(), -1, jsonValue } },
+        { { "Object", Value(newMap()), -1, jsonObject }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonAsObject, pure,
+        "Reads a JSON object as a typed string-to-JsonValue map");
+    RegisterNode(registry, "JSON::Get", { { "Object", Value(), -1, jsonValue }, { "Key", emptyString } },
+        { { "Value", Value(), -1, jsonValue }, { "Found", Value(false) }, { "Error", emptyString } }, &JsonGet, pure,
+        "Reads a named member from a JSON object");
+    RegisterNode(registry, "JSON::Object To Entries", { { "Object", Value(), -1, jsonValue } }, { { "Entries", Value(newList()) } },
+        &JsonObjectToEntries, pure, "Maps a JsonValue object to string and JsonValue pairs");
     RegisterNode(registry, "JSON::Entries To Object", { { "Entries", Value(newList()) } },
-        { { "Object", Value(newMap()) }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonEntriesToObject, pure, "Maps key and value pairs to a JSON-style object");
+        { { "Object", Value(), -1, jsonValue }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonEntriesToObject, pure,
+        "Builds a JsonValue object from string and JsonValue pairs");
     RegisterNode(registry, "JSON::Read File", { { "Path", emptyString } },
-        { { "Value", Value() }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonReadFile, effect, "Reads and parses a structured JSON file");
+        { { "Value", Value(), -1, jsonValue }, { "Success", Value(false) }, { "Error", emptyString } }, &JsonReadFile, effect, "Reads and parses a JsonValue from a file");
     RegisterNode(registry, "JSON::Write File",
-        { { "Path", emptyString }, { "Value", Value() }, { "Pretty", Value(true) }, { "Indent", Value(2.0) }, { "Overwrite", Value(false) } },
-        { { "Success", Value(false) }, { "Error", emptyString } }, &JsonWriteFile, effect, "Serializes a native value directly to a JSON file");
+        { { "Path", emptyString }, { "Value", Value(), -1, jsonValue }, { "Pretty", Value(true) }, { "Indent", Value(2.0) }, { "Overwrite", Value(false) } },
+        { { "Success", Value(false) }, { "Error", emptyString } }, &JsonWriteFile, effect, "Serializes a JsonValue directly to a JSON file");
 
     RegisterNode(registry, "File::Read Bytes", { { "Path", emptyString } },
         { { "Bytes", Value(newList()), -1, byteList }, { "Success", Value(false) }, { "Error", emptyString } }, &FileReadBytes, effect, "Reads every byte from a binary file");

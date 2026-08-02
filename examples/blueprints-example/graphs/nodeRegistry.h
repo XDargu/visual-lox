@@ -41,6 +41,12 @@ struct NativeFunctionDef
     NativeFn nativeFun;
 };
 
+struct NativeClassDefinition
+{
+    std::string name;
+    std::vector<NativeMethodDef> methods;
+};
+
 class NodeRegistry
 {
 public:
@@ -56,6 +62,7 @@ public:
         BasicFunctionDef::DynamicInputProps&& dynamicProps,
         NodeDocumentation documentation,
         std::vector<GenericTypeProperty> genericTypeProperties = {});
+    void RegisterNativeClass(const char* name, std::vector<NativeMethodDef> methods);
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
         std::vector<BasicFunctionDef::Input>&& inputs,
@@ -72,6 +79,7 @@ public:
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;
     std::vector<NativeFunctionDef> nativeDefinitions;
+    std::vector<NativeClassDefinition> nativeClassDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
 
 };

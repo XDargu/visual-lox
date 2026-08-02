@@ -185,6 +185,15 @@ void StandardLibraryDeclaresCapabilities()
     const NodePtr timerAfterNode = timerAfter->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid);
     Require(timerAfterNode->Inputs.size() == 3 && timerAfterNode->Inputs.back().Name == "Callback" && timerAfterNode->Inputs.back().Type == TypeRef::Function({}, {}),
             "Timer::After should expose an explicit zero-argument callback pin.");
+    const NativeFunctionDef* jsonParse = fixture.registry.FindNative("JSON::Parse");
+    const NativeFunctionDef* jsonStringify = fixture.registry.FindNative("JSON::Stringify");
+    const NativeFunctionDef* jsonAsObject = fixture.registry.FindNative("JSON::As Object");
+    const TypeRef jsonValue = TypeRef::Object("JsonValue");
+    Require(jsonParse && jsonStringify && jsonAsObject &&
+            jsonParse->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid)->Outputs[0].Type == jsonValue &&
+            jsonStringify->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid)->Inputs[0].Type == jsonValue &&
+            jsonAsObject->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid)->Outputs[0].Type == TypeRef::Map(PinType::String, jsonValue),
+            "JSON nodes should expose JsonValue and typed object pins instead of implicit Any values.");
     for (const char* name : {
             "String::Append", "Math::Add", "Math::Subtract", "Math::Multiply",
             "Math::Min", "Math::Max", "Logic::And", "Logic::Or" })
@@ -2333,24 +2342,50 @@ void JsonTextMathAndCollectionNodesOperate()
 {
     RuntimeFixture fixture;
     const Value parsed = fixture.CallNative("JSON::Parse", { StringValue(R"({"name":"Ada","scores":[3,5],"active":true})") });
-    Require(isList(parsed) && asList(parsed)->items.size() == 3 && asBoolean(asList(parsed)->items[1]) && isMap(asList(parsed)->items[0]),
-            "JSON::Parse should return a native value, success, and error.");
-    Value name;
-    Value scores;
-    ObjMap* object = asMap(asList(parsed)->items[0]);
-    Require(object->get(StringValue("name"), &name) && asString(name)->chars == "Ada" && object->get(StringValue("scores"), &scores) &&
-            isList(scores) && asNumber(asList(scores)->items[1]) == 5.0,
-            "JSON objects and arrays should map to native maps and lists.");
+    const Value json = asList(parsed)->items[0];
+    Value jsonClass;
+    Require(isList(parsed) && asList(parsed)->items.size() == 3 && asBoolean(asList(parsed)->items[1]) &&
+            fixture.vm.globalTable().get(copyString("JsonValue", 9), &jsonClass) && isClass(jsonClass) && isInstance(json) &&
+            asInstance(json)->klass == asClass(jsonClass) && TypeOfValue(json) == TypeRef::Object("JsonValue"),
+            "JSON::Parse should return an instance of the native JsonValue class.");
+    Require(asString(fixture.CallNative("JSON::Kind", { json }))->chars == "Object",
+            "JSON::Kind should make a parsed value's runtime shape explicit.");
+    fixture.vm.setExternalMarkingFunc([&fixture]() { MarkNodeRegistryRoots(fixture.registry, fixture.vm); });
+    fixture.vm.push(json);
+    fixture.vm.allowGarbageCollection(true);
+    fixture.vm.collectGarbage();
+    const Value afterCollection = fixture.CallNative("JSON::Stringify", { json });
+    fixture.vm.allowGarbageCollection(false);
+    fixture.vm.pop();
+    Require(asBoolean(asList(afterCollection)->items[1]) && asString(asList(afterCollection)->items[0])->chars.find("\"Ada\"") != std::string::npos,
+            "JsonValue instances should keep their complete recursive payload alive during garbage collection.");
 
-    const Value compact = fixture.CallNative("JSON::Stringify", { asList(parsed)->items[0] });
-    const Value pretty = fixture.CallNative("JSON::Pretty Print", { asList(parsed)->items[0], Value(2.0) });
+    const Value nameMember = fixture.CallNative("JSON::Get", { json, StringValue("name") });
+    const Value name = fixture.CallNative("JSON::As String", { asList(nameMember)->items[0] });
+    const Value scoresMember = fixture.CallNative("JSON::Get", { json, StringValue("scores") });
+    const Value scores = fixture.CallNative("JSON::As Array", { asList(scoresMember)->items[0] });
+    const Value secondScore = fixture.CallNative("JSON::As Number", { asList(asList(scores)->items[0])->items[1] });
+    Require(asBoolean(asList(nameMember)->items[1]) && asBoolean(asList(name)->items[1]) && asString(asList(name)->items[0])->chars == "Ada" &&
+            asBoolean(asList(scoresMember)->items[1]) && asBoolean(asList(scores)->items[1]) && asList(asList(scores)->items[0])->items.size() == 2 &&
+            asBoolean(asList(secondScore)->items[1]) && asNumber(asList(secondScore)->items[0]) == 5.0,
+            "Typed JSON accessors should read object, array, string, and number values without implicit Any outputs.");
+
+    const Value native = fixture.CallNative("JSON::To Native", { json });
+    Value nativeName;
+    Require(asBoolean(asList(native)->items[1]) && isMap(asList(native)->items[0]) &&
+            asMap(asList(native)->items[0])->get(StringValue("name"), &nativeName) && asString(nativeName)->chars == "Ada",
+            "JSON::To Native should provide an explicit bridge to ordinary Vlox maps and lists.");
+
+    const Value compact = fixture.CallNative("JSON::Stringify", { json });
+    const Value pretty = fixture.CallNative("JSON::Pretty Print", { json, Value(2.0) });
     Require(asBoolean(asList(compact)->items[1]) && asString(asList(compact)->items[0])->chars.find("\"Ada\"") != std::string::npos &&
             asBoolean(asList(pretty)->items[1]) && asString(asList(pretty)->items[0])->chars.find('\n') != std::string::npos,
             "JSON stringify nodes should support compact and pretty output.");
-    const Value entries = fixture.CallNative("JSON::Object To Entries", { asList(parsed)->items[0] });
+    const Value entries = fixture.CallNative("JSON::Object To Entries", { json });
     const Value remapped = fixture.CallNative("JSON::Entries To Object", { entries });
-    Require(isList(entries) && asList(entries)->items.size() == 3 && asBoolean(asList(remapped)->items[1]) && isMap(asList(remapped)->items[0]),
-            "JSON object/list mapping should round-trip entries.");
+    Require(isList(entries) && asList(entries)->items.size() == 3 && isInstance(asList(asList(entries)->items[0])->items[1]) &&
+            asBoolean(asList(remapped)->items[1]) && isInstance(asList(remapped)->items[0]),
+            "JSON object/list mapping should round-trip JsonValue entries.");
 
     const Value regexSearch = fixture.CallNative("Regex::Search", { StringValue("item-42"), StringValue(R"((\w+)-(\d+))") });
     Require(asBoolean(asList(regexSearch)->items[0]) && asString(asList(regexSearch)->items[1])->chars == "item-42" &&
@@ -2433,12 +2468,14 @@ void ExtendedFileProcessAndTimeNodesOperate()
             "Directory, binary file, and metadata nodes should preserve bytes and report file size.");
     ObjMap* configuration = newMap();
     configuration->set(StringValue("enabled"), Value(true));
+    const Value configurationJson = fixture.CallNative("JSON::From Native", { Value(configuration) });
     const Value jsonWritten = fixture.CallNative("JSON::Write File",
-        { StringValue(jsonFile.string()), Value(configuration), Value(true), Value(2.0), Value(false) });
+        { StringValue(jsonFile.string()), asList(configurationJson)->items[0], Value(true), Value(2.0), Value(false) });
     const Value jsonRead = fixture.CallNative("JSON::Read File", { StringValue(jsonFile.string()) });
-    Value enabled;
-    Require(asBoolean(asList(jsonWritten)->items[0]) && asBoolean(asList(jsonRead)->items[1]) && isMap(asList(jsonRead)->items[0]) &&
-            asMap(asList(jsonRead)->items[0])->get(StringValue("enabled"), &enabled) && asBoolean(enabled),
+    const Value enabledMember = fixture.CallNative("JSON::Get", { asList(jsonRead)->items[0], StringValue("enabled") });
+    const Value enabled = fixture.CallNative("JSON::As Boolean", { asList(enabledMember)->items[0] });
+    Require(asBoolean(asList(configurationJson)->items[1]) && asBoolean(asList(jsonWritten)->items[0]) && asBoolean(asList(jsonRead)->items[1]) &&
+            asBoolean(asList(enabledMember)->items[1]) && asBoolean(asList(enabled)->items[1]) && asBoolean(asList(enabled)->items[0]),
             "JSON file helpers should serialize and parse structured files directly.");
     const Value textWritten = fixture.CallNative("File::Write Text Encoded",
         { StringValue(textFile.string()), StringValue("plain-ascii"), StringValue("ascii"), Value(false) });

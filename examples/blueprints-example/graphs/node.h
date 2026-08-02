@@ -359,6 +359,5 @@ struct NodeIdLess
 
 struct NodeUtils
 {
-    static void NormalizeDocumentation(const NodePtr& node);
     static void BuildNode(const NodePtr& node);
 };

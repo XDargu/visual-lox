@@ -28,8 +28,6 @@ Pin* Node::FindInputByName(const std::string& name)
 
 void NodeUtils::BuildNode(const NodePtr& node)
 {
-    NormalizeDocumentation(node);
-
     for (Pin& input : node->Inputs)
     {
         input.Node = node;
@@ -53,23 +51,4 @@ void NodeUtils::BuildNode(const NodePtr& node)
         output.Node = node;
         output.Kind = PinKind::Output;
     }
-}
-
-void NodeUtils::NormalizeDocumentation(const NodePtr& node)
-{
-    const auto removeTerminalPeriod = [](std::string& description)
-    {
-        if (!description.empty() && description.back() == '.')
-            description.pop_back();
-    };
-
-    removeTerminalPeriod(node->Description);
-    for (Pin& input : node->Inputs)
-        removeTerminalPeriod(input.Description);
-    for (Pin& output : node->Outputs)
-        removeTerminalPeriod(output.Description);
-    for (Pin& input : node->UnresolvedInputs)
-        removeTerminalPeriod(input.Description);
-    for (Pin& output : node->UnresolvedOutputs)
-        removeTerminalPeriod(output.Description);
 }

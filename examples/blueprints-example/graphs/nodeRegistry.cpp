@@ -1575,6 +1575,7 @@ std::string StableDefinitionId(std::string_view kind, std::string_view name)
     std::string result = "vlox.std.";
     result += kind;
     result.push_back('.');
+
     for (size_t index = 0; index < name.size(); ++index)
     {
         if (index + 1 < name.size() && name[index] == ':' && name[index + 1] == ':')
@@ -1583,14 +1584,19 @@ std::string StableDefinitionId(std::string_view kind, std::string_view name)
             ++index;
             continue;
         }
+
         const unsigned char value = static_cast<unsigned char>(name[index]);
+
         if (std::isalnum(value))
             result.push_back(static_cast<char>(std::tolower(value)));
+
         else if (!result.empty() && result.back() != '.' && result.back() != '_')
             result.push_back('_');
     }
+
     while (!result.empty() && result.back() == '_')
         result.pop_back();
+
     return result;
 }
 
@@ -1619,14 +1625,14 @@ void ApplyStablePortKeys(BasicFunctionDef& definition)
     {
         if (property.key.empty())
             property.key = StableKey(property.variableName);
+
         if (property.key.empty() || !genericKeys.insert(property.key).second)
             throw std::invalid_argument(definition.name + " declares an empty or duplicate generic parameter key");
     }
 
     if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
     {
-        if (definition.dynamicInputProps.familyKey.empty() || definition.dynamicInputProps.memberKey.empty() ||
-            definition.dynamicInputProps.orderingMemberKey.empty())
+        if (definition.dynamicInputProps.familyKey.empty() || definition.dynamicInputProps.memberKey.empty() || definition.dynamicInputProps.orderingMemberKey.empty())
             throw std::invalid_argument(definition.name + " has an incomplete dynamic port identity");
     }
 }
@@ -1637,8 +1643,10 @@ void ApplyStableDefinitionSchema(BasicFunctionDef& definition, std::string_view 
 {
     if (definition.id.empty())
         definition.id = StableDefinitionId(kind, definition.name);
+
     if (definition.id.empty() || definition.revision == 0)
         throw std::invalid_argument(definition.name + " has an invalid stable definition schema");
+
     ApplyStablePortKeys(definition);
     definition.compatibilityFingerprint = ComputeDefinitionCompatibilityFingerprintImpl(definition);
 }
@@ -1646,24 +1654,35 @@ void ApplyStableDefinitionSchema(BasicFunctionDef& definition, std::string_view 
 std::string ComputeDefinitionCompatibilityFingerprintImpl(const BasicFunctionDef& definition)
 {
     std::vector<std::string> components{ "id=" + definition.id, "flags=" + std::to_string(static_cast<int>(definition.flags)) };
-    for (const BasicFunctionDef::Input& input : definition.inputs) components.push_back("input:" + input.key + ":" + input.type.ToString());
-    for (const BasicFunctionDef::Input& output : definition.outputs) components.push_back("output:" + output.key + ":" + output.type.ToString());
-    for (const GenericTypeProperty& generic : definition.genericTypeProperties) components.push_back("generic:" + generic.key);
+
+    for (const BasicFunctionDef::Input& input : definition.inputs)
+        components.push_back("input:" + input.key + ":" + input.type.ToString());
+
+    for (const BasicFunctionDef::Input& output : definition.outputs)
+        components.push_back("output:" + output.key + ":" + output.type.ToString());
+
+    for (const GenericTypeProperty& generic : definition.genericTypeProperties)
+        components.push_back("generic:" + generic.key);
+
     if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
     {
         const DynamicInputProps& dynamic = definition.dynamicInputProps;
         components.push_back("dynamic:" + dynamic.familyKey + ":" + dynamic.memberKey + ":" + dynamic.orderingMemberKey + ":" + dynamic.type.ToString() + ":" +
             std::to_string(dynamic.minInputs) + ":" + std::to_string(dynamic.maxInputs));
     }
+
     std::sort(components.begin() + 2, components.end());
 
     uint64_t hash = 1469598103934665603ull;
     for (const std::string& component : components)
+    {
         for (const unsigned char byte : component)
         {
             hash ^= byte;
             hash *= 1099511628211ull;
         }
+    }
+
     std::ostringstream text;
     text << std::hex << std::setfill('0') << std::setw(16) << hash;
     return text.str();
@@ -1748,8 +1767,10 @@ void ValidateDynamicInputProperties(const BasicFunctionDef& definition)
 {
     if (!HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
         throw std::invalid_argument(definition.name + " declares dynamic input properties without the DynamicInputs flag");
+
     if (definition.dynamicInputProps.minInputs < 0)
         throw std::invalid_argument(definition.name + " declares a negative minimum input count");
+
     if (definition.dynamicInputProps.maxInputs < definition.dynamicInputProps.minInputs)
         throw std::invalid_argument(definition.name + " declares a maximum input count below its minimum");
 }
@@ -1762,8 +1783,10 @@ std::string ComputeDefinitionCompatibilityFingerprint(const BasicFunctionDef& de
 
 void NodeRegistry::RegisterNativeFunc(const char* name,
     std::vector<BasicFunctionDef::Input>&& inputs,
-    std::vector<BasicFunctionDef::Input>&& outputs, NativeFn fun,
-    NodeDefinitionFlags flags, NodeDocumentation documentation,
+    std::vector<BasicFunctionDef::Input>&& outputs,
+    NativeFn fun,
+    NodeDefinitionFlags flags,
+    NodeDocumentation documentation,
     std::vector<GenericTypeProperty> genericTypeProperties)
 {
     BasicFunctionDefPtr nativeFunc  = std::make_shared<BasicFunctionDef>();
@@ -1772,12 +1795,12 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->inputs = inputs;
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
+
     ApplyDocumentation(*nativeFunc, documentation);
     ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
     ApplyStableDefinitionSchema(*nativeFunc, "native");
 
-    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing)
-        { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
+    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing) { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
         throw std::invalid_argument("Duplicate native definition ID '" + nativeFunc->id + "'");
 
     nativeDefinitions.push_back({ nativeFunc, fun });
@@ -1801,12 +1824,12 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
     nativeFunc->dynamicInputProps = dynamicProps;
+
     ApplyDocumentation(*nativeFunc, documentation);
     ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
     ApplyStableDefinitionSchema(*nativeFunc, "native");
 
-    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing)
-        { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
+    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing) { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
         throw std::invalid_argument("Duplicate native definition ID '" + nativeFunc->id + "'");
 
     nativeDefinitions.push_back({ nativeFunc, fun });
@@ -1822,7 +1845,8 @@ void NodeRegistry::RegisterNatives(VM& vm)
 
 void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
     std::vector<BasicFunctionDef::Input>&& inputs,
-    std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
+    std::vector<BasicFunctionDef::Input>&& outputs,
+    NodeDefinitionFlags flags,
     NodeDocumentation documentation,
     std::vector<GenericTypeProperty> genericTypeProperties)
 {
@@ -1836,6 +1860,7 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     funtionDef->inputs = inputs;
     funtionDef->outputs = outputs;
     funtionDef->flags = flags;
+
     ApplyDocumentation(*funtionDef, documentation);
     ApplyGenericTypeProperties(*funtionDef, std::move(genericTypeProperties));
     ApplyStableDefinitionSchema(*funtionDef, "compiled");
@@ -1853,7 +1878,8 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
 
 void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,
     std::vector<BasicFunctionDef::Input>&& inputs,
-    std::vector<BasicFunctionDef::Input>&& outputs, NodeDefinitionFlags flags,
+    std::vector<BasicFunctionDef::Input>&& outputs,
+    NodeDefinitionFlags flags,
     BasicFunctionDef::DynamicInputProps&& dynamicProps,
     NodeDocumentation documentation,
     std::vector<GenericTypeProperty> genericTypeProperties)
@@ -1868,13 +1894,13 @@ void NodeRegistry::RegisterCompiledNode(const char* name, NodeCreationFun creati
     functionDef->outputs = std::move(outputs);
     functionDef->flags = flags;
     functionDef->dynamicInputProps = std::move(dynamicProps);
+
     ValidateDynamicInputProperties(*functionDef);
     ApplyDocumentation(*functionDef, documentation);
     ApplyGenericTypeProperties(*functionDef, std::move(genericTypeProperties));
     ApplyStableDefinitionSchema(*functionDef, "compiled");
 
-    if (std::any_of(compiledDefinitions.begin(), compiledDefinitions.end(), [&](const CompiledNodeDefPtr& existing)
-        { return existing && existing->id == functionDef->id; }))
+    if (std::any_of(compiledDefinitions.begin(), compiledDefinitions.end(), [&](const CompiledNodeDefPtr& existing) { return existing && existing->id == functionDef->id; }))
         throw std::invalid_argument("Duplicate compiled definition ID '" + functionDef->id + "'");
 
     compiledNodeDef->id = functionDef->id;
@@ -1892,9 +1918,12 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
     node->DefinitionFlags = functionDef->flags;
     node->Description = functionDef->description;
     node->GenericTypeProperties = functionDef->genericTypeProperties;
+
     if (HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs))
         node->ConfigureDynamicInputs(functionDef->dynamicInputProps);
+
     size_t inputIndex = 0;
+
     for (Pin& pin : node->Inputs)
     {
         if (pin.Type == PinType::Flow)
@@ -1905,10 +1934,12 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
                     DisplayDefinitionName(name);
             continue;
         }
+
         if (pin.Identity.kind == PortIdentityKind::None && !HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs) && inputIndex < functionDef->inputs.size())
             pin.Identity = PortIdentity::Fixed(functionDef->inputs[inputIndex].key);
         else if (pin.Identity.kind == PortIdentityKind::None && HasFlag(functionDef->flags, NodeDefinitionFlags::DynamicInputs))
             pin.Identity = PortIdentity::Dynamic(functionDef->dynamicInputProps.familyKey, DynamicSlotId::New(), functionDef->dynamicInputProps.memberKey);
+
         if (pin.Description.empty())
         {
             if (inputIndex < functionDef->inputs.size())
@@ -1921,32 +1952,37 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
                 pin.Description = "Input " + std::to_string(inputIndex + 1) +
                     " for " + DisplayDefinitionName(name);
         }
+
         ++inputIndex;
     }
+
     const size_t flowOutputCount = static_cast<size_t>(std::count_if(node->Outputs.begin(), node->Outputs.end(), [](const Pin& pin) { return pin.Type == PinType::Flow; }));
     size_t flowOutputIndex = 0;
     size_t outputIndex = 0;
+
     for (Pin& pin : node->Outputs)
     {
         if (pin.Type == PinType::Flow)
         {
             if (pin.Identity.kind == PortIdentityKind::None)
                 pin.Identity = PortIdentity::Fixed(flowOutputCount == 1 ? "then" : "branch_" + std::to_string(flowOutputIndex));
+
             ++flowOutputIndex;
+
             if (pin.Description.empty())
-                pin.Description = "Execution output from " +
-                    DisplayDefinitionName(name);
+                pin.Description = "Execution output from " + DisplayDefinitionName(name);
             continue;
         }
+
         if (pin.Identity.kind == PortIdentityKind::None && outputIndex < functionDef->outputs.size())
             pin.Identity = PortIdentity::Fixed(functionDef->outputs[outputIndex].key);
+
         if (pin.Description.empty())
         {
             if (outputIndex < functionDef->outputs.size())
                 pin.Description = functionDef->outputs[outputIndex].description;
             else
-                pin.Description = "Output " + std::to_string(outputIndex + 1) +
-                    " from " + DisplayDefinitionName(name);
+                pin.Description = "Output " + std::to_string(outputIndex + 1) + " from " + DisplayDefinitionName(name);
         }
         ++outputIndex;
     }

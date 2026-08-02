@@ -156,13 +156,16 @@ ELinkQueryResult Graph::CanCreateLink(const Pin* a, const Pin* b, const std::vec
         input.DeclaredType.kind == PinType::Iterable &&
         IsPinLinked(input.ID) &&
         GraphUtils::AreTypesCompatible(output.Type, input.DeclaredType);
+
     bool compatible = GraphUtils::AreTypesCompatible(output.Type, input.Type);
+
     if (!compatible && (output.DeclaredType.IsGeneric() || input.DeclaredType.IsGeneric()))
     {
         const TypeRef inferredOutput = ResolveTypeForLink(output.DeclaredType, output.Node->ResolvedTypeVariables);
         const TypeRef inferredInput = ResolveTypeForLink(input.DeclaredType, input.Node->ResolvedTypeVariables);
         compatible = GraphUtils::AreTypesCompatible(inferredOutput, inferredInput);
     }
+
     if (!compatible && !replacesIterableConstraint)
         return ELinkQueryResult::IncompatibleType;
 
@@ -203,10 +206,12 @@ bool Graph::DeleteNode(ed::NodeId id)
         pins.insert(pin.ID.Get());
     for (const Pin& pin : (*nodeIt)->UnresolvedOutputs)
         pins.insert(pin.ID.Get());
+
     m_Links.erase(std::remove_if(m_Links.begin(), m_Links.end(), [&](const Link& link)
     {
         return pins.find(link.StartPinID.Get()) != pins.end() || pins.find(link.EndPinID.Get()) != pins.end();
     }), m_Links.end());
+
     m_Nodes.erase(nodeIt);
     RefreshTypes();
     return true;
@@ -234,6 +239,7 @@ NodePtr Graph::AddNode(const NodePtr& node)
      const Pin* start = FindPin(link.StartPinID);
      const Pin* end = FindPin(link.EndPinID);
      const std::vector<ed::LinkId> replacedLinks = CollectLinksToReplace(start, end);
+
      if (!replacedLinks.empty())
      {
          m_Links.erase(std::remove_if(m_Links.begin(), m_Links.end(), [&](const Link& existing)
@@ -241,8 +247,10 @@ NodePtr Graph::AddNode(const NodePtr& node)
              return std::find(replacedLinks.begin(), replacedLinks.end(), existing.ID) != replacedLinks.end();
          }), m_Links.end());
      }
+
      m_Links.push_back(link);
      RefreshTypes();
+
      return &m_Links.back();
  }
 
@@ -270,8 +278,10 @@ TypeRef ResolveType(const TypeRef& pattern, const TypeBindings& bindings)
     }
 
     TypeRef result = pattern;
+
     for (TypeRef& parameter : result.parameters)
         parameter = ResolveType(parameter, bindings);
+
     return result;
 }
 
@@ -284,8 +294,10 @@ TypeRef ResolveTypeForLink(const TypeRef& pattern, const TypeBindings& bindings)
     }
 
     TypeRef result = pattern;
+
     for (TypeRef& parameter : result.parameters)
         parameter = ResolveTypeForLink(parameter, bindings);
+
     return result;
 }
 
@@ -296,29 +308,35 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
     {
         if (overrides.find(pattern.name) != overrides.end())
             return false;
+
         if (actual.kind == PinType::Any || actual.kind == PinType::TypeVariable)
             return false;
+
         const auto found = bindings.find(pattern.name);
         if (found == bindings.end())
         {
             bindings.emplace(pattern.name, actual);
             return true;
         }
+
         const TypeRef merged = CommonType(found->second, actual);
         if (merged == found->second)
             return false;
+
         found->second = merged;
+
         return true;
     }
 
     if (pattern.kind == PinType::Iterable)
     {
-        if (actual.kind != PinType::List && actual.kind != PinType::Range &&
-            actual.kind != PinType::String)
+        if (actual.kind != PinType::List && actual.kind != PinType::Range && actual.kind != PinType::String)
             return false;
+
         bool changed = false;
         const std::string bindingName = IterableBindingName(pattern);
         const auto found = bindings.find(bindingName);
+
         if (found == bindings.end())
         {
             bindings.emplace(bindingName, actual);
@@ -333,15 +351,16 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
                 changed = true;
             }
         }
+
         if (actual.kind == PinType::List)
-            return BindType(pattern.ElementType(), actual.ElementType(), bindings, overrides) ||
-                   changed;
+            return BindType(pattern.ElementType(), actual.ElementType(), bindings, overrides) || changed;
+
         if (actual.kind == PinType::Range)
-            return BindType(pattern.ElementType(), TypeRef(PinType::Float), bindings, overrides) ||
-                   changed;
+            return BindType(pattern.ElementType(), TypeRef(PinType::Float), bindings, overrides) || changed;
+
         if (actual.kind == PinType::String)
-            return BindType(pattern.ElementType(), TypeRef(PinType::String), bindings, overrides) ||
-                   changed;
+            return BindType(pattern.ElementType(), TypeRef(PinType::String), bindings, overrides) || changed;
+
         return changed;
     }
 
@@ -352,6 +371,7 @@ bool BindType(const TypeRef& pattern, const TypeRef& actual, TypeBindings& bindi
     const size_t count = (std::min)(pattern.parameters.size(), actual.parameters.size());
     for (size_t i = 0; i < count; ++i)
         changed |= BindType(pattern.parameters[i], actual.parameters[i], bindings, overrides);
+
     return changed;
 }
 }
@@ -361,13 +381,16 @@ void Graph::RefreshTypes()
     const auto isActive = [](const Pin* pin)
     {
         if (!pin || !pin->Node || pin->Node->IsSerializationPlaceholder) return false;
+
         const Node& node = *pin->Node;
         const auto contains = [&](const auto& pins)
         {
             return std::any_of(pins.begin(), pins.end(), [&](const Pin& candidate) { return candidate.ID == pin->ID; });
         };
+
         return contains(node.Inputs) || contains(node.Outputs);
     };
+
     for (Link& link : m_Links) link.IsResolved = isActive(FindPin(link.StartPinID)) && isActive(FindPin(link.EndPinID));
 
     std::map<const Node*, TypeBindings> bindings;
@@ -375,8 +398,10 @@ void Graph::RefreshTypes()
     {
         bindings[node.get()].insert(node->TypeOverrides.begin(), node->TypeOverrides.end());
         node->ResolvedTypeVariables.clear();
+
         for (Pin& input : node->Inputs)
             input.Type = ResolveType(input.DeclaredType, bindings[node.get()]);
+
         for (Pin& output : node->Outputs)
             output.Type = ResolveType(output.DeclaredType, bindings[node.get()]);
     }
@@ -390,12 +415,16 @@ void Graph::RefreshTypes()
         for (const Link& link : m_Links)
         {
             if (!link.IsResolved) continue;
+
             Pin* output = FindPin(link.StartPinID);
             Pin* input = FindPin(link.EndPinID);
+
             if (!output || !input) continue;
+
             changed |= BindType(output->DeclaredType, input->Type,
                                 bindings[output->Node.get()],
                                 output->Node->TypeOverrides);
+
             changed |= BindType(input->DeclaredType, output->Type,
                                 bindings[input->Node.get()],
                                 input->Node->TypeOverrides);
@@ -408,6 +437,7 @@ void Graph::RefreshTypes()
             for (Pin& output : node->Outputs)
                 output.Type = ResolveType(output.DeclaredType, bindings[node.get()]);
         }
+
         if (!changed) break;
     }
 
@@ -433,9 +463,12 @@ void Graph::RefreshTypes()
             if (!input.DeclaredType.IsGeneric() || IsPinLinked(input.ID) ||
                 input.Type == PinType::Any || input.Type == PinType::Flow)
                 continue;
+
             if (input.Type == PinType::Map && (input.Type.KeyType() == PinType::Any || input.Type.ValueType() == PinType::Any))
                 continue;
+
             const TypeRef valueType = TypeOfValue(value);
+
             if (isNil(value) || !CanAssign(valueType, input.Type, false))
                 value = MakeValueFromType(input.Type);
         }
@@ -535,6 +568,7 @@ void Graph::RefreshTypes()
      for (const Link& link : graph.GetLinks())
      {
          if (!link.IsResolved) continue;
+
          if (link.StartPinID == outputPin.ID)
          {
              inputs.push_back(graph.FindPin(link.EndPinID));
@@ -551,6 +585,7 @@ void Graph::RefreshTypes()
      for (const Link& link : graph.GetLinks())
      {
          if (!link.IsResolved) continue;
+
          if (link.EndPinID == inputPin.ID)
          {
              inputs.push_back(graph.FindPin(link.StartPinID));
@@ -565,6 +600,7 @@ void Graph::RefreshTypes()
      for (const Link& link : graph.GetLinks())
      {
          if (!link.IsResolved) continue;
+
          if (link.EndPinID == inputPin.ID)
          {
              return graph.FindPin(link.StartPinID);
@@ -581,6 +617,7 @@ void Graph::RefreshTypes()
      for (const Link& link : graph.GetLinks())
      {
          if (!link.IsResolved) continue;
+
          if (link.EndPinID == inputPin.ID)
          {
              links.push_back(&link);
@@ -597,6 +634,7 @@ void Graph::RefreshTypes()
      for (const Link& link : graph.GetLinks())
      {
          if (!link.IsResolved) continue;
+
          if (link.StartPinID == outputPin.ID)
          {
              links.push_back(&link);
@@ -609,30 +647,28 @@ void Graph::RefreshTypes()
  const Pin* GraphUtils::FindReceiverInput(const Node& node)
  {
      const int index = node.GetReceiverInputIndex();
+
      if (index < 0 || index >= static_cast<int>(node.Inputs.size()))
          return nullptr;
+
      return &node.Inputs[index];
  }
 
- bool GraphUtils::UsesImplicitReceiver(const Script& script, ScriptElementID functionId,
-                                       const Graph& graph, const Node& node)
+ bool GraphUtils::UsesImplicitReceiver(const Script& script, ScriptElementID functionId, const Graph& graph, const Node& node)
  {
      const Pin* receiver = FindReceiverInput(node);
      if (!receiver || graph.IsPinLinked(receiver->ID))
          return false;
 
-     const ScriptClassPtr graphOwner =
-         ScriptUtils::FindOwningClass(script, functionId.id);
-     const ScriptClassPtr memberOwner =
-         ScriptUtils::FindOwningClass(script, node.refId.id);
+     const ScriptClassPtr graphOwner = ScriptUtils::FindOwningClass(script, functionId.id);
+     const ScriptClassPtr memberOwner = ScriptUtils::FindOwningClass(script, node.refId.id);
+
      return graphOwner && memberOwner && graphOwner->ID.id == memberOwner->ID.id;
  }
 
  namespace
  {
- bool IsNodeConstFoldableRecursive(const Graph& graph, const NodePtr& node,
-                                   std::set<const Node*>& visiting,
-                                   std::set<const Node*>& verified)
+ bool IsNodeConstFoldableRecursive(const Graph& graph, const NodePtr& node, std::set<const Node*>& visiting, std::set<const Node*>& verified)
  {
      if (!node || !node->IsPure() || !GraphUtils::IsNodeImplicit(node) ||
           HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
@@ -653,6 +689,7 @@ void Graph::RefreshTypes()
      // with zero or multiple values need an explicit folding strategy first.
      const Pin* dataOutput = nullptr;
      size_t dataOutputCount = 0;
+
      for (const Pin& output : node->Outputs)
      {
          if (output.Type != PinType::Flow)
@@ -663,12 +700,14 @@ void Graph::RefreshTypes()
      }
      if (dataOutputCount != 1)
          return false;
+
      if (dataOutput->Type != PinType::Bool && dataOutput->Type != PinType::Int &&
          dataOutput->Type != PinType::Float && dataOutput->Type != PinType::String)
          return false;
 
      if (verified.find(node.get()) != verified.end())
          return true;
+
      if (!visiting.insert(node.get()).second)
          return false;
 
@@ -697,6 +736,7 @@ void Graph::RefreshTypes()
  {
      std::set<const Node*> visiting;
      std::set<const Node*> verified;
+
      return IsNodeConstFoldableRecursive(graph, node, visiting, verified);
  }
 

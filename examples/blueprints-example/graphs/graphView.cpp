@@ -1869,7 +1869,6 @@ void GraphView::DrawContextMenu()
             {
                 IDGenerator previewIds;
                 documentedNode = selected->creationFun(previewIds);
-                NodeUtils::NormalizeDocumentation(documentedNode);
                 documentedNodeKey = selected->fullName;
             }
             constexpr float detailLines = 8.0f;

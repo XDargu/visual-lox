@@ -33,8 +33,7 @@ void GraphCompiler::CompileBackwardsRecursive(const Graph& graph, const NodePtr&
     }
 }
 
-void GraphCompiler::CompileInputDependency(const Graph& graph, const NodePtr& node,
-                                           int inputIndex, const Callback& callback)
+void GraphCompiler::CompileInputDependency(const Graph& graph, const NodePtr& node, int inputIndex, const Callback& callback)
 {
     if (inputIndex < 0 || inputIndex >= static_cast<int>(node->Inputs.size()))
         return;
@@ -62,8 +61,7 @@ void GraphCompiler::CompileInputDependency(const Graph& graph, const NodePtr& no
     }
 }
 
-void GraphCompiler::CompileDeferredInputs(const Graph& graph, const NodePtr& node,
-                                          int outputIndex, const Callback& callback)
+void GraphCompiler::CompileDeferredInputs(const Graph& graph, const NodePtr& node, int outputIndex, const Callback& callback)
 {
     for (int inputIndex = 0;
          inputIndex < static_cast<int>(node->Inputs.size()); ++inputIndex)
@@ -257,8 +255,7 @@ void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& gra
     //compiler.defineVariable(constant);
 }
 
-void GraphCompiler::CompileCallResult(CompilerContext& compilerCtx, const Graph& graph,
-                                      const std::vector<Pin>& outputs, size_t dataOutputStart)
+void GraphCompiler::CompileCallResult(CompilerContext& compilerCtx, const Graph& graph, const std::vector<Pin>& outputs, size_t dataOutputStart)
 {
     Compiler& compiler = compilerCtx.compiler;
     if (dataOutputStart >= outputs.size())

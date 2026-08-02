@@ -47,8 +47,8 @@ struct BinaryOpNode : public Node
     {
         Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], Inputs[0].LiteralValue);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
         compiler.emitByte(OpByte(OP_CODE));
 
         GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
@@ -88,11 +88,11 @@ struct VariadicOpNode : public VariadicInputNode
     void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
         Compiler& compiler = compilerCtx.compiler;
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], Inputs[0].LiteralValue);
 
         for (size_t inputIndex = 1; inputIndex < Inputs.size(); ++inputIndex)
         {
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[inputIndex], InputValues[inputIndex]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[inputIndex], Inputs[inputIndex].LiteralValue);
             compiler.emitByte(OpByte(OP_CODE));
         }
 
@@ -111,10 +111,8 @@ static NodePtr CreateBinaryNode(IDGenerator& IDGenerator, const char* name, cons
     node->Inputs.emplace_back(IDGenerator.GetNextId(), inputB, inputType);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), output, outputType);
 
-    node->InputValues.emplace_back(
-        inputType == PinType::Any ? Value() : Value(0.0));
-    node->InputValues.emplace_back(
-        inputType == PinType::Any ? Value() : Value(0.0));
+    node->Inputs[0].LiteralValue = inputType == PinType::Any ? Value() : Value(0.0);
+    node->Inputs[1].LiteralValue = inputType == PinType::Any ? Value() : Value(0.0);
     return node;
 }
 

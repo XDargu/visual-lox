@@ -76,7 +76,7 @@ Script MakeIterativeFibonacci(const NodeRegistry& registry, IDGenerator& ids)
     const NodePtr getPreviousForAdd = BuildGetVariableNode(ids, previous);
     const NodePtr getCurrentForAdd = BuildGetVariableNode(ids, current);
     const NodePtr modulo = MakeCompiledNode(registry, ids, "Math::Modulo");
-    modulo->InputValues[1] = Value(FibonacciModulus);
+    modulo->Inputs[1].LiteralValue = Value(FibonacciModulus);
     const NodePtr setPrevious = BuildSetVariableNode(ids, previous);
     const NodePtr getTemporary = BuildGetVariableNode(ids, temporary);
     const NodePtr setChecksum = BuildSetVariableNode(ids, checksum);
@@ -125,13 +125,13 @@ Script MakeRecursiveFibonacci(const NodeRegistry& registry, IDGenerator& ids)
     const NodePtr functionBegin = BuildBeginNode(ids, fibonacci);
     const NodePtr branch = MakeCompiledNode(registry, ids, "Flow::Branch");
     const NodePtr lessThan = MakeCompiledNode(registry, ids, "Math::Less Than");
-    lessThan->InputValues[1] = Value(2.0);
+    lessThan->Inputs[1].LiteralValue = Value(2.0);
     const NodePtr baseReturn = BuildReturnNode(ids, *fibonacci);
     const NodePtr recursiveReturn = BuildReturnNode(ids, *fibonacci);
     const NodePtr subtractOne = MakeCompiledNode(registry, ids, "Math::Subtract");
-    subtractOne->InputValues[1] = Value(1.0);
+    subtractOne->Inputs[1].LiteralValue = Value(1.0);
     const NodePtr subtractTwo = MakeCompiledNode(registry, ids, "Math::Subtract");
-    subtractTwo->InputValues[1] = Value(2.0);
+    subtractTwo->Inputs[1].LiteralValue = Value(2.0);
     const NodePtr callOne = fibonacci->functionDef->MakeNode(ids, fibonacci->ID);
     const NodePtr callTwo = fibonacci->functionDef->MakeNode(ids, fibonacci->ID);
     const NodePtr add = MakeCompiledNode(registry, ids, "Math::Add");
@@ -288,21 +288,21 @@ struct CaseBuilder
 NodePtr AddNumber(CaseBuilder& builder, double right)
 {
     NodePtr node = builder.Compiled("Math::Add");
-    node->InputValues[1] = Value(right);
+    node->Inputs[1].LiteralValue = Value(right);
     return node;
 }
 
 NodePtr MultiplyNumber(CaseBuilder& builder, double right)
 {
     NodePtr node = builder.Compiled("Math::Multiply");
-    node->InputValues[1] = Value(right);
+    node->Inputs[1].LiteralValue = Value(right);
     return node;
 }
 
 NodePtr ModuloNumber(CaseBuilder& builder, double divisor)
 {
     NodePtr node = builder.Compiled("Math::Modulo");
-    node->InputValues[1] = Value(divisor);
+    node->Inputs[1].LiteralValue = Value(divisor);
     return node;
 }
 
@@ -439,10 +439,10 @@ Script MakeConstantFolding(const NodeRegistry& registry, bool folded)
     NodePtr getSize = builder.Get(builder.size);
     NodePtr getChecksum = builder.Get(builder.checksum);
     NodePtr multiply = builder.Compiled("Math::Multiply");
-    multiply->InputValues[0] = Value(17.0);
-    multiply->InputValues[1] = Value(23.0);
+    multiply->Inputs[0].LiteralValue = Value(17.0);
+    multiply->Inputs[1].LiteralValue = Value(23.0);
     NodePtr addOffset = builder.Compiled("Math::Add");
-    addOffset->InputValues[1] = Value(11.0);
+    addOffset->Inputs[1].LiteralValue = Value(11.0);
     NodePtr addChecksum = builder.Compiled("Math::Add");
     NodePtr modulo = ModuloNumber(builder, Modulus);
     NodePtr setChecksum = builder.Set(builder.checksum);
@@ -478,7 +478,7 @@ Script MakeNativeCall(const NodeRegistry& registry, bool native)
     NodePtr getSize = builder.Get(builder.size);
     NodePtr indexModulo = ModuloNumber(builder, 2'001.0);
     NodePtr subtract = builder.Compiled("Math::Subtract");
-    subtract->InputValues[1] = Value(1'000.0);
+    subtract->Inputs[1].LiteralValue = Value(1'000.0);
     NodePtr absolute = native ? builder.Native("Math::Abs") : builder.Compiled("Math::Max");
     NodePtr negate;
     if (!native)
@@ -656,27 +656,27 @@ Script MakePatternMatching(const NodeRegistry& registry)
     NodePtr getSize = builder.Get(builder.size);
     NodePtr valueModulo = ModuloNumber(builder, 128.0);
     NodePtr setClassZero = builder.Set(classification);
-    setClassZero->InputValues[1] = Value(11.0);
+    setClassZero->Inputs[1].LiteralValue = Value(11.0);
     NodePtr setClassOneTwo = builder.Set(classification);
-    setClassOneTwo->InputValues[1] = Value(17.0);
+    setClassOneTwo->Inputs[1].LiteralValue = Value(17.0);
     NodePtr setClassUnderTen = builder.Set(classification);
-    setClassUnderTen->InputValues[1] = Value(23.0);
+    setClassUnderTen->Inputs[1].LiteralValue = Value(23.0);
     NodePtr setClassUnderHundred = builder.Set(classification);
-    setClassUnderHundred->InputValues[1] = Value(31.0);
+    setClassUnderHundred->Inputs[1].LiteralValue = Value(31.0);
     NodePtr setClassDefault = builder.Set(classification);
-    setClassDefault->InputValues[1] = Value(47.0);
+    setClassDefault->Inputs[1].LiteralValue = Value(47.0);
     NodePtr branchZero = builder.Compiled("Flow::Branch");
     NodePtr equalsZero = builder.Compiled("Math::Equals");
-    equalsZero->InputValues[1] = Value(0.0);
+    equalsZero->Inputs[1].LiteralValue = Value(0.0);
     NodePtr branchOneTwo = builder.Compiled("Flow::Branch");
     NodePtr lessThree = builder.Compiled("Math::Less Than");
-    lessThree->InputValues[1] = Value(3.0);
+    lessThree->Inputs[1].LiteralValue = Value(3.0);
     NodePtr branchTen = builder.Compiled("Flow::Branch");
     NodePtr lessTen = builder.Compiled("Math::Less Than");
-    lessTen->InputValues[1] = Value(10.0);
+    lessTen->Inputs[1].LiteralValue = Value(10.0);
     NodePtr branchHundred = builder.Compiled("Flow::Branch");
     NodePtr lessHundred = builder.Compiled("Math::Less Than");
-    lessHundred->InputValues[1] = Value(100.0);
+    lessHundred->Inputs[1].LiteralValue = Value(100.0);
     NodePtr getChecksum = builder.Get(builder.checksum);
     NodePtr getClass = builder.Get(classification);
     NodePtr addChecksum = builder.Compiled("Math::Add");
@@ -726,7 +726,7 @@ FreshList InitializeFreshList(CaseBuilder& builder, Graph& graph, const NodePtr&
     NodePtr makeList = builder.Native("List::MakeList");
     makeList->TypeOverrides["T"] = list->type.ElementType();
     makeList->AddInput(builder.ids);
-    makeList->InputValues[0] = MakeValueFromType(list->type.ElementType());
+    makeList->Inputs[0].LiteralValue = MakeValueFromType(list->type.ElementType());
     NodePtr setList = builder.Set(list);
     NodePtr getList = builder.Get(list);
     NodePtr clearList = builder.Native("List::Clear");
@@ -862,7 +862,7 @@ Script MakeListProcessing(const NodeRegistry& registry, bool callbacks)
         {
             NodePtr modulo = ModuloNumber(inner, 2.0);
             NodePtr equals = inner.Compiled("Math::Equals");
-            equals->InputValues[1] = Value(0.0);
+            equals->Inputs[1].LiteralValue = Value(0.0);
             inner.Add(functionGraph, { functionBegin, modulo, equals });
             inner.Link(functionGraph, functionBegin->Outputs[1], modulo->Inputs[0]);
             inner.Link(functionGraph, modulo->Outputs[0], equals->Inputs[0]);
@@ -876,7 +876,7 @@ Script MakeListProcessing(const NodeRegistry& registry, bool callbacks)
         NodePtr map = builder.Native("Functional::Map");
         NodePtr filter = builder.Native("Functional::Filter");
         NodePtr reduce = builder.Native("Functional::Reduce");
-        reduce->InputValues[2] = Value(0.0);
+        reduce->Inputs[2].LiteralValue = Value(0.0);
         NodePtr length = builder.Native("List::Length");
         NodePtr countScale = MultiplyNumber(builder, Modulus);
         NodePtr combine = builder.Compiled("Math::Add");
@@ -904,7 +904,7 @@ Script MakeListProcessing(const NodeRegistry& registry, bool callbacks)
         NodePtr transformedModulo = ModuloNumber(builder, Modulus);
         NodePtr parity = ModuloNumber(builder, 2.0);
         NodePtr equalsZero = builder.Compiled("Math::Equals");
-        equalsZero->InputValues[1] = Value(0.0);
+        equalsZero->Inputs[1].LiteralValue = Value(0.0);
         NodePtr branch = builder.Compiled("Flow::Branch");
         NodePtr getCount = builder.Get(selectedCount);
         NodePtr incrementCount = AddNumber(builder, 1.0);
@@ -995,13 +995,13 @@ Script MakeStringBuilding(const NodeRegistry& registry)
     NodePtr indexModulo = ModuloNumber(builder, 10'000.0);
     NodePtr toString = builder.Compiled("String::ToString");
     NodePtr append = builder.Compiled("String::Append");
-    append->InputValues[0] = Value(copyString(" item-", 6));
+    append->Inputs[0].LiteralValue = Value(copyString(" item-", 6));
     append->AddInput(builder.ids);
-    append->InputValues[2] = Value(copyString(" ", 1));
+    append->Inputs[2].LiteralValue = Value(copyString(" ", 1));
     NodePtr trim = builder.Native("String::Trim");
     NodePtr replace = builder.Native("String::Replace");
-    replace->InputValues[1] = Value(copyString("-", 1));
-    replace->InputValues[2] = Value(copyString(":", 1));
+    replace->Inputs[1].LiteralValue = Value(copyString("-", 1));
+    replace->Inputs[2].LiteralValue = Value(copyString(":", 1));
     NodePtr upper = builder.Native("String::ToUpper");
     NodePtr length = builder.Native("String::Length");
     NodePtr getPartsForPush = builder.Get(parts);
@@ -1039,7 +1039,7 @@ Script MakeStringBuilding(const NodeRegistry& registry)
 
     NodePtr getPartsForJoin = builder.Get(parts);
     NodePtr join = builder.Native("String::Join");
-    join->InputValues[1] = Value(copyString("|", 1));
+    join->Inputs[1].LiteralValue = Value(copyString("|", 1));
     NodePtr combinedLength = builder.Native("String::Length");
     NodePtr scaleCombinedLength = MultiplyNumber(builder, Modulus);
     NodePtr getFinalLengthSum = builder.Get(lengthSum);
@@ -1085,22 +1085,22 @@ Script MakeDynamicValues(const NodeRegistry& registry, bool mixed)
         pushNumber->TypeOverrides["T"] = PinType::Any;
         NodePtr selector = ModuloNumber(builder, 4.0);
         NodePtr equalsZero = builder.Compiled("Math::Equals");
-        equalsZero->InputValues[1] = Value(0.0);
+        equalsZero->Inputs[1].LiteralValue = Value(0.0);
         NodePtr branchZero = builder.Compiled("Flow::Branch");
         NodePtr equalsOne = builder.Compiled("Math::Equals");
-        equalsOne->InputValues[1] = Value(1.0);
+        equalsOne->Inputs[1].LiteralValue = Value(1.0);
         NodePtr branchOne = builder.Compiled("Flow::Branch");
         NodePtr equalsTwo = builder.Compiled("Math::Equals");
-        equalsTwo->InputValues[1] = Value(2.0);
+        equalsTwo->Inputs[1].LiteralValue = Value(2.0);
         NodePtr branchTwo = builder.Compiled("Flow::Branch");
         NodePtr numberToString = builder.Compiled("String::ToString");
         NodePtr appendStringPrefix = builder.Compiled("String::Append");
-        appendStringPrefix->InputValues[0] = Value(copyString("v", 1));
+        appendStringPrefix->Inputs[0].LiteralValue = Value(copyString("v", 1));
         NodePtr pushString = builder.Native("List::Push");
         NodePtr pushBool = builder.Native("List::Push");
-        pushBool->InputValues[2] = Value(true);
+        pushBool->Inputs[2].LiteralValue = Value(true);
         NodePtr pushNil = builder.Native("List::Push");
-        pushNil->InputValues[2] = Value();
+        pushNil->Inputs[2].LiteralValue = Value();
         pushString->TypeOverrides["T"] = PinType::Any;
         pushBool->TypeOverrides["T"] = PinType::Any;
         pushNil->TypeOverrides["T"] = PinType::Any;
@@ -1241,7 +1241,7 @@ Script MakeGcPressure(const NodeRegistry& registry)
     NodePtr setObject = builder.Set(objectSlot);
     NodePtr toString = builder.Compiled("String::ToString");
     NodePtr append = builder.Compiled("String::Append");
-    append->InputValues[0] = Value(copyString("temporary-", 10));
+    append->Inputs[0].LiteralValue = Value(copyString("temporary-", 10));
     NodePtr setString = builder.Set(stringSlot);
     NodePtr makeList = builder.Native("List::MakeList");
     makeList->TypeOverrides["T"] = PinType::Float;
@@ -1293,21 +1293,21 @@ Script MakePrimeSieve(const NodeRegistry& registry)
     NodePtr getSizeForInitialize = builder.Get(builder.size);
     NodePtr sizePlusOne = AddNumber(builder, 1.0);
     NodePtr minimumFlagCount = builder.Compiled("Math::Max");
-    minimumFlagCount->InputValues[1] = Value(2.0);
+    minimumFlagCount->Inputs[1].LiteralValue = Value(2.0);
     NodePtr getFlagsForPush = builder.Get(flags);
     NodePtr pushTrue = builder.Native("List::Push");
     pushTrue->TypeOverrides["T"] = PinType::Bool;
-    pushTrue->InputValues[2] = Value(true);
+    pushTrue->Inputs[2].LiteralValue = Value(true);
     NodePtr getFlagsForZero = builder.Get(flags);
     NodePtr setZero = builder.Compiled("List::Set By Index");
     setZero->TypeOverrides["T"] = PinType::Bool;
-    setZero->InputValues[2] = Value(0.0);
-    setZero->InputValues[3] = Value(false);
+    setZero->Inputs[2].LiteralValue = Value(0.0);
+    setZero->Inputs[3].LiteralValue = Value(false);
     NodePtr getFlagsForOne = builder.Get(flags);
     NodePtr setOne = builder.Compiled("List::Set By Index");
     setOne->TypeOverrides["T"] = PinType::Bool;
-    setOne->InputValues[2] = Value(1.0);
-    setOne->InputValues[3] = Value(false);
+    setOne->Inputs[2].LiteralValue = Value(1.0);
+    setOne->Inputs[3].LiteralValue = Value(false);
     builder.Add(graph, {
         initializeRepeat, getSizeForInitialize, sizePlusOne, minimumFlagCount, getFlagsForPush, pushTrue, getFlagsForZero, setZero, getFlagsForOne, setOne
     });
@@ -1362,7 +1362,7 @@ Script MakePrimeSieve(const NodeRegistry& registry)
     NodePtr getMultipleForSet = builder.Get(multiple);
     NodePtr setComposite = builder.Compiled("List::Set By Index");
     setComposite->TypeOverrides["T"] = PinType::Bool;
-    setComposite->InputValues[3] = Value(false);
+    setComposite->Inputs[3].LiteralValue = Value(false);
     NodePtr getMultipleForIncrement = builder.Get(multiple);
     NodePtr getCandidateForIncrement = builder.Get(candidate);
     NodePtr incrementMultiple = builder.Compiled("Math::Add");
@@ -1464,11 +1464,11 @@ Script MakeMandelbrot(const NodeRegistry& registry)
     NodePtr divideX = builder.Compiled("Math::Divide");
     NodePtr offsetX = AddNumber(builder, -2.0);
     NodePtr setXZero = builder.Set(valueX);
-    setXZero->InputValues[1] = Value(0.0);
+    setXZero->Inputs[1].LiteralValue = Value(0.0);
     NodePtr setYZero = builder.Set(valueY);
-    setYZero->InputValues[1] = Value(0.0);
+    setYZero->Inputs[1].LiteralValue = Value(0.0);
     NodePtr setIterationsZero = builder.Set(iterations);
-    setIterationsZero->InputValues[1] = Value(0.0);
+    setIterationsZero->Inputs[1].LiteralValue = Value(0.0);
     builder.Add(graph, {
         begin, outerRepeat, getSizeOuter, setCoordinateY, scalePy, getSizeForY, divideY, offsetY, innerRepeat, getSizeInner,
         setCoordinateX, scalePx, getSizeForX, divideX, offsetX, setXZero, setYZero, setIterationsZero
@@ -1500,10 +1500,10 @@ Script MakeMandelbrot(const NodeRegistry& registry)
     NodePtr squareY = builder.Compiled("Math::Multiply");
     NodePtr magnitude = builder.Compiled("Math::Add");
     NodePtr magnitudeLimit = builder.Compiled("Math::Less Or Equal");
-    magnitudeLimit->InputValues[1] = Value(4.0);
+    magnitudeLimit->Inputs[1].LiteralValue = Value(4.0);
     NodePtr getIterationsForLimit = builder.Get(iterations);
     NodePtr iterationLimit = builder.Compiled("Math::Less Than");
-    iterationLimit->InputValues[1] = Value(50.0);
+    iterationLimit->Inputs[1].LiteralValue = Value(50.0);
     NodePtr condition = builder.Compiled("Logic::And");
     builder.Add(graph, {
         whileNode, getXForMagnitudeA, squareX, getYForMagnitudeA, squareY, magnitude, magnitudeLimit, getIterationsForLimit,

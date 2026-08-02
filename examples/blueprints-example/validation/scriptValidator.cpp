@@ -79,9 +79,6 @@ void ValidateGraph(const Script& script, const ScriptFunction& function,
         }
         if (node->SerializationType.empty())
             add(DiagnosticSeverity::Error, "missing-definition", "Node has no stable definition type.", node->ID);
-        if (node->InputValues.size() != node->Inputs.size())
-            add(DiagnosticSeverity::Error, "input-layout",
-                "Node input pins and default values do not have the same size.", node->ID);
         if (HasFlag(node->InstanceFlags, NodeInstanceFlags::Error))
             add(DiagnosticSeverity::Error, "invalid-reference",
                 node->Error.empty() ? "Node contains an invalid reference." : node->Error, node->ID);

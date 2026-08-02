@@ -38,7 +38,7 @@ struct RepeatNode : public Node
             compiler.emitConstant(Value(0.0));
             compiler.emitVariable(iterator, true);
             compiler.addLocal(count, true);
-            GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(context, graph, Inputs[1], Inputs[1].LiteralValue);
             compiler.emitVariable(count, true, true);
         }
         else if (stage == CompilationStage::BeginOutput && portIdx == 0)
@@ -89,7 +89,6 @@ inline NodePtr BuildRepeatNode(IDGenerator& ids)
     node->Outputs.emplace_back(
         ids.GetNextId(), "Completed", PinType::Flow,
         "Runs after all repetitions finish.");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(1.0));
+    node->Inputs[1].LiteralValue = Value(1.0);
     return node;
 }

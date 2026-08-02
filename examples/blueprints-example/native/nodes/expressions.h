@@ -24,7 +24,7 @@ struct UnaryExpressionNode : public Node
     {
         if (stage != CompilationStage::PullOutput)
             return;
-        GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
+        GraphCompiler::CompileInput(context, graph, Inputs[0], Inputs[0].LiteralValue);
         context.compiler.emitByte(OpByte(Operation));
         GraphCompiler::CompileOutput(context, graph, Outputs[0]);
     }
@@ -48,8 +48,8 @@ struct TwoOperationExpressionNode : public Node
     {
         if (stage != CompilationStage::PullOutput)
             return;
-        GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
-        GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(context, graph, Inputs[0], Inputs[0].LiteralValue);
+        GraphCompiler::CompileInput(context, graph, Inputs[1], Inputs[1].LiteralValue);
         context.compiler.emitByte(OpByte(FirstOperation));
         context.compiler.emitByte(OpByte(SecondOperation));
         GraphCompiler::CompileOutput(context, graph, Outputs[0]);
@@ -113,7 +113,7 @@ struct ShortCircuitExpressionNode : public VariadicInputNode
             {
                 exitJumps.clear();
                 successJumps.clear();
-                GraphCompiler::CompileInput(context, graph, Inputs[0], InputValues[0]);
+                GraphCompiler::CompileInput(context, graph, Inputs[0], Inputs[0].LiteralValue);
                 compiler.addLocal(outputToken, true);
                 compiler.emitVariable(outputToken, true, true);
             }
@@ -140,7 +140,7 @@ struct ShortCircuitExpressionNode : public VariadicInputNode
         }
         else if (stage == CompilationStage::AfterDeferredInput)
         {
-            GraphCompiler::CompileInput(context, graph, Inputs[portIdx], InputValues[portIdx]);
+            GraphCompiler::CompileInput(context, graph, Inputs[portIdx], Inputs[portIdx].LiteralValue);
             compiler.emitVariable(outputToken, true, true);
             compiler.emitByte(OpByte(OpCode::OP_POP));
             compiler.endScope();
@@ -185,7 +185,7 @@ inline NodePtr BuildUnaryExpressionNode(IDGenerator& ids, const char* name,
             ids.GetNextId(), name);
     node->Inputs.emplace_back(ids.GetNextId(), "Value", inputType);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", outputType);
-    node->InputValues.emplace_back(defaultValue);
+    node->Inputs.back().LiteralValue = defaultValue;
     return node;
 }
 
@@ -221,8 +221,6 @@ inline NodePtr BuildNotEqualsNode(IDGenerator& ids)
     node->Inputs.emplace_back(ids.GetNextId(), "A", comparable);
     node->Inputs.emplace_back(ids.GetNextId(), "B", comparable);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value());
     return node;
 }
 
@@ -234,8 +232,8 @@ inline NodePtr BuildGreaterOrEqualNode(IDGenerator& ids)
     node->Inputs.emplace_back(ids.GetNextId(), "A", PinType::Float);
     node->Inputs.emplace_back(ids.GetNextId(), "B", PinType::Float);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
-    node->InputValues.emplace_back(Value(0.0));
-    node->InputValues.emplace_back(Value(0.0));
+    node->Inputs[0].LiteralValue = Value(0.0);
+    node->Inputs[1].LiteralValue = Value(0.0);
     return node;
 }
 
@@ -247,8 +245,8 @@ inline NodePtr BuildLessOrEqualNode(IDGenerator& ids)
     node->Inputs.emplace_back(ids.GetNextId(), "A", PinType::Float);
     node->Inputs.emplace_back(ids.GetNextId(), "B", PinType::Float);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
-    node->InputValues.emplace_back(Value(0.0));
-    node->InputValues.emplace_back(Value(0.0));
+    node->Inputs[0].LiteralValue = Value(0.0);
+    node->Inputs[1].LiteralValue = Value(0.0);
     return node;
 }
 
@@ -261,8 +259,8 @@ inline NodePtr BuildShortCircuitNode(IDGenerator& ids, const char* name,
     node->Inputs.emplace_back(ids.GetNextId(), "A", type);
     node->Inputs.emplace_back(ids.GetNextId(), "B", type);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", type);
-    node->InputValues.emplace_back(defaultValue);
-    node->InputValues.emplace_back(defaultValue);
+    node->Inputs[0].LiteralValue = defaultValue;
+    node->Inputs[1].LiteralValue = defaultValue;
     return node;
 }
 
@@ -292,7 +290,5 @@ inline NodePtr BuildCoalesceNode(IDGenerator& ids)
     node->Inputs.emplace_back(ids.GetNextId(), "Value", valueType);
     node->Inputs.emplace_back(ids.GetNextId(), "Fallback", valueType);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", valueType);
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value());
     return node;
 }

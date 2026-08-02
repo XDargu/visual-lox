@@ -240,22 +240,16 @@ std::string NodeMatchDetail(const Node& node, const std::string& query)
     if (Contains(node.SerializationType, query))
         return "Node type";
 
-    for (size_t index = 0; index < node.Inputs.size(); ++index)
+    for (const InputPin& pin : node.Inputs)
     {
-        const Pin& pin = node.Inputs[index];
         if (Contains(pin.Name, query))
             return "Input pin: " + pin.Name;
         if (Contains(pin.Description, query))
             return "Input description: " + pin.Name;
         if (Contains(pin.Type.ToString(), query))
             return "Input type: " + pin.Type.ToString();
-        if (index < node.InputValues.size())
-        {
-            const std::string inputValue =
-                SearchableValueText(node.InputValues[index]);
-            if (Contains(inputValue, query))
-                return "Input value: " + inputValue;
-        }
+        const std::string inputValue = SearchableValueText(pin.LiteralValue);
+        if (Contains(inputValue, query)) return "Input value: " + inputValue;
     }
     for (const Pin& pin : node.Outputs)
     {

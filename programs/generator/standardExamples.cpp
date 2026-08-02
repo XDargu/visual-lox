@@ -26,7 +26,7 @@ namespace ExampleGenerator
 NodePtr NumberOperation(Builder& builder, const char* name, double right)
 {
     NodePtr node = builder.Compiled(name);
-    node->InputValues[1] = Value(right);
+    node->Inputs[1].LiteralValue = Value(right);
     return node;
 }
 
@@ -201,15 +201,15 @@ Script MakeRockPaperScissors(const NodeRegistry& registry)
     moveNames->AddInput(builder.ids);
     moveNames->AddInput(builder.ids);
     moveNames->AddInput(builder.ids);
-    moveNames->InputValues[0] = StringValue("rock");
-    moveNames->InputValues[1] = StringValue("paper");
-    moveNames->InputValues[2] = StringValue("scissors");
+    moveNames->Inputs[0].LiteralValue = StringValue("rock");
+    moveNames->Inputs[1].LiteralValue = StringValue("paper");
+    moveNames->Inputs[2].LiteralValue = StringValue("scissors");
     NodePtr getOpponentNameIndex = builder.Get(opponentMove, playRound);
     NodePtr getOpponentName = builder.Compiled("List::Get By Index");
     NodePtr announceText = builder.Compiled("String::Append");
     announceText->AddInput(builder.ids);
-    announceText->InputValues[0] = StringValue("Computer chose ");
-    announceText->InputValues[2] = StringValue(".");
+    announceText->Inputs[0].LiteralValue = StringValue("Computer chose ");
+    announceText->Inputs[2].LiteralValue = StringValue(".");
     NodePtr announce = builder.Compiled("Debug::Print");
     builder.Add(roundGraph, { moveNames, getOpponentNameIndex, getOpponentName, announceText, announce });
     builder.Link(roundGraph, setOpponent->Outputs[0], announce->Inputs[0]);
@@ -224,14 +224,14 @@ Script MakeRockPaperScissors(const NodeRegistry& registry)
     NodePtr moduloThree = NumberOperation(builder, "Math::Modulo", 3.0);
     NodePtr outcome = builder.Compiled("Flow::Match");
     outcome->AddInput(builder.ids);
-    outcome->InputValues[2] = Value(0.0);
-    outcome->InputValues[3] = Value(1.0);
+    outcome->Inputs[2].LiteralValue = Value(0.0);
+    outcome->Inputs[3].LiteralValue = Value(1.0);
     NodePtr tie = builder.Compiled("Debug::Print");
-    tie->InputValues[1] = StringValue("It is a tie.");
+    tie->Inputs[1].LiteralValue = StringValue("It is a tie.");
     NodePtr win = builder.Compiled("Debug::Print");
-    win->InputValues[1] = StringValue("You win!");
+    win->Inputs[1].LiteralValue = StringValue("You win!");
     NodePtr lose = builder.Compiled("Debug::Print");
-    lose->InputValues[1] = StringValue("The computer wins.");
+    lose->Inputs[1].LiteralValue = StringValue("The computer wins.");
     builder.Add(roundGraph, { getOpponentForOutcome, subtract, addThree, moduloThree, outcome, tie, win, lose });
     builder.Link(roundGraph, roundBegin->Outputs[1], subtract->Inputs[0]);
     builder.Link(roundGraph, getOpponentForOutcome->Outputs[0], subtract->Inputs[1]);
@@ -246,18 +246,18 @@ Script MakeRockPaperScissors(const NodeRegistry& registry)
     Graph& mainGraph = builder.script.main->Graph;
     NodePtr begin = BuildBeginNode(builder.ids, builder.script.main);
     NodePtr title = builder.Compiled("Debug::Print");
-    title->InputValues[1] = StringValue("Rock Paper Scissors");
+    title->Inputs[1].LiteralValue = StringValue("Rock Paper Scissors");
     NodePtr prompt = builder.Compiled("Debug::Print");
-    prompt->InputValues[1] = StringValue("Choose rock, paper, or scissors:");
+    prompt->Inputs[1].LiteralValue = StringValue("Choose rock, paper, or scissors:");
     NodePtr read = builder.Native("Console::Read Input");
     NodePtr lower = builder.Native("String::ToLower");
     NodePtr trim = builder.Native("String::Trim");
     NodePtr match = builder.Compiled("Flow::Match");
     match->AddInput(builder.ids);
     match->AddInput(builder.ids);
-    match->InputValues[2] = StringValue("rock");
-    match->InputValues[3] = StringValue("paper");
-    match->InputValues[4] = StringValue("scissors");
+    match->Inputs[2].LiteralValue = StringValue("rock");
+    match->Inputs[3].LiteralValue = StringValue("paper");
+    match->Inputs[4].LiteralValue = StringValue("scissors");
     NodePtr playRock = builder.Call(playRound);
     builder.Default(playRock, "Player Move", Value(0.0));
     NodePtr playPaper = builder.Call(playRound);
@@ -265,7 +265,7 @@ Script MakeRockPaperScissors(const NodeRegistry& registry)
     NodePtr playScissors = builder.Call(playRound);
     builder.Default(playScissors, "Player Move", Value(2.0));
     NodePtr invalid = builder.Compiled("Debug::Print");
-    invalid->InputValues[1] = StringValue("That is not a valid move.");
+    invalid->Inputs[1].LiteralValue = StringValue("That is not a valid move.");
     builder.Add(mainGraph, { begin, title, prompt, read, lower, trim, match, playRock, playPaper, playScissors, invalid });
     builder.Link(mainGraph, begin->Outputs[0], title->Inputs[0]);
     builder.Link(mainGraph, title->Outputs[0], prompt->Inputs[0]);

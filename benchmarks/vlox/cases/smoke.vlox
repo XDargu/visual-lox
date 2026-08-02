@@ -1,53 +1,119 @@
 {
   "format": "visual-lox",
-  "format_version": 2,
-  "script": {
-    "classes": [],
-    "functions": [],
-    "id": 1,
-    "main": {
-      "graph": {
-        "links": [],
-        "nodes": [
+  "format_version": 8,
+  "module_id": "46ebe224-3c94-4659-93dc-16e8f6dc61c7",
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
+        ],
+        "nodes":
+        [
           {
-            "definition": "",
-            "id": 3,
-            "input_values": [],
-            "inputs": [],
+            "definition":
+            {
+              "id": "vlox.core.begin",
+              "revision": 1
+            },
+            "description": "Entry point for 'Main'. ",
+            "display_name": "Begin",
+            "id": "66042f4e-ff69-5ff9-8291-b27fc4baeec2",
+            "inputs":
+            [
+            ],
             "kind": "begin",
-            "outputs": [
+            "outputs":
+            [
               {
-                "id": 4,
-                "name": "",
-                "type": "flow"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "start",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
-            "state": ""
+            "state": "",
+            "type_overrides":
+            {
+            }
           }
         ]
       },
-      "id": 2,
-      "inputs": [],
+      "id": "ca623b17-8c5c-5245-b4af-f836e02136a0",
+      "inputs":
+      [
+      ],
       "name": "Main",
-      "outputs": [],
-      "variables": []
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
     },
-    "variables": [
+    "variables":
+    [
       {
-        "default": {
+        "declared_type":
+        {
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
           "type": "number",
           "value": 1
         },
-        "id": 5,
+        "description": "",
+        "id": "21e29296-ed40-530d-87e1-f59cb0f9696b",
         "name": "BenchmarkSize"
       },
       {
-        "default": {
+        "declared_type":
+        {
+          "input_count": -1,
+          "kind": "number",
+          "name": "",
+          "parameters":
+          [
+          ]
+        },
+        "default":
+        {
           "type": "number",
           "value": 0
         },
-        "id": 6,
+        "description": "",
+        "id": "b1914f8d-a66b-5057-8a18-48df46cb70d0",
         "name": "BenchmarkChecksum"
       }
     ]

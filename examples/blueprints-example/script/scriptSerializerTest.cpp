@@ -155,18 +155,18 @@ struct SerializerFixture
         const CompiledNodeDefPtr addDefinition = registry.FindCompiled("Math::Add");
         Require(static_cast<bool>(addDefinition), "Compiled definition was not registered.");
         NodePtr add = addDefinition->MakeNode(ids);
-        add->InputValues[0] = Value(2.0);
-        add->InputValues[1] = Value(3.0);
+        add->Inputs[0].LiteralValue = Value(2.0);
+        add->Inputs[1].LiteralValue = Value(3.0);
         add->AddInput(ids);
         add->AddInput(ids);
-        add->InputValues[2] = Value(4.0);
-        add->InputValues[3] = Value(5.0);
+        add->Inputs[2].LiteralValue = Value(4.0);
+        add->Inputs[3].LiteralValue = Value(5.0);
         AttachNode(script.main->Graph, add);
 
         const NativeFunctionDef* squareDefinition = registry.FindNative("Math::Square");
         Require(squareDefinition != nullptr, "Native definition was not registered.");
         NodePtr square = squareDefinition->functionDef->MakeNode(ids, ScriptElementID::Invalid);
-        square->InputValues[0] = Value(7.0);
+        square->Inputs[0].LiteralValue = Value(7.0);
         AttachNode(script.main->Graph, square);
 
         NodePtr anyList =
@@ -318,8 +318,8 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             "The explicit MakeList element type changed.");
     const NodePtr loadedAdd = fixture.loaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
-    Require(loadedAdd && loadedAdd->Inputs.size() == 4 && loadedAdd->InputValues.size() == 4 &&
-            isNumber(loadedAdd->InputValues[3]) && asNumber(loadedAdd->InputValues[3]) == 5.0 &&
+    Require(loadedAdd && loadedAdd->Inputs.size() == 4 &&
+            isNumber(loadedAdd->Inputs[3].LiteralValue) && asNumber(loadedAdd->Inputs[3].LiteralValue) == 5.0 &&
             loadedAdd->CanAddInput() && loadedAdd->CanRemoveInput(loadedAdd->Inputs[3].ID),
             "Compiled dynamic inputs and values were not restored.");
 }
@@ -364,12 +364,24 @@ void ActiveWriterUsesCleanV8Schema()
             document.find("\"target\"") != std::string::npos && document.find("\"value\"") != std::string::npos,
         "The version 8 document omitted definition, semantic-port, symbolic-target, or input-owned-value data.");
 
-    const char* forbiddenFields[] = {
-        "\"uuid\"", "\"reference_id\"", "\"input_values\"", "\"start_pin_id\"", "\"end_pin_id\"", "\"class_id\"", "\"legacy_port_id\""
-    };
-    for (const char* field : forbiddenFields)
-        Require(document.find(field) == std::string::npos, "The version 8 writer emitted a legacy or runtime-only field.");
     Require(!std::regex_search(document, std::regex(R"("id"\s*:\s*[0-9])")), "The version 8 writer emitted a numeric runtime ID.");
+}
+
+void NonCurrentFormatsAreRejected()
+{
+    SerializerFixture fixture;
+    std::string document;
+    SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
+    Require(result.success, result.error.c_str());
+
+    const size_t version = document.find("\"format_version\": 8");
+    Require(version != std::string::npos, "The current format marker was not found.");
+    document.replace(version, std::string("\"format_version\": 8").size(), "\"format_version\": 7");
+
+    Script loaded;
+    IDGenerator ids;
+    result = ScriptSerializer::DeserializeFromString(document, fixture.registry, loaded, ids);
+    Require(!result.success && result.error.find("expected version 8") != std::string::npos, "A non-current document format was accepted.");
 }
 
 void AddedNativeInputUsesCurrentDefault(const std::string& outputPath)
@@ -379,8 +391,6 @@ void AddedNativeInputUsesCurrentDefault(const std::string& outputPath)
     const NodePtr sourceSquare = fixture.script.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; });
     Require(sourceSquare && sourceSquare->Inputs[0].Identity.kind == PortIdentityKind::Fixed, "Square input has no fixed semantic identity.");
-    sourceSquare->Inputs[0].Identity.key = "legacy_value";
-    fixture.registry.RegisterPortAlias("vlox.std.native.math.square", PinKind::Input, "legacy_value", "value");
     SerializationResult result = ScriptSerializer::Save(fixture.script, files.first);
     Require(result.success, result.error.c_str());
 
@@ -394,10 +404,9 @@ void AddedNativeInputUsesCurrentDefault(const std::string& outputPath)
     Require(result.success, result.error.c_str());
     const NodePtr loadedSquare = fixture.loaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; });
-    Require(loadedSquare && loadedSquare->Inputs.size() == 2 && loadedSquare->InputValues.size() == 2,
-        "Adding a native input prevented the old node layout from reconciling.");
-    Require(isNumber(loadedSquare->InputValues[0]) && asNumber(loadedSquare->InputValues[0]) == 7.0 &&
-        isNumber(loadedSquare->InputValues[1]) && asNumber(loadedSquare->InputValues[1]) == 6.0,
+    Require(loadedSquare && loadedSquare->Inputs.size() == 2, "Adding a native input prevented the saved node layout from reconciling.");
+    Require(isNumber(loadedSquare->Inputs[0].LiteralValue) && asNumber(loadedSquare->Inputs[0].LiteralValue) == 7.0 &&
+        isNumber(loadedSquare->Inputs[1].LiteralValue) && asNumber(loadedSquare->Inputs[1].LiteralValue) == 6.0,
         "The saved value or current default moved to the wrong native input.");
 }
 
@@ -412,9 +421,9 @@ void ScriptPortIdentitySurvivesDefinitionEvolution()
     Require(call && call->Inputs.size() == 1, "Echo call node was not created.");
 
     const ed::PinId originalPinId = call->Inputs[0].ID;
-    const int originalPortId = function->functionDef->inputs[0].id;
+    const int originalRuntimePortId = function->functionDef->inputs[0].id;
     const ScriptPortId originalPersistentPortId = function->functionDef->inputs[0].persistentId;
-    call->InputValues[0] = Value(copyString("custom", 6));
+    call->Inputs[0].LiteralValue = Value(copyString("custom", 6));
     const NodePtr sourceCall = function->functionDef->MakeNode(fixture.ids, function->ID);
     AttachNode(fixture.script.main->Graph, sourceCall);
     Link preservedLink(fixture.ids.GetNextId(), sourceCall->Outputs[0].ID, originalPinId);
@@ -425,10 +434,10 @@ void ScriptPortIdentitySurvivesDefinitionEvolution()
     function->functionDef->inputs[1].name = "Renamed Value";
     call->Refresh(fixture.script, fixture.ids);
 
-    Require(call->Inputs.size() == 2 && call->Inputs[1].ID == originalPinId && call->Inputs[1].Identity.legacyScriptPortId == originalPortId,
+    Require(call->Inputs.size() == 2 && call->Inputs[1].ID == originalPinId && call->Inputs[1].Identity.scriptPortId == originalPersistentPortId,
         "Renaming or reordering a script port changed its call-site identity.");
-    Require(isString(call->InputValues[0]) && asString(call->InputValues[0])->chars == "prefix" &&
-        isString(call->InputValues[1]) && asString(call->InputValues[1])->chars == "custom",
+    Require(isString(call->Inputs[0].LiteralValue) && asString(call->Inputs[0].LiteralValue)->chars == "prefix" &&
+        isString(call->Inputs[1].LiteralValue) && asString(call->Inputs[1].LiteralValue)->chars == "custom",
         "Renaming or reordering a script port moved its literal value.");
 
     function->functionDef->inputs.erase(function->functionDef->inputs.begin() + 1);
@@ -440,12 +449,12 @@ void ScriptPortIdentitySurvivesDefinitionEvolution()
     Require(fixture.script.main->Graph.GetLinks().back().PersistentId == preservedLink.PersistentId && !fixture.script.main->Graph.GetLinks().back().IsResolved,
         "A link to a removed script port was discarded or left active.");
 
-    BasicFunctionDef::Input restored("Restored Value", Value(copyString("default", 7)), originalPortId, TypeRef::Variable("T"), "Restored value.");
+    BasicFunctionDef::Input restored("Restored Value", Value(copyString("default", 7)), originalRuntimePortId, TypeRef::Variable("T"), "Restored value.");
     restored.persistentId = originalPersistentPortId;
     function->functionDef->inputs.push_back(std::move(restored));
     call->Refresh(fixture.script, fixture.ids);
     fixture.script.main->Graph.RefreshTypes();
-    Require(call->UnresolvedInputs.empty() && call->Inputs[1].ID == originalPinId && isString(call->InputValues[1]) && asString(call->InputValues[1])->chars == "custom",
+    Require(call->UnresolvedInputs.empty() && call->Inputs[1].ID == originalPinId && isString(call->Inputs[1].LiteralValue) && asString(call->Inputs[1].LiteralValue)->chars == "custom",
         "Restoring a script port did not resolve its original pin and value.");
     Require(fixture.script.main->Graph.GetLinks().back().IsResolved,
         "Restoring a script port did not reactivate its preserved link.");
@@ -459,8 +468,6 @@ void UnavailableDefinitionRemainsRecoverable()
     Require(source != nullptr, "Add node was not created.");
     const GraphNodeId sourceId = source->PersistentId;
     const size_t inputCount = source->Inputs.size();
-    source->SerializedExtensions["plugin_payload"] = "{\"mode\":\"preserve-me\",\"revision\":3}";
-
     fixture.registry.compiledDefinitions.erase(std::remove_if(fixture.registry.compiledDefinitions.begin(), fixture.registry.compiledDefinitions.end(),
         [](const CompiledNodeDefPtr& definition) { return definition && definition->id == "vlox.std.compiled.math.add"; }), fixture.registry.compiledDefinitions.end());
 
@@ -488,28 +495,6 @@ void UnavailableDefinitionRemainsRecoverable()
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
     Require(missingAgain && missingAgain->PersistentId == sourceId && missingAgain->Inputs.size() == inputCount,
         "A recoverable unavailable node did not survive load-save-load.");
-    Require(savedAgain.find("plugin_payload") == std::string::npos, "Format version 8 retained a legacy extension-field bag.");
-}
-
-void LegacyDocumentsUseSequentialMigrations()
-{
-    const std::string document = R"({"format":"visual-lox","format_version":1,"script":{}})";
-    std::string migrated;
-    const SerializationResult result = ScriptSerializer::MigrateToCurrentFormat(document, migrated);
-    Require(result.success && std::any_of(result.diagnostics.begin(), result.diagnostics.end(), [](const SerializationDiagnostic& diagnostic)
-        { return diagnostic.code == "document.migrated" && diagnostic.path == "$.format_version"; }),
-        "Legacy migration did not run or report the sequential document migration.");
-}
-
-void MigrationCanBePreviewedWithoutARegistry()
-{
-    const std::string legacy = R"({"format":"visual-lox","format_version":1,"script":{}})";
-    std::string migrated;
-    const SerializationResult result = ScriptSerializer::MigrateToCurrentFormat(legacy, migrated);
-    Require(result.success && migrated.find("\"format_version\"") != std::string::npos && migrated.find("\"classes\"") != std::string::npos,
-        "Registry-independent migration preview did not produce the legacy compatibility model.");
-    Require(std::any_of(result.diagnostics.begin(), result.diagnostics.end(), [](const SerializationDiagnostic& diagnostic)
-        { return diagnostic.code == "document.migrated"; }), "Migration preview did not report its transformation.");
 }
 
 void SemanticLinkEndpointsNeedNoTransientPinIds()
@@ -520,9 +505,6 @@ void SemanticLinkEndpointsNeedNoTransientPinIds()
     Require(result.success && document.find("\"from\"") != std::string::npos && document.find("\"to\"") != std::string::npos,
         "Serialized links do not contain semantic endpoints.");
 
-    Require(document.find("start_pin_id") == std::string::npos && document.find("end_pin_id") == std::string::npos,
-        "Format version 8 retained transient pin IDs on links.");
-
     Script loaded;
     IDGenerator loadedIds;
     result = ScriptSerializer::DeserializeFromString(document, fixture.registry, loaded, loadedIds);
@@ -530,26 +512,19 @@ void SemanticLinkEndpointsNeedNoTransientPinIds()
         "Semantic link endpoints did not restore the graph without transient pin IDs.");
 }
 
-void InputValuesLoadFromTheirOwningPorts()
+void InputLiteralsLoadFromTheirOwningPorts()
 {
     SerializerFixture fixture;
     std::string document;
     SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
     Require(result.success && document.find("\"value\"") != std::string::npos, "Serialized inputs do not own their values.");
-    size_t offset = 0;
-    while ((offset = document.find("\"input_values\"", offset)) != std::string::npos)
-    {
-        document.replace(offset, std::string("\"input_values\"").size(), "\"legacy_input_values\"");
-        offset += std::string("\"legacy_input_values\"").size();
-    }
-
     Script loaded;
     IDGenerator loadedIds;
     result = ScriptSerializer::DeserializeFromString(document, fixture.registry, loaded, loadedIds);
     Require(result.success, result.error.c_str());
     const NodePtr square = loaded.main ? loaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; }) : nullptr;
-    Require(square && isNumber(square->InputValues[0]) && asNumber(square->InputValues[0]) == 7.0,
+    Require(square && isNumber(square->Inputs[0].LiteralValue) && asNumber(square->Inputs[0].LiteralValue) == 7.0,
         "Input values were not restored from their owning port entries.");
 }
 }
@@ -567,6 +542,7 @@ void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPa
             RoundTripIsDeterministic(outputPath);
         });
         runner.Test("the active writer uses the clean v8 schema", ActiveWriterUsesCleanV8Schema);
+        runner.Test("non-current document formats are rejected", NonCurrentFormatsAreRejected);
         runner.Test("a loaded script compiles and executes", [&]()
         {
             RoundTrippedScriptCompilesAndExecutes(outputPath);
@@ -577,9 +553,7 @@ void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPa
         });
         runner.Test("script ports survive rename, reorder, removal, and restoration", ScriptPortIdentitySurvivesDefinitionEvolution);
         runner.Test("an unavailable definition remains recoverable", UnavailableDefinitionRemainsRecoverable);
-        runner.Test("legacy documents use sequential migrations", LegacyDocumentsUseSequentialMigrations);
-        runner.Test("legacy migration can be previewed without a registry", MigrationCanBePreviewedWithoutARegistry);
         runner.Test("semantic link endpoints need no transient pin IDs", SemanticLinkEndpointsNeedNoTransientPinIds);
-        runner.Test("input values load from their owning ports", InputValuesLoadFromTheirOwningPorts);
+        runner.Test("input literals load from their owning ports", InputLiteralsLoadFromTheirOwningPorts);
     });
 }

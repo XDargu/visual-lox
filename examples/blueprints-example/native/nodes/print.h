@@ -43,7 +43,7 @@ struct PrintNode : public Node
     {
         Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
         compiler.emitByte(OpByte(OpCode::OP_PRINT));
     }
 };
@@ -56,7 +56,6 @@ static NodePtr BuildPrintNode(IDGenerator& IDGenerator)
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
 
     // TODO: These values will be garbage collected! We will need to mark them somewhow
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(copyString("", 0)));
+    node->Inputs[1].LiteralValue = Value(copyString("", 0));
     return node;
 }

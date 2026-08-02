@@ -8,8 +8,6 @@
 
 #include <imgui_node_editor.h>
 
-#include <algorithm>
-#include <stdexcept>
 #include <string>
 #include <vector>
 #include <map>
@@ -155,7 +153,6 @@ struct PortIdentity
 {
     PortIdentityKind kind = PortIdentityKind::None;
     std::string key;
-    int legacyScriptPortId = -1;
     ScriptPortId scriptPortId;
     DynamicSlotId dynamicSlot;
     std::string family;
@@ -169,11 +166,10 @@ struct PortIdentity
         return result;
     }
 
-    static PortIdentity Script(int legacyPortId, ScriptPortId persistentPortId = {})
+    static PortIdentity Script(ScriptPortId persistentPortId)
     {
         PortIdentity result;
         result.kind = PortIdentityKind::Script;
-        result.legacyScriptPortId = legacyPortId;
         result.scriptPortId = persistentPortId;
         return result;
     }
@@ -190,7 +186,7 @@ struct PortIdentity
 
     bool operator==(const PortIdentity& other) const
     {
-        return kind == other.kind && key == other.key && legacyScriptPortId == other.legacyScriptPortId && scriptPortId == other.scriptPortId && dynamicSlot == other.dynamicSlot &&
+        return kind == other.kind && key == other.key && scriptPortId == other.scriptPortId && dynamicSlot == other.dynamicSlot &&
             family == other.family && member == other.member;
     }
 };
@@ -200,8 +196,7 @@ inline bool PortIdentitiesMatch(const PortIdentity& left, const PortIdentity& ri
     if (left.kind != right.kind) return false;
     if (left.kind == PortIdentityKind::Script)
     {
-        if (left.scriptPortId.IsValid() && right.scriptPortId.IsValid()) return left.scriptPortId == right.scriptPortId;
-        return left.legacyScriptPortId == right.legacyScriptPortId;
+        return left.scriptPortId == right.scriptPortId;
     }
     if (left.kind == PortIdentityKind::Fixed) return left.key == right.key;
     if (left.kind == PortIdentityKind::Dynamic)
@@ -221,7 +216,6 @@ struct Pin
     TypeRef     DeclaredType;
     PinKind     Kind;
     PortIdentity Identity;
-    std::map<std::string, std::string> SerializedExtensions;
 
     Pin(int id, const char* name, TypeRef type, std::string description = {}) :
         ID(id), Node(nullptr), Name(name), Description(std::move(description)),
@@ -240,72 +234,6 @@ struct InputPin : Pin
     InputPin(Pin pin, Value literalValue = {}) : Pin(std::move(pin)), LiteralValue(literalValue) {}
 
     Value LiteralValue;
-};
-
-class InputValueView
-{
-public:
-    struct Cursor
-    {
-        size_t index = 0;
-        Cursor operator+(size_t offset) const { return { index + offset }; }
-    };
-
-    explicit InputValueView(std::vector<InputPin>& inputs) : m_inputs(inputs) {}
-
-    size_t size() const { return m_inputs.size(); }
-    Value& operator[](size_t index) { return m_inputs[index].LiteralValue; }
-    const Value& operator[](size_t index) const { return m_inputs[index].LiteralValue; }
-
-    void clear() { m_nextAppendIndex = 0; }
-    void emplace_back(Value value) { Append(value); }
-    void push_back(Value value) { Append(value); }
-
-    Cursor begin() const { return {}; }
-    Cursor end() const { return { m_inputs.size() }; }
-    Cursor erase(Cursor position)
-    {
-        if (position.index < m_nextAppendIndex) --m_nextAppendIndex;
-        return position;
-    }
-    Cursor erase(Cursor first, Cursor)
-    {
-        m_nextAppendIndex = (std::min)(m_nextAppendIndex, first.index);
-        return first;
-    }
-    Cursor insert(Cursor position, Value value)
-    {
-        if (position.index >= m_inputs.size()) throw std::out_of_range("Input value insertion is outside the owned input collection.");
-        m_inputs[position.index].LiteralValue = value;
-        if (position.index <= m_nextAppendIndex) ++m_nextAppendIndex;
-        return position;
-    }
-
-    InputValueView& operator=(std::vector<Value> values)
-    {
-        if (values.size() != m_inputs.size()) throw std::invalid_argument("Input value count does not match the owned input collection.");
-        for (size_t index = 0; index < values.size(); ++index) m_inputs[index].LiteralValue = values[index];
-        m_nextAppendIndex = m_inputs.size();
-        return *this;
-    }
-
-    std::vector<Value> Snapshot() const
-    {
-        std::vector<Value> result;
-        result.reserve(m_inputs.size());
-        for (const InputPin& input : m_inputs) result.push_back(input.LiteralValue);
-        return result;
-    }
-
-private:
-    void Append(Value value)
-    {
-        if (m_nextAppendIndex >= m_inputs.size()) throw std::logic_error("A literal value was added without an owned input.");
-        m_inputs[m_nextAppendIndex++].LiteralValue = value;
-    }
-
-    std::vector<InputPin>& m_inputs;
-    size_t m_nextAppendIndex = 0;
 };
 
 enum class NodeCategory
@@ -361,9 +289,6 @@ struct Node
     NodeInstanceFlags   InstanceFlags = NodeInstanceFlags::None;
     bool IsSerializationPlaceholder = false;
 
-    InputValueView InputValues;
-    InputValueView UnresolvedInputValues;
-
     std::string State;
     std::string SavedState;
 
@@ -378,20 +303,19 @@ struct Node
     // Explicit bindings for generic type variables on this node instance.
     // Missing entries remain inferred from connected pins.
     std::map<std::string, TypeRef> TypeOverrides;
+
     // Definition metadata controls which generic bindings appear in the
     // Inspector. ResolvedTypeVariables is transient graph-inference state.
     std::vector<GenericTypeProperty> GenericTypeProperties;
     std::map<std::string, TypeRef> ResolvedTypeVariables;
-    std::map<std::string, std::string> SerializedExtensions;
 
     // Reference to: functionId, variableId
     ScriptElementID refId;
     ModuleId refModuleId;
     ScriptElementUuid refPersistentId;
 
-    Node(int id, const char* name, ImColor color = ImColor(255, 255, 255),
-         std::string description = {}) :
-        ID(id), Name(name), Description(std::move(description)), Color(color), Size(0, 0), InputValues(Inputs), UnresolvedInputValues(UnresolvedInputs)
+    Node(int id, const char* name, ImColor color = ImColor(255, 255, 255), std::string description = {}) :
+        ID(id), Name(name), Description(std::move(description)), Color(color), Size(0, 0)
     {
     }
 

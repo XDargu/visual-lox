@@ -32,7 +32,7 @@ struct MapForEachNode : public Node
             compiler.emitConstant(Value(0.0));
             compiler.emitVariable(iterToken, true);
             compiler.addLocal(mapToken, false);
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
             compiler.emitVariable(mapToken, true);
             return;
         }
@@ -85,7 +85,6 @@ inline NodePtr BuildMapForEachNode(IDGenerator& ids)
     node->Outputs.emplace_back(ids.GetNextId(), "Key", key, "The key at the current iteration.");
     node->Outputs.emplace_back(ids.GetNextId(), "Value", value, "The value at the current iteration.");
     node->Outputs.emplace_back(ids.GetNextId(), "End", PinType::Flow, "Executes after iteration finishes.");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(newMap()));
+    node->Inputs[1].LiteralValue = Value(newMap());
     return node;
 }

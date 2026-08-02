@@ -60,12 +60,12 @@ struct SearchFixture
         node->refId = variable->ID;
         node->Inputs.emplace_back(
             21, "Count", PinType::Float, "Number of points");
-        node->InputValues.emplace_back(Value(42.0));
+        node->Inputs.back().LiteralValue = Value(42.0);
         node->Inputs.emplace_back(
             23, "Predicate",
             TypeRef::Function({ PinType::Float }, { PinType::Bool }),
             "Function used to select values");
-        node->InputValues.emplace_back(Value(newFunction()));
+        node->Inputs.back().LiteralValue = Value(newFunction());
         node->Outputs.emplace_back(
             22, "Formatted Text", PinType::String, "Final output");
         NodeUtils::BuildNode(node);
@@ -151,7 +151,7 @@ void TextSearchCoversDefinitionsPortsPinsAndValues()
         functionValueResults, ScriptSearchResultKind::GraphNode,
         fixture.variable->ID.id, 20),
         "Text search did not safely inspect a function placeholder value.");
-    Require(valueAsStr(fixture.node->InputValues[1]) == "<function>",
+    Require(valueAsStr(fixture.node->Inputs[1].LiteralValue) == "<function>",
         "Nameless function placeholders are not safely printable.");
 }
 

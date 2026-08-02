@@ -9,7 +9,6 @@
 #include <Vm.h>
 
 #include <memory>
-#include <map>
 
 using NodeCreationFun = NodePtr(*)(IDGenerator& IDGenerator);
 
@@ -72,14 +71,7 @@ public:
 
     const NativeFunctionDef* FindNative(const std::string& name) const;
     CompiledNodeDefPtr FindCompiled(const std::string& name) const;
-    void RegisterNativeAlias(std::string alias, std::string definitionId);
-    void RegisterCompiledAlias(std::string alias, std::string definitionId);
-    void RegisterPortAlias(const std::string& definitionId, PinKind direction, std::string alias, std::string portKey);
-
     std::vector<NativeFunctionDef> nativeDefinitions;
     std::vector<CompiledNodeDefPtr> compiledDefinitions;
 
-private:
-    std::map<std::string, std::string> nativeAliases;
-    std::map<std::string, std::string> compiledAliases;
 };

@@ -13,8 +13,6 @@ struct Script
 {
     ScriptElementID ID;
     ModuleId ModuleIdentity{ Uuid::NewV4() };
-    std::map<std::string, std::string> DocumentSerializedExtensions;
-    std::map<std::string, std::string> SerializedExtensions;
     std::map<std::string, int> RuntimeIdCache;
     
     std::vector<ScriptClassPtr> classes;

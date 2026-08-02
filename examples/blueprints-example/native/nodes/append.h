@@ -48,11 +48,11 @@ struct AppendNode : public VariadicInputNode
     {
         Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], Inputs[0].LiteralValue);
 
         for (int i = 1; i < Inputs.size(); ++i)
         {
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], Inputs[i].LiteralValue);
             compiler.emitByte(OpByte(OpCode::OP_ADD));
         }
 
@@ -68,7 +68,7 @@ static NodePtr CreateAppendNode(IDGenerator& IDGenerator)
     node->Inputs.emplace_back(IDGenerator.GetNextId(), "B", PinType::Any);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Result", PinType::String);
 
-    node->InputValues.emplace_back(Value(copyString("", 0)));
-    node->InputValues.emplace_back(Value(copyString("", 0)));
+    node->Inputs[0].LiteralValue = Value(copyString("", 0));
+    node->Inputs[1].LiteralValue = Value(copyString("", 0));
     return node;
 }

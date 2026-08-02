@@ -46,7 +46,7 @@ struct ForInNode : public Node
             compiler.addLocal(rangeToken, false);
             
             // Get actual value
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
 
             compiler.emitVariable(rangeToken, true); // Set the range value
         }
@@ -120,9 +120,7 @@ static NodePtr BuildForInNode(IDGenerator& IDGenerator)
         "The value at the current iteration.");
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "End", PinType::Flow,
         "Executes after iteration finishes.");
-
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(newList()));
+    node->Inputs[1].LiteralValue = Value(newList());
 
     return node;
 }

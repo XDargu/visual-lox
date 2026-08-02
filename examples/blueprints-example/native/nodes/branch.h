@@ -79,7 +79,7 @@ struct BranchNode : public Node
 
     void CompileInputs(CompilerContext& compilerCtx, const Graph& graph) const
     {
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
     }
 };
 
@@ -98,8 +98,6 @@ static NodePtr BuildBranchNode(IDGenerator& IDGenerator)
     node->Outputs.emplace_back(
         IDGenerator.GetNextId(), "False", PinType::Flow,
         "Runs when Condition is false.");
-
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(false));
+    node->Inputs[1].LiteralValue = Value(false);
     return node;
 }

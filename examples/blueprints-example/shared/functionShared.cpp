@@ -70,7 +70,7 @@ struct FunctionNode : public Node
             {
                 if (Inputs[i].Type != PinType::Flow)
                 {
-                    GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], InputValues[i]);
+                    GraphCompiler::CompileInput(compilerCtx, graph, Inputs[i], Inputs[i].LiteralValue);
                     if (hasDynamicInputs)
                         compiler.emitByte(OpByte(OpCode::OP_APPEND_LIST));
                     else
@@ -121,8 +121,6 @@ struct FunctionNode : public Node
                 if (Inputs[index].Type != PinType::Flow)
                     continue;
                 Inputs.erase(Inputs.begin() + index);
-                if (index < InputValues.size())
-                    InputValues.erase(InputValues.begin() + index);
             }
             stl::erase_if(Outputs,
                 [](const Pin& output) { return output.Type == PinType::Flow; });
@@ -135,7 +133,6 @@ struct FunctionNode : public Node
                 Inputs.insert(Inputs.begin(),
                     Pin(IDGenerator.GetNextId(), "", PinType::Flow,
                         "Executes this function."));
-                InputValues.insert(InputValues.begin(), Value());
             }
             if (std::none_of(Outputs.begin(), Outputs.end(),
                     [](const Pin& output) { return output.Type == PinType::Flow; }))
@@ -149,65 +146,50 @@ struct FunctionNode : public Node
         const bool scriptDefinition = refId.IsValid();
         const auto identityOf = [&](const BasicFunctionDef::Input& port)
         {
-            return scriptDefinition ? PortIdentity::Script(port.id, port.persistentId) : PortIdentity::Fixed(port.key);
+            return scriptDefinition ? PortIdentity::Script(port.persistentId) : PortIdentity::Fixed(port.key);
         };
         const auto matches = [&](const Pin& pin, const BasicFunctionDef::Input& port)
         {
             const PortIdentity identity = identityOf(port);
-            return pin.Identity.kind != PortIdentityKind::None ? PortIdentitiesMatch(pin.Identity, identity) : pin.Name == port.name;
+            return PortIdentitiesMatch(pin.Identity, identity);
         };
 
-        std::vector<std::pair<Pin, Value>> savedInputs;
-        for (size_t index = 0; index < Inputs.size(); ++index)
-            if (Inputs[index].Type != PinType::Flow)
-                savedInputs.emplace_back(Inputs[index], InputValues[index]);
-        for (size_t index = 0; index < UnresolvedInputs.size(); ++index)
-            savedInputs.emplace_back(UnresolvedInputs[index], UnresolvedInputValues[index]);
+        std::vector<InputPin> savedInputs;
+        std::copy_if(Inputs.begin(), Inputs.end(), std::back_inserter(savedInputs), [](const InputPin& input) { return input.Type != PinType::Flow; });
+        savedInputs.insert(savedInputs.end(), UnresolvedInputs.begin(), UnresolvedInputs.end());
 
         std::vector<InputPin> refreshedInputs;
-        std::vector<Value> refreshedValues;
         if (!expressionOnly)
         {
             const auto flow = std::find_if(Inputs.begin(), Inputs.end(), [](const Pin& input) { return input.Type == PinType::Flow; });
-            Pin pin = flow != Inputs.end() ? *flow : Pin(IDGenerator.GetNextId(), "", PinType::Flow, "Executes this function.");
+            InputPin pin = flow != Inputs.end() ? *flow : InputPin(Pin(IDGenerator.GetNextId(), "", PinType::Flow, "Executes this function."));
             pin.Identity = PortIdentity::Fixed("execute");
             refreshedInputs.push_back(std::move(pin));
-            refreshedValues.emplace_back();
         }
 
         for (const BasicFunctionDef::Input& input : pFunctionDef->inputs)
         {
-            const auto existing = std::find_if(savedInputs.begin(), savedInputs.end(), [&](const auto& item) { return matches(item.first, input); });
+            const auto existing = std::find_if(savedInputs.begin(), savedInputs.end(), [&](const InputPin& saved) { return matches(saved, input); });
             if (existing != savedInputs.end())
             {
-                Pin pin = std::move(existing->first);
-                Value value = existing->second;
+                InputPin pin = std::move(*existing);
                 pin.Name = input.name;
                 pin.Type = pin.DeclaredType = input.type;
                 pin.Description = input.description;
                 pin.Identity = identityOf(input);
                 refreshedInputs.push_back(std::move(pin));
-                refreshedValues.push_back(value);
                 savedInputs.erase(existing);
             }
             else
             {
-                Pin pin(IDGenerator.GetNextId(), input.name.c_str(), input.type, input.description);
+                InputPin pin(Pin(IDGenerator.GetNextId(), input.name.c_str(), input.type, input.description), input.value);
                 pin.Identity = identityOf(input);
                 refreshedInputs.push_back(std::move(pin));
-                refreshedValues.push_back(input.value);
             }
         }
 
         Inputs = std::move(refreshedInputs);
-        InputValues = std::move(refreshedValues);
-        UnresolvedInputs.clear();
-        UnresolvedInputValues.clear();
-        for (auto& [pin, value] : savedInputs)
-        {
-            UnresolvedInputs.push_back(std::move(pin));
-            UnresolvedInputValues.push_back(value);
-        }
+        UnresolvedInputs = std::move(savedInputs);
 
         std::vector<Pin> savedOutputs;
         for (Pin& output : Outputs)
@@ -280,7 +262,7 @@ struct FunctionNode : public Node
                 pFunctionDef->dynamicInputProps.type,
                 pFunctionDef->dynamicInputProps.description);
             Inputs.back().Identity = PortIdentity::Dynamic(pFunctionDef->dynamicInputProps.familyKey, DynamicSlotId::New(), pFunctionDef->dynamicInputProps.memberKey);
-            InputValues.emplace_back(pFunctionDef->dynamicInputProps.defaultValue);
+            Inputs.back().LiteralValue = pFunctionDef->dynamicInputProps.defaultValue;
         }
     };
 
@@ -290,7 +272,6 @@ struct FunctionNode : public Node
         if (inputIdx != -1)
         {
             Inputs.erase(Inputs.begin() + inputIdx);
-            InputValues.erase(InputValues.begin() + inputIdx);
 
             // Rename inputs!
             for (int i = 1; i < Inputs.size(); ++i)
@@ -347,7 +328,6 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Executes this function.");
         node->Inputs.back().Identity = PortIdentity::Fixed("execute");
-        node->InputValues.emplace_back(Value());
 
         node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Continues after the function returns.");
@@ -360,8 +340,8 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
         {
             node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
                 input.description);
-            node->Inputs.back().Identity = funcID.IsValid() ? PortIdentity::Script(input.id, input.persistentId) : PortIdentity::Fixed(input.key);
-            node->InputValues.emplace_back(input.value);
+            node->Inputs.back().Identity = funcID.IsValid() ? PortIdentity::Script(input.persistentId) : PortIdentity::Fixed(input.key);
+            node->Inputs.back().LiteralValue = input.value;
         }
     }
 
@@ -369,7 +349,7 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
     {
         node->Outputs.emplace_back(IDGenerator.GetNextId(), output.name.c_str(), output.type,
             output.description);
-        node->Outputs.back().Identity = funcID.IsValid() ? PortIdentity::Script(output.id, output.persistentId) : PortIdentity::Fixed(output.key);
+        node->Outputs.back().Identity = funcID.IsValid() ? PortIdentity::Script(output.persistentId) : PortIdentity::Fixed(output.key);
     }
 
     node->DefinitionFlags = pFunctionDef->flags;

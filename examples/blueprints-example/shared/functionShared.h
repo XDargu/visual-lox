@@ -25,8 +25,6 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
         TypeRef type;
         std::string description;
         ScriptPortId persistentId{ Uuid::NewV4() };
-        std::map<std::string, std::string> serializedExtensions;
-
         Input() = default;
         Input(std::string portName, Value defaultValue, int portId = -1,
               std::string portDescription = {})
@@ -48,8 +46,6 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
 
     std::vector<Input> inputs;
     std::vector<Input> outputs;
-    std::map<std::string, std::string> inputAliases;
-    std::map<std::string, std::string> outputAliases;
     std::vector<GenericTypeProperty> genericTypeProperties;
 
     NodeDefinitionFlags flags = NodeDefinitionFlags::None;

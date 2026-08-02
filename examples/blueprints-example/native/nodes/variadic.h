@@ -24,7 +24,7 @@ struct VariadicInputNode : public Node
         const int inputNumber = DataInputCount();
         Inputs.emplace_back(ids.GetNextId(), DynamicInputName(inputNumber).c_str(), dynamicInputProps.type, dynamicInputProps.description);
         Inputs.back().Identity = PortIdentity::Dynamic(dynamicInputProps.familyKey, DynamicSlotId::New(), dynamicInputProps.memberKey);
-        InputValues.emplace_back(dynamicInputProps.defaultValue);
+        Inputs.back().LiteralValue = dynamicInputProps.defaultValue;
     }
 
     void RemoveInput(ed::PinId pinId) override
@@ -34,7 +34,6 @@ struct VariadicInputNode : public Node
 
         const int inputIndex = GraphUtils::FindNodeInputIdx(this, pinId);
         Inputs.erase(Inputs.begin() + inputIndex);
-        InputValues.erase(InputValues.begin() + inputIndex);
 
         int dataInputIndex = 0;
         for (Pin& input : Inputs)

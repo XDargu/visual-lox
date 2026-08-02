@@ -1,79 +1,205 @@
 {
   "format": "visual-lox",
-  "format_version": 1,
-  "script": {
-    "classes": [],
-    "functions": [],
-    "id": 1,
-    "main": {
-      "graph": {
-        "links": [
+  "format_version": 8,
+  "module_id": "c5dd5a2b-d7b8-4010-8c18-699b6dc67fe4",
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
           {
-            "end_pin_id": 6,
-            "id": 9,
-            "start_pin_id": 4
+            "from":
+            {
+              "display_name": "",
+              "node": "1f7232a1-a678-5a1e-a31f-d7cfd5db9737",
+              "port":
+              {
+                "key": "start",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "00e766a1-41d0-5f29-aefa-577ec89b1d91",
+            "to":
+            {
+              "display_name": "",
+              "node": "8e5d6ec8-2902-54b1-9cbd-2d7f59ca84e8",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           }
         ],
-        "nodes": [
+        "nodes":
+        [
           {
-            "definition": "",
-            "id": 3,
-            "input_values": [],
-            "inputs": [],
+            "definition":
+            {
+              "id": "vlox.core.begin",
+              "revision": 1
+            },
+            "description": "Entry point for 'Main'. ",
+            "display_name": "Begin",
+            "id": "1f7232a1-a678-5a1e-a31f-d7cfd5db9737",
+            "inputs":
+            [
+            ],
             "kind": "begin",
-            "outputs": [
+            "outputs":
+            [
               {
-                "id": 4,
-                "name": "",
-                "type": "flow"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "start",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
-            "state": ""
+            "state": "",
+            "type_overrides":
+            {
+            }
           },
           {
-            "definition": "Debug::Print",
-            "id": 5,
-            "input_values": [
+            "definition":
+            {
+              "id": "vlox.std.compiled.debug.print",
+              "revision": 1
+            },
+            "description": "Writes a value to the program output",
+            "display_name": "Print",
+            "id": "8e5d6ec8-2902-54b1-9cbd-2d7f59ca84e8",
+            "inputs":
+            [
               {
-                "type": "nil"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "type": "string",
-                "value": "Hello from Visual Lox CLI"
-              }
-            ],
-            "inputs": [
-              {
-                "id": 6,
-                "name": "",
-                "type": "flow"
-              },
-              {
-                "id": 7,
-                "name": "Content",
-                "type": "any"
+                "display_name": "Content",
+                "identity":
+                {
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "value":
+                {
+                  "type": "string",
+                  "value": "Hello from Visual Lox CLI"
+                }
               }
             ],
             "kind": "compiled",
-            "outputs": [
+            "outputs":
+            [
               {
-                "id": 8,
-                "name": "",
-                "type": "flow"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
-            "state": ""
+            "state": "",
+            "type_overrides":
+            {
+            }
           }
         ]
       },
-      "id": 2,
-      "inputs": [],
+      "id": "86f3f743-f8b6-5b7d-804e-1a4138f1f678",
+      "inputs":
+      [
+      ],
       "name": "Main",
-      "outputs": [],
-      "variables": []
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
     },
-    "variables": []
+    "variables":
+    [
+    ]
   }
 }

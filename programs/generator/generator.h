@@ -139,7 +139,7 @@ struct Builder
         {
             if (node->Inputs[index].ID != pin.ID)
                 continue;
-            node->InputValues[index] = value;
+            node->Inputs[index].LiteralValue = value;
             return;
         }
     }

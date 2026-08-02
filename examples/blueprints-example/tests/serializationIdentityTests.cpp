@@ -3,6 +3,7 @@
 #include "../graphs/uuid.h"
 #include "../graphs/idgeneration.h"
 #include "../graphs/nodeRegistry.h"
+#include "../native/nodes/object.h"
 #include "../runtime/standardLibrary.h"
 #include "../script/scriptSerializer.h"
 #include "testFramework.h"
@@ -13,13 +14,6 @@
 namespace
 {
 using Tests::Require;
-
-void UuidV5MatchesTheStandardVector()
-{
-    const Uuid dnsNamespace = Uuid::Parse("6ba7b810-9dad-11d1-80b4-00c04fd430c8");
-    const Uuid generated = Uuid::V5(dnsNamespace, "www.widgets.com");
-    Require(generated.ToString() == "21f7f8de-8051-5b89-8680-0195ef798b6a", "UUIDv5 does not match the RFC 4122 test vector.");
-}
 
 void UuidV4HasTheRequiredVersionAndVariant()
 {
@@ -92,29 +86,35 @@ void RegisteredDefinitionsHaveStableSchemas()
     }
 }
 
-void DefinitionAliasesResolveToStableIds()
-{
-    NodeRegistry registry;
-    RegisterStandardLibrary(registry);
-    registry.RegisterNativeAlias("legacy.math.square", "vlox.std.native.math.square");
-    registry.RegisterCompiledAlias("legacy.math.add", "vlox.std.compiled.math.add");
-    Require(registry.FindNative("legacy.math.square") == registry.FindNative("vlox.std.native.math.square"), "Native definition alias did not resolve.");
-    Require(registry.FindCompiled("legacy.math.add") == registry.FindCompiled("vlox.std.compiled.math.add"), "Compiled definition alias did not resolve.");
-}
-
 void LiteralValuesAreOwnedByInputs()
 {
     NodeRegistry registry;
     RegisterStandardLibrary(registry);
     IDGenerator ids;
     NodePtr node = registry.FindCompiled("vlox.std.compiled.math.add")->MakeNode(ids);
-    Require(node && node->Inputs.size() == node->InputValues.size() && &node->Inputs[0].LiteralValue == &node->InputValues[0],
-        "The compatibility value view does not address the input-owned literal value.");
+    Require(node && !node->Inputs.empty(), "The registered node has no inputs.");
+    node->Inputs[0].LiteralValue = Value(42.0);
+    const size_t initialCount = node->Inputs.size();
     node->AddInput(ids);
-    Require(node->Inputs.size() == node->InputValues.size() && &node->Inputs.back().LiteralValue == &node->InputValues[node->Inputs.size() - 1],
-        "Adding a dynamic input created separate or misaligned literal-value storage.");
+    Require(node->Inputs.size() == initialCount + 1 && isNumber(node->Inputs[0].LiteralValue) && asNumber(node->Inputs[0].LiteralValue) == 42.0,
+        "Adding a dynamic input changed another input's owned literal value.");
     node->RemoveInput(node->Inputs.back().ID);
-    Require(node->Inputs.size() == node->InputValues.size(), "Removing an input misaligned literal-value storage.");
+    Require(node->Inputs.size() == initialCount && isNumber(node->Inputs[0].LiteralValue) && asNumber(node->Inputs[0].LiteralValue) == 42.0,
+        "Removing a dynamic input changed another input's owned literal value.");
+}
+
+void PureMethodCallsIncludeDeclaredInputs()
+{
+    IDGenerator ids;
+    ScriptFunctionPtr method = std::make_shared<ScriptFunction>(ids.GetNextId(), "CanRun");
+    method->functionDef->flags |= NodeDefinitionFlags::Pure;
+    method->functionDef->inputs.emplace_back("Iteration", Value(0.0), ids.GetNextId(), PinType::Float);
+
+    const NodePtr call = BuildMethodCallNode(ids, method);
+    Require(call && call->Inputs.size() == 2, "A pure method call omitted its declared input.");
+    Require(call->Inputs[0].Identity == PortIdentity::Fixed("instance"), "A pure method call omitted its instance input.");
+    Require(call->Inputs[1].Identity == PortIdentity::Script(method->functionDef->inputs[0].persistentId),
+        "A pure method call assigned the wrong semantic identity to its declared input.");
 }
 
 void DefinitionFingerprintsIgnorePresentation()
@@ -141,13 +141,12 @@ void AddSerializationIdentityTests(Tests::Runner& runner)
 {
     runner.Group("Serialization / identity", [&]()
     {
-        runner.Test("UUIDv5 matches the standard vector", UuidV5MatchesTheStandardVector);
         runner.Test("UUIDv4 has the required version and variant", UuidV4HasTheRequiredVersionAndVariant);
         runner.Test("durable identity types remain distinct", DurableIdentityTypesRemainDistinct);
         runner.Test("failures include structured diagnostics", SerializationFailuresHaveStructuredDiagnostics);
         runner.Test("registered definitions have stable schemas", RegisteredDefinitionsHaveStableSchemas);
-        runner.Test("definition aliases resolve to stable IDs", DefinitionAliasesResolveToStableIds);
         runner.Test("literal values are owned by inputs", LiteralValuesAreOwnedByInputs);
+        runner.Test("pure method calls include declared inputs", PureMethodCallsIncludeDeclaredInputs);
         runner.Test("definition fingerprints ignore presentation", DefinitionFingerprintsIgnorePresentation);
     });
 }

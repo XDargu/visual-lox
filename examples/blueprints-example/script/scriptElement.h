@@ -3,7 +3,6 @@
 #include "../graphs/uuid.h"
 
 #include <string>
-#include <map>
 #include <vector>
 #include <memory>
 
@@ -33,5 +32,4 @@ struct IScriptElement
     ScriptElementID ID;
     ScriptElementUuid PersistentId{ Uuid::NewV4() };
     ScriptElementType Type;
-    std::map<std::string, std::string> SerializedExtensions;
 };

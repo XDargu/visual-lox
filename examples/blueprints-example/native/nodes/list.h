@@ -31,8 +31,8 @@ struct ListGetByIndex : public Node
     {
         Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], InputValues[0]);
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[0], Inputs[0].LiteralValue);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
         compiler.emitByte(OpByte(OpCode::OP_INDEX_SUBSCR));
 
         GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[0]);
@@ -48,8 +48,8 @@ static NodePtr BuildListGetByIndexNode(IDGenerator& IDGenerator)
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", element);
 
-    node->InputValues.emplace_back(Value(newList()));
-    node->InputValues.emplace_back(Value(0.0));
+    node->Inputs[0].LiteralValue = Value(newList());
+    node->Inputs[1].LiteralValue = Value(0.0);
     return node;
 }
 
@@ -78,9 +78,9 @@ struct ListSetByIndex : public Node
     {
         Compiler& compiler = compilerCtx.compiler;
 
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[2], InputValues[2]);
-        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[3], InputValues[3]);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[2], Inputs[2].LiteralValue);
+        GraphCompiler::CompileInput(compilerCtx, graph, Inputs[3], Inputs[3].LiteralValue);
         compiler.emitByte(OpByte(OpCode::OP_STORE_SUBSCR));
 
         GraphCompiler::CompileOutput(compilerCtx, graph, Outputs[1]);
@@ -98,10 +98,7 @@ static NodePtr BuildListSetByIndexNode(IDGenerator& IDGenerator)
 
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow);
     node->Outputs.emplace_back(IDGenerator.GetNextId(), "Value", TypeRef::List(element));
-
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(newList()));
-    node->InputValues.emplace_back(Value(0.0));
-    node->InputValues.emplace_back(Value());
+    node->Inputs[1].LiteralValue = Value(newList());
+    node->Inputs[2].LiteralValue = Value(0.0);
     return node;
 }

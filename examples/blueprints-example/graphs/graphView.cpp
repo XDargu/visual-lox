@@ -112,7 +112,7 @@ void GraphView::UpdateTouch()
 void GraphView::DrawPinInput(const Pin& input, int inputIdx)
 {
     const NodePtr& node = input.Node;
-    Value inputValue = node->InputValues[inputIdx];
+    Value inputValue = node->Inputs[inputIdx].LiteralValue;
     const bool changed = GraphViewUtils::DrawTypeInput(input.Type, inputValue);
     if (ImGui::IsItemActivated() && m_pOperations && !m_pOperations->IsTransactionActive())
         ReportOperation(m_pOperations->BeginTransaction("Edit node input"));
@@ -1087,7 +1087,7 @@ void GraphView::DrawContextMenu()
         {
             ImGui::TextDisabled(ICON_FA_WAND_MAGIC_SPARKLES "  Convert type");
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
-            Value inputValue = pin->Node->InputValues[inputIdx];
+            Value inputValue = pin->Node->Inputs[inputIdx].LiteralValue;
 
             GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
             {

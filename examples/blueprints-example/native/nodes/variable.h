@@ -133,7 +133,7 @@ struct SetVariableNode : public Node
         {
             Compiler& compiler = compilerCtx.compiler;
 
-            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(compilerCtx, graph, Inputs[1], Inputs[1].LiteralValue);
 
             Token varToken(TokenType::VAR, pPropertyDef->Name.c_str(), pPropertyDef->Name.length(), 0);
             compiler.emitVariable(varToken, true);
@@ -162,7 +162,7 @@ struct SetVariableNode : public Node
         {
             Inputs[1].Type = Inputs[1].DeclaredType = pPropertyDef->type;
         }
-        InputValues[1] = pPropertyDef->defaultValue;
+        Inputs[1].LiteralValue = pPropertyDef->defaultValue;
     }
 
     void RefreshDefinition(const Script& script)
@@ -209,9 +209,7 @@ static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptProper
         node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Continues after the assignment.");
         node->Outputs.back().Identity = PortIdentity::Fixed("then");
-
-        node->InputValues.push_back(Value());
-        node->InputValues.push_back(pProperty->defaultValue);
+        node->Inputs.back().LiteralValue = pProperty->defaultValue;
     }
 
     return node;

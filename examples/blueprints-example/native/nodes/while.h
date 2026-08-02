@@ -38,7 +38,7 @@ struct WhileNode : public Node
             conditionLocalCount =
                 compiler.current->localCount - conditionLocalStart;
             GraphCompiler::CompileInput(
-                context, graph, Inputs[1], InputValues[1]);
+                context, graph, Inputs[1], Inputs[1].LiteralValue);
             exitJump = compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
             compiler.emitByte(OpByte(OpCode::OP_POP));
             compiler.beginScope();
@@ -76,7 +76,6 @@ inline NodePtr BuildWhileNode(IDGenerator& ids)
     node->Outputs.emplace_back(
         ids.GetNextId(), "Completed", PinType::Flow,
         "Runs after Condition becomes false.");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(false));
+    node->Inputs[1].LiteralValue = Value(false);
     return node;
 }

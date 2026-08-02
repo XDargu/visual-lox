@@ -15,7 +15,6 @@ public:
     explicit Uuid(std::array<uint8_t, 16> bytes) : m_bytes(bytes) {}
 
     static Uuid NewV4();
-    static Uuid V5(const Uuid& nameSpace, std::string_view name);
     static bool TryParse(std::string_view text, Uuid& result);
     static Uuid Parse(std::string_view text);
 
@@ -39,7 +38,6 @@ public:
     explicit DurableId(Uuid value) : m_value(std::move(value)) {}
 
     static DurableId New() { return DurableId(Uuid::NewV4()); }
-    static DurableId FromLegacy(const Uuid& nameSpace, std::string_view scopedLegacyName) { return DurableId(Uuid::V5(nameSpace, scopedLegacyName)); }
     static DurableId Parse(std::string_view text) { return DurableId(Uuid::Parse(text)); }
 
     bool IsValid() const { return !m_value.IsNil(); }

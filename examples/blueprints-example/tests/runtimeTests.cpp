@@ -168,13 +168,12 @@ void StandardLibraryDeclaresCapabilities()
         Require(node->Inputs.size() == 2 && node->CanAddInput(),
                 "Variadic compiled expressions should start with two inputs.");
         node->AddInput(fixture.ids);
-        Require(node->Inputs.size() == 3 && node->InputValues.size() == 3,
-                "Adding a variadic expression input should preserve the input layout.");
+        Require(node->Inputs.size() == 3, "Adding a variadic expression input should preserve the input layout.");
     }
 
     NodePtr addNode = add->MakeNode(fixture.ids);
     addNode->AddInput(fixture.ids);
-    Require(addNode->Inputs[2].Type == PinType::Float && isNumber(addNode->InputValues[2]) && asNumber(addNode->InputValues[2]) == 0.0,
+    Require(addNode->Inputs[2].Type == PinType::Float && isNumber(addNode->Inputs[2].LiteralValue) && asNumber(addNode->Inputs[2].LiteralValue) == 0.0,
             "Math::Add should use zero as the identity default for additional inputs.");
     while (addNode->CanAddInput())
         addNode->AddInput(fixture.ids);
@@ -186,19 +185,19 @@ void StandardLibraryDeclaresCapabilities()
             "Math::Add should enforce its minimum input count.");
     NodePtr multiplyNode = fixture.registry.FindCompiled("Math::Multiply")->MakeNode(fixture.ids);
     multiplyNode->AddInput(fixture.ids);
-    Require(multiplyNode->Inputs[2].Type == PinType::Float && isNumber(multiplyNode->InputValues[2]) && asNumber(multiplyNode->InputValues[2]) == 1.0,
+    Require(multiplyNode->Inputs[2].Type == PinType::Float && isNumber(multiplyNode->Inputs[2].LiteralValue) && asNumber(multiplyNode->Inputs[2].LiteralValue) == 1.0,
             "Math::Multiply should use one as the identity default for additional inputs.");
     NodePtr andNode = fixture.registry.FindCompiled("Logic::And")->MakeNode(fixture.ids);
     andNode->AddInput(fixture.ids);
-    Require(andNode->Inputs[2].Type == PinType::Bool && isBoolean(andNode->InputValues[2]) && asBoolean(andNode->InputValues[2]),
+    Require(andNode->Inputs[2].Type == PinType::Bool && isBoolean(andNode->Inputs[2].LiteralValue) && asBoolean(andNode->Inputs[2].LiteralValue),
             "Logic::And should use true as the identity default for additional inputs.");
     NodePtr orNode = fixture.registry.FindCompiled("Logic::Or")->MakeNode(fixture.ids);
     orNode->AddInput(fixture.ids);
-    Require(orNode->Inputs[2].Type == PinType::Bool && isBoolean(orNode->InputValues[2]) && !asBoolean(orNode->InputValues[2]),
+    Require(orNode->Inputs[2].Type == PinType::Bool && isBoolean(orNode->Inputs[2].LiteralValue) && !asBoolean(orNode->Inputs[2].LiteralValue),
             "Logic::Or should use false as the identity default for additional inputs.");
     NodePtr appendNode = fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
     appendNode->AddInput(fixture.ids);
-    Require(appendNode->Inputs[2].Type == PinType::Any && isString(appendNode->InputValues[2]) && asString(appendNode->InputValues[2])->length == 0,
+    Require(appendNode->Inputs[2].Type == PinType::Any && isString(appendNode->Inputs[2].LiteralValue) && asString(appendNode->Inputs[2].LiteralValue)->length == 0,
             "String::Append should use empty text as the identity default for additional inputs.");
     Require(print && !HasFlag(print->functionDef->flags, NodeDefinitionFlags::Pure),
             "Debug::Print should be declared impure.");
@@ -551,7 +550,7 @@ void ImplicitSelfReceiversRespectGraphContext()
     NodePtr constructorBegin =
         BuildBeginNode(fixture.ids, counter->constructor);
     NodePtr constructorSet = BuildSetPropertyNode(fixture.ids, value);
-    constructorSet->InputValues[2] = Value(7.0);
+    constructorSet->Inputs[2].LiteralValue = Value(7.0);
     AttachNode(counter->constructor->Graph, constructorBegin);
     AttachNode(counter->constructor->Graph, constructorSet);
     counter->constructor->Graph.AddLink(Link(
@@ -706,7 +705,7 @@ void MethodGetFunctionsWorkWithFilter()
     NodePtr greater =
         fixture.registry.FindCompiled("Math::Greater Than")->MakeNode(
             fixture.ids);
-    greater->InputValues[1] = Value(2.0);
+    greater->Inputs[1].LiteralValue = Value(2.0);
     NodePtr methodReturn = BuildReturnNode(fixture.ids, *accepts);
     for (const NodePtr& node : { methodBegin, greater, methodReturn })
         AttachNode(accepts->Graph, node);
@@ -729,8 +728,8 @@ void MethodGetFunctionsWorkWithFilter()
             fixture.ids, ScriptElementID::Invalid);
     values->AddInput(fixture.ids);
     values->AddInput(fixture.ids);
-    values->InputValues[0] = Value(1.0);
-    values->InputValues[1] = Value(3.0);
+    values->Inputs[0].LiteralValue = Value(1.0);
+    values->Inputs[1].LiteralValue = Value(3.0);
     NodePtr getAccepts = BuildGetMethodNode(
         fixture.ids, accepts, ScriptElementID::Invalid,
         TypeRef::Object(tester->ID.id, tester->Name));
@@ -802,10 +801,10 @@ void PureNodesAreConstantFolded()
     script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
     NodePtr begin = BuildBeginNode(fixture.ids, script.main);
     NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
-    add->InputValues[0] = Value(2.0);
-    add->InputValues[1] = Value(3.0);
+    add->Inputs[0].LiteralValue = Value(2.0);
+    add->Inputs[1].LiteralValue = Value(3.0);
     add->AddInput(fixture.ids);
-    add->InputValues[2] = Value(4.0);
+    add->Inputs[2].LiteralValue = Value(4.0);
     NodePtr print = fixture.registry.FindCompiled("Debug::Print")->MakeNode(fixture.ids);
     AttachNode(script.main->Graph, begin);
     AttachNode(script.main->Graph, add);
@@ -860,8 +859,8 @@ void ForInKeepsConstantStackFootprint()
     ObjList* list = newList();
     for (int value = 0; value < 1000; ++value)
         list->append(Value(static_cast<double>(value)));
-    forIn->InputValues[1] = Value(list);
-    listLength->InputValues[0] = Value(list);
+    forIn->Inputs[1].LiteralValue = Value(list);
+    listLength->Inputs[0].LiteralValue = Value(list);
 
     AttachNode(script.main->Graph, begin);
     AttachNode(script.main->Graph, forIn);
@@ -927,8 +926,8 @@ void ForInIteratesRangesAndStrings()
     NodePtr stringLoop =
         fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
     NodePtr storeString = BuildSetVariableNode(fixture.ids, stringResult);
-    rangeLoop->InputValues[1] = Value(newRange(2.0, 4.0));
-    stringLoop->InputValues[1] = StringValue("Lox");
+    rangeLoop->Inputs[1].LiteralValue = Value(newRange(2.0, 4.0));
+    stringLoop->Inputs[1].LiteralValue = StringValue("Lox");
 
     for (const NodePtr& node :
          { begin, rangeLoop, storeRange, stringLoop, storeString })
@@ -1067,9 +1066,9 @@ void FunctionsAndMethodsSupportMultipleOutputs()
         { "Ready", Value(false), fixture.ids.GetNextId() });
     NodePtr multipleBegin = BuildBeginNode(fixture.ids, multiple);
     NodePtr multipleReturn = BuildReturnNode(fixture.ids, *multiple);
-    multipleReturn->InputValues[1] = Value(42.0);
-    multipleReturn->InputValues[2] = Value(takeString("packed", 6));
-    multipleReturn->InputValues[3] = Value(true);
+    multipleReturn->Inputs[1].LiteralValue = Value(42.0);
+    multipleReturn->Inputs[2].LiteralValue = Value(takeString("packed", 6));
+    multipleReturn->Inputs[3].LiteralValue = Value(true);
     AttachNode(multiple->Graph, multipleBegin);
     AttachNode(multiple->Graph, multipleReturn);
     multiple->Graph.AddLink(Link(fixture.ids.GetNextId(),
@@ -1086,8 +1085,8 @@ void FunctionsAndMethodsSupportMultipleOutputs()
         { "Text", Value(takeString("", 0)), fixture.ids.GetNextId() });
     NodePtr methodBegin = BuildBeginNode(fixture.ids, method);
     NodePtr methodReturn = BuildReturnNode(fixture.ids, *method);
-    methodReturn->InputValues[1] = Value(7.0);
-    methodReturn->InputValues[2] = Value(takeString("method", 6));
+    methodReturn->Inputs[1].LiteralValue = Value(7.0);
+    methodReturn->Inputs[2].LiteralValue = Value(takeString("method", 6));
     AttachNode(method->Graph, methodBegin);
     AttachNode(method->Graph, methodReturn);
     method->Graph.AddLink(Link(fixture.ids.GetNextId(),
@@ -1235,24 +1234,24 @@ Script BuildClassRangeMatchScript(IDGenerator& ids, NodeRegistry& registry)
 
     NodePtr begin = BuildBeginNode(ids, script.main);
     NodePtr construct = BuildConstructObjectNode(ids, counter);
-    construct->InputValues[1] = Value(7.0);
+    construct->Inputs[1].LiteralValue = Value(7.0);
     NodePtr callGetValue = BuildMethodCallNode(ids, getValue);
     NodePtr storeClassResult = BuildSetVariableNode(ids, classResult);
     NodePtr storeMatchResult = BuildSetVariableNode(ids, matchResult);
-    storeMatchResult->InputValues[1] = Value(true);
+    storeMatchResult->Inputs[1].LiteralValue = Value(true);
     NodePtr flowMatch = registry.FindCompiled("Flow::Match")->MakeNode(ids);
     flowMatch->AddInput(ids);
-    flowMatch->InputValues[1] = Value(3.0);
-    flowMatch->InputValues[2] = Value(1.0);
+    flowMatch->Inputs[1].LiteralValue = Value(3.0);
+    flowMatch->Inputs[2].LiteralValue = Value(1.0);
     NodePtr flowRange = registry.FindCompiled("Range::Make")->MakeNode(ids);
-    flowRange->InputValues[0] = Value(2.0);
-    flowRange->InputValues[1] = Value(4.0);
+    flowRange->Inputs[0].LiteralValue = Value(2.0);
+    flowRange->Inputs[1].LiteralValue = Value(4.0);
     NodePtr firstCase = BuildSetVariableNode(ids, flowMatchResult);
-    firstCase->InputValues[1] = Value(10.0);
+    firstCase->Inputs[1].LiteralValue = Value(10.0);
     NodePtr secondCase = BuildSetVariableNode(ids, flowMatchResult);
-    secondCase->InputValues[1] = Value(20.0);
+    secondCase->Inputs[1].LiteralValue = Value(20.0);
     NodePtr defaultCase = BuildSetVariableNode(ids, flowMatchResult);
-    defaultCase->InputValues[1] = Value(99.0);
+    defaultCase->Inputs[1].LiteralValue = Value(99.0);
     for (const NodePtr& node : { begin, construct, callGetValue, storeClassResult,
              storeMatchResult, flowMatch, flowRange, firstCase, secondCase, defaultCase })
         AttachNode(script.main->Graph, node);
@@ -1411,7 +1410,7 @@ void VisualClassesUseToStringWhenPrinted()
           TypeRef(PinType::String) });
     NodePtr methodBegin = BuildBeginNode(fixture.ids, toString);
     NodePtr methodReturn = BuildReturnNode(fixture.ids, *toString);
-    methodReturn->InputValues[1] = StringValue("custom display");
+    methodReturn->Inputs[1].LiteralValue = StringValue("custom display");
     AttachNode(toString->Graph, methodBegin);
     AttachNode(toString->Graph, methodReturn);
     toString->Graph.AddLink(Link(fixture.ids.GetNextId(),
@@ -1458,12 +1457,12 @@ void VisualClassesUseToStringWhenPrinted()
     NodePtr printDisplays = printDefinition->MakeNode(fixture.ids);
     NodePtr append =
         fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
-    append->InputValues[0] = StringValue("prefix: ");
+    append->Inputs[0].LiteralValue = StringValue("prefix: ");
     NodePtr storeConcatenated =
         BuildSetVariableNode(fixture.ids, concatenated);
     NodePtr appendList =
         fixture.registry.FindCompiled("String::Append")->MakeNode(fixture.ids);
-    appendList->InputValues[0] = StringValue("list: ");
+    appendList->Inputs[0].LiteralValue = StringValue("list: ");
     NodePtr storeConcatenatedList =
         BuildSetVariableNode(fixture.ids, concatenatedList);
     for (const NodePtr& node :
@@ -1567,29 +1566,29 @@ void FlowSwitchEvaluatesConditionsInOrder()
     firstSwitch->AddInput(fixture.ids);
     NodePtr falseCondition =
         fixture.registry.FindCompiled("Logic::Not")->MakeNode(fixture.ids);
-    falseCondition->InputValues[0] = Value(true);
+    falseCondition->Inputs[0].LiteralValue = Value(true);
     NodePtr trueCondition =
         fixture.registry.FindCompiled("Logic::Not")->MakeNode(fixture.ids);
-    trueCondition->InputValues[0] = Value(false);
+    trueCondition->Inputs[0].LiteralValue = Value(false);
 
     NodePtr firstCase = BuildSetVariableNode(fixture.ids, selected);
-    firstCase->InputValues[1] = Value(10.0);
+    firstCase->Inputs[1].LiteralValue = Value(10.0);
     NodePtr secondCase = BuildSetVariableNode(fixture.ids, selected);
-    secondCase->InputValues[1] = Value(20.0);
+    secondCase->Inputs[1].LiteralValue = Value(20.0);
     NodePtr thirdCase = BuildSetVariableNode(fixture.ids, selected);
-    thirdCase->InputValues[1] = Value(30.0);
+    thirdCase->Inputs[1].LiteralValue = Value(30.0);
     NodePtr unexpectedDefault = BuildSetVariableNode(fixture.ids, selected);
-    unexpectedDefault->InputValues[1] = Value(99.0);
+    unexpectedDefault->Inputs[1].LiteralValue = Value(99.0);
 
     NodePtr defaultSwitch =
         fixture.registry.FindCompiled("Flow::Switch")->MakeNode(fixture.ids);
     defaultSwitch->AddInput(fixture.ids);
     NodePtr unexpectedFirst = BuildSetVariableNode(fixture.ids, defaultSelected);
-    unexpectedFirst->InputValues[1] = Value(1.0);
+    unexpectedFirst->Inputs[1].LiteralValue = Value(1.0);
     NodePtr unexpectedSecond = BuildSetVariableNode(fixture.ids, defaultSelected);
-    unexpectedSecond->InputValues[1] = Value(2.0);
+    unexpectedSecond->Inputs[1].LiteralValue = Value(2.0);
     NodePtr defaultCase = BuildSetVariableNode(fixture.ids, defaultSelected);
-    defaultCase->InputValues[1] = Value(40.0);
+    defaultCase->Inputs[1].LiteralValue = Value(40.0);
 
     NodePtr failingCondition =
         BuildFailingExpressionNode(fixture.ids, PinType::Bool);
@@ -1711,9 +1710,9 @@ void CompleteExpressionNodesCompileAndExecute()
             fixture.registry.FindCompiled(definitionName);
         Require(definition != nullptr, "Expected expression node to be registered.");
         NodePtr expression = definition->MakeNode(fixture.ids);
-        expression->InputValues[0] = first;
+        expression->Inputs[0].LiteralValue = first;
         if (hasSecond)
-            expression->InputValues[1] = second;
+            expression->Inputs[1].LiteralValue = second;
 
         ScriptPropertyPtr result = std::make_shared<ScriptProperty>(
             fixture.ids.GetNextId(), variableName);
@@ -1761,38 +1760,38 @@ void CompleteExpressionNodesCompileAndExecute()
         "Math::Add", "ExprAddMany", Value(1.0), Value(2.0), true, Value(0.0));
     manyAdd->AddInput(fixture.ids);
     manyAdd->AddInput(fixture.ids);
-    manyAdd->InputValues[2] = Value(3.0);
-    manyAdd->InputValues[3] = Value(4.0);
+    manyAdd->Inputs[2].LiteralValue = Value(3.0);
+    manyAdd->Inputs[3].LiteralValue = Value(4.0);
     NodeUtils::BuildNode(manyAdd);
     NodePtr manySubtract = addExpression(
         "Math::Subtract", "ExprSubtractMany", Value(20.0), Value(3.0), true, Value(0.0));
     manySubtract->AddInput(fixture.ids);
-    manySubtract->InputValues[2] = Value(2.0);
+    manySubtract->Inputs[2].LiteralValue = Value(2.0);
     NodeUtils::BuildNode(manySubtract);
     NodePtr manyMultiply = addExpression(
         "Math::Multiply", "ExprMultiplyMany", Value(2.0), Value(3.0), true, Value(0.0));
     manyMultiply->AddInput(fixture.ids);
-    manyMultiply->InputValues[2] = Value(4.0);
+    manyMultiply->Inputs[2].LiteralValue = Value(4.0);
     NodeUtils::BuildNode(manyMultiply);
     NodePtr manyMin = addExpression(
         "Math::Min", "ExprMinMany", Value(4.0), Value(-2.0), true, Value(0.0));
     manyMin->AddInput(fixture.ids);
-    manyMin->InputValues[2] = Value(8.0);
+    manyMin->Inputs[2].LiteralValue = Value(8.0);
     NodeUtils::BuildNode(manyMin);
     NodePtr manyMax = addExpression(
         "Math::Max", "ExprMaxMany", Value(4.0), Value(-2.0), true, Value(0.0));
     manyMax->AddInput(fixture.ids);
-    manyMax->InputValues[2] = Value(8.0);
+    manyMax->Inputs[2].LiteralValue = Value(8.0);
     NodeUtils::BuildNode(manyMax);
     NodePtr manyAnd = addExpression(
         "Logic::And", "ExprAndMany", Value(true), Value(true), true, Value(false));
     manyAnd->AddInput(fixture.ids);
-    manyAnd->InputValues[2] = Value(true);
+    manyAnd->Inputs[2].LiteralValue = Value(true);
     NodeUtils::BuildNode(manyAnd);
     NodePtr manyOr = addExpression(
         "Logic::Or", "ExprOrMany", Value(false), Value(false), true, Value(false));
     manyOr->AddInput(fixture.ids);
-    manyOr->InputValues[2] = Value(true);
+    manyOr->Inputs[2].LiteralValue = Value(true);
     NodeUtils::BuildNode(manyOr);
     NodePtr lateShortAnd = addExpression(
         "Logic::And", "ExprAndLateShort", Value(true), Value(false), true, Value(true));
@@ -1913,24 +1912,24 @@ void WhileAndRepeatNodesCompileAndExecute()
     NodePtr condition =
         fixture.registry.FindCompiled("Math::Less Than")->MakeNode(fixture.ids);
     NodePtr conditionCounter = BuildGetVariableNode(fixture.ids, counter);
-    condition->InputValues[1] = Value(3.0);
+    condition->Inputs[1].LiteralValue = Value(3.0);
     NodePtr increment =
         fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
     NodePtr bodyCounter = BuildGetVariableNode(fixture.ids, counter);
-    increment->InputValues[1] = Value(1.0);
+    increment->Inputs[1].LiteralValue = Value(1.0);
     NodePtr setCounter = BuildSetVariableNode(fixture.ids, counter);
     NodePtr setWhileDone = BuildSetVariableNode(fixture.ids, whileDone);
-    setWhileDone->InputValues[1] = Value(true);
+    setWhileDone->Inputs[1].LiteralValue = Value(true);
 
     NodePtr repeat =
         fixture.registry.FindCompiled("Flow::Repeat")->MakeNode(fixture.ids);
-    repeat->InputValues[1] = Value(3.0);
+    repeat->Inputs[1].LiteralValue = Value(3.0);
     NodePtr sum =
         fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
     NodePtr currentSum = BuildGetVariableNode(fixture.ids, repeatSum);
     NodePtr setSum = BuildSetVariableNode(fixture.ids, repeatSum);
     NodePtr setRepeatDone = BuildSetVariableNode(fixture.ids, repeatDone);
-    setRepeatDone->InputValues[1] = Value(true);
+    setRepeatDone->Inputs[1].LiteralValue = Value(true);
 
     for (const NodePtr& node : { begin, whileNode, condition, conditionCounter,
              increment, bodyCounter, setCounter, setWhileDone, repeat, sum,
@@ -2144,7 +2143,7 @@ void MapForEachIteratesKeysAndValues()
     NodePtr storeValue = BuildSetVariableNode(fixture.ids, observedValue);
     for (const NodePtr& node : { begin, loop, storeKey, storeValue })
         AttachNode(script.main->Graph, node);
-    loop->InputValues[1] = Value(values);
+    loop->Inputs[1].LiteralValue = Value(values);
     script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, loop->Inputs[0].ID));
     script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), loop->Outputs[0].ID, storeKey->Inputs[0].ID));
     script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), loop->Outputs[1].ID, storeKey->Inputs[1].ID));
@@ -2517,8 +2516,8 @@ void GenericNodesInferAcrossConnections()
         fixture.ids.GetNextId(), numberSource->Outputs[0].ID,
         numericEquals->Inputs[0].ID));
     Require(numericEquals->Inputs[1].Type == PinType::Float &&
-            isNumber(numericEquals->InputValues[1]) &&
-            asNumber(numericEquals->InputValues[1]) == 0.0,
+            isNumber(numericEquals->Inputs[1].LiteralValue) &&
+            asNumber(numericEquals->Inputs[1].LiteralValue) == 0.0,
             "An inferred numeric Equals operand should receive a numeric zero default.");
 
     ScriptPropertyPtr labels = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Labels");
@@ -2680,7 +2679,7 @@ void FunctionLocalsAreFreshPerInvocation()
     NodePtr begin = BuildBeginNode(fixture.ids, increment);
     NodePtr getForAdd = BuildGetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
     NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
-    add->InputValues[1] = Value(1.0);
+    add->Inputs[1].LiteralValue = Value(1.0);
     NodePtr setCounter = BuildSetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
     NodePtr getForReturn = BuildGetVariableNode(fixture.ids, counter, ScriptElementID::Invalid, increment->ID);
     NodePtr returnNode = BuildReturnNode(fixture.ids, *increment);

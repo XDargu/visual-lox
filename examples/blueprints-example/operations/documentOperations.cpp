@@ -343,11 +343,11 @@ OperationResult DocumentOperations::ChangeNodeInputValue(int functionId, ed::Nod
     ScriptFunctionPtr function = FindFunction(functionId);
     NodePtr node = function ? function->Graph.FindNode(nodeId) : nullptr;
     if (!node) return Missing("Node", nodeId.Get());
-    if (inputIndex < 0 || inputIndex >= static_cast<int>(node->InputValues.size()))
+    if (inputIndex < 0 || inputIndex >= static_cast<int>(node->Inputs.size()))
         return OperationResult::Fail("The node input index is invalid.");
     return Apply("Change node input", [&]
     {
-        node->InputValues[inputIndex] = value;
+        node->Inputs[inputIndex].LiteralValue = value;
         return OperationResult::Ok();
     });
 }
@@ -1068,7 +1068,7 @@ OperationResult DocumentOperations::AddClassToStringMethod(
 
         NodePtr begin = BuildBeginNode(m_ids, method);
         NodePtr returnNode = BuildReturnNode(m_ids, *method);
-        returnNode->InputValues[1] = defaultText;
+        returnNode->Inputs[1].LiteralValue = defaultText;
         NodeUtils::BuildNode(begin);
         NodeUtils::BuildNode(returnNode);
         method->Graph.AddNode(begin);

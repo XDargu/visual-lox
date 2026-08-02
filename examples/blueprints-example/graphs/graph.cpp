@@ -427,11 +427,9 @@ void Graph::RefreshTypes()
     // numbers instead of a number and a hidden nil.
     for (const NodePtr& node : m_Nodes)
     {
-        const size_t count = (std::min)(node->Inputs.size(), node->InputValues.size());
-        for (size_t i = 0; i < count; ++i)
+        for (InputPin& input : node->Inputs)
         {
-            Pin& input = node->Inputs[i];
-            Value& value = node->InputValues[i];
+            Value& value = input.LiteralValue;
             if (!input.DeclaredType.IsGeneric() || IsPinLinked(input.ID) ||
                 input.Type == PinType::Any || input.Type == PinType::Flow)
                 continue;

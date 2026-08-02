@@ -51,7 +51,7 @@ struct SwitchFlowNode : public Node
                 conditionLocalCount =
                     compiler.current->localCount - conditionLocalStart;
                 GraphCompiler::CompileInput(
-                    context, graph, Inputs[portIdx + 1], InputValues[portIdx + 1]);
+                    context, graph, Inputs[portIdx + 1], Inputs[portIdx + 1].LiteralValue);
                 failureJumps[portIdx] =
                     compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
                 compiler.emitByte(OpByte(OpCode::OP_POP));
@@ -91,7 +91,7 @@ struct SwitchFlowNode : public Node
             PinType::Bool,
             "Another condition to evaluate in order.");
         Inputs.back().Identity = PortIdentity::Dynamic("case", slot, "condition");
-        InputValues.emplace_back(Value(false));
+        Inputs.back().LiteralValue = Value(false);
         Outputs.insert(
             Outputs.end() - 1,
             Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
@@ -107,7 +107,6 @@ struct SwitchFlowNode : public Node
             return;
 
         Inputs.erase(Inputs.begin() + inputIndex);
-        InputValues.erase(InputValues.begin() + inputIndex);
         Outputs.erase(Outputs.begin() + inputIndex - 1);
         for (int i = 1; i < static_cast<int>(Inputs.size()); ++i)
         {
@@ -142,8 +141,7 @@ inline NodePtr BuildSwitchFlowNode(IDGenerator& ids)
     node->Inputs[0].Identity = PortIdentity::Fixed("execute");
     const DynamicSlotId firstSlot = DynamicSlotId::New();
     node->Inputs[1].Identity = PortIdentity::Dynamic("case", firstSlot, "condition");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(false));
+    node->Inputs.back().LiteralValue = Value(false);
     node->Outputs.emplace_back(
         ids.GetNextId(), "Case 1", PinType::Flow,
         "Runs when Condition 1 is true.");

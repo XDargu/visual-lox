@@ -38,39 +38,26 @@ inline void RefreshCallInputs(Node& node, IDGenerator& ids,
                               const std::vector<BasicFunctionDef::Input>& parameters,
                               int fixedInputs)
 {
-    std::vector<std::pair<Pin, Value>> saved;
-    for (size_t index = static_cast<size_t>(fixedInputs); index < node.Inputs.size(); ++index)
-        saved.emplace_back(node.Inputs[index], node.InputValues[index]);
-    for (size_t index = 0; index < node.UnresolvedInputs.size(); ++index)
-        saved.emplace_back(node.UnresolvedInputs[index], node.UnresolvedInputValues[index]);
+    std::vector<InputPin> saved(node.Inputs.begin() + fixedInputs, node.Inputs.end());
+    saved.insert(saved.end(), node.UnresolvedInputs.begin(), node.UnresolvedInputs.end());
 
     node.Inputs.erase(node.Inputs.begin() + fixedInputs, node.Inputs.end());
-    node.InputValues.erase(node.InputValues.begin() + fixedInputs, node.InputValues.end());
     for (const BasicFunctionDef::Input& parameter : parameters)
     {
-        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const auto& item)
+        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const InputPin& input)
         {
-            return item.first.Identity.kind == PortIdentityKind::Script
-                ? PortIdentitiesMatch(item.first.Identity, PortIdentity::Script(parameter.id, parameter.persistentId)) : item.first.Name == parameter.name;
+            return PortIdentitiesMatch(input.Identity, PortIdentity::Script(parameter.persistentId));
         });
-        Pin input = existing != saved.end() ? existing->first : Pin(ids.GetNextId(), parameter.name.c_str(), parameter.type, parameter.description);
-        Value value = existing != saved.end() ? existing->second : parameter.value;
+        InputPin input = existing != saved.end() ? *existing : InputPin(Pin(ids.GetNextId(), parameter.name.c_str(), parameter.type, parameter.description), parameter.value);
         if (existing != saved.end()) saved.erase(existing);
         input.Name = parameter.name;
         input.Type = input.DeclaredType = parameter.type;
         input.Description = parameter.description;
-        input.Identity = PortIdentity::Script(parameter.id, parameter.persistentId);
+        input.Identity = PortIdentity::Script(parameter.persistentId);
         node.Inputs.push_back(std::move(input));
-        node.InputValues.push_back(value);
     }
 
-    node.UnresolvedInputs.clear();
-    node.UnresolvedInputValues.clear();
-    for (auto& [pin, value] : saved)
-    {
-        node.UnresolvedInputs.push_back(std::move(pin));
-        node.UnresolvedInputValues.push_back(value);
-    }
+    node.UnresolvedInputs = std::move(saved);
 }
 
 inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
@@ -91,8 +78,7 @@ inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
     {
         const auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& output)
             {
-                return output.Identity.kind == PortIdentityKind::Script
-                    ? PortIdentitiesMatch(output.Identity, PortIdentity::Script(result.id, result.persistentId)) : output.Name == result.name;
+                return PortIdentitiesMatch(output.Identity, PortIdentity::Script(result.persistentId));
             });
         if (existing != saved.end())
         {
@@ -101,13 +87,13 @@ inline void RefreshCallOutputs(Node& node, IDGenerator& ids,
             output.Type = output.DeclaredType = result.type;
             output.Description = result.description;
             output.Name = result.name;
-            output.Identity = PortIdentity::Script(result.id, result.persistentId);
+            output.Identity = PortIdentity::Script(result.persistentId);
             refreshed.push_back(std::move(output));
         }
         else
         {
             refreshed.emplace_back(ids.GetNextId(), result.name.c_str(), result.type, result.description);
-            refreshed.back().Identity = PortIdentity::Script(result.id, result.persistentId);
+            refreshed.back().Identity = PortIdentity::Script(result.persistentId);
         }
     }
     node.Outputs = std::move(refreshed);
@@ -148,7 +134,7 @@ struct ConstructObjectNode : public Node
                           classDefinition->Name.length(), 0);
         compiler.namedVariable(token, false);
         for (size_t i = 1; i < Inputs.size(); ++i)
-            GraphCompiler::CompileInput(context, graph, Inputs[i], InputValues[i]);
+            GraphCompiler::CompileInput(context, graph, Inputs[i], Inputs[i].LiteralValue);
         compiler.emitBytes(OpByte(OpCode::OP_CALL), static_cast<uint8_t>(Inputs.size() - 1));
         GraphCompiler::CompileOutput(context, graph, Outputs[1]);
     }
@@ -192,14 +178,13 @@ inline NodePtr BuildConstructObjectNode(IDGenerator& ids, const ScriptClassPtr& 
     node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Executes the constructor.");
     node->Inputs.back().Identity = PortIdentity::Fixed("execute");
-    node->InputValues.emplace_back(Value());
     if (scriptClass && scriptClass->constructor)
         for (const auto& input : scriptClass->constructor->functionDef->inputs)
         {
             node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
                 input.description);
-            node->Inputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
-            node->InputValues.emplace_back(input.value);
+            node->Inputs.back().Identity = PortIdentity::Script(input.persistentId);
+            node->Inputs.back().LiteralValue = input.value;
         }
     node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Continues after construction.");
@@ -264,7 +249,7 @@ struct GetPropertyNode : public Node
         if (stage != CompilationStage::PullOutput || !propertyDefinition)
             return;
         ObjectNodeUtils::CompileReceiverInput(
-            context, graph, *this, Inputs[0], InputValues[0]);
+            context, graph, *this, Inputs[0], Inputs[0].LiteralValue);
         ObjectNodeUtils::EmitNamedOperation(context.compiler, OpCode::OP_GET_PROPERTY,
             OpCode::OP_GET_PROPERTY_LONG, propertyDefinition->Name);
         GraphCompiler::CompileOutput(context, graph, Outputs[0]);
@@ -313,7 +298,6 @@ inline NodePtr BuildGetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance that owns the property.");
     node->Inputs.back().Identity = PortIdentity::Fixed("instance");
-    node->InputValues.emplace_back(Value());
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
@@ -337,8 +321,8 @@ struct SetPropertyNode : public Node
         if (stage != CompilationStage::BeginInputs || !propertyDefinition)
             return;
         ObjectNodeUtils::CompileReceiverInput(
-            context, graph, *this, Inputs[1], InputValues[1]);
-        GraphCompiler::CompileInput(context, graph, Inputs[2], InputValues[2]);
+            context, graph, *this, Inputs[1], Inputs[1].LiteralValue);
+        GraphCompiler::CompileInput(context, graph, Inputs[2], Inputs[2].LiteralValue);
         ObjectNodeUtils::EmitNamedOperation(context.compiler, OpCode::OP_SET_PROPERTY,
             OpCode::OP_SET_PROPERTY_LONG, propertyDefinition->Name);
         GraphCompiler::CompileOutput(context, graph, Outputs[1]);
@@ -370,7 +354,7 @@ struct SetPropertyNode : public Node
             propertyDefinition->Description;
         Inputs[2].Type = Inputs[2].DeclaredType = propertyDefinition->type;
         Outputs[1].Type = Outputs[1].DeclaredType = propertyDefinition->type;
-        InputValues[2] = propertyDefinition->defaultValue;
+        Inputs[2].LiteralValue = propertyDefinition->defaultValue;
     }
 
     ScriptPropertyPtr propertyDefinition;
@@ -398,9 +382,7 @@ inline NodePtr BuildSetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
     node->Inputs.back().Identity = PortIdentity::Fixed("value");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(property ? property->defaultValue : Value());
+    node->Inputs.back().LiteralValue = property ? property->defaultValue : Value();
     node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Continues after the assignment.");
     node->Outputs.back().Identity = PortIdentity::Fixed("then");
@@ -432,7 +414,7 @@ struct GetMethodNode : public Node
         if (stage != CompilationStage::PullOutput || !methodDefinition)
             return;
         ObjectNodeUtils::CompileReceiverInput(
-            context, graph, *this, Inputs[0], InputValues[0]);
+            context, graph, *this, Inputs[0], Inputs[0].LiteralValue);
         ObjectNodeUtils::EmitNamedOperation(
             context.compiler, OpCode::OP_GET_PROPERTY,
             OpCode::OP_GET_PROPERTY_LONG,
@@ -500,7 +482,6 @@ inline NodePtr BuildGetMethodNode(
         ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance whose method is returned.");
     node->Inputs.back().Identity = PortIdentity::Fixed("instance");
-    node->InputValues.emplace_back(Value());
     node->Outputs.emplace_back(
         ids.GetNextId(), method ? method->functionDef->name.c_str() : "Method",
         method ? ObjectNodeUtils::FunctionType(*method->functionDef)
@@ -538,9 +519,9 @@ struct MethodCallNode : public Node
             (HasFlag(DefinitionFlags, NodeDefinitionFlags::ReadOnly) ||
              HasFlag(DefinitionFlags, NodeDefinitionFlags::Pure)) ? 0 : 1;
         ObjectNodeUtils::CompileReceiverInput(
-            context, graph, *this, Inputs[instanceIndex], InputValues[instanceIndex]);
+            context, graph, *this, Inputs[instanceIndex], Inputs[instanceIndex].LiteralValue);
         for (size_t i = instanceIndex + 1; i < Inputs.size(); ++i)
-            GraphCompiler::CompileInput(context, graph, Inputs[i], InputValues[i]);
+            GraphCompiler::CompileInput(context, graph, Inputs[i], Inputs[i].LiteralValue);
         const std::string& name = methodDefinition->functionDef->name;
         const Token token(TokenType::IDENTIFIER, name.c_str(), name.length(), 0);
         context.compiler.emitOpWithValue(OpCode::OP_INVOKE, OpCode::OP_INVOKE_LONG,
@@ -591,8 +572,6 @@ struct MethodCallNode : public Node
                 if (Inputs[index].Type != PinType::Flow)
                     continue;
                 Inputs.erase(Inputs.begin() + index);
-                if (index < InputValues.size())
-                    InputValues.erase(InputValues.begin() + index);
             }
             stl::erase_if(Outputs,
                 [](const Pin& output) { return output.Type == PinType::Flow; });
@@ -606,7 +585,6 @@ struct MethodCallNode : public Node
                     Pin(ids.GetNextId(), "", PinType::Flow,
                         "Executes this method."));
                 Inputs.front().Identity = PortIdentity::Fixed("execute");
-                InputValues.insert(InputValues.begin(), Value());
             }
             if (std::none_of(Outputs.begin(), Outputs.end(),
                     [](const Pin& output) { return output.Type == PinType::Flow; }))
@@ -658,15 +636,12 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance on which to call the method.");
     node->Inputs.back().Identity = PortIdentity::Fixed("instance");
-    if (!expressionOnly)
-        node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value());
     if (method) for (const auto& input : method->functionDef->inputs)
     {
         node->Inputs.emplace_back(ids.GetNextId(), input.name.c_str(), input.type,
             input.description);
-        node->Inputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
-        node->InputValues.emplace_back(input.value);
+        node->Inputs.back().Identity = PortIdentity::Script(input.persistentId);
+        node->Inputs.back().LiteralValue = input.value;
     }
     if (!expressionOnly)
         node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
@@ -680,7 +655,7 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
             node->Outputs.emplace_back(
                 ids.GetNextId(), output.name.c_str(), output.type,
                 output.description);
-            node->Outputs.back().Identity = PortIdentity::Script(output.id, output.persistentId);
+            node->Outputs.back().Identity = PortIdentity::Script(output.persistentId);
         }
     }
     return node;

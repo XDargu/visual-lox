@@ -21,7 +21,7 @@ namespace ExampleGenerator
 NodePtr Binary(Builder& builder, const char* name, double right)
 {
     NodePtr node = builder.Compiled(name);
-    node->InputValues[1] = Value(right);
+    node->Inputs[1].LiteralValue = Value(right);
     return node;
 }
 
@@ -61,9 +61,9 @@ void BuildRegenerate(Builder& builder, const ScriptFunctionPtr& function,
     NodePtr setXZero = builder.Set(valueX, function);
     NodePtr setYZero = builder.Set(valueY, function);
     NodePtr setIterationsZero = builder.Set(iterations, function);
-    setXZero->InputValues[1] = Value(0.0);
-    setYZero->InputValues[1] = Value(0.0);
-    setIterationsZero->InputValues[1] = Value(0.0);
+    setXZero->Inputs[1].LiteralValue = Value(0.0);
+    setYZero->Inputs[1].LiteralValue = Value(0.0);
+    setIterationsZero->Inputs[1].LiteralValue = Value(0.0);
 
     builder.Add(graph, { begin, clear, getPixelsForClear, outerRepeat, getResolutionOuter, setCoordinateY, divideY, getResolutionY,
         normalizeY, getScaleY, scaleY, getCenterY, offsetY, innerRepeat, getResolutionInner, setCoordinateX, divideX, getResolutionX,

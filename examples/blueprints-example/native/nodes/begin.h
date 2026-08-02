@@ -48,15 +48,14 @@ struct BeginNode : public Node
         {
             const auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& output)
             {
-                return output.Identity.kind == PortIdentityKind::Script
-                    ? PortIdentitiesMatch(output.Identity, PortIdentity::Script(input.id, input.persistentId)) : output.Name == input.name;
+                return PortIdentitiesMatch(output.Identity, PortIdentity::Script(input.persistentId));
             });
             Pin output = existing != saved.end() ? *existing : Pin(IDGenerator.GetNextId(), input.name.c_str(), input.type, input.description);
             if (existing != saved.end()) saved.erase(existing);
             output.Name = input.name;
             output.Type = output.DeclaredType = input.type;
             output.Description = input.description;
-            output.Identity = PortIdentity::Script(input.id, input.persistentId);
+            output.Identity = PortIdentity::Script(input.persistentId);
             refreshed.push_back(std::move(output));
         }
         Outputs = std::move(refreshed);
@@ -83,7 +82,7 @@ static NodePtr BuildBeginNode(IDGenerator& IDGenerator, const ScriptFunctionPtr&
         const BasicFunctionDef::Input& input = function->functionDef->inputs[i];
         node->Outputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
             input.description);
-        node->Outputs.back().Identity = PortIdentity::Script(input.id, input.persistentId);
+        node->Outputs.back().Identity = PortIdentity::Script(input.persistentId);
     }
 
     return node;

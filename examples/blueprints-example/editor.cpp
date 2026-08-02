@@ -1476,9 +1476,9 @@ void Example::ShowInspector()
                         {
                             ImGui::TextDisabled(ICON_FA_LINK " Value supplied by a connection");
                         }
-                        else if (i < static_cast<int>(node->InputValues.size()))
+                        else
                         {
-                            Value value = CloneInspectorValue(node->InputValues[i]);
+                            Value value = CloneInspectorValue(node->Inputs[i].LiteralValue);
                             if (DrawInspectorValueEditor(
                                     "node-input", value, input.Type == PinType::Any,
                                     0, &input.Type))
@@ -1493,10 +1493,6 @@ void Example::ShowInspector()
                                             functionId, nodeId, i, value);
                                     });
                             }
-                        }
-                        else
-                        {
-                            ImGui::TextDisabled("No stored default value");
                         }
                         ImGui::PopID();
                     }

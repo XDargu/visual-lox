@@ -1955,11 +1955,9 @@ NodePtr CompiledNodeDef::MakeNode(IDGenerator& IDGenerator)
 
 const NativeFunctionDef* NodeRegistry::FindNative(const std::string& name) const
 {
-    const auto alias = nativeAliases.find(name);
-    const std::string& resolvedName = alias == nativeAliases.end() ? name : alias->second;
     for (const NativeFunctionDef& definition : nativeDefinitions)
     {
-        if (definition.functionDef && (definition.functionDef->name == resolvedName || definition.functionDef->id == resolvedName))
+        if (definition.functionDef && (definition.functionDef->name == name || definition.functionDef->id == name))
             return &definition;
     }
 
@@ -1968,39 +1966,11 @@ const NativeFunctionDef* NodeRegistry::FindNative(const std::string& name) const
 
 CompiledNodeDefPtr NodeRegistry::FindCompiled(const std::string& name) const
 {
-    const auto alias = compiledAliases.find(name);
-    const std::string& resolvedName = alias == compiledAliases.end() ? name : alias->second;
     for (const CompiledNodeDefPtr& definition : compiledDefinitions)
     {
-        if (definition && (definition->name == resolvedName || definition->id == resolvedName))
+        if (definition && (definition->name == name || definition->id == name))
             return definition;
     }
 
     return nullptr;
-}
-
-void NodeRegistry::RegisterNativeAlias(std::string alias, std::string definitionId)
-{
-    if (alias.empty() || definitionId.empty() || !FindNative(definitionId)) throw std::invalid_argument("Invalid native definition alias.");
-    if (!nativeAliases.emplace(std::move(alias), std::move(definitionId)).second) throw std::invalid_argument("Duplicate native definition alias.");
-}
-
-void NodeRegistry::RegisterCompiledAlias(std::string alias, std::string definitionId)
-{
-    if (alias.empty() || definitionId.empty() || !FindCompiled(definitionId)) throw std::invalid_argument("Invalid compiled definition alias.");
-    if (!compiledAliases.emplace(std::move(alias), std::move(definitionId)).second) throw std::invalid_argument("Duplicate compiled definition alias.");
-}
-
-void NodeRegistry::RegisterPortAlias(const std::string& definitionId, PinKind direction, std::string alias, std::string portKey)
-{
-    BasicFunctionDefPtr definition;
-    if (const NativeFunctionDef* native = FindNative(definitionId)) definition = native->functionDef;
-    else if (const CompiledNodeDefPtr compiled = FindCompiled(definitionId)) definition = compiled->functionDef;
-    if (!definition || alias.empty() || portKey.empty()) throw std::invalid_argument("Invalid port alias.");
-
-    const std::vector<BasicFunctionDef::Input>& ports = direction == PinKind::Input ? definition->inputs : definition->outputs;
-    if (std::none_of(ports.begin(), ports.end(), [&](const BasicFunctionDef::Input& port) { return port.key == portKey; }))
-        throw std::invalid_argument("Port alias target does not exist.");
-    std::map<std::string, std::string>& aliases = direction == PinKind::Input ? definition->inputAliases : definition->outputAliases;
-    if (!aliases.emplace(std::move(alias), std::move(portKey)).second) throw std::invalid_argument("Duplicate port alias.");
 }

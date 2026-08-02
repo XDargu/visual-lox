@@ -31,7 +31,7 @@ struct MatchFlowNode : public Node
         case CompilationStage::BeginInputs:
             compiler.beginScope();
             compiler.addLocal(valueToken, false);
-            GraphCompiler::CompileInput(context, graph, Inputs[1], InputValues[1]);
+            GraphCompiler::CompileInput(context, graph, Inputs[1], Inputs[1].LiteralValue);
             compiler.emitVariable(valueToken, true);
             failureJumps.assign(caseCount, 0);
             successJumps.clear();
@@ -41,7 +41,7 @@ struct MatchFlowNode : public Node
             {
                 compiler.namedVariable(valueToken, false);
                 GraphCompiler::CompileInput(context, graph, Inputs[portIdx + 2],
-                                            InputValues[portIdx + 2]);
+                                            Inputs[portIdx + 2].LiteralValue);
                 compiler.emitByte(OpByte(OpCode::OP_MATCH));
                 failureJumps[portIdx] = compiler.emitJump(OpByte(OpCode::OP_JUMP_IF_FALSE));
                 compiler.emitByte(OpByte(OpCode::OP_POP));
@@ -76,7 +76,7 @@ struct MatchFlowNode : public Node
             ("Pattern " + std::to_string(caseNumber)).c_str(), PinType::Any,
             "Another pattern to compare with Value.");
         Inputs.back().Identity = PortIdentity::Dynamic("case", slot, "pattern");
-        InputValues.emplace_back(Value(0.0));
+        Inputs.back().LiteralValue = Value(0.0);
         Outputs.insert(Outputs.end() - 1,
             Pin(ids.GetNextId(), ("Case " + std::to_string(caseNumber)).c_str(),
                 PinType::Flow,
@@ -91,7 +91,6 @@ struct MatchFlowNode : public Node
             return;
         const int caseIndex = inputIndex - 2;
         Inputs.erase(Inputs.begin() + inputIndex);
-        InputValues.erase(InputValues.begin() + inputIndex);
         Outputs.erase(Outputs.begin() + caseIndex);
         for (int i = 2; i < static_cast<int>(Inputs.size()); ++i)
         {
@@ -128,9 +127,7 @@ inline NodePtr BuildMatchFlowNode(IDGenerator& ids)
     node->Inputs[1].Identity = PortIdentity::Fixed("value");
     const DynamicSlotId firstSlot = DynamicSlotId::New();
     node->Inputs[2].Identity = PortIdentity::Dynamic("case", firstSlot, "pattern");
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value());
-    node->InputValues.emplace_back(Value(0.0));
+    node->Inputs.back().LiteralValue = Value(0.0);
     node->Outputs.emplace_back(
         ids.GetNextId(), "Case 1", PinType::Flow,
         "Runs when Value matches Pattern 1.");

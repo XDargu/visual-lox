@@ -1,98 +1,308 @@
 {
   "format": "visual-lox",
-  "format_version": 2,
-  "script": {
-    "classes": [],
-    "functions": [],
-    "id": 1,
-    "main": {
-      "graph": {
-        "links": [
+  "format_version": 8,
+  "module_id": "ad15a92e-1d9d-4890-9ceb-8dad4173e748",
+  "script":
+  {
+    "classes":
+    [
+    ],
+    "functions":
+    [
+    ],
+    "main":
+    {
+      "description": "",
+      "generic_type_properties":
+      [
+      ],
+      "graph":
+      {
+        "links":
+        [
           {
-            "end_pin_id": 10,
-            "id": 13,
-            "start_pin_id": 5
+            "from":
+            {
+              "display_name": "",
+              "node": "72f2c3cb-fd11-57fb-99e1-f45b5f827d26",
+              "port":
+              {
+                "key": "start",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "0526908c-b0f4-5094-8d99-17a6311608ee",
+            "to":
+            {
+              "display_name": "",
+              "node": "5ed6d413-9cfc-5ea2-9c46-d09d60009e1a",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 11,
-            "id": 14,
-            "start_pin_id": 6
+            "from":
+            {
+              "display_name": "Arguments",
+              "node": "72f2c3cb-fd11-57fb-99e1-f45b5f827d26",
+              "port":
+              {
+                "kind": "script",
+                "port_id": "cd9ebb80-008a-5c35-acd5-aa70dfd7d576"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "any",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": "f6492c54-ef8d-51d7-8f97-50b637041898",
+            "to":
+            {
+              "display_name": "Content",
+              "node": "5ed6d413-9cfc-5ea2-9c46-d09d60009e1a",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           }
         ],
-        "nodes": [
+        "nodes":
+        [
           {
-            "definition": "",
-            "id": 4,
-            "input_values": [],
-            "inputs": [],
+            "definition":
+            {
+              "id": "vlox.core.begin",
+              "revision": 1
+            },
+            "description": "Entry point for 'Main'. ",
+            "display_name": "Begin",
+            "id": "72f2c3cb-fd11-57fb-99e1-f45b5f827d26",
+            "inputs":
+            [
+            ],
             "kind": "begin",
-            "outputs": [
+            "outputs":
+            [
               {
-                "id": 5,
-                "name": "",
-                "type": "flow"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "start",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
               },
               {
-                "id": 6,
-                "name": "Arguments",
-                "type": "list"
+                "display_name": "Arguments",
+                "identity":
+                {
+                  "kind": "script",
+                  "port_id": "cd9ebb80-008a-5c35-acd5-aa70dfd7d576"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "input_count": -1,
+                      "kind": "any",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
-            "state": ""
+            "state": "",
+            "type_overrides":
+            {
+            }
           },
           {
-            "definition": "Debug::Print",
-            "id": 9,
-            "input_values": [
+            "definition":
+            {
+              "id": "vlox.std.compiled.debug.print",
+              "revision": 1
+            },
+            "description": "Writes a value to the program output",
+            "display_name": "Print",
+            "id": "5ed6d413-9cfc-5ea2-9c46-d09d60009e1a",
+            "inputs":
+            [
               {
-                "type": "nil"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "type": "string",
-                "value": ""
-              }
-            ],
-            "inputs": [
-              {
-                "id": 10,
-                "name": "",
-                "type": "flow"
-              },
-              {
-                "id": 11,
-                "name": "Content",
-                "type": "any"
+                "display_name": "Content",
+                "identity":
+                {
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "any",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                },
+                "value":
+                {
+                  "type": "string",
+                  "value": ""
+                }
               }
             ],
             "kind": "compiled",
-            "outputs": [
+            "outputs":
+            [
               {
-                "id": 12,
-                "name": "",
-                "type": "flow"
+                "display_name": "",
+                "identity":
+                {
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "flow",
+                  "name": "",
+                  "parameters":
+                  [
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
-            "state": ""
+            "state": "",
+            "type_overrides":
+            {
+            }
           }
         ]
       },
-      "id": 2,
-      "inputs": [
+      "id": "43a59000-0869-515c-bf9a-69f7e6a77713",
+      "inputs":
+      [
         {
-          "default": {
-            "items": [],
+          "declared_type":
+          {
+            "input_count": -1,
+            "kind": "list",
+            "name": "",
+            "parameters":
+            [
+              {
+                "input_count": -1,
+                "kind": "any",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            ]
+          },
+          "default":
+          {
+            "items":
+            [
+            ],
             "type": "list"
           },
-          "id": 3,
+          "description": "",
+          "id": "cd9ebb80-008a-5c35-acd5-aa70dfd7d576",
           "name": "Arguments"
         }
       ],
       "name": "Main",
-      "outputs": [],
-      "variables": []
+      "outputs":
+      [
+      ],
+      "pure": false,
+      "variables":
+      [
+      ]
     },
-    "variables": []
+    "variables":
+    [
+    ]
   }
 }

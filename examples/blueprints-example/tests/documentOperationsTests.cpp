@@ -373,9 +373,9 @@ void ToStringShortcutCreatesCompleteMethod()
     const Link& flowLink = method->Graph.GetLinks().front();
     Require(flowLink.StartPinID == begin->Outputs[0].ID &&
             flowLink.EndPinID == returnNode->Inputs[0].ID &&
-            returnNode->InputValues.size() > 1 &&
-            isString(returnNode->InputValues[1]) &&
-            asString(returnNode->InputValues[1])->chars == "Display instance",
+            returnNode->Inputs.size() > 1 &&
+            isString(returnNode->Inputs[1].LiteralValue) &&
+            asString(returnNode->Inputs[1].LiteralValue)->chars == "Display instance",
             "The generated Return node should provide the default instance text.");
 
     Require(!fixture.operations->AddClassToStringMethod(

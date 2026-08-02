@@ -1,5 +1,7 @@
 #pragma once
 
+#include "uuid.h"
+
 #include <Value.h>
 
 #include <string>
@@ -37,6 +39,8 @@ struct TypeRef
     PinType kind = PinType::Any;
     std::vector<TypeRef> parameters;
     int classId = -1;
+    ModuleId moduleId;
+    ScriptElementUuid symbolId;
     int functionInputCount = -1;
     std::string name;
 
@@ -48,6 +52,8 @@ struct TypeRef
         kind = primitive;
         parameters.clear();
         classId = -1;
+        moduleId = {};
+        symbolId = {};
         functionInputCount = -1;
         name.clear();
         return *this;

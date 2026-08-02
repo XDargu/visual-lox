@@ -7,11 +7,15 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 struct Script
 {
     ScriptElementID ID;
     ModuleId ModuleIdentity{ Uuid::NewV4() };
+    std::map<std::string, std::string> DocumentSerializedExtensions;
+    std::map<std::string, std::string> SerializedExtensions;
+    std::map<std::string, int> RuntimeIdCache;
     
     std::vector<ScriptClassPtr> classes;
     std::vector<ScriptPropertyPtr> variables;
@@ -38,11 +42,17 @@ struct ScriptUtils
     static ScriptPropertyPtr FindFunctionVariableById(const Script& script, int functionId, int varId);
     static ScriptPropertyPtr FindAnyVariableById(const Script& script, int varId);
     static ScriptPropertyPtr FindVisibleVariableById(const Script& script, int functionId, int varId);
+    static ScriptPropertyPtr FindVariableByPersistentId(const Script& script, ScriptElementUuid persistentId);
+    static ScriptPropertyPtr FindFunctionVariableByPersistentId(const ScriptFunctionPtr& function, ScriptElementUuid persistentId);
+    static ScriptPropertyPtr FindVisibleVariableByPersistentId(const Script& script, int functionId, ScriptElementUuid persistentId);
     static ScriptFunctionPtr FindVariableOwner(const Script& script, int varId);
     static ScriptFunctionPtr FindFunctionById(const Script& script, int funId);
     static ScriptFunctionPtr FindAnyFunctionById(const Script& script, int funId);
+    static ScriptFunctionPtr FindFunctionByPersistentId(const Script& script, ScriptElementUuid persistentId);
     static ScriptClassPtr FindClassById(const Script& script, int classId);
+    static ScriptClassPtr FindClassByPersistentId(const Script& script, ScriptElementUuid persistentId);
     static ScriptPropertyPtr FindClassPropertyById(const Script& script, int propertyId);
+    static ScriptPropertyPtr FindClassPropertyByPersistentId(const Script& script, ScriptElementUuid persistentId);
 
     static std::vector<NodePtr> FindFunctionReferences(Script& script, int funId);
     static std::vector<NodePtr> FindVariableReferences(Script& script, int varId);

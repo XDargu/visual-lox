@@ -1,6 +1,7 @@
 {
   "format": "visual-lox",
-  "format_version": 5,
+  "format_version": 8,
+  "module_id": "3025e416-e629-4d39-95c4-c9584654163d",
   "script":
   {
     "classes":
@@ -9,7 +10,6 @@
     "functions":
     [
     ],
-    "id": 1,
     "main":
     {
       "description": "",
@@ -21,80 +21,554 @@
         "links":
         [
           {
-            "end_pin_id": 11,
-            "id": 52,
-            "start_pin_id": 9
+            "from":
+            {
+              "display_name": "",
+              "node": "bb93bbf9-cef4-5c15-8b39-c2817f211a37",
+              "port":
+              {
+                "key": "start",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "ea9cc06c-9958-5169-a1c6-ce1ff6469440",
+            "to":
+            {
+              "display_name": "",
+              "node": "e82cb650-a6c4-521e-9f7a-822da7f05c50",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 12,
-            "id": 53,
-            "start_pin_id": 17
+            "from":
+            {
+              "display_name": "BenchmarkSize",
+              "node": "2c49315a-ee80-5626-a21e-981f5a014852",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "48a50208-af5c-5402-8a96-aaa1a7a4378a",
+            "to":
+            {
+              "display_name": "Count",
+              "node": "e82cb650-a6c4-521e-9f7a-822da7f05c50",
+              "port":
+              {
+                "key": "count",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 19,
-            "id": 54,
-            "start_pin_id": 13
+            "from":
+            {
+              "display_name": "Body",
+              "node": "e82cb650-a6c4-521e-9f7a-822da7f05c50",
+              "port":
+              {
+                "key": "branch_0",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "673a969a-22b8-51fe-89ff-52e04a4fbefd",
+            "to":
+            {
+              "display_name": "",
+              "node": "72e0c18b-0954-5092-b916-66cf4801c56a",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 20,
-            "id": 55,
-            "start_pin_id": 23
+            "from":
+            {
+              "display_name": "FibonacciCurrent",
+              "node": "e1549fd0-aa09-5ce1-aa1a-381e6fab093f",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "45678c0c-6a73-5c02-ba15-f1c9c5625632",
+            "to":
+            {
+              "display_name": "FibonacciTemporary",
+              "node": "72e0c18b-0954-5092-b916-66cf4801c56a",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 25,
-            "id": 56,
-            "start_pin_id": 21
+            "from":
+            {
+              "display_name": "",
+              "node": "72e0c18b-0954-5092-b916-66cf4801c56a",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "1f99eff7-86f6-5686-ae2c-fa51bf29d732",
+            "to":
+            {
+              "display_name": "",
+              "node": "78b64342-f542-530a-b95b-d116f65a8bb8",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 29,
-            "id": 57,
-            "start_pin_id": 33
+            "from":
+            {
+              "display_name": "FibonacciPrevious",
+              "node": "ef825aa8-cf14-597e-9783-628b44ec646c",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "329aab1c-dae9-536e-90d4-49179cb20cd5",
+            "to":
+            {
+              "display_name": "A",
+              "node": "bc5ecd87-bde5-5aed-babc-7b138800508f",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "5a5b6f3e-6b71-58da-987c-57212c6ebef2"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 30,
-            "id": 58,
-            "start_pin_id": 35
+            "from":
+            {
+              "display_name": "FibonacciCurrent",
+              "node": "2df9e7a9-48f3-56ca-994b-70b8cc0fa655",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "be6b330d-c772-5abe-9f7b-d002d98e96ef",
+            "to":
+            {
+              "display_name": "B",
+              "node": "bc5ecd87-bde5-5aed-babc-7b138800508f",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "c7708c34-1486-5edc-aa98-3036786c070b"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 37,
-            "id": 59,
-            "start_pin_id": 31
+            "from":
+            {
+              "display_name": "Result",
+              "node": "bc5ecd87-bde5-5aed-babc-7b138800508f",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "d4766ac3-737d-5a52-ac1c-f15ed81363c5",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "0ab06689-4d6e-5228-983d-a63781b42588",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 26,
-            "id": 60,
-            "start_pin_id": 39
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "0ab06689-4d6e-5228-983d-a63781b42588",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "f69e3c21-f56e-5ec3-bc45-e5c4710f7097",
+            "to":
+            {
+              "display_name": "FibonacciCurrent",
+              "node": "78b64342-f542-530a-b95b-d116f65a8bb8",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 41,
-            "id": 61,
-            "start_pin_id": 27
+            "from":
+            {
+              "display_name": "",
+              "node": "78b64342-f542-530a-b95b-d116f65a8bb8",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "2eebc932-bdf2-51a3-96dc-876afbee3cf2",
+            "to":
+            {
+              "display_name": "",
+              "node": "99d50650-63ef-56cd-994e-117539066fa3",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 42,
-            "id": 62,
-            "start_pin_id": 45
+            "from":
+            {
+              "display_name": "FibonacciTemporary",
+              "node": "7aadcebd-b506-5bfd-b219-5ebbb69f109c",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "c6dfdb08-9058-525b-8d39-38f2b77e70e5",
+            "to":
+            {
+              "display_name": "FibonacciPrevious",
+              "node": "99d50650-63ef-56cd-994e-117539066fa3",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 47,
-            "id": 63,
-            "start_pin_id": 15
+            "from":
+            {
+              "display_name": "Completed",
+              "node": "e82cb650-a6c4-521e-9f7a-822da7f05c50",
+              "port":
+              {
+                "key": "branch_1",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "41d991a3-85fa-562d-8ede-2f7e513bdd3c",
+            "to":
+            {
+              "display_name": "",
+              "node": "fc2a3dae-67d1-55cf-b9df-c93f3ec0a51e",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 48,
-            "id": 64,
-            "start_pin_id": 51
+            "from":
+            {
+              "display_name": "FibonacciPrevious",
+              "node": "7e4ac4ce-718c-59b6-bba7-00564a4c6624",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "c03803ff-606c-5d3a-b7c3-8c7e74440da1",
+            "to":
+            {
+              "display_name": "BenchmarkChecksum",
+              "node": "fc2a3dae-67d1-55cf-b9df-c93f3ec0a51e",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           }
         ],
         "nodes":
         [
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.core.begin",
+              "revision": 1
+            },
             "description": "Entry point for 'Main'. ",
-            "id": 8,
-            "input_values":
-            [
-            ],
+            "display_name": "Begin",
+            "id": "bb93bbf9-cef4-5c15-8b39-c2817f211a37",
             "inputs":
             [
             ],
@@ -102,32 +576,37 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "start",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Starts execution of this graph",
-                "id": 9,
-                "name": "",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Arguments",
+                "identity":
                 {
-                  "class_id": -1,
+                  "kind": "script",
+                  "port_id": "be4b856c-4216-49b8-9068-545ec00ebf2a"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "string",
                       "name": "",
@@ -136,39 +615,60 @@
                       ]
                     }
                   ]
+                }
+              },
+              {
+                "display_name": "Arguments",
+                "identity":
+                {
+                  "kind": "script",
+                  "port_id": "812b8113-51f8-5350-a8af-ab9e116bf82f"
                 },
-                "description": "",
-                "id": 66,
-                "name": "Arguments",
-                "type": "list"
+                "resolution": "unresolved",
+                "type_hint":
+                {
+                  "input_count": -1,
+                  "kind": "list",
+                  "name": "",
+                  "parameters":
+                  [
+                    {
+                      "input_count": -1,
+                      "kind": "string",
+                      "name": "",
+                      "parameters":
+                      [
+                      ]
+                    }
+                  ]
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":0,\"y\":64}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Flow::Repeat",
+            "definition":
+            {
+              "id": "vlox.std.compiled.flow.repeat",
+              "revision": 1
+            },
             "description": "Runs a body a fixed number of times",
-            "id": 10,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 1
-              }
-            ],
+            "display_name": "Repeat",
+            "id": "e82cb650-a6c4-521e-9f7a-822da7f05c50",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -176,15 +676,20 @@
                   [
                   ]
                 },
-                "description": "Starts the repetition",
-                "id": 11,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Count",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "count",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -192,77 +697,82 @@
                   [
                   ]
                 },
-                "description": "The number of times to run Body",
-                "id": 12,
-                "name": "Count",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Body",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_0",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs once for each repetition",
-                "id": 13,
-                "name": "Body",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Index",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "index",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The zero-based index of the current repetition",
-                "id": 14,
-                "name": "Index",
-                "type": "number"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Completed",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_1",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs after all repetitions finish",
-                "id": 15,
-                "name": "Completed",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":336,\"y\":48}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'BenchmarkSize'. ",
-            "id": 16,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "2c49315a-ee80-5626-a21e-981f5a014852",
             "inputs":
             [
             ],
@@ -270,48 +780,54 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "BenchmarkSize",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 17,
-                "name": "BenchmarkSize",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 3,
             "state": "{\"location\":{\"x\":144,\"y\":104}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "c84d5c84-c016-50ae-a324-f55da75da412"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'FibonacciTemporary'. ",
-            "id": 18,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "72e0c18b-0954-5092-b916-66cf4801c56a",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -319,15 +835,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 19,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "FibonacciTemporary",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -335,45 +856,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 20,
-                "name": "FibonacciTemporary",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 21,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 7,
             "state": "{\"location\":{\"x\":752,\"y\":0}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "8b7b9957-7198-5cea-b2a6-533decbeccde"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'FibonacciCurrent'. ",
-            "id": 22,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "e1549fd0-aa09-5ce1-aa1a-381e6fab093f",
             "inputs":
             [
             ],
@@ -381,48 +911,54 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "FibonacciCurrent",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 23,
-                "name": "FibonacciCurrent",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":560,\"y\":56}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "b586b60a-b2fd-5fe6-80f4-aab4c0c45a40"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'FibonacciCurrent'. ",
-            "id": 24,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 1
-              }
-            ],
+            "display_name": "Set",
+            "id": "78b64342-f542-530a-b95b-d116f65a8bb8",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -430,15 +966,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 25,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "FibonacciCurrent",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -446,59 +987,67 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 26,
-                "name": "FibonacciCurrent",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 27,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":1776,\"y\":64}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "b586b60a-b2fd-5fe6-80f4-aab4c0c45a40"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 28,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "+",
+            "id": "bc5ecd87-bde5-5aed-babc-7b138800508f",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "5a5b6f3e-6b71-58da-987c-57212c6ebef2"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -506,15 +1055,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 29,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "c7708c34-1486-5edc-aa98-3036786c070b"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -522,45 +1079,48 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 30,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 31,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1200,\"y\":104}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'FibonacciPrevious'. ",
-            "id": 32,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "ef825aa8-cf14-597e-9783-628b44ec646c",
             "inputs":
             [
             ],
@@ -568,35 +1128,43 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "FibonacciPrevious",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 33,
-                "name": "FibonacciPrevious",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":1000,\"y\":104}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "7f0d8783-48f0-5610-806e-a27c672d216a"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'FibonacciCurrent'. ",
-            "id": 34,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "2df9e7a9-48f3-56ca-994b-70b8cc0fa655",
             "inputs":
             [
             ],
@@ -604,49 +1172,54 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "FibonacciCurrent",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 35,
-                "name": "FibonacciCurrent",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":1000,\"y\":152}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "b586b60a-b2fd-5fe6-80f4-aab4c0c45a40"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 36,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1000000007
-              }
-            ],
+            "display_name": "Mod",
+            "id": "0ab06689-4d6e-5228-983d-a63781b42588",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -654,15 +1227,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 37,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -670,58 +1249,59 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 38,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 39,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1384,\"y\":104}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'FibonacciPrevious'. ",
-            "id": 40,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "99d50650-63ef-56cd-994e-117539066fa3",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -729,15 +1309,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 41,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "FibonacciPrevious",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -745,45 +1330,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 42,
-                "name": "FibonacciPrevious",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 43,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":2200,\"y\":64}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "7f0d8783-48f0-5610-806e-a27c672d216a"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'FibonacciTemporary'. ",
-            "id": 44,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "7aadcebd-b506-5bfd-b219-5ebbb69f109c",
             "inputs":
             [
             ],
@@ -791,48 +1385,54 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "FibonacciTemporary",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 45,
-                "name": "FibonacciTemporary",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 7,
             "state": "{\"location\":{\"x\":1992,\"y\":120}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "8b7b9957-7198-5cea-b2a6-533decbeccde"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'BenchmarkChecksum'. ",
-            "id": 46,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "fc2a3dae-67d1-55cf-b9df-c93f3ec0a51e",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -840,15 +1440,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 47,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "BenchmarkChecksum",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -856,45 +1461,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 48,
-                "name": "BenchmarkChecksum",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 49,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 4,
             "state": "{\"location\":{\"x\":760,\"y\":120}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "8eab1f38-3c91-5b03-8ccf-67fe1ed22832"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'FibonacciPrevious'. ",
-            "id": 50,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "7e4ac4ce-718c-59b6-bba7-00564a4c6624",
             "inputs":
             [
             ],
@@ -902,44 +1516,48 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "FibonacciPrevious",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 51,
-                "name": "FibonacciPrevious",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":560,\"y\":176}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "3025e416-e629-4d39-95c4-c9584654163d",
+              "symbol": "7f0d8783-48f0-5610-806e-a27c672d216a"
+            },
             "type_overrides":
             {
             }
           }
         ]
       },
-      "id": 2,
+      "id": "68a904c0-5232-5f95-af85-7bf658436bd1",
       "inputs":
       [
         {
           "declared_type":
           {
-            "class_id": -1,
             "input_count": -1,
             "kind": "list",
             "name": "",
             "parameters":
             [
               {
-                "class_id": -1,
                 "input_count": -1,
                 "kind": "string",
                 "name": "",
@@ -957,7 +1575,7 @@
             "type": "list"
           },
           "description": "",
-          "id": 65,
+          "id": "c59e5721-6667-4622-9da9-5ac4fafa8a70",
           "name": "Arguments"
         }
       ],
@@ -975,7 +1593,6 @@
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -989,13 +1606,12 @@
           "value": 2000000
         },
         "description": "",
-        "id": 3,
+        "id": "c84d5c84-c016-50ae-a324-f55da75da412",
         "name": "BenchmarkSize"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -1009,13 +1625,12 @@
           "value": 0
         },
         "description": "",
-        "id": 4,
+        "id": "8eab1f38-3c91-5b03-8ccf-67fe1ed22832",
         "name": "BenchmarkChecksum"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -1029,13 +1644,12 @@
           "value": 0
         },
         "description": "",
-        "id": 5,
+        "id": "7f0d8783-48f0-5610-806e-a27c672d216a",
         "name": "FibonacciPrevious"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -1049,13 +1663,12 @@
           "value": 1
         },
         "description": "",
-        "id": 6,
+        "id": "b586b60a-b2fd-5fe6-80f4-aab4c0c45a40",
         "name": "FibonacciCurrent"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -1069,7 +1682,7 @@
           "value": 0
         },
         "description": "",
-        "id": 7,
+        "id": "8b7b9957-7198-5cea-b2a6-533decbeccde",
         "name": "FibonacciTemporary"
       }
     ]

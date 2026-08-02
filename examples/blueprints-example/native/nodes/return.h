@@ -70,7 +70,7 @@ struct ReturnNode : public Node
         for (size_t index = 0; index < UnresolvedInputs.size(); ++index)
             saved.emplace_back(UnresolvedInputs[index], UnresolvedInputValues[index]);
 
-        std::vector<Pin> refreshedInputs;
+        std::vector<InputPin> refreshedInputs;
         std::vector<Value> refreshedValues;
         const auto flow = std::find_if(Inputs.begin(), Inputs.end(), [](const Pin& input) { return input.Type == PinType::Flow; });
         Pin flowPin = flow != Inputs.end() ? *flow : Pin(IDGenerator.GetNextId(), "", PinType::Flow, "Returns from this function.");

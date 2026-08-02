@@ -362,7 +362,7 @@ void Graph::RefreshTypes()
     {
         if (!pin || !pin->Node || pin->Node->IsSerializationPlaceholder) return false;
         const Node& node = *pin->Node;
-        const auto contains = [&](const std::vector<Pin>& pins)
+        const auto contains = [&](const auto& pins)
         {
             return std::any_of(pins.begin(), pins.end(), [&](const Pin& candidate) { return candidate.ID == pin->ID; });
         };

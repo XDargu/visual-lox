@@ -56,9 +56,17 @@ struct GetVariableNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        pPropertyDef = ownerFunctionId.IsValid()
-            ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id)
-            : ScriptUtils::FindVariableById(script, refId);
+        if (refPersistentId.IsValid())
+        {
+            pPropertyDef = ownerFunctionId.IsValid()
+                ? ScriptUtils::FindVisibleVariableByPersistentId(script, ownerFunctionId.id, refPersistentId)
+                : ScriptUtils::FindVariableByPersistentId(script, refPersistentId);
+            if (pPropertyDef) refId = pPropertyDef->ID;
+            return;
+        }
+
+        pPropertyDef = ownerFunctionId.IsValid() ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id) : ScriptUtils::FindVariableById(script, refId);
+        if (pPropertyDef) refPersistentId = pPropertyDef->PersistentId;
     }
 
     ScriptPropertyPtr pPropertyDef;
@@ -75,12 +83,14 @@ static NodePtr BuildGetVariableNode(IDGenerator& IDGenerator, const ScriptProper
     NodePtr node = std::make_shared<GetVariableNode>(IDGenerator.GetNextId(), "", pProperty, varID, functionID);
     node->SerializationType = "variable.get";
     node->DefinitionId = "vlox.script.variable.get";
+    if (pProperty) node->refPersistentId = pProperty->PersistentId;
     if (pProperty)
     {
         node->Description = "Gets variable '" + pProperty->Name + "'. " +
             pProperty->Description;
         node->Outputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(),
             pProperty->type, pProperty->Description);
+        node->Outputs.back().Identity = PortIdentity::Fixed("value");
     }
 
     return node;
@@ -157,9 +167,17 @@ struct SetVariableNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        pPropertyDef = ownerFunctionId.IsValid()
-            ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id)
-            : ScriptUtils::FindVariableById(script, refId);
+        if (refPersistentId.IsValid())
+        {
+            pPropertyDef = ownerFunctionId.IsValid()
+                ? ScriptUtils::FindVisibleVariableByPersistentId(script, ownerFunctionId.id, refPersistentId)
+                : ScriptUtils::FindVariableByPersistentId(script, refPersistentId);
+            if (pPropertyDef) refId = pPropertyDef->ID;
+            return;
+        }
+
+        pPropertyDef = ownerFunctionId.IsValid() ? ScriptUtils::FindVisibleVariableById(script, ownerFunctionId.id, refId.id) : ScriptUtils::FindVariableById(script, refId);
+        if (pPropertyDef) refPersistentId = pPropertyDef->PersistentId;
     }
 
     ScriptPropertyPtr pPropertyDef;
@@ -176,17 +194,21 @@ static NodePtr BuildSetVariableNode(IDGenerator& IDGenerator, const ScriptProper
     NodePtr node = std::make_shared<SetVariableNode>(IDGenerator.GetNextId(), "Set", pProperty, varID, functionID);
     node->SerializationType = "variable.set";
     node->DefinitionId = "vlox.script.variable.set";
+    if (pProperty) node->refPersistentId = pProperty->PersistentId;
     if (pProperty)
     {
         node->Description = "Sets variable '" + pProperty->Name + "'. " +
             pProperty->Description;
         node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Executes the assignment.");
+        node->Inputs.back().Identity = PortIdentity::Fixed("execute");
         node->Inputs.emplace_back(IDGenerator.GetNextId(), pProperty->Name.c_str(),
             pProperty->type, pProperty->Description);
+        node->Inputs.back().Identity = PortIdentity::Fixed("value");
 
         node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
             "Continues after the assignment.");
+        node->Outputs.back().Identity = PortIdentity::Fixed("then");
 
         node->InputValues.push_back(Value());
         node->InputValues.push_back(pProperty->defaultValue);

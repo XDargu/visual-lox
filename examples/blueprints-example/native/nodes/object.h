@@ -156,13 +156,15 @@ struct ConstructObjectNode : public Node
     void Refresh(const Script& script, IDGenerator& ids) override
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
-        classDefinition = ScriptUtils::FindClassById(script, refId);
+        classDefinition = refPersistentId.IsValid() ? ScriptUtils::FindClassByPersistentId(script, refPersistentId) : ScriptUtils::FindClassById(script, refId);
         if (!classDefinition)
         {
             InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing class with ID: " + std::to_string(refId.id);
             return;
         }
+        refId = classDefinition->ID;
+        refPersistentId = classDefinition->PersistentId;
         Name = classDefinition->Name;
         Description = "Constructs an instance of '" + classDefinition->Name + "'.";
         Outputs[1].Type = Outputs[1].DeclaredType =
@@ -183,6 +185,7 @@ inline NodePtr BuildConstructObjectNode(IDGenerator& ids, const ScriptClassPtr& 
     NodePtr node = std::make_shared<ConstructObjectNode>(ids.GetNextId(), scriptClass, classId);
     node->SerializationType = "class.construct";
     node->DefinitionId = "vlox.script.class.construct";
+    if (scriptClass) node->refPersistentId = scriptClass->PersistentId;
     node->Description = scriptClass
         ? "Constructs an instance of '" + scriptClass->Name + "'."
         : "Constructs an object instance.";
@@ -238,6 +241,7 @@ inline NodePtr BuildThisNode(IDGenerator& ids,
     node->Description = "Gets the current class instance.";
     node->Outputs.emplace_back(ids.GetNextId(), "This", std::move(thisType),
         "The current class instance.");
+    node->Outputs.back().Identity = PortIdentity::Fixed("instance");
     return node;
 }
 
@@ -271,13 +275,16 @@ struct GetPropertyNode : public Node
     void Refresh(const Script& script, IDGenerator&) override
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
-        propertyDefinition = ScriptUtils::FindClassPropertyById(script, refId);
+        propertyDefinition = refPersistentId.IsValid()
+            ? ScriptUtils::FindClassPropertyByPersistentId(script, refPersistentId) : ScriptUtils::FindClassPropertyById(script, refId);
         if (!propertyDefinition)
         {
             InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing class property with ID: " + std::to_string(refId.id);
             return;
         }
+        refId = propertyDefinition->ID;
+        refPersistentId = propertyDefinition->PersistentId;
         Name = Outputs[0].Name = propertyDefinition->Name;
         Description = "Gets property '" + propertyDefinition->Name + "'. " +
             propertyDefinition->Description;
@@ -299,15 +306,18 @@ inline NodePtr BuildGetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     NodePtr node = std::make_shared<GetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.get";
     node->DefinitionId = "vlox.script.property.get";
+    if (property) node->refPersistentId = property->PersistentId;
     node->Description = property
         ? "Gets property '" + property->Name + "'. " + property->Description
         : "Gets an object property.";
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance that owns the property.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("instance");
     node->InputValues.emplace_back(Value());
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
+    node->Outputs.back().Identity = PortIdentity::Fixed("value");
     return node;
 }
 
@@ -339,13 +349,16 @@ struct SetPropertyNode : public Node
     void Refresh(const Script& script, IDGenerator&) override
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
-        propertyDefinition = ScriptUtils::FindClassPropertyById(script, refId);
+        propertyDefinition = refPersistentId.IsValid()
+            ? ScriptUtils::FindClassPropertyByPersistentId(script, refPersistentId) : ScriptUtils::FindClassPropertyById(script, refId);
         if (!propertyDefinition)
         {
             InstanceFlags |= NodeInstanceFlags::Error;
             Error = "Missing class property with ID: " + std::to_string(refId.id);
             return;
         }
+        refId = propertyDefinition->ID;
+        refPersistentId = propertyDefinition->PersistentId;
         Name = "Set " + propertyDefinition->Name;
         Description = "Sets property '" + propertyDefinition->Name + "'. " +
             propertyDefinition->Description;
@@ -371,24 +384,30 @@ inline NodePtr BuildSetPropertyNode(IDGenerator& ids, const ScriptPropertyPtr& p
     NodePtr node = std::make_shared<SetPropertyNode>(ids.GetNextId(), property, propertyId);
     node->SerializationType = "property.set";
     node->DefinitionId = "vlox.script.property.set";
+    if (property) node->refPersistentId = property->PersistentId;
     node->Description = property
         ? "Sets property '" + property->Name + "'. " + property->Description
         : "Sets an object property.";
     node->Inputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Executes the assignment.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("execute");
     node->Inputs.emplace_back(ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance that owns the property.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("instance");
     node->Inputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
+    node->Inputs.back().Identity = PortIdentity::Fixed("value");
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(Value());
     node->InputValues.emplace_back(property ? property->defaultValue : Value());
     node->Outputs.emplace_back(ids.GetNextId(), "", PinType::Flow,
         "Continues after the assignment.");
+    node->Outputs.back().Identity = PortIdentity::Fixed("then");
     node->Outputs.emplace_back(ids.GetNextId(), property ? property->Name.c_str() : "Value",
         property ? property->type : TypeRef(PinType::Any),
         property ? property->Description : std::string{});
+    node->Outputs.back().Identity = PortIdentity::Fixed("value");
     return node;
 }
 
@@ -426,7 +445,13 @@ struct GetMethodNode : public Node
     void Refresh(const Script& script, IDGenerator&) override
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
-        methodDefinition = ScriptUtils::FindFunctionById(script, refId);
+        methodDefinition = refPersistentId.IsValid()
+            ? ScriptUtils::FindFunctionByPersistentId(script, refPersistentId) : ScriptUtils::FindFunctionById(script, refId);
+        if (methodDefinition)
+        {
+            refId = methodDefinition->ID;
+            refPersistentId = methodDefinition->PersistentId;
+        }
         const ScriptClassPtr owner =
             ScriptUtils::FindOwningClass(script, refId.id);
         if (!methodDefinition || !owner)
@@ -466,6 +491,7 @@ inline NodePtr BuildGetMethodNode(
         std::make_shared<GetMethodNode>(ids.GetNextId(), method, methodId);
     node->SerializationType = "method.get";
     node->DefinitionId = "vlox.script.method.get";
+    if (method) node->refPersistentId = method->PersistentId;
     node->Description = method
         ? "Gets method '" + method->functionDef->name +
             "' from a specific instance."
@@ -473,12 +499,14 @@ inline NodePtr BuildGetMethodNode(
     node->Inputs.emplace_back(
         ids.GetNextId(), "Instance", std::move(instanceType),
         "The instance whose method is returned.");
+    node->Inputs.back().Identity = PortIdentity::Fixed("instance");
     node->InputValues.emplace_back(Value());
     node->Outputs.emplace_back(
         ids.GetNextId(), method ? method->functionDef->name.c_str() : "Method",
         method ? ObjectNodeUtils::FunctionType(*method->functionDef)
                : TypeRef(PinType::Function),
         method ? method->functionDef->description : std::string{});
+    node->Outputs.back().Identity = PortIdentity::Fixed("method");
     if (method)
         node->GenericTypeProperties =
             method->functionDef->genericTypeProperties;
@@ -534,7 +562,13 @@ struct MethodCallNode : public Node
     void Refresh(const Script& script, IDGenerator& ids) override
     {
         InstanceFlags = ClearFlag(InstanceFlags, NodeInstanceFlags::Error);
-        methodDefinition = ScriptUtils::FindFunctionById(script, refId);
+        methodDefinition = refPersistentId.IsValid()
+            ? ScriptUtils::FindFunctionByPersistentId(script, refPersistentId) : ScriptUtils::FindFunctionById(script, refId);
+        if (methodDefinition)
+        {
+            refId = methodDefinition->ID;
+            refPersistentId = methodDefinition->PersistentId;
+        }
         const ScriptClassPtr owner = ScriptUtils::FindOwningClass(script, refId.id);
         if (!methodDefinition || !owner)
         {
@@ -605,6 +639,7 @@ inline NodePtr BuildMethodCallNode(IDGenerator& ids, const ScriptFunctionPtr& me
     NodePtr node = std::make_shared<MethodCallNode>(ids.GetNextId(), method, methodId);
     node->SerializationType = "method.call";
     node->DefinitionId = "vlox.script.method.call";
+    if (method) node->refPersistentId = method->PersistentId;
     if (method)
     {
         node->Description = method->functionDef->description;

@@ -85,13 +85,18 @@ struct GetFunctionNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        const bool isNative = !refId.IsValid();
+        const bool isNative = !refId.IsValid() && !refPersistentId.IsValid();
 
         if (!isNative)
         {
-            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(script, refId))
+            ScriptFunctionPtr function = refPersistentId.IsValid()
+                ? ScriptUtils::FindFunctionByPersistentId(script, refPersistentId)
+                : ScriptUtils::FindFunctionById(script, refId);
+            if (function)
             {
-                pFunctionDef = pFun->functionDef;
+                refId = function->ID;
+                refPersistentId = function->PersistentId;
+                pFunctionDef = function->functionDef;
             }
             else
             {
@@ -111,6 +116,7 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
         ? "vlox.script.function.get"
         : pFunctionDef ? pFunctionDef->id : std::string();
     node->DefinitionRevision = pFunctionDef ? pFunctionDef->revision : 1;
+    if (funcID.IsValid() && pFunctionDef) node->refPersistentId = pFunctionDef->scriptId;
     if (pFunctionDef)
     {
         node->DefinitionFlags |= NodeDefinitionFlags::Pure;
@@ -124,6 +130,7 @@ static NodePtr BuildGetFunctionNode(IDGenerator& IDGenerator, const BasicFunctio
         node->Outputs.emplace_back(IDGenerator.GetNextId(), pFunctionDef->name.c_str(),
             TypeRef::Function(std::move(inputs), std::move(outputs)),
             pFunctionDef->description);
+        node->Outputs.back().Identity = PortIdentity::Fixed("function");
     }
 
     return node;

@@ -1989,7 +1989,7 @@ void GraphView::DrawContextMenu()
                 ? documentedNode->Description.c_str()
                 : selectedDescription);
 
-            const auto drawPins = [](const char* heading, const std::vector<Pin>& pins, const bool shouldExcludeFlow)
+            const auto drawPins = [](const char* heading, const auto& pins, const bool shouldExcludeFlow)
             {
                 if (pins.empty()) return;
                 ImGui::Spacing();

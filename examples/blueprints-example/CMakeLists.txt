@@ -65,6 +65,7 @@ set(_VisualLoxCoreSources
     script/scriptSearch.cpp
     script/scriptSerializer.h
     script/scriptSerializer.cpp
+    script/serializedDocument.h
     script/class.h
     script/class.cpp
     script/property.h
@@ -326,5 +327,40 @@ if (BUILD_TESTING)
     )
     set_tests_properties(visual-lox-cli-arguments PROPERTIES
         PASS_REGULAR_EXPRESSION "\\[first, --disassemble, --help\\]"
+    )
+
+    add_test(
+        NAME visual-lox-cli-migrate-check
+        COMMAND $<TARGET_FILE:visual-lox-cli>
+                migrate --check ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/hello.vlox
+    )
+    set_tests_properties(visual-lox-cli-migrate-check PROPERTIES
+        PASS_REGULAR_EXPRESSION "Migration is available; no files were changed"
+    )
+
+    foreach(legacy_program IN ITEMS FizzBuzz GameOfLife Mandelbrot RockPaperScissors)
+        string(TOLOWER "${legacy_program}" legacy_program_test_name)
+        add_test(
+            NAME visual-lox-cli-migrate-${legacy_program_test_name}
+            COMMAND $<TARGET_FILE:visual-lox-cli>
+                    migrate --check ${CMAKE_CURRENT_SOURCE_DIR}/../../programs/${legacy_program}.vlox
+        )
+    endforeach()
+
+    add_test(
+        NAME visual-lox-cli-inspect-definitions
+        COMMAND $<TARGET_FILE:visual-lox-cli> inspect-definitions
+    )
+    set_tests_properties(visual-lox-cli-inspect-definitions PROPERTIES
+        PASS_REGULAR_EXPRESSION "vlox.std.native.math.square"
+    )
+
+    add_test(
+        NAME visual-lox-cli-validate-json
+        COMMAND $<TARGET_FILE:visual-lox-cli>
+                validate --json ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/hello.vlox
+    )
+    set_tests_properties(visual-lox-cli-validate-json PROPERTIES
+        PASS_REGULAR_EXPRESSION "\\\"valid\\\":true"
     )
 endif()

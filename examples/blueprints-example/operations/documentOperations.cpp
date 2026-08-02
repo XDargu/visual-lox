@@ -41,6 +41,22 @@ bool NodeExposesTypeVariable(const Node& node, const std::string& name)
     };
     return std::any_of(node.GenericTypeProperties.begin(), node.GenericTypeProperties.end(), matches);
 }
+
+ScriptFunctionPtr FindFunctionByPersistentId(Script& script, const std::string& persistentId)
+{
+    if (persistentId.empty()) return nullptr;
+    const ScriptElementUuid id = ScriptElementUuid::Parse(persistentId);
+    if (script.main && script.main->PersistentId == id) return script.main;
+    for (const ScriptFunctionPtr& function : script.functions)
+        if (function && function->PersistentId == id) return function;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->constructor && scriptClass->constructor->PersistentId == id) return scriptClass->constructor;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (method && method->PersistentId == id) return method;
+    }
+    return nullptr;
+}
 }
 
 DocumentOperations::DocumentOperations(Script& script, IDGenerator& ids, const NodeRegistry& registry)
@@ -518,6 +534,12 @@ OperationResult DocumentOperations::CopyNodes(int functionId, const std::vector<
     SerializationResult result = ScriptSerializer::SerializeToString(m_script, document);
     if (!result) return OperationResult::Fail(result.error);
     m_clipboard = { ClipboardKind::Nodes, std::move(document), functionId, std::move(copyable) };
+    m_clipboard.ownerPersistentId = function->PersistentId.ToString();
+    for (int id : m_clipboard.elementIds)
+    {
+        const NodePtr node = function->Graph.FindNode(ed::NodeId(id));
+        if (node) m_clipboard.persistentIds.push_back(node->PersistentId.ToString());
+    }
     return OperationResult::Ok();
 }
 
@@ -533,10 +555,19 @@ OperationResult DocumentOperations::PasteNodes(
     SerializationResult loaded = ScriptSerializer::DeserializeFromString(
         m_clipboard.document, m_registry, source, sourceIds);
     if (!loaded) return OperationResult::Fail("Clipboard data is invalid: " + loaded.error);
+    const ScriptFunctionPtr sourceFunction = FindFunctionByPersistentId(source, m_clipboard.ownerPersistentId);
+    if (!sourceFunction) return OperationResult::Fail("The copied function no longer exists.");
+    std::vector<int> sourceNodeIds;
+    for (const std::string& persistentId : m_clipboard.persistentIds)
+    {
+        const GraphNodeId nodeId = GraphNodeId::Parse(persistentId);
+        const NodePtr node = sourceFunction->Graph.FindNodeIf([&](const NodePtr& candidate) { return candidate && candidate->PersistentId == nodeId; });
+        if (node) sourceNodeIds.push_back(node->ID.Get());
+    }
     return Apply("Paste nodes", [&]
     {
         SerializationResult cloned = ScriptSerializer::CloneNodes(
-            source, m_clipboard.ownerId, m_clipboard.elementIds, m_registry,
+            source, sourceFunction->ID.id, sourceNodeIds, m_registry,
             m_script, functionId, m_ids, pastedNodeIds, pastePosition);
         return cloned ? OperationResult::Ok() : OperationResult::Fail(cloned.error);
     });
@@ -587,6 +618,35 @@ OperationResult DocumentOperations::CopyScriptElement(int elementId)
     SerializationResult result = ScriptSerializer::SerializeToString(m_script, document);
     if (!result) return OperationResult::Fail(result.error);
     m_clipboard = { kind, std::move(document), ownerId, { elementId } };
+    if (kind == ClipboardKind::Function)
+    {
+        const ScriptFunctionPtr function = ScriptUtils::FindFunctionById(m_script, elementId);
+        if (function) m_clipboard.persistentIds = { function->PersistentId.ToString() };
+    }
+    else if (kind == ClipboardKind::Variable)
+    {
+        const ScriptPropertyPtr variable = ScriptUtils::FindVariableById(m_script, elementId);
+        if (variable) m_clipboard.persistentIds = { variable->PersistentId.ToString() };
+    }
+    else
+    {
+        const ScriptFunctionPtr owner = ScriptUtils::FindFunctionById(m_script, ownerId);
+        if (owner)
+        {
+            m_clipboard.ownerPersistentId = owner->PersistentId.ToString();
+            if (kind == ClipboardKind::FunctionVariable)
+            {
+                const ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(owner, elementId);
+                if (variable) m_clipboard.persistentIds = { variable->PersistentId.ToString() };
+            }
+            else
+            {
+                const BasicFunctionDef::Input* port = kind == ClipboardKind::FunctionOutput
+                    ? owner->functionDef->FindOutputByID(elementId) : owner->functionDef->FindInputByID(elementId);
+                if (port) m_clipboard.persistentIds = { port->persistentId.ToString() };
+            }
+        }
+    }
     return OperationResult::Ok();
 }
 
@@ -600,13 +660,51 @@ OperationResult DocumentOperations::PasteScriptElement(int targetFunctionId, int
         m_clipboard.document, m_registry, source, sourceIds);
     if (!loaded) return OperationResult::Fail("Clipboard data is invalid: " + loaded.error);
 
+    int sourceOwnerId = m_clipboard.ownerId;
+    int sourceElementId = m_clipboard.elementIds.empty() ? 0 : m_clipboard.elementIds.front();
+    const std::string persistentId = m_clipboard.persistentIds.empty() ? std::string{} : m_clipboard.persistentIds.front();
+    if (m_clipboard.kind == ClipboardKind::Function)
+    {
+        const ScriptFunctionPtr function = FindFunctionByPersistentId(source, persistentId);
+        if (function) sourceElementId = function->ID.id;
+    }
+    else if (m_clipboard.kind == ClipboardKind::Variable)
+    {
+        const ScriptElementUuid id = ScriptElementUuid::Parse(persistentId);
+        const auto variable = std::find_if(source.variables.begin(), source.variables.end(), [&](const ScriptPropertyPtr& candidate)
+            { return candidate && candidate->PersistentId == id; });
+        if (variable != source.variables.end()) sourceElementId = (*variable)->ID.id;
+    }
+    else
+    {
+        const ScriptFunctionPtr owner = FindFunctionByPersistentId(source, m_clipboard.ownerPersistentId);
+        if (owner)
+        {
+            sourceOwnerId = owner->ID.id;
+            if (m_clipboard.kind == ClipboardKind::FunctionVariable)
+            {
+                const ScriptElementUuid id = ScriptElementUuid::Parse(persistentId);
+                const auto variable = std::find_if(owner->variables.begin(), owner->variables.end(), [&](const ScriptPropertyPtr& candidate)
+                    { return candidate && candidate->PersistentId == id; });
+                if (variable != owner->variables.end()) sourceElementId = (*variable)->ID.id;
+            }
+            else
+            {
+                const ScriptPortId id = ScriptPortId::Parse(persistentId);
+                const auto& ports = m_clipboard.kind == ClipboardKind::FunctionOutput ? owner->functionDef->outputs : owner->functionDef->inputs;
+                const auto port = std::find_if(ports.begin(), ports.end(), [&](const BasicFunctionDef::Input& candidate) { return candidate.persistentId == id; });
+                if (port != ports.end()) sourceElementId = port->id;
+            }
+        }
+    }
+
     return Apply("Paste script data", [&]
     {
         SerializationResult cloned;
         switch (m_clipboard.kind)
         {
         case ClipboardKind::Function:
-            cloned = ScriptSerializer::CloneFunction(source, m_clipboard.elementIds.front(),
+            cloned = ScriptSerializer::CloneFunction(source, sourceElementId,
                                                        m_registry, m_script, m_ids, pastedElementId);
             if (cloned)
             {
@@ -619,7 +717,7 @@ OperationResult DocumentOperations::PasteScriptElement(int targetFunctionId, int
             }
             break;
         case ClipboardKind::Variable:
-            cloned = ScriptSerializer::CloneVariable(source, m_clipboard.elementIds.front(),
+            cloned = ScriptSerializer::CloneVariable(source, sourceElementId,
                                                        m_script, m_ids, pastedElementId);
             if (cloned)
             {
@@ -635,8 +733,8 @@ OperationResult DocumentOperations::PasteScriptElement(int targetFunctionId, int
         {
             ScriptFunctionPtr target = FindFunction(targetFunctionId);
             if (!target) return Missing("Function", targetFunctionId);
-            cloned = ScriptSerializer::CloneFunctionVariable(source, m_clipboard.ownerId,
-                m_clipboard.elementIds.front(), m_script, targetFunctionId, m_ids, pastedElementId);
+            cloned = ScriptSerializer::CloneFunctionVariable(source, sourceOwnerId,
+                sourceElementId, m_script, targetFunctionId, m_ids, pastedElementId);
             if (cloned)
             {
                 ScriptPropertyPtr variable = ScriptUtils::FindFunctionVariableById(target, pastedElementId);
@@ -663,8 +761,8 @@ OperationResult DocumentOperations::PasteScriptElement(int targetFunctionId, int
             ScriptFunctionPtr target = FindFunction(targetFunctionId);
             if (!target) return Missing("Function", targetFunctionId);
             const bool output = m_clipboard.kind == ClipboardKind::FunctionOutput;
-            cloned = ScriptSerializer::CloneFunctionPort(source, m_clipboard.ownerId,
-                m_clipboard.elementIds.front(), output, m_script, targetFunctionId, m_ids, pastedElementId);
+            cloned = ScriptSerializer::CloneFunctionPort(source, sourceOwnerId,
+                sourceElementId, output, m_script, targetFunctionId, m_ids, pastedElementId);
             if (cloned)
             {
                 auto& ports = output ? target->functionDef->outputs : target->functionDef->inputs;

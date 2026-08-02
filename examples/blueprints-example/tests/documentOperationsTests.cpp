@@ -481,6 +481,7 @@ void CompatiblePinsConnectForNodeCreation()
         OperationsFixture fixture;
         fixture.begin->Outputs.emplace_back(
             fixture.ids.GetNextId(), "Arguments", TypeRef::List(PinType::String));
+        fixture.begin->Outputs.back().Identity = PortIdentity::Fixed("arguments");
         NodeUtils::BuildNode(fixture.begin);
         NodePtr forIn = fixture.registry.FindCompiled("Flow::For In")->MakeNode(fixture.ids);
         RequireSuccess(fixture.operations->AddNode(fixture.script.main->ID.id, forIn),

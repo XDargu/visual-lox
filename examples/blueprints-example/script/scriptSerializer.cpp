@@ -26,18 +26,6 @@ using Json = crude_json::value;
 using Object = crude_json::object;
 using Array = crude_json::array;
 
-Json ObjectWithExtensions(const std::map<std::string, std::string>& extensions)
-{
-    Json result(Object{});
-    for (const auto& [name, serializedValue] : extensions)
-    {
-        Json value = Json::parse(serializedValue);
-        if (value.is_discarded()) throw std::runtime_error("Preserved JSON field '" + name + "' is invalid.");
-        result[name] = std::move(value);
-    }
-    return result;
-}
-
 void CaptureSerializedFields(const Json& json, std::map<std::string, std::string>& extensions)
 {
     if (!json.is_object()) return;
@@ -201,16 +189,65 @@ DurableIdentity OptionalDurableId(const Json& value, const char* name, DurableId
     return result;
 }
 
-Json SerializeTypeRef(const TypeRef& type)
+template<typename DurableIdentity>
+DurableIdentity RequiredDurableId(const Json& value, const char* name)
+{
+    DurableIdentity result = DurableIdentity::Parse(StringField(value, name));
+    if (!result.IsValid()) throw SerializationError("Field '" + std::string(name) + "' cannot be the nil UUID.");
+    return result;
+}
+
+int DeserializeRuntimeId(const Json& json, const char* description, int formatVersion, IdSet& ids, IDGenerator* runtimeIds)
+{
+    const int id = formatVersion >= 8 ? runtimeIds->GetNextId() : IntField(json, "id");
+    ids.Add(id, description);
+    return id;
+}
+
+template<typename DurableIdentity>
+std::string RuntimeIdKey(const char* scope, DurableIdentity identity)
+{
+    return std::string(scope) + ":" + identity.ToString();
+}
+
+int CachedRuntimeId(Script& script, const std::string& key, const char* description, IdSet& ids, IDGenerator& runtimeIds, int suggestedId = 0)
+{
+    const auto cached = script.RuntimeIdCache.find(key);
+    const int id = cached != script.RuntimeIdCache.end() ? cached->second : suggestedId > 0 ? suggestedId : runtimeIds.GetNextId();
+    ids.Add(id, description);
+    script.RuntimeIdCache[key] = id;
+    return id;
+}
+
+template<typename DurableIdentity>
+DurableIdentity DeserializePersistentId(const Json& json, int formatVersion, DurableIdentity legacyFallback)
+{
+    return formatVersion >= 8 ? RequiredDurableId<DurableIdentity>(json, "id") : OptionalDurableId(json, "uuid", legacyFallback);
+}
+
+Json SerializeTypeRef(const TypeRef& type, const Script* script = nullptr)
 {
     Json result(Object{});
     result["kind"] = PinTypeName(type.kind);
-    result["class_id"] = static_cast<double>(type.classId);
+    ModuleId moduleId = type.moduleId;
+    ScriptElementUuid symbolId = type.symbolId;
+    if (script && type.kind == PinType::Object && type.classId >= 0 && !symbolId.IsValid())
+    {
+        const ScriptClassPtr scriptClass = ScriptUtils::FindClassById(*script, ScriptElementID(type.classId));
+        if (scriptClass)
+        {
+            moduleId = script->ModuleIdentity;
+            symbolId = scriptClass->PersistentId;
+        }
+    }
+    if (!script) result["class_id"] = static_cast<double>(type.classId);
+    if (moduleId.IsValid()) result["module"] = moduleId.ToString();
+    if (symbolId.IsValid()) result["symbol"] = symbolId.ToString();
     result["input_count"] = static_cast<double>(type.functionInputCount);
     result["name"] = type.name;
     Json parameters(Array{});
     for (const TypeRef& parameter : type.parameters)
-        parameters.push_back(SerializeTypeRef(parameter));
+        parameters.push_back(SerializeTypeRef(parameter, script));
     result["parameters"] = std::move(parameters);
     return result;
 }
@@ -222,7 +259,17 @@ TypeRef DeserializeTypeRef(const Json& json, int depth = 0)
     const std::string kind = StringField(json, "kind");
     const bool legacyOptional = kind == "optional";
     TypeRef result(legacyOptional ? PinType::Any : ParsePinType(kind));
-    result.classId = IntField(json, "class_id");
+    result.classId = OptionalField(json, "class_id") ? IntField(json, "class_id") : -1;
+    if (const Json* module = OptionalField(json, "module"))
+    {
+        if (!module->is_string()) throw SerializationError("Type module UUID has the wrong type.");
+        result.moduleId = ModuleId::Parse(module->get<crude_json::string>());
+    }
+    if (const Json* symbol = OptionalField(json, "symbol"))
+    {
+        if (!symbol->is_string()) throw SerializationError("Type symbol UUID has the wrong type.");
+        result.symbolId = ScriptElementUuid::Parse(symbol->get<crude_json::string>());
+    }
     result.functionInputCount = IntField(json, "input_count");
     result.name = StringField(json, "name");
     for (const Json& parameter :
@@ -397,24 +444,26 @@ Value DeserializeValue(const Json& json, int depth = 0)
     throw SerializationError("Unknown value type '" + type + "'.");
 }
 
-Json SerializeProperty(const ScriptProperty& property)
+Json SerializeProperty(const ScriptProperty& property, const Script& script)
 {
     Json result(Object{});
-    result["id"] = static_cast<double>(property.ID.id);
-    result["uuid"] = property.PersistentId.ToString();
+    result["id"] = property.PersistentId.ToString();
     result["name"] = property.Name;
     result["description"] = property.Description;
-    result["declared_type"] = SerializeTypeRef(property.type);
+    result["declared_type"] = SerializeTypeRef(property.type, &script);
     result["default"] = SerializeValue(property.defaultValue);
     return result;
 }
 
-ScriptPropertyPtr DeserializeProperty(const Json& json, IdSet& ids, ModuleId moduleId)
+ScriptPropertyPtr DeserializeProperty(const Json& json, IdSet& ids, Script& script, int formatVersion, IDGenerator* runtimeIds)
 {
-    const int id = IntField(json, "id");
-    ids.Add(id, "Property");
+    const ScriptElementUuid persistentId = formatVersion >= 8 ? RequiredDurableId<ScriptElementUuid>(json, "id") : ScriptElementUuid{};
+    const int id = formatVersion >= 8 ? CachedRuntimeId(script, RuntimeIdKey("element", persistentId), "Property", ids, *runtimeIds)
+                                      : DeserializeRuntimeId(json, "Property", formatVersion, ids, runtimeIds);
     ScriptPropertyPtr property = std::make_shared<ScriptProperty>(id, StringField(json, "name").c_str());
-    property->PersistentId = OptionalDurableId(json, "uuid", ScriptElementUuid::FromLegacy(moduleId.Value(), "element:" + std::to_string(id)));
+    CaptureSerializedFields(json, property->SerializedExtensions);
+    property->PersistentId = formatVersion >= 8 ? persistentId
+        : DeserializePersistentId(json, formatVersion, ScriptElementUuid::FromLegacy(script.ModuleIdentity.Value(), "element:" + std::to_string(id)));
     property->Description = OptionalStringField(json, "description");
     property->defaultValue = DeserializeValue(Field(json, "default", crude_json::type_t::object));
     if (const Json* type = OptionalField(json, "declared_type"))
@@ -424,24 +473,27 @@ ScriptPropertyPtr DeserializeProperty(const Json& json, IdSet& ids, ModuleId mod
     return property;
 }
 
-Json SerializeDefinitionPort(const BasicFunctionDef::Input& port)
+Json SerializeDefinitionPort(const BasicFunctionDef::Input& port, const Script& script)
 {
     Json result(Object{});
-    result["id"] = static_cast<double>(port.id);
-    result["uuid"] = port.persistentId.ToString();
+    result["id"] = port.persistentId.ToString();
     result["name"] = port.name;
     result["description"] = port.description;
-    result["declared_type"] = SerializeTypeRef(port.type);
+    result["declared_type"] = SerializeTypeRef(port.type, &script);
     result["default"] = SerializeValue(port.value);
     return result;
 }
 
-BasicFunctionDef::Input DeserializeDefinitionPort(const Json& json, IdSet& ids, ScriptElementUuid functionId, const char* direction)
+BasicFunctionDef::Input DeserializeDefinitionPort(const Json& json, IdSet& ids, Script& script, ScriptElementUuid functionId, const char* direction,
+                                                  int formatVersion, IDGenerator* runtimeIds)
 {
     BasicFunctionDef::Input port;
-    port.id = IntField(json, "id");
-    ids.Add(port.id, "Function port");
-    port.persistentId = OptionalDurableId(json, "uuid", ScriptPortId::FromLegacy(functionId.Value(), std::string(direction) + ":" + std::to_string(port.id)));
+    CaptureSerializedFields(json, port.serializedExtensions);
+    const ScriptPortId persistentId = formatVersion >= 8 ? RequiredDurableId<ScriptPortId>(json, "id") : ScriptPortId{};
+    port.id = formatVersion >= 8 ? CachedRuntimeId(script, RuntimeIdKey("port", persistentId), "Function port", ids, *runtimeIds)
+                                 : DeserializeRuntimeId(json, "Function port", formatVersion, ids, runtimeIds);
+    port.persistentId = formatVersion >= 8 ? persistentId : DeserializePersistentId(json, formatVersion,
+        ScriptPortId::FromLegacy(functionId.Value(), std::string(direction) + ":" + std::to_string(port.id)));
     port.name = StringField(json, "name");
     port.description = OptionalStringField(json, "description");
     port.value = DeserializeValue(Field(json, "default", crude_json::type_t::object));
@@ -487,12 +539,28 @@ Json SerializePortIdentity(const PortIdentity& identity)
 {
     Json result(Object{});
     result["kind"] = PortIdentityKindName(identity.kind);
-    if (!identity.key.empty()) result["key"] = identity.key;
-    if (identity.scriptPortId.IsValid()) result["port_id"] = identity.scriptPortId.ToString();
-    if (identity.legacyScriptPortId >= 0) result["legacy_port_id"] = static_cast<double>(identity.legacyScriptPortId);
-    if (!identity.family.empty()) result["family"] = identity.family;
-    if (identity.dynamicSlot.IsValid()) result["slot"] = identity.dynamicSlot.ToString();
-    if (!identity.member.empty()) result["member"] = identity.member;
+    if (identity.kind == PortIdentityKind::Fixed)
+    {
+        if (identity.key.empty()) throw SerializationError("Fixed port identity has no key.");
+        result["key"] = identity.key;
+    }
+    else if (identity.kind == PortIdentityKind::Script)
+    {
+        if (!identity.scriptPortId.IsValid()) throw SerializationError("Script port identity has no UUID.");
+        result["port_id"] = identity.scriptPortId.ToString();
+    }
+    else if (identity.kind == PortIdentityKind::Dynamic)
+    {
+        if (identity.family.empty() || !identity.dynamicSlot.IsValid() || identity.member.empty())
+            throw SerializationError("Dynamic port identity is incomplete.");
+        result["family"] = identity.family;
+        result["slot"] = identity.dynamicSlot.ToString();
+        result["member"] = identity.member;
+    }
+    else
+    {
+        throw SerializationError("Port has no semantic identity.");
+    }
     return result;
 }
 
@@ -525,36 +593,55 @@ PortIdentity DeserializePortIdentity(const Json& json)
     return result;
 }
 
-Json SerializePin(const Pin& pin, bool unresolved = false)
+std::string RuntimePinIdKey(GraphNodeId nodeId, PinKind direction, const PortIdentity& identity)
 {
-    Json result = ObjectWithExtensions(pin.SerializedExtensions);
-    result["id"] = static_cast<double>(pin.ID.Get());
-    result["name"] = pin.Name;
-    result["description"] = pin.Description;
-    result["type"] = PinTypeName(pin.DeclaredType.kind);
-    result["declared_type"] = SerializeTypeRef(pin.DeclaredType);
-    if (pin.Identity.kind != PortIdentityKind::None)
-        result["identity"] = SerializePortIdentity(pin.Identity);
+    std::string result = "pin:" + nodeId.ToString() + ":" + (direction == PinKind::Input ? "input:" : "output:") + PortIdentityKindName(identity.kind);
+    if (identity.kind == PortIdentityKind::Fixed) return result + ":" + identity.key;
+    if (identity.kind == PortIdentityKind::Script) return result + ":" + identity.scriptPortId.ToString();
+    if (identity.kind == PortIdentityKind::Dynamic)
+        return result + ":" + identity.family + ":" + identity.dynamicSlot.ToString() + ":" + identity.member;
+    return result + ":none";
+}
+
+Json SerializePin(const Pin& pin, const Script& script, bool unresolved = false)
+{
+    if (pin.Identity.kind == PortIdentityKind::None)
+        throw SerializationError("Port '" + pin.Name + "' has no semantic identity for format version 8.");
+    Json result(Object{});
+    result["identity"] = SerializePortIdentity(pin.Identity);
+    result["display_name"] = pin.Name;
+    result["type_hint"] = SerializeTypeRef(pin.DeclaredType, &script);
     if (unresolved)
         result["resolution"] = "unresolved";
     return result;
 }
 
-Pin DeserializePin(const Json& json, IdSet& ids)
+Json SerializeInputPin(const InputPin& pin, const Script& script, bool unresolved = false)
 {
-    const int id = IntField(json, "id");
-    ids.Add(id, "Pin");
-    const std::string name = StringField(json, "name");
-    const Json* declaredType = OptionalField(json, "declared_type");
+    Json result = SerializePin(pin, script, unresolved);
+    result["value"] = SerializeValue(pin.LiteralValue);
+    return result;
+}
+
+Pin DeserializePin(const Json& json, IdSet& ids, int formatVersion, IDGenerator* runtimeIds, int preferredRuntimeId = 0)
+{
+    const int id = formatVersion >= 8 && preferredRuntimeId > 0 ? preferredRuntimeId : DeserializeRuntimeId(json, "Pin", formatVersion, ids, runtimeIds);
+    if (formatVersion >= 8 && preferredRuntimeId > 0) ids.Add(id, "Pin");
+    const std::string name = formatVersion >= 8 ? StringField(json, "display_name") : StringField(json, "name");
+    const Json* declaredType = OptionalField(json, formatVersion >= 8 ? "type_hint" : "declared_type");
     TypeRef type = declaredType
         ? DeserializeTypeRef(*declaredType)
         : TypeRef(ParsePinType(StringField(json, "type")));
-    Pin result(id, name.c_str(), std::move(type), OptionalStringField(json, "description"));
+    Pin result(id, name.c_str(), std::move(type), formatVersion >= 8 ? std::string{} : OptionalStringField(json, "description"));
     CaptureSerializedFields(json, result.SerializedExtensions);
     if (const Json* identity = OptionalField(json, "identity"))
     {
         if (!identity->is_object()) throw SerializationError("Semantic port identity has the wrong type.");
         result.Identity = DeserializePortIdentity(*identity);
+    }
+    else if (formatVersion >= 8)
+    {
+        throw SerializationError("Format version 8 port has no semantic identity.");
     }
     return result;
 }
@@ -574,21 +661,30 @@ bool IsActivePin(const Pin* pin)
 {
     if (!pin || !pin->Node || pin->Node->IsSerializationPlaceholder) return false;
     const Node& node = *pin->Node;
-    const auto contains = [&](const std::vector<Pin>& pins)
+    const auto contains = [&](const auto& pins)
     {
         return std::any_of(pins.begin(), pins.end(), [&](const Pin& candidate) { return candidate.ID == pin->ID; });
     };
     return contains(node.Inputs) || contains(node.Outputs);
 }
 
-bool PortIdentityMatches(const Pin& saved, const Pin& definition)
+bool PortIdentityMatches(const Pin& saved, const Pin& definition, const std::map<std::string, std::string>* aliases = nullptr)
 {
     if (saved.Identity.kind != PortIdentityKind::None && definition.Identity.kind != PortIdentityKind::None)
-        return PortIdentitiesMatch(saved.Identity, definition.Identity);
+    {
+        if (PortIdentitiesMatch(saved.Identity, definition.Identity)) return true;
+        if (aliases && saved.Identity.kind == PortIdentityKind::Fixed && definition.Identity.kind == PortIdentityKind::Fixed)
+        {
+            const auto alias = aliases->find(saved.Identity.key);
+            return alias != aliases->end() && alias->second == definition.Identity.key;
+        }
+        return false;
+    }
     return saved.Name == definition.Name && saved.Kind == definition.Kind;
 }
 
-void ReconcileFixedInputs(Node& node, const std::vector<Pin>& definitionPins, const std::vector<Value>& definitionValues, IdSet& ids)
+void ReconcileFixedInputs(Node& node, const std::vector<InputPin>& definitionPins, const std::vector<Value>& definitionValues, IdSet& ids,
+                          const std::map<std::string, std::string>* aliases)
 {
     std::vector<std::pair<Pin, Value>> saved;
     saved.reserve(node.Inputs.size() + node.UnresolvedInputs.size());
@@ -596,13 +692,16 @@ void ReconcileFixedInputs(Node& node, const std::vector<Pin>& definitionPins, co
         saved.emplace_back(node.Inputs[index], node.InputValues[index]);
     for (size_t index = 0; index < node.UnresolvedInputs.size(); ++index)
         saved.emplace_back(node.UnresolvedInputs[index], node.UnresolvedInputValues[index]);
+    const bool useLegacyPositions = saved.size() == definitionPins.size() &&
+        std::all_of(saved.begin(), saved.end(), [](const auto& item) { return item.first.Identity.kind == PortIdentityKind::None; });
 
     node.Inputs.clear();
     node.InputValues.clear();
     for (size_t index = 0; index < definitionPins.size(); ++index)
     {
         const Pin& definition = definitionPins[index];
-        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const auto& item) { return PortIdentityMatches(item.first, definition); });
+        auto existing = std::find_if(saved.begin(), saved.end(), [&](const auto& item) { return PortIdentityMatches(item.first, definition, aliases); });
+        if (existing == saved.end() && useLegacyPositions && !saved.empty()) existing = saved.begin();
         if (existing == saved.end())
         {
             node.Inputs.push_back(definition);
@@ -631,15 +730,18 @@ void ReconcileFixedInputs(Node& node, const std::vector<Pin>& definitionPins, co
     }
 }
 
-void ReconcileFixedOutputs(Node& node, const std::vector<Pin>& definitionPins, IdSet& ids)
+void ReconcileFixedOutputs(Node& node, const std::vector<Pin>& definitionPins, IdSet& ids, const std::map<std::string, std::string>* aliases)
 {
     std::vector<Pin> saved = node.Outputs;
     saved.insert(saved.end(), node.UnresolvedOutputs.begin(), node.UnresolvedOutputs.end());
+    const bool useLegacyPositions = saved.size() == definitionPins.size() &&
+        std::all_of(saved.begin(), saved.end(), [](const Pin& pin) { return pin.Identity.kind == PortIdentityKind::None; });
 
     node.Outputs.clear();
     for (const Pin& definition : definitionPins)
     {
-        const auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& pin) { return PortIdentityMatches(pin, definition); });
+        auto existing = std::find_if(saved.begin(), saved.end(), [&](const Pin& pin) { return PortIdentityMatches(pin, definition, aliases); });
+        if (existing == saved.end() && useLegacyPositions && !saved.empty()) existing = saved.begin();
         if (existing == saved.end())
         {
             node.Outputs.push_back(definition);
@@ -659,7 +761,7 @@ void ReconcileFixedOutputs(Node& node, const std::vector<Pin>& definitionPins, I
     node.UnresolvedOutputs = std::move(saved);
 }
 
-void RestoreDynamicPortIdentities(Node& node, const std::vector<Pin>& definitionInputs)
+void RestoreDynamicPortIdentities(Node& node, const std::vector<InputPin>& definitionInputs, const std::vector<Pin>& definitionOutputs)
 {
     if (node.DefinitionId == "vlox.std.compiled.flow.switch")
     {
@@ -698,13 +800,34 @@ void RestoreDynamicPortIdentities(Node& node, const std::vector<Pin>& definition
         member = definitionDynamic->Identity.member;
     }
     size_t dataIndex = 0;
-    for (Pin& input : node.Inputs)
+    for (size_t index = 0; index < node.Inputs.size(); ++index)
     {
+        Pin& input = node.Inputs[index];
+        if (input.Identity.kind == PortIdentityKind::None && index < definitionInputs.size() && input.Type == PinType::Flow)
+            input.Identity = definitionInputs[index].Identity;
         if (input.Type == PinType::Flow) continue;
         if (input.Identity.kind == PortIdentityKind::None)
             input.Identity = PortIdentity::Dynamic(family, DynamicSlotId::FromLegacy(node.PersistentId.Value(), family + ":" + std::to_string(dataIndex)), member);
         ++dataIndex;
     }
+    for (size_t index = 0; index < node.Outputs.size() && index < definitionOutputs.size(); ++index)
+        if (node.Outputs[index].Identity.kind == PortIdentityKind::None)
+            node.Outputs[index].Identity = definitionOutputs[index].Identity;
+}
+
+void AssignUnresolvedLegacyPortIdentities(Node& node)
+{
+    const auto assign = [&](Pin& pin, const char* direction)
+    {
+        if (pin.Identity.kind != PortIdentityKind::None) return;
+        const DynamicSlotId slot = DynamicSlotId::FromLegacy(node.PersistentId.Value(),
+            std::string("unresolved:") + direction + ":" + std::to_string(pin.ID.Get()));
+        pin.Identity = PortIdentity::Dynamic("unresolved", slot, "port");
+    };
+    for (InputPin& pin : node.Inputs) assign(pin, "input");
+    for (InputPin& pin : node.UnresolvedInputs) assign(pin, "input");
+    for (Pin& pin : node.Outputs) assign(pin, "output");
+    for (Pin& pin : node.UnresolvedOutputs) assign(pin, "output");
 }
 
 int MaximumSerializedId(const Json& json)
@@ -730,19 +853,56 @@ int MaximumSerializedId(const Json& json)
     return maximum;
 }
 
-Json SerializeNode(const Node& node)
+ScriptElementUuid FindPersistentElementId(const Script& script, ScriptElementID runtimeId)
+{
+    const auto functionElement = [&](const ScriptFunctionPtr& function) -> ScriptElementUuid
+    {
+        if (!function) return {};
+        if (function->ID == runtimeId) return function->PersistentId;
+        for (const ScriptPropertyPtr& variable : function->variables)
+            if (variable->ID == runtimeId) return variable->PersistentId;
+        return {};
+    };
+    if (const ScriptElementUuid id = functionElement(script.main); id.IsValid()) return id;
+    for (const ScriptPropertyPtr& variable : script.variables)
+        if (variable->ID == runtimeId) return variable->PersistentId;
+    for (const ScriptFunctionPtr& function : script.functions)
+        if (const ScriptElementUuid id = functionElement(function); id.IsValid()) return id;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->ID == runtimeId) return scriptClass->PersistentId;
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property->ID == runtimeId) return property->PersistentId;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (const ScriptElementUuid id = functionElement(method); id.IsValid()) return id;
+        if (const ScriptElementUuid id = functionElement(scriptClass->constructor); id.IsValid()) return id;
+    }
+    return {};
+}
+
+Json SerializeNode(const Node& node, const Script& script)
 {
     if (node.SerializationType.empty())
         throw SerializationError("Node " + std::to_string(node.ID.Get()) + " has no stable serialization type.");
 
-    Json result = ObjectWithExtensions(node.SerializedExtensions);
-    result["id"] = static_cast<double>(node.ID.Get());
-    result["uuid"] = node.PersistentId.ToString();
+    Json result(Object{});
+    result["id"] = node.PersistentId.ToString();
     result["kind"] = node.SerializationType;
-    result["definition"] = node.DefinitionId;
-    result["definition_revision"] = static_cast<double>(node.DefinitionRevision);
+    Json definition(Object{});
+    definition["id"] = node.DefinitionId;
+    definition["revision"] = static_cast<double>(node.DefinitionRevision);
+    result["definition"] = std::move(definition);
     result["display_name"] = node.Name;
-    result["reference_id"] = static_cast<double>(node.refId.id);
+    ScriptElementUuid targetSymbol = node.refPersistentId;
+    if (!targetSymbol.IsValid() && node.refId.IsValid()) targetSymbol = FindPersistentElementId(script, node.refId);
+    if (targetSymbol.IsValid())
+    {
+        Json target(Object{});
+        target["module"] = (node.refModuleId.IsValid() ? node.refModuleId : script.ModuleIdentity).ToString();
+        target["symbol"] = targetSymbol.ToString();
+        target["display_name"] = node.Name;
+        result["target"] = std::move(target);
+    }
     result["state"] = node.State;
     result["description"] = node.Description;
     if (node.Type == NodeType::CommentBox)
@@ -753,33 +913,22 @@ Json SerializeNode(const Node& node)
 
     Json typeOverrides(Object{});
     for (const auto& [name, type] : node.TypeOverrides)
-        typeOverrides[name] = SerializeTypeRef(type);
+        typeOverrides[name] = SerializeTypeRef(type, &script);
     result["type_overrides"] = std::move(typeOverrides);
 
     Json inputs(Array{});
-    for (const Pin& pin : node.Inputs)
-        inputs.push_back(SerializePin(pin));
-    for (const Pin& pin : node.UnresolvedInputs)
-        inputs.push_back(SerializePin(pin, true));
+    for (const InputPin& pin : node.Inputs)
+        inputs.push_back(SerializeInputPin(pin, script));
+    for (const InputPin& pin : node.UnresolvedInputs)
+        inputs.push_back(SerializeInputPin(pin, script, true));
     result["inputs"] = std::move(inputs);
 
     Json outputs(Array{});
     for (const Pin& pin : node.Outputs)
-        outputs.push_back(SerializePin(pin));
+        outputs.push_back(SerializePin(pin, script));
     for (const Pin& pin : node.UnresolvedOutputs)
-        outputs.push_back(SerializePin(pin, true));
+        outputs.push_back(SerializePin(pin, script, true));
     result["outputs"] = std::move(outputs);
-
-    if (node.InputValues.size() != node.Inputs.size())
-        throw SerializationError("Node " + std::to_string(node.ID.Get()) + " has mismatched inputs and default values.");
-    Json values(Array{});
-    for (const Value& value : node.InputValues)
-        values.push_back(SerializeValue(value));
-    if (node.UnresolvedInputValues.size() != node.UnresolvedInputs.size())
-        throw SerializationError("Node " + std::to_string(node.ID.Get()) + " has mismatched unresolved inputs and values.");
-    for (const Value& value : node.UnresolvedInputValues)
-        values.push_back(SerializeValue(value));
-    result["input_values"] = std::move(values);
     return result;
 }
 
@@ -793,6 +942,33 @@ struct MissingSerializedNode final : Node
     void Compile(CompilerContext&, const Graph&, CompilationStage, int) const override {}
 };
 
+ScriptElementID FindLegacyElementId(const Script& script, ScriptElementUuid persistentId)
+{
+    const auto functionId = [&](const ScriptFunctionPtr& function) -> ScriptElementID
+    {
+        if (!function) return ScriptElementID::Invalid;
+        if (function->PersistentId == persistentId) return function->ID;
+        for (const ScriptPropertyPtr& variable : function->variables)
+            if (variable->PersistentId == persistentId) return variable->ID;
+        return ScriptElementID::Invalid;
+    };
+    if (const ScriptElementID id = functionId(script.main); id.IsValid()) return id;
+    for (const ScriptPropertyPtr& variable : script.variables)
+        if (variable->PersistentId == persistentId) return variable->ID;
+    for (const ScriptFunctionPtr& function : script.functions)
+        if (const ScriptElementID id = functionId(function); id.IsValid()) return id;
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (scriptClass->PersistentId == persistentId) return scriptClass->ID;
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property->PersistentId == persistentId) return property->ID;
+        for (const ScriptFunctionPtr& method : scriptClass->methods)
+            if (const ScriptElementID id = functionId(method); id.IsValid()) return id;
+        if (const ScriptElementID id = functionId(scriptClass->constructor); id.IsValid()) return id;
+    }
+    return ScriptElementID::Invalid;
+}
+
 NodePtr CreateMissingNode(IDGenerator& ids, const std::string& kind, const std::string& definition, uint32_t revision, const std::string& displayName, std::string error)
 {
     NodePtr node = std::make_shared<MissingSerializedNode>(ids.GetNextId(), displayName.empty() ? definition : displayName);
@@ -804,16 +980,47 @@ NodePtr CreateMissingNode(IDGenerator& ids, const std::string& kind, const std::
     return node;
 }
 
-NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script& script,
-                   const ScriptFunctionPtr& owner, IDGenerator& constructionIds)
+NodePtr CreateNode(const Json& json, const NodeRegistry& registry, Script& script,
+                   const ScriptFunctionPtr& owner, IDGenerator& constructionIds,
+                   std::vector<SerializationDiagnostic>* diagnostics = nullptr, std::string path = {}, int formatVersion = 7)
 {
     const std::string kind = StringField(json, "kind");
-    const std::string definition = StringField(json, "definition");
-    const ScriptElementID reference(IntField(json, "reference_id"));
-    const int savedRevisionValue = OptionalField(json, "definition_revision") ? IntField(json, "definition_revision") : 1;
+    const Json* definitionObject = formatVersion >= 8 ? &Field(json, "definition", crude_json::type_t::object) : nullptr;
+    const std::string definition = definitionObject ? StringField(*definitionObject, "id") : StringField(json, "definition");
+    ScriptElementID reference = formatVersion >= 8 ? ScriptElementID::Invalid : ScriptElementID(IntField(json, "reference_id"));
+    if (const Json* target = OptionalField(json, "target"))
+    {
+        if (!target->is_object()) throw SerializationError("Node target has the wrong type.");
+        const ModuleId targetModule = ModuleId::Parse(StringField(*target, "module"));
+        const ScriptElementUuid targetSymbol = ScriptElementUuid::Parse(StringField(*target, "symbol"));
+        if (targetModule == script.ModuleIdentity)
+        {
+            const ScriptElementID resolved = FindLegacyElementId(script, targetSymbol);
+            if (resolved.IsValid()) reference = resolved;
+            else
+            {
+                const std::string cacheKey = RuntimeIdKey("element", targetSymbol);
+                const auto cached = script.RuntimeIdCache.find(cacheKey);
+                reference = cached != script.RuntimeIdCache.end() ? ScriptElementID(cached->second) : ScriptElementID(constructionIds.GetNextId());
+                script.RuntimeIdCache[cacheKey] = reference.id;
+            }
+        }
+        else
+        {
+            reference = ScriptElementID::Invalid;
+        }
+    }
+    const int savedRevisionValue = definitionObject ? IntField(*definitionObject, "revision")
+        : OptionalField(json, "definition_revision") ? IntField(json, "definition_revision") : 1;
     if (savedRevisionValue < 1) throw SerializationError("Node definition revision must be positive.");
     const uint32_t savedRevision = static_cast<uint32_t>(savedRevisionValue);
     const std::string displayName = OptionalStringField(json, "display_name", definition);
+    const auto recoverMissing = [&](std::string code, std::string message)
+    {
+        if (diagnostics)
+            diagnostics->push_back({ SerializationDiagnosticSeverity::Warning, std::move(code), path, definition, message });
+        return CreateMissingNode(constructionIds, kind, definition, savedRevision, displayName, std::move(message));
+    };
 
     if (kind == "begin") return BuildBeginNode(constructionIds, owner);
     if (kind == "comment_box" || kind == "comment")
@@ -846,9 +1053,9 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
         {
             const NativeFunctionDef* native = registry.FindNative(definition);
             if (!native)
-                return CreateMissingNode(constructionIds, kind, definition, savedRevision, displayName, "Missing native definition '" + definition + "'.");
+                return recoverMissing("definition.missing", "Missing native definition '" + definition + "'.");
             if (savedRevision > native->functionDef->revision)
-                return CreateMissingNode(constructionIds, kind, definition, savedRevision, displayName, "Saved definition revision is newer than the installed native definition.");
+                return recoverMissing("definition.newer_revision", "Saved definition revision is newer than the installed native definition.");
             functionDefinition = native->functionDef;
         }
 
@@ -909,31 +1116,43 @@ NodePtr CreateNode(const Json& json, const NodeRegistry& registry, const Script&
     {
         CompiledNodeDefPtr compiled = registry.FindCompiled(definition);
         if (!compiled)
-            return CreateMissingNode(constructionIds, kind, definition, savedRevision, displayName, "Missing compiled definition '" + definition + "'.");
+            return recoverMissing("definition.missing", "Missing compiled definition '" + definition + "'.");
         if (savedRevision > compiled->revision)
-            return CreateMissingNode(constructionIds, kind, definition, savedRevision, displayName, "Saved definition revision is newer than the installed compiled definition.");
+            return recoverMissing("definition.newer_revision", "Saved definition revision is newer than the installed compiled definition.");
         return compiled->MakeNode(constructionIds);
     }
 
     throw SerializationError("Unknown node kind '" + kind + "'.");
 }
 
-Json SerializeGraph(const Graph& graph)
+Json SerializeGraph(const Graph& graph, const Script& script)
 {
-    Json result = ObjectWithExtensions(graph.SerializedExtensions);
+    Json result(Object{});
     Json nodes(Array{});
     for (const NodePtr& node : graph.GetNodes())
-        nodes.push_back(SerializeNode(*node));
+        nodes.push_back(SerializeNode(*node, script));
     result["nodes"] = std::move(nodes);
 
     Json links(Array{});
     for (const Link& link : graph.GetLinks())
     {
-        Json item = ObjectWithExtensions(link.SerializedExtensions);
-        item["id"] = static_cast<double>(link.ID.Get());
-        item["uuid"] = link.PersistentId.ToString();
-        item["start_pin_id"] = static_cast<double>(link.StartPinID.Get());
-        item["end_pin_id"] = static_cast<double>(link.EndPinID.Get());
+        const Pin* start = graph.FindPin(link.StartPinID);
+        const Pin* end = graph.FindPin(link.EndPinID);
+        if (!start || !end || !start->Node || !end->Node)
+            throw SerializationError("Link " + std::to_string(link.ID.Get()) + " references a missing pin or node.");
+        const auto serializeEndpoint = [&](const Pin& pin)
+        {
+            Json endpoint(Object{});
+            endpoint["node"] = pin.Node->PersistentId.ToString();
+            endpoint["port"] = SerializePortIdentity(pin.Identity);
+            endpoint["display_name"] = pin.Name;
+            endpoint["type_hint"] = SerializeTypeRef(pin.DeclaredType, &script);
+            return endpoint;
+        };
+        Json item(Object{});
+        item["id"] = link.PersistentId.ToString();
+        item["from"] = serializeEndpoint(*start);
+        item["to"] = serializeEndpoint(*end);
         if (!link.IsResolved) item["resolution"] = "unresolved";
         links.push_back(std::move(item));
     }
@@ -941,21 +1160,57 @@ Json SerializeGraph(const Graph& graph)
     return result;
 }
 
-void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Script& script,
+const Pin* FindSemanticEndpoint(const Graph& graph, const Json& endpoint, PinKind direction)
+{
+    if (!endpoint.is_object()) throw SerializationError("Link endpoint has the wrong type.");
+    const GraphNodeId nodeId = GraphNodeId::Parse(StringField(endpoint, "node"));
+    const PortIdentity identity = DeserializePortIdentity(Field(endpoint, "port", crude_json::type_t::object));
+    const NodePtr node = graph.FindNodeIf([&](const NodePtr& candidate) { return candidate && candidate->PersistentId == nodeId; });
+    if (!node) return nullptr;
+
+    const auto find = [&](const auto& pins) -> const Pin*
+    {
+        const auto match = std::find_if(pins.begin(), pins.end(), [&](const Pin& pin) { return PortIdentitiesMatch(pin.Identity, identity); });
+        return match == pins.end() ? nullptr : &*match;
+    };
+    if (direction == PinKind::Input)
+    {
+        if (const Pin* pin = find(node->Inputs)) return pin;
+        return find(node->UnresolvedInputs);
+    }
+    if (const Pin* pin = find(node->Outputs)) return pin;
+    return find(node->UnresolvedOutputs);
+}
+
+void ResolveTypeReference(TypeRef& type, const Script& script);
+
+void DeserializeGraph(const Json& json, const NodeRegistry& registry, Script& script,
                       const ScriptFunctionPtr& owner, Graph& graph, IdSet& ids,
-                      IDGenerator& constructionIds)
+                      IDGenerator& constructionIds, std::vector<SerializationDiagnostic>& diagnostics, const std::string& path, int formatVersion)
 {
     CaptureSerializedFields(json, graph.SerializedExtensions);
     const Array& nodes = Field(json, "nodes", crude_json::type_t::array).get<Array>();
     int beginNodeCount = 0;
-    for (const Json& nodeJson : nodes)
+    for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex)
     {
-        NodePtr node = CreateNode(nodeJson, registry, script, owner, constructionIds);
+        const Json& nodeJson = nodes[nodeIndex];
+        NodePtr node = CreateNode(nodeJson, registry, script, owner, constructionIds, &diagnostics,
+            path + ".nodes[" + std::to_string(nodeIndex) + "]", formatVersion);
         CaptureSerializedFields(nodeJson, node->SerializedExtensions);
-        const int nodeId = IntField(nodeJson, "id");
-        ids.Add(nodeId, "Node");
+        if (const Json* target = OptionalField(nodeJson, "target"))
+        {
+            if (!target->is_object()) throw SerializationError("Node target has the wrong type.");
+            node->refModuleId = ModuleId::Parse(StringField(*target, "module"));
+            node->refPersistentId = ScriptElementUuid::Parse(StringField(*target, "symbol"));
+        }
+        const GraphNodeId persistentNodeId = formatVersion >= 8 ? RequiredDurableId<GraphNodeId>(nodeJson, "id") : GraphNodeId{};
+        const int nodeId = formatVersion >= 8
+            ? CachedRuntimeId(script, RuntimeIdKey("node", persistentNodeId), "Node", ids, constructionIds, static_cast<int>(node->ID.Get()))
+            : IntField(nodeJson, "id");
+        if (formatVersion < 8) ids.Add(nodeId, "Node");
         node->ID = ed::NodeId(nodeId);
-        node->PersistentId = OptionalDurableId(nodeJson, "uuid", GraphNodeId::FromLegacy(script.ModuleIdentity.Value(), "node:" + std::to_string(nodeId)));
+        node->PersistentId = formatVersion >= 8 ? persistentNodeId : DeserializePersistentId(nodeJson, formatVersion,
+            GraphNodeId::FromLegacy(script.ModuleIdentity.Value(), "node:" + std::to_string(nodeId)));
         node->State = StringField(nodeJson, "state");
         if (const Json* description = OptionalField(nodeJson, "description"))
         {
@@ -968,7 +1223,11 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
             if (!typeOverrides->is_object())
                 throw SerializationError("Node type overrides have the wrong type.");
             for (const auto& [name, type] : typeOverrides->get<Object>())
-                node->TypeOverrides[name] = DeserializeTypeRef(type);
+            {
+                TypeRef deserialized = DeserializeTypeRef(type);
+                ResolveTypeReference(deserialized, script);
+                node->TypeOverrides[name] = std::move(deserialized);
+            }
         }
 
         const Array& inputs = Field(nodeJson, "inputs", crude_json::type_t::array).get<Array>();
@@ -983,13 +1242,38 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
              node->SerializationType == "method.get");
         if (!isMissingReference && hasDynamicInputs && !node->IsValidDynamicInputCount(resolvedInputCount))
             throw SerializationError("Node " + std::to_string(nodeId) + " has an invalid input layout.");
-        const std::vector<Pin> definitionInputs = node->Inputs;
-        const std::vector<Value> definitionInputValues = node->InputValues;
+        const std::vector<InputPin> definitionInputs = node->Inputs;
+        const std::vector<Value> definitionInputValues = node->InputValues.Snapshot();
         node->Inputs.clear();
         node->UnresolvedInputs.clear();
+        std::set<int> reusedInputIds;
+        const auto preferredPinId = [&](const Json& savedPin, const auto& definitionPins, std::set<int>& reusedIds, PinKind direction)
+        {
+            if (formatVersion < 8) return 0;
+            const PortIdentity savedIdentity = DeserializePortIdentity(Field(savedPin, "identity", crude_json::type_t::object));
+            const auto cached = script.RuntimeIdCache.find(RuntimePinIdKey(node->PersistentId, direction, savedIdentity));
+            if (cached != script.RuntimeIdCache.end())
+            {
+                reusedIds.insert(cached->second);
+                return cached->second;
+            }
+            const auto reusable = std::find_if(definitionPins.begin(), definitionPins.end(), [&](const Pin& definitionPin)
+            {
+                if (reusedIds.count(definitionPin.ID.Get()) != 0 || definitionPin.Identity.kind != savedIdentity.kind) return false;
+                if (PortIdentitiesMatch(definitionPin.Identity, savedIdentity)) return true;
+                return savedIdentity.kind == PortIdentityKind::Dynamic && definitionPin.Identity.family == savedIdentity.family &&
+                    definitionPin.Identity.member == savedIdentity.member;
+            });
+            if (reusable == definitionPins.end()) return 0;
+            reusedIds.insert(reusable->ID.Get());
+            return static_cast<int>(reusable->ID.Get());
+        };
         for (const Json& pin : inputs)
         {
-            Pin deserialized = DeserializePin(pin, ids);
+            Pin deserialized = DeserializePin(pin, ids, formatVersion, &constructionIds, preferredPinId(pin, definitionInputs, reusedInputIds, PinKind::Input));
+            ResolveTypeReference(deserialized.Type, script);
+            deserialized.DeclaredType = deserialized.Type;
+            if (formatVersion >= 8) script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Input, deserialized.Identity)] = deserialized.ID.Get();
             if (IsSerializedPortUnresolved(pin)) node->UnresolvedInputs.push_back(std::move(deserialized));
             else node->Inputs.push_back(std::move(deserialized));
         }
@@ -1023,9 +1307,13 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         const std::vector<Pin> definitionOutputs = node->Outputs;
         node->Outputs.clear();
         node->UnresolvedOutputs.clear();
+        std::set<int> reusedOutputIds;
         for (const Json& pin : outputs)
         {
-            Pin deserialized = DeserializePin(pin, ids);
+            Pin deserialized = DeserializePin(pin, ids, formatVersion, &constructionIds, preferredPinId(pin, definitionOutputs, reusedOutputIds, PinKind::Output));
+            ResolveTypeReference(deserialized.Type, script);
+            deserialized.DeclaredType = deserialized.Type;
+            if (formatVersion >= 8) script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Output, deserialized.Identity)] = deserialized.ID.Get();
             if (IsSerializedPortUnresolved(pin)) node->UnresolvedOutputs.push_back(std::move(deserialized));
             else node->Outputs.push_back(std::move(deserialized));
         }
@@ -1042,12 +1330,16 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
 
         node->InputValues.clear();
         node->UnresolvedInputValues.clear();
-        const Array& values = Field(nodeJson, "input_values", crude_json::type_t::array).get<Array>();
-        if (values.size() != inputs.size())
+        const bool hasInlineValues = std::any_of(inputs.begin(), inputs.end(), [](const Json& input) { return OptionalField(input, "value") != nullptr; });
+        if (hasInlineValues && !std::all_of(inputs.begin(), inputs.end(), [](const Json& input) { return OptionalField(input, "value") != nullptr; }))
+            throw SerializationError("Node " + std::to_string(nodeId) + " has only some input values stored with their ports.");
+        const Json* legacyValues = OptionalField(nodeJson, "input_values");
+        if (!hasInlineValues && !inputs.empty() && (!legacyValues || !legacyValues->is_array() || legacyValues->get<Array>().size() != inputs.size()))
             throw SerializationError("Node " + std::to_string(nodeId) + " has mismatched saved inputs and values.");
-        for (size_t index = 0; index < values.size(); ++index)
+        for (size_t index = 0; index < inputs.size(); ++index)
         {
-            Value value = DeserializeValue(values[index]);
+            const Json& encodedValue = hasInlineValues ? Field(inputs[index], "value", crude_json::type_t::object) : legacyValues->get<Array>()[index];
+            Value value = DeserializeValue(encodedValue);
             if (IsSerializedPortUnresolved(inputs[index])) node->UnresolvedInputValues.push_back(value);
             else node->InputValues.push_back(value);
         }
@@ -1056,13 +1348,29 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
 
         if (!isMissingReference && !hasDynamicInputs)
         {
-            ReconcileFixedInputs(*node, definitionInputs, definitionInputValues, ids);
-            ReconcileFixedOutputs(*node, definitionOutputs, ids);
+            const BasicFunctionDef* installedDefinition = nullptr;
+            if (node->SerializationType == "compiled")
+            {
+                const CompiledNodeDefPtr compiled = registry.FindCompiled(node->DefinitionId);
+                if (compiled) installedDefinition = compiled->functionDef.get();
+            }
+            else if ((node->SerializationType == "function.call" || node->SerializationType == "function.get") && !node->refId.IsValid())
+            {
+                const NativeFunctionDef* native = registry.FindNative(node->DefinitionId);
+                if (native) installedDefinition = native->functionDef.get();
+            }
+            ReconcileFixedInputs(*node, definitionInputs, definitionInputValues, ids, installedDefinition ? &installedDefinition->inputAliases : nullptr);
+            ReconcileFixedOutputs(*node, definitionOutputs, ids, installedDefinition ? &installedDefinition->outputAliases : nullptr);
         }
         else if (!isMissingReference && hasDynamicInputs)
         {
-            RestoreDynamicPortIdentities(*node, definitionInputs);
+            RestoreDynamicPortIdentities(*node, definitionInputs, definitionOutputs);
         }
+        if (formatVersion < 8) AssignUnresolvedLegacyPortIdentities(*node);
+        if (!node->UnresolvedInputs.empty() || !node->UnresolvedOutputs.empty())
+            diagnostics.push_back({ SerializationDiagnosticSeverity::Warning, "port.unresolved",
+                path + ".nodes[" + std::to_string(nodeIndex) + "]", node->PersistentId.ToString(),
+                "One or more saved ports do not resolve against the installed definition." });
 
         NodeUtils::BuildNode(node);
         graph.AddNode(node);
@@ -1077,16 +1385,23 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
     const Array& links = Field(json, "links", crude_json::type_t::array).get<Array>();
     std::set<int> connectedDataInputs;
     std::set<int> connectedFlowOutputs;
-    for (const Json& linkJson : links)
+    for (size_t linkIndex = 0; linkIndex < links.size(); ++linkIndex)
     {
-        const int id = IntField(linkJson, "id");
-        ids.Add(id, "Link");
-        const int startId = IntField(linkJson, "start_pin_id");
-        const int endId = IntField(linkJson, "end_pin_id");
-        const Pin* start = graph.FindPin(ed::PinId(startId));
-        const Pin* end = graph.FindPin(ed::PinId(endId));
+        const Json& linkJson = links[linkIndex];
+        const PersistentLinkId persistentLinkId = formatVersion >= 8 ? RequiredDurableId<PersistentLinkId>(linkJson, "id") : PersistentLinkId{};
+        const int id = formatVersion >= 8 ? CachedRuntimeId(script, RuntimeIdKey("link", persistentLinkId), "Link", ids, constructionIds)
+                                          : IntField(linkJson, "id");
+        if (formatVersion < 8) ids.Add(id, "Link");
+        const Json* from = OptionalField(linkJson, "from");
+        const Json* to = OptionalField(linkJson, "to");
+        if ((from == nullptr) != (to == nullptr) || (formatVersion >= 8 && !from))
+            throw SerializationError("Link must contain both semantic endpoints.");
+        const Pin* start = from ? FindSemanticEndpoint(graph, *from, PinKind::Output) : graph.FindPin(ed::PinId(IntField(linkJson, "start_pin_id")));
+        const Pin* end = to ? FindSemanticEndpoint(graph, *to, PinKind::Input) : graph.FindPin(ed::PinId(IntField(linkJson, "end_pin_id")));
         if (!start || !end)
-            throw SerializationError("Link " + std::to_string(id) + " references a missing pin.");
+            throw SerializationError("Link " + std::to_string(id) + " references a missing semantic endpoint.");
+        const int startId = start->ID.Get();
+        const int endId = end->ID.Get();
         if (start->Kind != PinKind::Output || end->Kind != PinKind::Input)
             throw SerializationError("Link " + std::to_string(id) + " has reversed pin directions.");
         const bool linkResolved = IsActivePin(start) && IsActivePin(end);
@@ -1106,9 +1421,14 @@ void DeserializeGraph(const Json& json, const NodeRegistry& registry, const Scri
         Link link{ ed::LinkId(id), ed::PinId(startId), ed::PinId(endId) };
         link.IsResolved = linkResolved;
         CaptureSerializedFields(linkJson, link.SerializedExtensions);
-        link.PersistentId = OptionalDurableId(linkJson, "uuid", PersistentLinkId::FromLegacy(script.ModuleIdentity.Value(), "link:" + std::to_string(id)));
+        link.PersistentId = formatVersion >= 8 ? persistentLinkId : DeserializePersistentId(linkJson, formatVersion,
+            PersistentLinkId::FromLegacy(script.ModuleIdentity.Value(), "link:" + std::to_string(id)));
         link.Color = GetIconColor(start->Type);
         graph.AddLink(link);
+        if (!linkResolved)
+            diagnostics.push_back({ SerializationDiagnosticSeverity::Warning, "link.unresolved",
+                path + ".links[" + std::to_string(linkIndex) + "]", link.PersistentId.ToString(),
+                "The link is preserved but excluded from compilation until both endpoints resolve." });
     }
 }
 
@@ -1153,11 +1473,97 @@ void ValidateDurableIdentities(const Script& script)
     }
 }
 
-Json SerializeFunction(const ScriptFunction& function)
+void CaptureRuntimeIdCache(Script& script)
+{
+    if (script.ID.IsValid()) script.RuntimeIdCache["script"] = script.ID.id;
+    const auto property = [&](const ScriptPropertyPtr& value)
+    {
+        if (value && value->PersistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("element", value->PersistentId)] = value->ID.id;
+    };
+    const auto graph = [&](const Graph& value)
+    {
+        for (const NodePtr& node : value.GetNodes())
+        {
+            if (!node || !node->PersistentId.IsValid()) continue;
+            script.RuntimeIdCache[RuntimeIdKey("node", node->PersistentId)] = node->ID.Get();
+            for (const InputPin& pin : node->Inputs)
+                script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Input, pin.Identity)] = pin.ID.Get();
+            for (const InputPin& pin : node->UnresolvedInputs)
+                script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Input, pin.Identity)] = pin.ID.Get();
+            for (const Pin& pin : node->Outputs)
+                script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Output, pin.Identity)] = pin.ID.Get();
+            for (const Pin& pin : node->UnresolvedOutputs)
+                script.RuntimeIdCache[RuntimePinIdKey(node->PersistentId, PinKind::Output, pin.Identity)] = pin.ID.Get();
+        }
+        for (const Link& link : value.GetLinks())
+            if (link.PersistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("link", link.PersistentId)] = link.ID.Get();
+    };
+    const auto function = [&](const ScriptFunctionPtr& value)
+    {
+        if (!value) return;
+        if (value->PersistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("element", value->PersistentId)] = value->ID.id;
+        for (const BasicFunctionDef::Input& input : value->functionDef->inputs)
+            if (input.persistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("port", input.persistentId)] = input.id;
+        for (const BasicFunctionDef::Input& output : value->functionDef->outputs)
+            if (output.persistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("port", output.persistentId)] = output.id;
+        for (const ScriptPropertyPtr& variable : value->variables) property(variable);
+        graph(value->Graph);
+    };
+    function(script.main);
+    for (const ScriptPropertyPtr& variable : script.variables) property(variable);
+    for (const ScriptFunctionPtr& value : script.functions) function(value);
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (!scriptClass) continue;
+        if (scriptClass->PersistentId.IsValid()) script.RuntimeIdCache[RuntimeIdKey("element", scriptClass->PersistentId)] = scriptClass->ID.id;
+        for (const ScriptPropertyPtr& value : scriptClass->properties) property(value);
+        for (const ScriptFunctionPtr& method : scriptClass->methods) function(method);
+        function(scriptClass->constructor);
+    }
+}
+
+void ResolveTypeReference(TypeRef& type, const Script& script)
+{
+    if (type.kind == PinType::Object && type.symbolId.IsValid() && (!type.moduleId.IsValid() || type.moduleId == script.ModuleIdentity))
+    {
+        const auto scriptClass = std::find_if(script.classes.begin(), script.classes.end(), [&](const ScriptClassPtr& candidate)
+            { return candidate && candidate->PersistentId == type.symbolId; });
+        if (scriptClass == script.classes.end())
+            throw SerializationError("Object type references missing class UUID '" + type.symbolId.ToString() + "'.");
+        type.classId = (*scriptClass)->ID.id;
+        if (type.name.empty()) type.name = (*scriptClass)->Name;
+    }
+    for (TypeRef& parameter : type.parameters) ResolveTypeReference(parameter, script);
+}
+
+void ResolveDeclarationTypeReferences(Script& script)
+{
+    const auto property = [&](const ScriptPropertyPtr& value)
+    {
+        if (value) ResolveTypeReference(value->type, script);
+    };
+    const auto function = [&](const ScriptFunctionPtr& value)
+    {
+        if (!value) return;
+        for (BasicFunctionDef::Input& input : value->functionDef->inputs) ResolveTypeReference(input.type, script);
+        for (BasicFunctionDef::Input& output : value->functionDef->outputs) ResolveTypeReference(output.type, script);
+        for (const ScriptPropertyPtr& variable : value->variables) property(variable);
+    };
+    function(script.main);
+    for (const ScriptPropertyPtr& variable : script.variables) property(variable);
+    for (const ScriptFunctionPtr& value : script.functions) function(value);
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        for (const ScriptPropertyPtr& value : scriptClass->properties) property(value);
+        for (const ScriptFunctionPtr& method : scriptClass->methods) function(method);
+        function(scriptClass->constructor);
+    }
+}
+
+Json SerializeFunction(const ScriptFunction& function, const Script& script)
 {
     Json result(Object{});
-    result["id"] = static_cast<double>(function.ID.id);
-    result["uuid"] = function.PersistentId.ToString();
+    result["id"] = function.PersistentId.ToString();
     result["name"] = function.functionDef->name;
     result["description"] = function.functionDef->description;
     result["pure"] =
@@ -1175,28 +1581,31 @@ Json SerializeFunction(const ScriptFunction& function)
 
     Json inputs(Array{});
     for (const BasicFunctionDef::Input& input : function.functionDef->inputs)
-        inputs.push_back(SerializeDefinitionPort(input));
+        inputs.push_back(SerializeDefinitionPort(input, script));
     result["inputs"] = std::move(inputs);
 
     Json outputs(Array{});
     for (const BasicFunctionDef::Input& output : function.functionDef->outputs)
-        outputs.push_back(SerializeDefinitionPort(output));
+        outputs.push_back(SerializeDefinitionPort(output, script));
     result["outputs"] = std::move(outputs);
 
     Json variables(Array{});
     for (const ScriptPropertyPtr& variable : function.variables)
-        variables.push_back(SerializeProperty(*variable));
+        variables.push_back(SerializeProperty(*variable, script));
     result["variables"] = std::move(variables);
-    result["graph"] = SerializeGraph(function.Graph);
+    result["graph"] = SerializeGraph(function.Graph, script);
     return result;
 }
 
-ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids, ModuleId moduleId)
+ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids, Script& script, int formatVersion, IDGenerator* runtimeIds)
 {
-    const int id = IntField(json, "id");
-    ids.Add(id, "Function");
+    const ScriptElementUuid persistentId = formatVersion >= 8 ? RequiredDurableId<ScriptElementUuid>(json, "id") : ScriptElementUuid{};
+    const int id = formatVersion >= 8 ? CachedRuntimeId(script, RuntimeIdKey("element", persistentId), "Function", ids, *runtimeIds)
+                                      : DeserializeRuntimeId(json, "Function", formatVersion, ids, runtimeIds);
     ScriptFunctionPtr function = std::make_shared<ScriptFunction>(id, StringField(json, "name").c_str());
-    function->PersistentId = OptionalDurableId(json, "uuid", ScriptElementUuid::FromLegacy(moduleId.Value(), "element:" + std::to_string(id)));
+    CaptureSerializedFields(json, function->SerializedExtensions);
+    function->PersistentId = formatVersion >= 8 ? persistentId
+        : DeserializePersistentId(json, formatVersion, ScriptElementUuid::FromLegacy(script.ModuleIdentity.Value(), "element:" + std::to_string(id)));
     function->functionDef->scriptId = function->PersistentId;
     function->functionDef->description = OptionalStringField(json, "description");
     if (const Json* pure = OptionalField(json, "pure"))
@@ -1221,49 +1630,51 @@ ScriptFunctionPtr DeserializeFunctionShell(const Json& json, IdSet& ids, ModuleI
 
     const Array& inputs = Field(json, "inputs", crude_json::type_t::array).get<Array>();
     for (const Json& input : inputs)
-        function->functionDef->inputs.push_back(DeserializeDefinitionPort(input, ids, function->PersistentId, "input"));
+        function->functionDef->inputs.push_back(DeserializeDefinitionPort(input, ids, script, function->PersistentId, "input", formatVersion, runtimeIds));
     const Array& outputs = Field(json, "outputs", crude_json::type_t::array).get<Array>();
     for (const Json& output : outputs)
-        function->functionDef->outputs.push_back(DeserializeDefinitionPort(output, ids, function->PersistentId, "output"));
+        function->functionDef->outputs.push_back(DeserializeDefinitionPort(output, ids, script, function->PersistentId, "output", formatVersion, runtimeIds));
     const Array& variables = Field(json, "variables", crude_json::type_t::array).get<Array>();
     for (const Json& variable : variables)
-        function->variables.push_back(DeserializeProperty(variable, ids, moduleId));
+        function->variables.push_back(DeserializeProperty(variable, ids, script, formatVersion, runtimeIds));
     return function;
 }
 
-Json SerializeClass(const ScriptClass& scriptClass)
+Json SerializeClass(const ScriptClass& scriptClass, const Script& script)
 {
     Json result(Object{});
-    result["id"] = static_cast<double>(scriptClass.ID.id);
-    result["uuid"] = scriptClass.PersistentId.ToString();
+    result["id"] = scriptClass.PersistentId.ToString();
     result["name"] = scriptClass.Name;
     Json properties(Array{});
     for (const ScriptPropertyPtr& property : scriptClass.properties)
-        properties.push_back(SerializeProperty(*property));
+        properties.push_back(SerializeProperty(*property, script));
     result["properties"] = std::move(properties);
     Json methods(Array{});
     for (const ScriptFunctionPtr& method : scriptClass.methods)
-        methods.push_back(SerializeFunction(*method));
+        methods.push_back(SerializeFunction(*method, script));
     result["methods"] = std::move(methods);
     result["has_constructor"] = scriptClass.constructor != nullptr;
     result["constructor"] = scriptClass.constructor
-        ? SerializeFunction(*scriptClass.constructor) : Json(Object{});
+        ? SerializeFunction(*scriptClass.constructor, script) : Json(Object{});
     return result;
 }
 
-ScriptClassPtr DeserializeClassShell(const Json& json, IdSet& ids, ModuleId moduleId)
+ScriptClassPtr DeserializeClassShell(const Json& json, IdSet& ids, Script& script, int formatVersion, IDGenerator* runtimeIds)
 {
-    const int id = IntField(json, "id");
-    ids.Add(id, "Class");
+    const ScriptElementUuid persistentId = formatVersion >= 8 ? RequiredDurableId<ScriptElementUuid>(json, "id") : ScriptElementUuid{};
+    const int id = formatVersion >= 8 ? CachedRuntimeId(script, RuntimeIdKey("element", persistentId), "Class", ids, *runtimeIds)
+                                      : DeserializeRuntimeId(json, "Class", formatVersion, ids, runtimeIds);
     ScriptClassPtr scriptClass = std::make_shared<ScriptClass>(id, StringField(json, "name").c_str());
-    scriptClass->PersistentId = OptionalDurableId(json, "uuid", ScriptElementUuid::FromLegacy(moduleId.Value(), "element:" + std::to_string(id)));
+    CaptureSerializedFields(json, scriptClass->SerializedExtensions);
+    scriptClass->PersistentId = formatVersion >= 8 ? persistentId
+        : DeserializePersistentId(json, formatVersion, ScriptElementUuid::FromLegacy(script.ModuleIdentity.Value(), "element:" + std::to_string(id)));
     for (const Json& property : Field(json, "properties", crude_json::type_t::array).get<Array>())
-        scriptClass->properties.push_back(DeserializeProperty(property, ids, moduleId));
+        scriptClass->properties.push_back(DeserializeProperty(property, ids, script, formatVersion, runtimeIds));
     for (const Json& method : Field(json, "methods", crude_json::type_t::array).get<Array>())
-        scriptClass->methods.push_back(DeserializeFunctionShell(method, ids, moduleId));
+        scriptClass->methods.push_back(DeserializeFunctionShell(method, ids, script, formatVersion, runtimeIds));
     if (BoolField(json, "has_constructor"))
         scriptClass->constructor = DeserializeFunctionShell(
-            Field(json, "constructor", crude_json::type_t::object), ids, moduleId);
+            Field(json, "constructor", crude_json::type_t::object), ids, script, formatVersion, runtimeIds);
     return scriptClass;
 }
 
@@ -1278,25 +1689,67 @@ Json SerializeScript(const Script& script)
     root["module_id"] = script.ModuleIdentity.ToString();
 
     Json scriptJson(Object{});
-    scriptJson["id"] = static_cast<double>(script.ID.id);
-    scriptJson["main"] = SerializeFunction(*script.main);
+    scriptJson["main"] = SerializeFunction(*script.main, script);
     Json functions(Array{});
     for (const ScriptFunctionPtr& function : script.functions)
-        functions.push_back(SerializeFunction(*function));
+        functions.push_back(SerializeFunction(*function, script));
     scriptJson["functions"] = std::move(functions);
     Json variables(Array{});
     for (const ScriptPropertyPtr& variable : script.variables)
-        variables.push_back(SerializeProperty(*variable));
+        variables.push_back(SerializeProperty(*variable, script));
     scriptJson["variables"] = std::move(variables);
     Json classes(Array{});
     for (const ScriptClassPtr& scriptClass : script.classes)
-        classes.push_back(SerializeClass(*scriptClass));
+        classes.push_back(SerializeClass(*scriptClass, script));
     scriptJson["classes"] = std::move(classes);
     root["script"] = std::move(scriptJson);
     return root;
 }
 
-void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& script, int& nextId)
+using DocumentMigration = void(*)(Json&);
+
+void MigrateV1ToV2(Json& root)
+{
+    Json& script = root["script"];
+    if (script.contains("classes") && (!script["classes"].is_array() || !script["classes"].get<Array>().empty()))
+        throw SerializationError("Version 1 documents cannot contain classes.");
+    script["classes"] = Json(Array{});
+}
+
+void MigrateV2ToV3(Json&) {}
+void MigrateV3ToV4(Json&) {}
+void MigrateV4ToV5(Json&) {}
+void MigrateV5ToV6(Json&) {}
+void MigrateV6ToV7(Json&) {}
+
+std::vector<SerializationDiagnostic> MigrateDocumentToV7(Json& root)
+{
+    static constexpr int legacyFormatVersion = 7;
+    if (StringField(root, "format") != "visual-lox") throw SerializationError("This is not a Visual Lox document.");
+    const int originalVersion = IntField(root, "format_version");
+    if (originalVersion < 1 || originalVersion > ScriptSerializer::FormatVersion)
+        throw SerializationError("Unsupported .vlox format version " + std::to_string(originalVersion) + ".");
+    if (originalVersion == ScriptSerializer::FormatVersion) return {};
+
+    static constexpr DocumentMigration migrations[] = {
+        MigrateV1ToV2, MigrateV2ToV3, MigrateV3ToV4, MigrateV4ToV5, MigrateV5ToV6, MigrateV6ToV7,
+    };
+    int version = originalVersion;
+    while (version < legacyFormatVersion)
+    {
+        migrations[version - 1](root);
+        ++version;
+        root["format_version"] = static_cast<double>(version);
+    }
+
+    if (originalVersion == legacyFormatVersion)
+        return { { SerializationDiagnosticSeverity::Information, "document.resave_required", "$.format_version", {},
+            "The legacy version 7 document loads through the compatibility decoder; saving writes version 8." } };
+    return { { SerializationDiagnosticSeverity::Information, "document.migrated", "$.format_version", {},
+        "Migrated legacy document format " + std::to_string(originalVersion) + " to the version 7 compatibility model; saving writes version 8." } };
+}
+
+void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& script, int& nextId, std::vector<SerializationDiagnostic>& diagnostics)
 {
     if (StringField(root, "format") != "visual-lox")
         throw SerializationError("This is not a Visual Lox document.");
@@ -1306,9 +1759,23 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
 
     const Json& scriptJson = Field(root, "script", crude_json::type_t::object);
     IdSet ids;
-    script.ModuleIdentity = OptionalDurableId(root, "module_id", ModuleId::New());
-    script.ID = IntField(scriptJson, "id");
-    ids.Add(script.ID, "Script");
+    IDGenerator constructionIds;
+    if (version >= 8)
+    {
+        int maximumCachedId = 0;
+        for (const auto& [key, id] : script.RuntimeIdCache) maximumCachedId = (std::max)(maximumCachedId, id);
+        if (maximumCachedId == std::numeric_limits<int>::max()) throw SerializationError("The runtime ID cache has exhausted the ID range.");
+        constructionIds.Reset(maximumCachedId + 1);
+    }
+    CaptureSerializedFields(root, script.DocumentSerializedExtensions);
+    CaptureSerializedFields(scriptJson, script.SerializedExtensions);
+    script.ModuleIdentity = version >= 8 ? RequiredDurableId<ModuleId>(root, "module_id") : OptionalDurableId(root, "module_id", ModuleId::New());
+    if (version >= 8) script.ID = CachedRuntimeId(script, "script", "Script", ids, constructionIds);
+    else
+    {
+        script.ID = IntField(scriptJson, "id");
+        ids.Add(script.ID, "Script");
+    }
 
     const Array& classes = Field(scriptJson, "classes", crude_json::type_t::array).get<Array>();
     if (version == 1 && !classes.empty())
@@ -1316,29 +1783,33 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
 
     const Array& variables = Field(scriptJson, "variables", crude_json::type_t::array).get<Array>();
     for (const Json& variable : variables)
-        script.variables.push_back(DeserializeProperty(variable, ids, script.ModuleIdentity));
+        script.variables.push_back(DeserializeProperty(variable, ids, script, version, &constructionIds));
 
     const Json& mainJson = Field(scriptJson, "main", crude_json::type_t::object);
-    script.main = DeserializeFunctionShell(mainJson, ids, script.ModuleIdentity);
+    script.main = DeserializeFunctionShell(mainJson, ids, script, version, &constructionIds);
 
     const Array& functionJsons = Field(scriptJson, "functions", crude_json::type_t::array).get<Array>();
     for (const Json& functionJson : functionJsons)
-        script.functions.push_back(DeserializeFunctionShell(functionJson, ids, script.ModuleIdentity));
+        script.functions.push_back(DeserializeFunctionShell(functionJson, ids, script, version, &constructionIds));
     if (version >= 2)
         for (const Json& classJson : classes)
-            script.classes.push_back(DeserializeClassShell(classJson, ids, script.ModuleIdentity));
+            script.classes.push_back(DeserializeClassShell(classJson, ids, script, version, &constructionIds));
 
-    IDGenerator constructionIds;
-    const int maximumSerializedId = MaximumSerializedId(root);
-    if (maximumSerializedId == std::numeric_limits<int>::max())
-        throw SerializationError("The document has exhausted the ID range.");
-    constructionIds.Reset(maximumSerializedId + 1);
+    ResolveDeclarationTypeReferences(script);
+    if (version < 8)
+    {
+        const int maximumSerializedId = MaximumSerializedId(root);
+        if (maximumSerializedId == std::numeric_limits<int>::max())
+            throw SerializationError("The document has exhausted the ID range.");
+        constructionIds.Reset(maximumSerializedId + 1);
+    }
     DeserializeGraph(Field(mainJson, "graph", crude_json::type_t::object), registry, script,
-                     script.main, script.main->Graph, ids, constructionIds);
+                     script.main, script.main->Graph, ids, constructionIds, diagnostics, "$.script.main.graph", version);
     for (size_t i = 0; i < functionJsons.size(); ++i)
     {
         DeserializeGraph(Field(functionJsons[i], "graph", crude_json::type_t::object), registry, script,
-                         script.functions[i], script.functions[i]->Graph, ids, constructionIds);
+                         script.functions[i], script.functions[i]->Graph, ids, constructionIds, diagnostics,
+                         "$.script.functions[" + std::to_string(i) + "].graph", version);
     }
     for (size_t classIndex = 0; classIndex < classes.size(); ++classIndex)
     {
@@ -1348,17 +1819,19 @@ void DeserializeScript(const Json& root, const NodeRegistry& registry, Script& s
         for (size_t methodIndex = 0; methodIndex < methods.size(); ++methodIndex)
             DeserializeGraph(Field(methods[methodIndex], "graph", crude_json::type_t::object),
                 registry, script, scriptClass->methods[methodIndex],
-                scriptClass->methods[methodIndex]->Graph, ids, constructionIds);
+                scriptClass->methods[methodIndex]->Graph, ids, constructionIds, diagnostics,
+                "$.script.classes[" + std::to_string(classIndex) + "].methods[" + std::to_string(methodIndex) + "].graph", version);
         if (scriptClass->constructor)
         {
             const Json& constructor = Field(classJson, "constructor", crude_json::type_t::object);
             DeserializeGraph(Field(constructor, "graph", crude_json::type_t::object), registry,
-                script, scriptClass->constructor, scriptClass->constructor->Graph, ids, constructionIds);
+                script, scriptClass->constructor, scriptClass->constructor->Graph, ids, constructionIds, diagnostics,
+                "$.script.classes[" + std::to_string(classIndex) + "].constructor.graph", version);
         }
     }
 
     ValidateDurableIdentities(script);
-    nextId = ids.Next();
+    nextId = (std::max)(ids.Next(), constructionIds.PeekNextId());
 }
 }
 
@@ -1386,17 +1859,24 @@ SerializationResult ScriptSerializer::Load(const std::string& path, const NodeRe
     {
         if (path.empty())
             return SerializationResult::Fail("No file path was provided.");
-        const auto loaded = Json::load(path);
+        auto loaded = Json::load(path);
         if (!loaded.second || loaded.first.is_discarded())
             return SerializationResult::Fail("Could not read valid JSON from '" + path + "'.");
 
         GarbageCollectionPause pause;
         Script staged;
+        if (const Json* module = OptionalField(loaded.first, "module_id"); module && module->is_string() && outputScript.main &&
+            outputScript.ModuleIdentity == ModuleId::Parse(module->get<crude_json::string>()))
+        {
+            CaptureRuntimeIdCache(outputScript);
+            staged.RuntimeIdCache = outputScript.RuntimeIdCache;
+        }
         int nextId = 1;
-        DeserializeScript(loaded.first, registry, staged, nextId);
+        std::vector<SerializationDiagnostic> diagnostics = MigrateDocumentToV7(loaded.first);
+        DeserializeScript(loaded.first, registry, staged, nextId, diagnostics);
         outputScript = std::move(staged);
         idGenerator.Reset(nextId);
-        return SerializationResult::Ok();
+        return SerializationResult::Ok(std::move(diagnostics));
     }
     catch (const std::exception& exception)
     {
@@ -1424,22 +1904,59 @@ SerializationResult ScriptSerializer::DeserializeFromString(const std::string& d
 {
     try
     {
-        const Json document = Json::parse(data);
+        Json document = Json::parse(data);
         if (document.is_discarded())
             return SerializationResult::Fail("Could not parse a Visual Lox document from memory.");
 
         GarbageCollectionPause pause;
         Script staged;
+        if (const Json* module = OptionalField(document, "module_id"); module && module->is_string() && outputScript.main &&
+            outputScript.ModuleIdentity == ModuleId::Parse(module->get<crude_json::string>()))
+        {
+            CaptureRuntimeIdCache(outputScript);
+            staged.RuntimeIdCache = outputScript.RuntimeIdCache;
+        }
         int nextId = 1;
-        DeserializeScript(document, registry, staged, nextId);
+        std::vector<SerializationDiagnostic> diagnostics = MigrateDocumentToV7(document);
+        DeserializeScript(document, registry, staged, nextId, diagnostics);
         outputScript = std::move(staged);
         idGenerator.Reset(nextId);
-        return SerializationResult::Ok();
+        return SerializationResult::Ok(std::move(diagnostics));
     }
     catch (const std::exception& exception)
     {
         return SerializationResult::Fail(exception.what());
     }
+}
+
+SerializationResult ScriptSerializer::MigrateToCurrentFormat(const std::string& data, std::string& output)
+{
+    try
+    {
+        Json document = Json::parse(data);
+        if (document.is_discarded())
+            return SerializationResult::Fail("Could not parse a Visual Lox document from memory.", "document.invalid_json", "$");
+
+        std::vector<SerializationDiagnostic> diagnostics = MigrateDocumentToV7(document);
+        output = document.dump(2);
+        return SerializationResult::Ok(std::move(diagnostics));
+    }
+    catch (const std::exception& exception)
+    {
+        return SerializationResult::Fail(exception.what(), "document.migration_failed", "$");
+    }
+}
+
+SerializationResult ScriptSerializer::MigrateToCurrentFormat(const std::string& data, const NodeRegistry& registry, std::string& output)
+{
+    Script script;
+    IDGenerator ids;
+    SerializationResult result = DeserializeFromString(data, registry, script, ids);
+    if (!result) return result;
+    SerializationResult serialized = SerializeToString(script, output);
+    if (!serialized) return serialized;
+    serialized.diagnostics = std::move(result.diagnostics);
+    return serialized;
 }
 
 namespace
@@ -1506,15 +2023,35 @@ std::string OffsetNodeState(const std::string& state, double offsetX, double off
 }
 
 NodePtr CloneNode(const NodePtr& sourceNode, const NodeRegistry& registry,
-                  const Script& destination, const ScriptFunctionPtr& owner,
+                  Script& destination, const ScriptFunctionPtr& owner,
                   IDGenerator& ids, const std::map<int, int>& referenceMap,
                   std::map<int, int>& pinMap, double positionOffsetX,
                   double positionOffsetY)
 {
-    Json definition = SerializeNode(*sourceNode);
+    Json definition(Object{});
+    definition["kind"] = sourceNode->SerializationType;
+    definition["definition"] = sourceNode->DefinitionId;
+    definition["definition_revision"] = static_cast<double>(sourceNode->DefinitionRevision);
+    definition["display_name"] = sourceNode->Name;
+    definition["reference_id"] = static_cast<double>(sourceNode->refId.id);
+    if (sourceNode->Type == NodeType::CommentBox)
+    {
+        definition["text"] = sourceNode->Name;
+        definition["comment_box_color"] = CommentBoxColorName(static_cast<const CommentBoxNode&>(*sourceNode).BoxColor);
+    }
+    if (sourceNode->refPersistentId.IsValid())
+    {
+        Json target(Object{});
+        target["module"] = (sourceNode->refModuleId.IsValid() ? sourceNode->refModuleId : destination.ModuleIdentity).ToString();
+        target["symbol"] = sourceNode->refPersistentId.ToString();
+        definition["target"] = std::move(target);
+    }
     const auto reference = referenceMap.find(sourceNode->refId.id);
     if (reference != referenceMap.end())
+    {
         definition["reference_id"] = static_cast<double>(reference->second);
+        definition.get<Object>().erase("target");
+    }
 
     IDGenerator constructionIds;
     NodePtr clone = CreateNode(definition, registry, destination, owner, constructionIds);
@@ -1706,6 +2243,7 @@ SerializationResult ScriptSerializer::CloneFunction(const Script& source, int fu
         referenceMap[sourceFunction->ID.id] = pastedFunctionId;
         ScriptFunctionPtr clone = std::make_shared<ScriptFunction>(pastedFunctionId,
                                                                    sourceFunction->functionDef->name.c_str());
+        clone->SerializedExtensions = sourceFunction->SerializedExtensions;
         clone->functionDef->description = sourceFunction->functionDef->description;
         clone->functionDef->flags = sourceFunction->functionDef->flags;
         clone->functionDef->genericTypeProperties =
@@ -1714,23 +2252,24 @@ SerializationResult ScriptSerializer::CloneFunction(const Script& source, int fu
         {
             const int newId = ids.GetNextId();
             referenceMap[input.id] = newId;
-            clone->functionDef->inputs.push_back(
-                { input.name, CloneValue(input.value), newId, input.type,
-                  input.description });
+            BasicFunctionDef::Input inputClone{ input.name, CloneValue(input.value), newId, input.type, input.description };
+            inputClone.serializedExtensions = input.serializedExtensions;
+            clone->functionDef->inputs.push_back(std::move(inputClone));
         }
         for (const BasicFunctionDef::Input& output : sourceFunction->functionDef->outputs)
         {
             const int newId = ids.GetNextId();
             referenceMap[output.id] = newId;
-            clone->functionDef->outputs.push_back(
-                { output.name, CloneValue(output.value), newId, output.type,
-                  output.description });
+            BasicFunctionDef::Input outputClone{ output.name, CloneValue(output.value), newId, output.type, output.description };
+            outputClone.serializedExtensions = output.serializedExtensions;
+            clone->functionDef->outputs.push_back(std::move(outputClone));
         }
         for (const ScriptPropertyPtr& variable : sourceFunction->variables)
         {
             const int newId = ids.GetNextId();
             referenceMap[variable->ID.id] = newId;
             ScriptPropertyPtr variableClone = std::make_shared<ScriptProperty>(newId, variable->Name.c_str());
+            variableClone->SerializedExtensions = variable->SerializedExtensions;
             variableClone->Description = variable->Description;
             variableClone->type = variable->type;
             variableClone->defaultValue = CloneValue(variable->defaultValue);
@@ -1767,6 +2306,7 @@ SerializationResult ScriptSerializer::CloneVariable(const Script& source, int va
         GarbageCollectionPause pause;
         pastedVariableId = ids.GetNextId();
         ScriptPropertyPtr clone = std::make_shared<ScriptProperty>(pastedVariableId, variable->Name.c_str());
+        clone->SerializedExtensions = variable->SerializedExtensions;
         clone->Description = variable->Description;
         clone->type = variable->type;
         clone->defaultValue = CloneValue(variable->defaultValue);
@@ -1796,6 +2336,7 @@ SerializationResult ScriptSerializer::CloneFunctionVariable(const Script& source
         GarbageCollectionPause pause;
         pastedVariableId = ids.GetNextId();
         ScriptPropertyPtr clone = std::make_shared<ScriptProperty>(pastedVariableId, variable->Name.c_str());
+        clone->SerializedExtensions = variable->SerializedExtensions;
         clone->Description = variable->Description;
         clone->type = variable->type;
         clone->defaultValue = CloneValue(variable->defaultValue);
@@ -1829,6 +2370,7 @@ SerializationResult ScriptSerializer::CloneFunctionPort(const Script& source, in
         BasicFunctionDef::Input clone{
             sourcePort->name, CloneValue(sourcePort->value), pastedPortId,
             sourcePort->type, sourcePort->description };
+        clone.serializedExtensions = sourcePort->serializedExtensions;
         if (output) destinationFunction->functionDef->outputs.push_back(std::move(clone));
         else destinationFunction->functionDef->inputs.push_back(std::move(clone));
         ScriptUtils::RefreshFunctionRefs(destination, destinationFunctionId, ids);

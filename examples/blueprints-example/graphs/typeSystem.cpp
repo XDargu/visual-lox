@@ -158,12 +158,15 @@ bool operator==(const TypeRef& lhs, const TypeRef& rhs)
 {
     if (lhs.kind == PinType::Object && rhs.kind == PinType::Object)
     {
+        if (lhs.symbolId.IsValid() && rhs.symbolId.IsValid())
+            return lhs.moduleId == rhs.moduleId && lhs.symbolId == rhs.symbolId && lhs.parameters == rhs.parameters;
         if (lhs.classId >= 0 || rhs.classId >= 0)
             return lhs.classId == rhs.classId &&
                    lhs.parameters == rhs.parameters;
     }
     return lhs.kind == rhs.kind && lhs.parameters == rhs.parameters &&
            lhs.classId == rhs.classId &&
+           lhs.moduleId == rhs.moduleId && lhs.symbolId == rhs.symbolId &&
            lhs.functionInputCount == rhs.functionInputCount &&
            lhs.name == rhs.name;
 }

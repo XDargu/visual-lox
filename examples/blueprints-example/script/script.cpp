@@ -144,6 +144,27 @@ ScriptPropertyPtr ScriptUtils::FindVisibleVariableById(const Script& script, int
     return FindVariableById(script, varId);
 }
 
+ScriptPropertyPtr ScriptUtils::FindVariableByPersistentId(const Script& script, ScriptElementUuid persistentId)
+{
+    const auto it = std::find_if(script.variables.begin(), script.variables.end(),
+        [persistentId](const ScriptPropertyPtr& variable) { return variable && variable->PersistentId == persistentId; });
+    return it == script.variables.end() ? nullptr : *it;
+}
+
+ScriptPropertyPtr ScriptUtils::FindFunctionVariableByPersistentId(const ScriptFunctionPtr& function, ScriptElementUuid persistentId)
+{
+    if (!function) return nullptr;
+    const auto it = std::find_if(function->variables.begin(), function->variables.end(),
+        [persistentId](const ScriptPropertyPtr& variable) { return variable && variable->PersistentId == persistentId; });
+    return it == function->variables.end() ? nullptr : *it;
+}
+
+ScriptPropertyPtr ScriptUtils::FindVisibleVariableByPersistentId(const Script& script, int functionId, ScriptElementUuid persistentId)
+{
+    if (ScriptPropertyPtr local = FindFunctionVariableByPersistentId(FindAnyFunctionById(script, functionId), persistentId)) return local;
+    return FindVariableByPersistentId(script, persistentId);
+}
+
 ScriptFunctionPtr ScriptUtils::FindFunctionById(const Script& script, int funId)
 {
     auto it = std::find_if(script.functions.begin(), script.functions.end(), [funId](const ScriptFunctionPtr& f) { return f->ID == funId; });
@@ -164,10 +185,33 @@ ScriptFunctionPtr ScriptUtils::FindFunctionById(const Script& script, int funId)
     return nullptr;
 }
 
+ScriptFunctionPtr ScriptUtils::FindFunctionByPersistentId(const Script& script, ScriptElementUuid persistentId)
+{
+    const auto functionMatches = [persistentId](const ScriptFunctionPtr& function) { return function && function->PersistentId == persistentId; };
+
+    const auto function = std::find_if(script.functions.begin(), script.functions.end(), functionMatches);
+    if (function != script.functions.end()) return *function;
+
+    for (const ScriptClassPtr& scriptClass : script.classes)
+    {
+        if (functionMatches(scriptClass->constructor)) return scriptClass->constructor;
+        const auto method = std::find_if(scriptClass->methods.begin(), scriptClass->methods.end(), functionMatches);
+        if (method != scriptClass->methods.end()) return *method;
+    }
+    return nullptr;
+}
+
 ScriptClassPtr ScriptUtils::FindClassById(const Script& script, int classId)
 {
     auto it = std::find_if(script.classes.begin(), script.classes.end(),
         [classId](const ScriptClassPtr& value) { return value->ID == classId; });
+    return it == script.classes.end() ? nullptr : *it;
+}
+
+ScriptClassPtr ScriptUtils::FindClassByPersistentId(const Script& script, ScriptElementUuid persistentId)
+{
+    const auto it = std::find_if(script.classes.begin(), script.classes.end(),
+        [persistentId](const ScriptClassPtr& value) { return value && value->PersistentId == persistentId; });
     return it == script.classes.end() ? nullptr : *it;
 }
 
@@ -176,6 +220,15 @@ ScriptPropertyPtr ScriptUtils::FindClassPropertyById(const Script& script, int p
     for (const ScriptClassPtr& scriptClass : script.classes)
         for (const ScriptPropertyPtr& property : scriptClass->properties)
             if (property->ID == propertyId)
+                return property;
+    return nullptr;
+}
+
+ScriptPropertyPtr ScriptUtils::FindClassPropertyByPersistentId(const Script& script, ScriptElementUuid persistentId)
+{
+    for (const ScriptClassPtr& scriptClass : script.classes)
+        for (const ScriptPropertyPtr& property : scriptClass->properties)
+            if (property && property->PersistentId == persistentId)
                 return property;
     return nullptr;
 }
@@ -433,9 +486,9 @@ void ScriptUtils::MarkFunctionRoots(const ScriptFunctionPtr& pFunction)
 
     for (NodePtr& node : pFunction->Graph.GetNodes())
     {
-        for (Value& value : node->InputValues)
+        for (InputPin& input : node->Inputs)
         {
-            vm.markValue(value);
+            vm.markValue(input.LiteralValue);
         }
     }
 }

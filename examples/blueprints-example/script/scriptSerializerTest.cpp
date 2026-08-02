@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <regex>
 #include <sstream>
 #include <utility>
 
@@ -226,8 +227,7 @@ void RoundTripPreservesStructure(const std::string& outputPath)
     TemporaryRoundTripFiles files(outputPath + ".structure");
     SerializerFixture fixture;
     fixture.SaveAndLoad(files.first);
-    Require(fixture.loaded.ID.id == fixture.script.ID.id,
-            "Script ID changed during round trip.");
+    Require(fixture.loaded.ID.IsValid(), "The loaded script did not receive a runtime ID.");
     Require(fixture.loaded.ModuleIdentity == fixture.script.ModuleIdentity,
             "Module UUID changed during round trip.");
     Require(fixture.loaded.main && fixture.loaded.main->functionDef->name == "Main",
@@ -322,8 +322,6 @@ void RoundTripPreservesStructure(const std::string& outputPath)
             isNumber(loadedAdd->InputValues[3]) && asNumber(loadedAdd->InputValues[3]) == 5.0 &&
             loadedAdd->CanAddInput() && loadedAdd->CanRemoveInput(loadedAdd->Inputs[3].ID),
             "Compiled dynamic inputs and values were not restored.");
-    Require(fixture.loadedIds.PeekNextId() == fixture.ids.PeekNextId(),
-            "ID generator did not resume after the maximum persisted ID.");
 }
 
 void RoundTripIsDeterministic(const std::string& outputPath)
@@ -354,10 +352,35 @@ void RoundTrippedScriptCompilesAndExecutes(const std::string& outputPath)
             "The round-tripped script did not execute successfully.");
 }
 
+void ActiveWriterUsesCleanV8Schema()
+{
+    SerializerFixture fixture;
+    std::string document;
+    const SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
+    Require(result.success, result.error.c_str());
+    Require(document.find("\"format_version\": 8") != std::string::npos && document.find("\"module_id\"") != std::string::npos,
+        "The active writer did not emit a version 8 document with a module UUID.");
+    Require(document.find("\"definition\"") != std::string::npos && document.find("\"identity\"") != std::string::npos &&
+            document.find("\"target\"") != std::string::npos && document.find("\"value\"") != std::string::npos,
+        "The version 8 document omitted definition, semantic-port, symbolic-target, or input-owned-value data.");
+
+    const char* forbiddenFields[] = {
+        "\"uuid\"", "\"reference_id\"", "\"input_values\"", "\"start_pin_id\"", "\"end_pin_id\"", "\"class_id\"", "\"legacy_port_id\""
+    };
+    for (const char* field : forbiddenFields)
+        Require(document.find(field) == std::string::npos, "The version 8 writer emitted a legacy or runtime-only field.");
+    Require(!std::regex_search(document, std::regex(R"("id"\s*:\s*[0-9])")), "The version 8 writer emitted a numeric runtime ID.");
+}
+
 void AddedNativeInputUsesCurrentDefault(const std::string& outputPath)
 {
     TemporaryRoundTripFiles files(outputPath + ".added-native-input");
     SerializerFixture fixture;
+    const NodePtr sourceSquare = fixture.script.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; });
+    Require(sourceSquare && sourceSquare->Inputs[0].Identity.kind == PortIdentityKind::Fixed, "Square input has no fixed semantic identity.");
+    sourceSquare->Inputs[0].Identity.key = "legacy_value";
+    fixture.registry.RegisterPortAlias("vlox.std.native.math.square", PinKind::Input, "legacy_value", "value");
     SerializationResult result = ScriptSerializer::Save(fixture.script, files.first);
     Require(result.success, result.error.c_str());
 
@@ -446,10 +469,12 @@ void UnavailableDefinitionRemainsRecoverable()
     Require(result.success, result.error.c_str());
     result = ScriptSerializer::DeserializeFromString(document, fixture.registry, fixture.loaded, fixture.loadedIds);
     Require(result.success, result.error.c_str());
+    Require(std::any_of(result.diagnostics.begin(), result.diagnostics.end(), [](const SerializationDiagnostic& diagnostic)
+        { return diagnostic.severity == SerializationDiagnosticSeverity::Warning && diagnostic.code == "definition.missing" && !diagnostic.path.empty(); }),
+        "Loading an unavailable definition did not report a structured warning.");
     const NodePtr missing = fixture.loaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
-    Require(missing && HasFlag(missing->InstanceFlags, NodeInstanceFlags::Error) && missing->PersistentId == sourceId && missing->Inputs.size() == inputCount &&
-        missing->SerializedExtensions.at("plugin_payload") == "{\"mode\":\"preserve-me\",\"revision\":3}",
+    Require(missing && HasFlag(missing->InstanceFlags, NodeInstanceFlags::Error) && missing->PersistentId == sourceId && missing->Inputs.size() == inputCount,
         "An unavailable definition did not load as a recoverable node.");
 
     std::string savedAgain;
@@ -461,9 +486,71 @@ void UnavailableDefinitionRemainsRecoverable()
     Require(result.success, result.error.c_str());
     const NodePtr missingAgain = reloaded.main->Graph.FindNodeIf(
         [](const NodePtr& node) { return node->DefinitionId == "vlox.std.compiled.math.add"; });
-    Require(missingAgain && missingAgain->PersistentId == sourceId && missingAgain->Inputs.size() == inputCount &&
-        missingAgain->SerializedExtensions.at("plugin_payload") == "{\"mode\":\"preserve-me\",\"revision\":3}",
+    Require(missingAgain && missingAgain->PersistentId == sourceId && missingAgain->Inputs.size() == inputCount,
         "A recoverable unavailable node did not survive load-save-load.");
+    Require(savedAgain.find("plugin_payload") == std::string::npos, "Format version 8 retained a legacy extension-field bag.");
+}
+
+void LegacyDocumentsUseSequentialMigrations()
+{
+    const std::string document = R"({"format":"visual-lox","format_version":1,"script":{}})";
+    std::string migrated;
+    const SerializationResult result = ScriptSerializer::MigrateToCurrentFormat(document, migrated);
+    Require(result.success && std::any_of(result.diagnostics.begin(), result.diagnostics.end(), [](const SerializationDiagnostic& diagnostic)
+        { return diagnostic.code == "document.migrated" && diagnostic.path == "$.format_version"; }),
+        "Legacy migration did not run or report the sequential document migration.");
+}
+
+void MigrationCanBePreviewedWithoutARegistry()
+{
+    const std::string legacy = R"({"format":"visual-lox","format_version":1,"script":{}})";
+    std::string migrated;
+    const SerializationResult result = ScriptSerializer::MigrateToCurrentFormat(legacy, migrated);
+    Require(result.success && migrated.find("\"format_version\"") != std::string::npos && migrated.find("\"classes\"") != std::string::npos,
+        "Registry-independent migration preview did not produce the legacy compatibility model.");
+    Require(std::any_of(result.diagnostics.begin(), result.diagnostics.end(), [](const SerializationDiagnostic& diagnostic)
+        { return diagnostic.code == "document.migrated"; }), "Migration preview did not report its transformation.");
+}
+
+void SemanticLinkEndpointsNeedNoTransientPinIds()
+{
+    SerializerFixture fixture;
+    std::string document;
+    SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
+    Require(result.success && document.find("\"from\"") != std::string::npos && document.find("\"to\"") != std::string::npos,
+        "Serialized links do not contain semantic endpoints.");
+
+    Require(document.find("start_pin_id") == std::string::npos && document.find("end_pin_id") == std::string::npos,
+        "Format version 8 retained transient pin IDs on links.");
+
+    Script loaded;
+    IDGenerator loadedIds;
+    result = ScriptSerializer::DeserializeFromString(document, fixture.registry, loaded, loadedIds);
+    Require(result.success && loaded.functions.size() == 1 && loaded.functions[0]->Graph.GetLinks().size() == 2,
+        "Semantic link endpoints did not restore the graph without transient pin IDs.");
+}
+
+void InputValuesLoadFromTheirOwningPorts()
+{
+    SerializerFixture fixture;
+    std::string document;
+    SerializationResult result = ScriptSerializer::SerializeToString(fixture.script, document);
+    Require(result.success && document.find("\"value\"") != std::string::npos, "Serialized inputs do not own their values.");
+    size_t offset = 0;
+    while ((offset = document.find("\"input_values\"", offset)) != std::string::npos)
+    {
+        document.replace(offset, std::string("\"input_values\"").size(), "\"legacy_input_values\"");
+        offset += std::string("\"legacy_input_values\"").size();
+    }
+
+    Script loaded;
+    IDGenerator loadedIds;
+    result = ScriptSerializer::DeserializeFromString(document, fixture.registry, loaded, loadedIds);
+    Require(result.success, result.error.c_str());
+    const NodePtr square = loaded.main ? loaded.main->Graph.FindNodeIf(
+        [](const NodePtr& node) { return node->DefinitionId == "vlox.std.native.math.square"; }) : nullptr;
+    Require(square && isNumber(square->InputValues[0]) && asNumber(square->InputValues[0]) == 7.0,
+        "Input values were not restored from their owning port entries.");
 }
 }
 
@@ -479,6 +566,7 @@ void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPa
         {
             RoundTripIsDeterministic(outputPath);
         });
+        runner.Test("the active writer uses the clean v8 schema", ActiveWriterUsesCleanV8Schema);
         runner.Test("a loaded script compiles and executes", [&]()
         {
             RoundTrippedScriptCompilesAndExecutes(outputPath);
@@ -489,5 +577,9 @@ void AddScriptSerializerTests(Tests::Runner& runner, const std::string& outputPa
         });
         runner.Test("script ports survive rename, reorder, removal, and restoration", ScriptPortIdentitySurvivesDefinitionEvolution);
         runner.Test("an unavailable definition remains recoverable", UnavailableDefinitionRemainsRecoverable);
+        runner.Test("legacy documents use sequential migrations", LegacyDocumentsUseSequentialMigrations);
+        runner.Test("legacy migration can be previewed without a registry", MigrationCanBePreviewedWithoutARegistry);
+        runner.Test("semantic link endpoints need no transient pin IDs", SemanticLinkEndpointsNeedNoTransientPinIds);
+        runner.Test("input values load from their owning ports", InputValuesLoadFromTheirOwningPorts);
     });
 }

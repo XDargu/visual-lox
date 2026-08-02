@@ -1,6 +1,7 @@
 {
   "format": "visual-lox",
-  "format_version": 5,
+  "format_version": 8,
+  "module_id": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
   "script":
   {
     "classes":
@@ -9,7 +10,6 @@
     "functions":
     [
     ],
-    "id": 1,
     "main":
     {
       "description": "",
@@ -21,200 +21,1618 @@
         "links":
         [
           {
-            "end_pin_id": 15,
-            "id": 25,
-            "start_pin_id": 10
+            "from":
+            {
+              "display_name": "",
+              "node": "e48f92c9-85e5-5440-896e-57bc873f0333",
+              "port":
+              {
+                "key": "start",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "55d9e7c4-d784-593d-bff2-d5900d14d256",
+            "to":
+            {
+              "display_name": "",
+              "node": "01e783c0-bd6b-5855-86dc-a617ce55dc6f",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 16,
-            "id": 26,
-            "start_pin_id": 12
+            "from":
+            {
+              "display_name": "List",
+              "node": "f40e4289-11fb-54b5-946b-efb56204e48a",
+              "port":
+              {
+                "key": "list",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": "c1e31865-1709-5bb6-9c63-894f27ecd84d",
+            "to":
+            {
+              "display_name": "Values",
+              "node": "01e783c0-bd6b-5855-86dc-a617ce55dc6f",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 21,
-            "id": 27,
-            "start_pin_id": 17
+            "from":
+            {
+              "display_name": "",
+              "node": "01e783c0-bd6b-5855-86dc-a617ce55dc6f",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "bad30568-51f3-5749-b416-c3494c4b2b63",
+            "to":
+            {
+              "display_name": "",
+              "node": "8edfb99d-82fa-5820-9a65-2f916c1dc9bb",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 23,
-            "id": 28,
-            "start_pin_id": 19
+            "from":
+            {
+              "display_name": "Values",
+              "node": "d938c760-0252-566b-81c7-371104c9ac57",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": "b8435d10-4a06-58a7-baba-eb6ac3fa202c",
+            "to":
+            {
+              "display_name": "List",
+              "node": "8edfb99d-82fa-5820-9a65-2f916c1dc9bb",
+              "port":
+              {
+                "key": "list",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 30,
-            "id": 69,
-            "start_pin_id": 22
+            "from":
+            {
+              "display_name": "",
+              "node": "8edfb99d-82fa-5820-9a65-2f916c1dc9bb",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "c28d74d8-6327-5adc-ab9c-e245ffda0647",
+            "to":
+            {
+              "display_name": "",
+              "node": "5f6b316e-f4b9-543e-ae47-1b48b2938509",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 31,
-            "id": 70,
-            "start_pin_id": 36
+            "from":
+            {
+              "display_name": "BenchmarkSize",
+              "node": "b304d449-2f0d-57fb-b1e0-595d4d3f6c1b",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "1e2bee98-7bf2-509a-a770-23c58953e6fd",
+            "to":
+            {
+              "display_name": "Count",
+              "node": "5f6b316e-f4b9-543e-ae47-1b48b2938509",
+              "port":
+              {
+                "key": "count",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 52,
-            "id": 71,
-            "start_pin_id": 32
+            "from":
+            {
+              "display_name": "Body",
+              "node": "5f6b316e-f4b9-543e-ae47-1b48b2938509",
+              "port":
+              {
+                "key": "branch_0",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "ffa44bee-90b3-52f1-a1fd-cac8f0c62a60",
+            "to":
+            {
+              "display_name": "",
+              "node": "ffab36eb-d6dc-5a31-b945-5310a8b4a1e2",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 40,
-            "id": 72,
-            "start_pin_id": 38
+            "from":
+            {
+              "display_name": "LcgState",
+              "node": "52b5ffdf-33fc-5ccf-a01f-ccb3dc61be7d",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "9f711027-c07d-55db-b8df-0e785d2a0468",
+            "to":
+            {
+              "display_name": "A",
+              "node": "61e493fa-3424-5820-8351-213447d87dfe",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "0f19b913-f6d3-56a9-b552-d642f7ba18e7"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 44,
-            "id": 73,
-            "start_pin_id": 42
+            "from":
+            {
+              "display_name": "Result",
+              "node": "61e493fa-3424-5820-8351-213447d87dfe",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "e07dd9a3-a2f9-51bc-be26-dc42a5e8dd86",
+            "to":
+            {
+              "display_name": "A",
+              "node": "71799bed-4956-5ed0-958a-fc3baba639b3",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "9392abe2-4fb1-52c7-8a40-600eaf4d53bd"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 48,
-            "id": 74,
-            "start_pin_id": 46
+            "from":
+            {
+              "display_name": "Result",
+              "node": "71799bed-4956-5ed0-958a-fc3baba639b3",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "26ce5a23-fe87-589b-be4d-bfd94051f338",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "3f1d61a4-5369-509a-aec6-2ee35c9d1b11",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 53,
-            "id": 75,
-            "start_pin_id": 50
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "3f1d61a4-5369-509a-aec6-2ee35c9d1b11",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "f3ba4a01-a0be-5a93-b7f0-974de4db0f9f",
+            "to":
+            {
+              "display_name": "LcgState",
+              "node": "ffab36eb-d6dc-5a31-b945-5310a8b4a1e2",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 60,
-            "id": 76,
-            "start_pin_id": 54
+            "from":
+            {
+              "display_name": "",
+              "node": "ffab36eb-d6dc-5a31-b945-5310a8b4a1e2",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "626506ea-8329-565c-ad85-d3c2508cc8c4",
+            "to":
+            {
+              "display_name": "",
+              "node": "2cf456ad-adaf-564e-a389-95b6ab3b3565",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 62,
-            "id": 77,
-            "start_pin_id": 56
+            "from":
+            {
+              "display_name": "Values",
+              "node": "31a5fa49-f2ec-5cca-8f12-48a7f35f09f5",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": "6f29c74e-a650-587a-8714-e72804a7c286",
+            "to":
+            {
+              "display_name": "List",
+              "node": "2cf456ad-adaf-564e-a389-95b6ab3b3565",
+              "port":
+              {
+                "key": "list",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 66,
-            "id": 78,
-            "start_pin_id": 58
+            "from":
+            {
+              "display_name": "LcgState",
+              "node": "b82104dc-11a2-5a64-9b16-8a32c2f1b7d9",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "52c33b2c-a97d-5056-b1d9-aec164ae4b97",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "fbae4ede-f47c-5cba-ab71-a53fb7a3f461",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 63,
-            "id": 79,
-            "start_pin_id": 68
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "fbae4ede-f47c-5cba-ab71-a53fb7a3f461",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "76d4dc39-cf05-5a47-bc19-d19b8b18d63e",
+            "to":
+            {
+              "display_name": "Value",
+              "node": "2cf456ad-adaf-564e-a389-95b6ab3b3565",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "variable",
+                "name": "T",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 83,
-            "id": 153,
-            "start_pin_id": 34
+            "from":
+            {
+              "display_name": "Completed",
+              "node": "5f6b316e-f4b9-543e-ae47-1b48b2938509",
+              "port":
+              {
+                "key": "branch_1",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "483eaa4f-5c44-5fbd-9155-d0c41625feed",
+            "to":
+            {
+              "display_name": "",
+              "node": "6dc52c8d-bb40-5712-a18b-77ed94798181",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 84,
-            "id": 154,
-            "start_pin_id": 81
+            "from":
+            {
+              "display_name": "Values",
+              "node": "2def7ce8-6312-5adb-9271-d69fa423c47e",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "list",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "number",
+                    "name": "",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            },
+            "id": "8418766f-d35c-53e1-b54f-7f44b468064c",
+            "to":
+            {
+              "display_name": "Iterable",
+              "node": "6dc52c8d-bb40-5712-a18b-77ed94798181",
+              "port":
+              {
+                "key": "iterable",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "iterable",
+                "name": "",
+                "parameters":
+                [
+                  {
+                    "input_count": -1,
+                    "kind": "variable",
+                    "name": "T",
+                    "parameters":
+                    [
+                    ]
+                  }
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 89,
-            "id": 155,
-            "start_pin_id": 86
+            "from":
+            {
+              "display_name": "Value",
+              "node": "6dc52c8d-bb40-5712-a18b-77ed94798181",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "variable",
+                "name": "T",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "ed1ae68f-7543-533e-b3e2-ed8c902b84e6",
+            "to":
+            {
+              "display_name": "A",
+              "node": "efa4decb-d3a1-5203-b414-2e81ab369f58",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "4edbbccc-bc81-5dd3-9685-2a7754c583d2"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 93,
-            "id": 156,
-            "start_pin_id": 91
+            "from":
+            {
+              "display_name": "Result",
+              "node": "efa4decb-d3a1-5203-b414-2e81ab369f58",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "af339f5b-3a49-50b8-b479-228f53633abb",
+            "to":
+            {
+              "display_name": "A",
+              "node": "eb665a47-283d-5f70-8d90-2d2ba18167ee",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "b4587695-99c7-5654-b50f-072bdcecdfde"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 97,
-            "id": 157,
-            "start_pin_id": 95
+            "from":
+            {
+              "display_name": "Result",
+              "node": "eb665a47-283d-5f70-8d90-2d2ba18167ee",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "76bf6c9b-ed74-5919-8049-f96ab4a75b79",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "69457759-5701-5f3a-a38a-f7bafea4f0fa",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 101,
-            "id": 158,
-            "start_pin_id": 99
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "69457759-5701-5f3a-a38a-f7bafea4f0fa",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "b8b1a8d4-0c49-51cb-9396-66ceb0f82e84",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "edbeba23-cc22-578f-8134-693d360cce62",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 105,
-            "id": 159,
-            "start_pin_id": 103
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "edbeba23-cc22-578f-8134-693d360cce62",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "0b903ff3-3775-5f22-8753-f0541bf5eb61",
+            "to":
+            {
+              "display_name": "",
+              "node": "36abb875-406c-5738-b114-366e233a6574",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "variable",
+                "name": "T",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 109,
-            "id": 160,
-            "start_pin_id": 85
+            "from":
+            {
+              "display_name": "Loop",
+              "node": "6dc52c8d-bb40-5712-a18b-77ed94798181",
+              "port":
+              {
+                "key": "branch_0",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "a80d8ac9-e7a4-51dd-86cf-f1e7669343e2",
+            "to":
+            {
+              "display_name": "",
+              "node": "e8f12adc-7eaf-5f74-bcfe-65f3a6267634",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 110,
-            "id": 161,
-            "start_pin_id": 107
+            "from":
+            {
+              "display_name": "",
+              "node": "36abb875-406c-5738-b114-366e233a6574",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "bool",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "3c3b1a1d-2153-5fce-905c-c2e7ce9c68db",
+            "to":
+            {
+              "display_name": "Condition",
+              "node": "e8f12adc-7eaf-5f74-bcfe-65f3a6267634",
+              "port":
+              {
+                "key": "condition",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "bool",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 120,
-            "id": 162,
-            "start_pin_id": 111
+            "from":
+            {
+              "display_name": "True",
+              "node": "e8f12adc-7eaf-5f74-bcfe-65f3a6267634",
+              "port":
+              {
+                "key": "branch_0",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "42ec310d-85f3-58c3-80af-f480fd2bda04",
+            "to":
+            {
+              "display_name": "",
+              "node": "32ea1ea7-cfc1-5ad3-ac4f-79c135d5b8f4",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 116,
-            "id": 163,
-            "start_pin_id": 114
+            "from":
+            {
+              "display_name": "SelectedCount",
+              "node": "2a2b2a87-ecad-5532-abf1-e5d3ea27e1c1",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "5b774bc8-c781-5b72-9871-e984187f8a12",
+            "to":
+            {
+              "display_name": "A",
+              "node": "4176308e-e7d8-5521-bca3-d533d91a3970",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "1937d0ae-eee4-5e38-8310-f6096ce2a531"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 121,
-            "id": 164,
-            "start_pin_id": 118
+            "from":
+            {
+              "display_name": "Result",
+              "node": "4176308e-e7d8-5521-bca3-d533d91a3970",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "14754f9b-ed8a-5e03-a701-a587e3ab5fc3",
+            "to":
+            {
+              "display_name": "SelectedCount",
+              "node": "32ea1ea7-cfc1-5ad3-ac4f-79c135d5b8f4",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 134,
-            "id": 165,
-            "start_pin_id": 122
+            "from":
+            {
+              "display_name": "",
+              "node": "32ea1ea7-cfc1-5ad3-ac4f-79c135d5b8f4",
+              "port":
+              {
+                "key": "then",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "7e149063-a42f-56f8-9cbe-8d018d8d77a9",
+            "to":
+            {
+              "display_name": "",
+              "node": "86e4bce4-ca3b-5c1d-ad96-156943949281",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 126,
-            "id": 166,
-            "start_pin_id": 124
+            "from":
+            {
+              "display_name": "SelectedTotal",
+              "node": "88e7addf-5e02-5124-aff7-7c2d9d298a7d",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "9169750f-1f9c-5e80-abbe-47e4917a2a74",
+            "to":
+            {
+              "display_name": "A",
+              "node": "03454805-8a62-5249-87c5-8f4b4933115b",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "177258cb-a1a3-5c89-abfd-d699e4d2bfb3"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 127,
-            "id": 167,
-            "start_pin_id": 99
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "69457759-5701-5f3a-a38a-f7bafea4f0fa",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "2b87ddba-a598-5e7f-bb67-4dfd4272531e",
+            "to":
+            {
+              "display_name": "B",
+              "node": "03454805-8a62-5249-87c5-8f4b4933115b",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "36fb785e-9c2d-5470-9fca-6c877e39af66"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 130,
-            "id": 168,
-            "start_pin_id": 128
+            "from":
+            {
+              "display_name": "Result",
+              "node": "03454805-8a62-5249-87c5-8f4b4933115b",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "529376ec-5f56-5ec6-be1a-a32a0c8c0924",
+            "to":
+            {
+              "display_name": "Dividend",
+              "node": "80323f97-8268-5994-acc5-f8aa5caf9f75",
+              "port":
+              {
+                "key": "a",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 135,
-            "id": 169,
-            "start_pin_id": 132
+            "from":
+            {
+              "display_name": "Remainder",
+              "node": "80323f97-8268-5994-acc5-f8aa5caf9f75",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "f51ac7a6-12d6-54c7-a6e4-c96d0e093acb",
+            "to":
+            {
+              "display_name": "SelectedTotal",
+              "node": "86e4bce4-ca3b-5c1d-ad96-156943949281",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 150,
-            "id": 170,
-            "start_pin_id": 87
+            "from":
+            {
+              "display_name": "End",
+              "node": "6dc52c8d-bb40-5712-a18b-77ed94798181",
+              "port":
+              {
+                "key": "branch_1",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "5b0c5b0e-cd36-5979-a7de-57a2dec2ddc4",
+            "to":
+            {
+              "display_name": "",
+              "node": "8b8fff25-021a-5890-9c46-99bda40c378c",
+              "port":
+              {
+                "key": "execute",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "flow",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 140,
-            "id": 171,
-            "start_pin_id": 138
+            "from":
+            {
+              "display_name": "SelectedCount",
+              "node": "a1d95484-8074-575c-8049-7332c8bbf7c0",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "16f59409-fe80-52b3-b4cf-66af3fb41a8e",
+            "to":
+            {
+              "display_name": "A",
+              "node": "97fa3bbe-31b5-5a00-82c3-b1d82bab2946",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "d76f36fa-a2b2-5e54-8a5f-12c60a572f3a"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 146,
-            "id": 172,
-            "start_pin_id": 142
+            "from":
+            {
+              "display_name": "Result",
+              "node": "97fa3bbe-31b5-5a00-82c3-b1d82bab2946",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "4f34a51f-f102-58d9-a07a-0078c5ef43e9",
+            "to":
+            {
+              "display_name": "A",
+              "node": "4e794513-ebc2-5cca-b650-b1579c17ddaf",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "7abc6a4d-8db8-5ea7-8e60-e9966359ee61"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 147,
-            "id": 173,
-            "start_pin_id": 144
+            "from":
+            {
+              "display_name": "SelectedTotal",
+              "node": "45f83f9d-3d12-5f5c-befa-ef0dc166280e",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "0c2340d0-04f0-52aa-8798-66705381dfb9",
+            "to":
+            {
+              "display_name": "B",
+              "node": "4e794513-ebc2-5cca-b650-b1579c17ddaf",
+              "port":
+              {
+                "family": "item",
+                "kind": "dynamic",
+                "member": "value",
+                "slot": "663f005d-1d1e-5d16-92c6-1454c6aebc16"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           },
           {
-            "end_pin_id": 151,
-            "id": 174,
-            "start_pin_id": 148
+            "from":
+            {
+              "display_name": "Result",
+              "node": "4e794513-ebc2-5cca-b650-b1579c17ddaf",
+              "port":
+              {
+                "key": "result",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            },
+            "id": "fb0f861c-783a-5257-81aa-713ce77805f3",
+            "to":
+            {
+              "display_name": "BenchmarkChecksum",
+              "node": "8b8fff25-021a-5890-9c46-99bda40c378c",
+              "port":
+              {
+                "key": "value",
+                "kind": "fixed"
+              },
+              "type_hint":
+              {
+                "input_count": -1,
+                "kind": "number",
+                "name": "",
+                "parameters":
+                [
+                ]
+              }
+            }
           }
         ],
         "nodes":
         [
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.core.begin",
+              "revision": 1
+            },
             "description": "Entry point for 'Main'. ",
-            "id": 9,
-            "input_values":
-            [
-            ],
+            "display_name": "Begin",
+            "id": "e48f92c9-85e5-5440-896e-57bc873f0333",
             "inputs":
             [
             ],
@@ -222,32 +1640,37 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "start",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Starts execution of this graph",
-                "id": 10,
-                "name": "",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Arguments",
+                "identity":
                 {
-                  "class_id": -1,
+                  "kind": "script",
+                  "port_id": "e8df5c71-7717-5bc5-930e-f81cf9cdbf4d"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "string",
                       "name": "",
@@ -256,36 +1679,36 @@
                       ]
                     }
                   ]
-                },
-                "description": "",
-                "id": 176,
-                "name": "Arguments",
-                "type": "list"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":0,\"y\":232}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "List::MakeList",
+            "definition":
+            {
+              "id": "vlox.std.native.list.makelist",
+              "revision": 1
+            },
             "description": "Collects its inputs into a typed list",
-            "id": 11,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "List::MakeList",
+            "id": "f40e4289-11fb-54b5-946b-efb56204e48a",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "ac8772ad-2db8-527c-b5cb-e90acb33f525"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "variable",
                   "name": "T",
@@ -293,26 +1716,31 @@
                   [
                   ]
                 },
-                "description": "A value to append to the list",
-                "id": 13,
-                "name": "A",
-                "type": "variable"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "function.call",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "List",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "list",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "variable",
                       "name": "T",
@@ -321,20 +1749,14 @@
                       ]
                     }
                   ]
-                },
-                "description": "A list containing the supplied values",
-                "id": 12,
-                "name": "List",
-                "type": "list"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":144,\"y\":288}}",
             "type_overrides":
             {
               "T":
               {
-                "class_id": -1,
                 "input_count": -1,
                 "kind": "number",
                 "name": "",
@@ -345,27 +1767,25 @@
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'Values'. ",
-            "id": 14,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "items":
-                [
-                ],
-                "type": "list"
-              }
-            ],
+            "display_name": "Set",
+            "id": "01e783c0-bd6b-5855-86dc-a617ce55dc6f",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -373,22 +1793,26 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 15,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Values",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "number",
                       "name": "",
@@ -398,45 +1822,56 @@
                     }
                   ]
                 },
-                "description": "",
-                "id": 16,
-                "name": "Values",
-                "type": "list"
+                "value":
+                {
+                  "items":
+                  [
+                  ],
+                  "type": "list"
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 17,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":344,\"y\":232}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "a41c51d7-f2bf-5f0e-8668-e4ea168f04b2"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'Values'. ",
-            "id": 18,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "d938c760-0252-566b-81c7-371104c9ac57",
             "inputs":
             [
             ],
@@ -444,16 +1879,20 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Values",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "number",
                       "name": "",
@@ -462,41 +1901,40 @@
                       ]
                     }
                   ]
-                },
-                "description": "",
-                "id": 19,
-                "name": "Values",
-                "type": "list"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":512,\"y\":288}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "a41c51d7-f2bf-5f0e-8668-e4ea168f04b2"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "List::Clear",
+            "definition":
+            {
+              "id": "vlox.std.native.list.clear",
+              "revision": 1
+            },
             "description": "Removes every value from a list",
-            "id": 20,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "items":
-                [
-                ],
-                "type": "list"
-              }
-            ],
+            "display_name": "List::Clear",
+            "id": "8edfb99d-82fa-5820-9a65-2f916c1dc9bb",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -504,22 +1942,26 @@
                   [
                   ]
                 },
-                "description": "Executes this function",
-                "id": 21,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "List",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "list",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "variable",
                       "name": "T",
@@ -529,74 +1971,78 @@
                     }
                   ]
                 },
-                "description": "The list to clear",
-                "id": 23,
-                "name": "List",
-                "type": "list"
+                "value":
+                {
+                  "items":
+                  [
+                  ],
+                  "type": "list"
+                }
               }
             ],
             "kind": "function.call",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the function returns",
-                "id": 22,
-                "name": "",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Size",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "size",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The list size after clearing",
-                "id": 24,
-                "name": "Size",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":648,\"y\":232}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Flow::Repeat",
+            "definition":
+            {
+              "id": "vlox.std.compiled.flow.repeat",
+              "revision": 1
+            },
             "description": "Runs a body a fixed number of times",
-            "id": 29,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 1
-              }
-            ],
+            "display_name": "Repeat",
+            "id": "5f6b316e-f4b9-543e-ae47-1b48b2938509",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -604,15 +2050,20 @@
                   [
                   ]
                 },
-                "description": "Starts the repetition",
-                "id": 30,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Count",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "count",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -620,77 +2071,82 @@
                   [
                   ]
                 },
-                "description": "The number of times to run Body",
-                "id": 31,
-                "name": "Count",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Body",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_0",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs once for each repetition",
-                "id": 32,
-                "name": "Body",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Index",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "index",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The zero-based index of the current repetition",
-                "id": 33,
-                "name": "Index",
-                "type": "number"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Completed",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_1",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs after all repetitions finish",
-                "id": 34,
-                "name": "Completed",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1008,\"y\":232}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'BenchmarkSize'. ",
-            "id": 35,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "b304d449-2f0d-57fb-b1e0-595d4d3f6c1b",
             "inputs":
             [
             ],
@@ -698,35 +2154,43 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "BenchmarkSize",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 36,
-                "name": "BenchmarkSize",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 3,
             "state": "{\"location\":{\"x\":824,\"y\":288}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "fd7c4f72-6ad7-5c21-ab12-9930afd575db"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'LcgState'. ",
-            "id": 37,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "52b5ffdf-33fc-5ccf-a01f-ccb3dc61be7d",
             "inputs":
             [
             ],
@@ -734,49 +2198,56 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "LcgState",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 38,
-                "name": "LcgState",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":728,\"y\":-40}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "ca213891-9576-5b95-bcd7-0d988d5bc43e"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Multiply",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.multiply",
+              "revision": 1
+            },
             "description": "Multiplies two or more numbers",
-            "id": 39,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1664525
-              }
-            ],
+            "display_name": "x",
+            "id": "61e493fa-3424-5820-8351-213447d87dfe",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "0f19b913-f6d3-56a9-b552-d642f7ba18e7"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -784,15 +2255,23 @@
                   [
                   ]
                 },
-                "description": "The first factor",
-                "id": 40,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "e03670ae-29eb-530e-91ce-889b78a7dca2"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -800,59 +2279,61 @@
                   [
                   ]
                 },
-                "description": "The second factor",
-                "id": 41,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1664525
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The product",
-                "id": 42,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":880,\"y\":-40}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 43,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1013904223
-              }
-            ],
+            "display_name": "+",
+            "id": "71799bed-4956-5ed0-958a-fc3baba639b3",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "9392abe2-4fb1-52c7-8a40-600eaf4d53bd"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -860,15 +2341,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 44,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "925e84d0-0ec3-597b-b3d0-3a68f490616d"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -876,59 +2365,59 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 45,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1013904223
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 46,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1128,\"y\":-40}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 47,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 4294967296
-              }
-            ],
+            "display_name": "Mod",
+            "id": "3f1d61a4-5369-509a-aec6-2ee35c9d1b11",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -936,15 +2425,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 48,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -952,58 +2447,59 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 49,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 4294967296
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 50,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1400,\"y\":-40}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'LcgState'. ",
-            "id": 51,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 12648430
-              }
-            ],
+            "display_name": "Set",
+            "id": "ffab36eb-d6dc-5a31-b945-5310a8b4a1e2",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -1011,15 +2507,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 52,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "LcgState",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1027,45 +2528,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 53,
-                "name": "LcgState",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 12648430
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 54,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":1792,\"y\":-80}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "ca213891-9576-5b95-bcd7-0d988d5bc43e"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'Values'. ",
-            "id": 55,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "31a5fa49-f2ec-5cca-8f12-48a7f35f09f5",
             "inputs":
             [
             ],
@@ -1073,16 +2583,20 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Values",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "number",
                       "name": "",
@@ -1091,26 +2605,29 @@
                       ]
                     }
                   ]
-                },
-                "description": "",
-                "id": 56,
-                "name": "Values",
-                "type": "list"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":2088,\"y\":-24}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "a41c51d7-f2bf-5f0e-8668-e4ea168f04b2"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'LcgState'. ",
-            "id": 57,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "b82104dc-11a2-5a64-9b16-8a32c2f1b7d9",
             "inputs":
             [
             ],
@@ -1118,54 +2635,54 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "LcgState",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 58,
-                "name": "LcgState",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 6,
             "state": "{\"location\":{\"x\":1936,\"y\":24}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "ca213891-9576-5b95-bcd7-0d988d5bc43e"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "List::Push",
+            "definition":
+            {
+              "id": "vlox.std.native.list.push",
+              "revision": 1
+            },
             "description": "Adds a value to the end of a list",
-            "id": 59,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "items":
-                [
-                ],
-                "type": "list"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "List::Push",
+            "id": "2cf456ad-adaf-564e-a389-95b6ab3b3565",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -1173,22 +2690,26 @@
                   [
                   ]
                 },
-                "description": "Executes this function",
-                "id": 60,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "List",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "list",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "variable",
                       "name": "T",
@@ -1198,15 +2719,23 @@
                     }
                   ]
                 },
-                "description": "The list to modify",
-                "id": 62,
-                "name": "List",
-                "type": "list"
+                "value":
+                {
+                  "items":
+                  [
+                  ],
+                  "type": "list"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Value",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "variable",
                   "name": "T",
@@ -1214,55 +2743,56 @@
                   [
                   ]
                 },
-                "description": "The value to append",
-                "id": 63,
-                "name": "Value",
-                "type": "variable"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "function.call",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the function returns",
-                "id": 61,
-                "name": "",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Size",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "size",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The list size after appending",
-                "id": 64,
-                "name": "Size",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":2456,\"y\":-80}}",
             "type_overrides":
             {
               "T":
               {
-                "class_id": -1,
                 "input_count": -1,
                 "kind": "number",
                 "name": "",
@@ -1273,26 +2803,25 @@
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 65,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1000000
-              }
-            ],
+            "display_name": "Mod",
+            "id": "fbae4ede-f47c-5cba-ab71-a53fb7a3f461",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1300,15 +2829,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 66,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1316,45 +2851,48 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 67,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1000000
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 68,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":2088,\"y\":24}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'Values'. ",
-            "id": 80,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "2def7ce8-6312-5adb-9271-d69fa423c47e",
             "inputs":
             [
             ],
@@ -1362,16 +2900,20 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Values",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "list",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "number",
                       "name": "",
@@ -1380,41 +2922,40 @@
                       ]
                     }
                   ]
-                },
-                "description": "",
-                "id": 81,
-                "name": "Values",
-                "type": "list"
+                }
               }
             ],
-            "reference_id": 5,
             "state": "{\"location\":{\"x\":1240,\"y\":352}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "a41c51d7-f2bf-5f0e-8668-e4ea168f04b2"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Flow::For In",
+            "definition":
+            {
+              "id": "vlox.std.compiled.flow.for_in",
+              "revision": 1
+            },
             "description": "Runs a body once for every value in a list, range, or string",
-            "id": 82,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "items":
-                [
-                ],
-                "type": "list"
-              }
-            ],
+            "display_name": "For In",
+            "id": "6dc52c8d-bb40-5712-a18b-77ed94798181",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -1422,22 +2963,26 @@
                   [
                   ]
                 },
-                "description": "Starts the loop",
-                "id": 83,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Iterable",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "iterable",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "iterable",
                   "name": "",
                   "parameters":
                   [
                     {
-                      "class_id": -1,
                       "input_count": -1,
                       "kind": "variable",
                       "name": "T",
@@ -1447,91 +2992,97 @@
                     }
                   ]
                 },
-                "description": "The list, range, or string to iterate",
-                "id": 84,
-                "name": "Iterable",
-                "type": "iterable"
+                "value":
+                {
+                  "items":
+                  [
+                  ],
+                  "type": "list"
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Loop",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_0",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Executes once for each value",
-                "id": 85,
-                "name": "Loop",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Value",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "variable",
                   "name": "T",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The value at the current iteration",
-                "id": 86,
-                "name": "Value",
-                "type": "variable"
+                }
               },
               {
-                "declared_type":
+                "display_name": "End",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_1",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Executes after iteration finishes",
-                "id": 87,
-                "name": "End",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1376,\"y\":296}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Multiply",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.multiply",
+              "revision": 1
+            },
             "description": "Multiplies two or more numbers",
-            "id": 88,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 3
-              }
-            ],
+            "display_name": "x",
+            "id": "efa4decb-d3a1-5203-b414-2e81ab369f58",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "4edbbccc-bc81-5dd3-9685-2a7754c583d2"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1539,15 +3090,23 @@
                   [
                   ]
                 },
-                "description": "The first factor",
-                "id": 89,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "026667a5-438a-5b44-8813-c37b2d32fa52"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1555,59 +3114,61 @@
                   [
                   ]
                 },
-                "description": "The second factor",
-                "id": 90,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 3
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The product",
-                "id": 91,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1648,\"y\":376}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 92,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1
-              }
-            ],
+            "display_name": "+",
+            "id": "eb665a47-283d-5f70-8d90-2d2ba18167ee",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "b4587695-99c7-5654-b50f-072bdcecdfde"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1615,15 +3176,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 93,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "819ffe24-d46c-595e-a7df-581531be5f38"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1631,59 +3200,59 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 94,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 95,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1864,\"y\":376}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 96,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1000000007
-              }
-            ],
+            "display_name": "Mod",
+            "id": "69457759-5701-5f3a-a38a-f7bafea4f0fa",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1691,15 +3260,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 97,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1707,59 +3282,59 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 98,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 99,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":2080,\"y\":376}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 100,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 2
-              }
-            ],
+            "display_name": "Mod",
+            "id": "edbeba23-cc22-578f-8134-693d360cce62",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1767,15 +3342,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 101,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -1783,58 +3364,59 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 102,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 2
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 103,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":2472,\"y\":440}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Equals",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.equals",
+              "revision": 1
+            },
             "description": "Checks whether two values are equal",
-            "id": 104,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "=",
+            "id": "36abb875-406c-5738-b114-366e233a6574",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "variable",
                   "name": "T",
@@ -1842,15 +3424,20 @@
                   [
                   ]
                 },
-                "description": "The first value",
-                "id": 105,
-                "name": "",
-                "type": "variable"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "variable",
                   "name": "T",
@@ -1858,58 +3445,59 @@
                   [
                   ]
                 },
-                "description": "The value compared with A",
-                "id": 106,
-                "name": "",
-                "type": "variable"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "bool",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "True when A and B are equal",
-                "id": 107,
-                "name": "",
-                "type": "bool"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":2816,\"y\":448}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Flow::Branch",
+            "definition":
+            {
+              "id": "vlox.std.compiled.flow.branch",
+              "revision": 1
+            },
             "description": "Chooses one of two execution paths from a condition",
-            "id": 108,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "bool",
-                "value": false
-              }
-            ],
+            "display_name": "Branch",
+            "id": "e8f12adc-7eaf-5f74-bcfe-65f3a6267634",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -1917,15 +3505,20 @@
                   [
                   ]
                 },
-                "description": "Starts the branch",
-                "id": 109,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "Condition",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "condition",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "bool",
                   "name": "",
@@ -1933,61 +3526,65 @@
                   [
                   ]
                 },
-                "description": "Chooses the True path when true and the False path when false",
-                "id": 110,
-                "name": "Condition",
-                "type": "bool"
+                "value":
+                {
+                  "type": "bool",
+                  "value": false
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "True",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_0",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs when Condition is true",
-                "id": 111,
-                "name": "True",
-                "type": "flow"
+                }
               },
               {
-                "declared_type":
+                "display_name": "False",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "branch_1",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Runs when Condition is false",
-                "id": 112,
-                "name": "False",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":3040,\"y\":304}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'SelectedCount'. ",
-            "id": 113,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "2a2b2a87-ecad-5532-abf1-e5d3ea27e1c1",
             "inputs":
             [
             ],
@@ -1995,49 +3592,56 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "SelectedCount",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 114,
-                "name": "SelectedCount",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 7,
             "state": "{\"location\":{\"x\":3248,\"y\":368}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "1599f45e-ca6c-5f99-acad-c45034276640"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 115,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1
-              }
-            ],
+            "display_name": "+",
+            "id": "4176308e-e7d8-5521-bca3-d533d91a3970",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "1937d0ae-eee4-5e38-8310-f6096ce2a531"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2045,15 +3649,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 116,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "0437b181-04a0-5b87-ad8d-efdb8053cc0f"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2061,58 +3673,59 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 117,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 118,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":3424,\"y\":360}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'SelectedCount'. ",
-            "id": 119,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "32ea1ea7-cfc1-5ad3-ac4f-79c135d5b8f4",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -2120,15 +3733,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 120,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "SelectedCount",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2136,45 +3754,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 121,
-                "name": "SelectedCount",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 122,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 7,
             "state": "{\"location\":{\"x\":3648,\"y\":304}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "1599f45e-ca6c-5f99-acad-c45034276640"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'SelectedTotal'. ",
-            "id": 123,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "88e7addf-5e02-5124-aff7-7c2d9d298a7d",
             "inputs":
             [
             ],
@@ -2182,49 +3809,56 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "SelectedTotal",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 124,
-                "name": "SelectedTotal",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 8,
             "state": "{\"location\":{\"x\":3752,\"y\":424}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "10ef4847-5603-55eb-a002-092f086d89fa"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 125,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "+",
+            "id": "03454805-8a62-5249-87c5-8f4b4933115b",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "177258cb-a1a3-5c89-abfd-d699e4d2bfb3"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2232,15 +3866,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 126,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "36fb785e-9c2d-5470-9fca-6c877e39af66"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2248,59 +3890,59 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 127,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 128,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":3928,\"y\":424}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Modulo",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.modulo",
+              "revision": 1
+            },
             "description": "Returns the remainder after dividing two numbers",
-            "id": 129,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1000000007
-              }
-            ],
+            "display_name": "Mod",
+            "id": "80323f97-8268-5994-acc5-f8aa5caf9f75",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "Dividend",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "a",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2308,15 +3950,21 @@
                   [
                   ]
                 },
-                "description": "The dividend",
-                "id": 130,
-                "name": "Dividend",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "Modulus",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "b",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2324,58 +3972,59 @@
                   [
                   ]
                 },
-                "description": "The divisor",
-                "id": 131,
-                "name": "Modulus",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Remainder",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The remainder",
-                "id": 132,
-                "name": "Remainder",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":4104,\"y\":424}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'SelectedTotal'. ",
-            "id": 133,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "86e4bce4-ca3b-5c1d-ad96-156943949281",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -2383,15 +4032,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 134,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "SelectedTotal",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2399,45 +4053,54 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 135,
-                "name": "SelectedTotal",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 136,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 8,
             "state": "{\"location\":{\"x\":4520,\"y\":304}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "10ef4847-5603-55eb-a002-092f086d89fa"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'SelectedCount'. ",
-            "id": 137,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "a1d95484-8074-575c-8049-7332c8bbf7c0",
             "inputs":
             [
             ],
@@ -2445,49 +4108,56 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "SelectedCount",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 138,
-                "name": "SelectedCount",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 7,
             "state": "{\"location\":{\"x\":1080,\"y\":632}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "1599f45e-ca6c-5f99-acad-c45034276640"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Multiply",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.multiply",
+              "revision": 1
+            },
             "description": "Multiplies two or more numbers",
-            "id": 139,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 1000000007
-              }
-            ],
+            "display_name": "x",
+            "id": "97fa3bbe-31b5-5a00-82c3-b1d82bab2946",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "d76f36fa-a2b2-5e54-8a5f-12c60a572f3a"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2495,15 +4165,23 @@
                   [
                   ]
                 },
-                "description": "The first factor",
-                "id": 140,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "9c80ff4f-d008-58f1-81d1-f2b5cf97dad0"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2511,45 +4189,48 @@
                   [
                   ]
                 },
-                "description": "The second factor",
-                "id": 141,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 1000000007
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The product",
-                "id": 142,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1264,\"y\":632}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.get",
+              "revision": 1
+            },
             "description": "Gets variable 'SelectedTotal'. ",
-            "id": 143,
-            "input_values":
-            [
-            ],
+            "display_name": "",
+            "id": "45f83f9d-3d12-5f5c-befa-ef0dc166280e",
             "inputs":
             [
             ],
@@ -2557,49 +4238,56 @@
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "SelectedTotal",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "",
-                "id": 144,
-                "name": "SelectedTotal",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": 8,
             "state": "{\"location\":{\"x\":1264,\"y\":712}}",
+            "target":
+            {
+              "display_name": "",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "10ef4847-5603-55eb-a002-092f086d89fa"
+            },
             "type_overrides":
             {
             }
           },
           {
-            "definition": "Math::Add",
+            "definition":
+            {
+              "id": "vlox.std.compiled.math.add",
+              "revision": 1
+            },
             "description": "Adds two or more numbers",
-            "id": 145,
-            "input_values":
-            [
-              {
-                "type": "number",
-                "value": 0
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "+",
+            "id": "4e794513-ebc2-5cca-b650-b1579c17ddaf",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "A",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "7abc6a4d-8db8-5ea7-8e60-e9966359ee61"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2607,15 +4295,23 @@
                   [
                   ]
                 },
-                "description": "The first addend",
-                "id": 146,
-                "name": "A",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               },
               {
-                "declared_type":
+                "display_name": "B",
+                "identity":
                 {
-                  "class_id": -1,
+                  "family": "item",
+                  "kind": "dynamic",
+                  "member": "value",
+                  "slot": "663f005d-1d1e-5d16-92c6-1454c6aebc16"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2623,58 +4319,59 @@
                   [
                   ]
                 },
-                "description": "The second addend",
-                "id": 147,
-                "name": "B",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "compiled",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "Result",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "result",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "The sum",
-                "id": 148,
-                "name": "Result",
-                "type": "number"
+                }
               }
             ],
-            "reference_id": -1,
             "state": "{\"location\":{\"x\":1528,\"y\":632}}",
             "type_overrides":
             {
             }
           },
           {
-            "definition": "",
+            "definition":
+            {
+              "id": "vlox.script.variable.set",
+              "revision": 1
+            },
             "description": "Sets variable 'BenchmarkChecksum'. ",
-            "id": 149,
-            "input_values":
-            [
-              {
-                "type": "nil"
-              },
-              {
-                "type": "number",
-                "value": 0
-              }
-            ],
+            "display_name": "Set",
+            "id": "8b8fff25-021a-5890-9c46-99bda40c378c",
             "inputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "execute",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
@@ -2682,15 +4379,20 @@
                   [
                   ]
                 },
-                "description": "Executes the assignment",
-                "id": 150,
-                "name": "",
-                "type": "flow"
+                "value":
+                {
+                  "type": "nil"
+                }
               },
               {
-                "declared_type":
+                "display_name": "BenchmarkChecksum",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "value",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "number",
                   "name": "",
@@ -2698,54 +4400,59 @@
                   [
                   ]
                 },
-                "description": "",
-                "id": 151,
-                "name": "BenchmarkChecksum",
-                "type": "number"
+                "value":
+                {
+                  "type": "number",
+                  "value": 0
+                }
               }
             ],
             "kind": "variable.set",
             "outputs":
             [
               {
-                "declared_type":
+                "display_name": "",
+                "identity":
                 {
-                  "class_id": -1,
+                  "key": "then",
+                  "kind": "fixed"
+                },
+                "type_hint":
+                {
                   "input_count": -1,
                   "kind": "flow",
                   "name": "",
                   "parameters":
                   [
                   ]
-                },
-                "description": "Continues after the assignment",
-                "id": 152,
-                "name": "",
-                "type": "flow"
+                }
               }
             ],
-            "reference_id": 4,
             "state": "{\"location\":{\"x\":1712,\"y\":576}}",
+            "target":
+            {
+              "display_name": "Set",
+              "module": "da84ef28-ea8a-4cfa-99ea-774d5544fc1a",
+              "symbol": "fc0501ef-7ce3-5958-98b5-d8d78bef85ff"
+            },
             "type_overrides":
             {
             }
           }
         ]
       },
-      "id": 2,
+      "id": "e3bb44a4-3c76-58e3-9215-5c43056a36fe",
       "inputs":
       [
         {
           "declared_type":
           {
-            "class_id": -1,
             "input_count": -1,
             "kind": "list",
             "name": "",
             "parameters":
             [
               {
-                "class_id": -1,
                 "input_count": -1,
                 "kind": "string",
                 "name": "",
@@ -2763,7 +4470,7 @@
             "type": "list"
           },
           "description": "",
-          "id": 175,
+          "id": "1f78d475-f09c-41ee-9303-354ce81a05ef",
           "name": "Arguments"
         }
       ],
@@ -2781,7 +4488,6 @@
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -2795,13 +4501,12 @@
           "value": 500000
         },
         "description": "",
-        "id": 3,
+        "id": "fd7c4f72-6ad7-5c21-ab12-9930afd575db",
         "name": "BenchmarkSize"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -2815,20 +4520,18 @@
           "value": 0
         },
         "description": "",
-        "id": 4,
+        "id": "fc0501ef-7ce3-5958-98b5-d8d78bef85ff",
         "name": "BenchmarkChecksum"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "list",
           "name": "",
           "parameters":
           [
             {
-              "class_id": -1,
               "input_count": -1,
               "kind": "number",
               "name": "",
@@ -2846,13 +4549,12 @@
           "type": "list"
         },
         "description": "",
-        "id": 5,
+        "id": "a41c51d7-f2bf-5f0e-8668-e4ea168f04b2",
         "name": "Values"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -2866,13 +4568,12 @@
           "value": 12648430
         },
         "description": "",
-        "id": 6,
+        "id": "ca213891-9576-5b95-bcd7-0d988d5bc43e",
         "name": "LcgState"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -2886,13 +4587,12 @@
           "value": 0
         },
         "description": "",
-        "id": 7,
+        "id": "1599f45e-ca6c-5f99-acad-c45034276640",
         "name": "SelectedCount"
       },
       {
         "declared_type":
         {
-          "class_id": -1,
           "input_count": -1,
           "kind": "number",
           "name": "",
@@ -2906,7 +4606,7 @@
           "value": 0
         },
         "description": "",
-        "id": 8,
+        "id": "10ef4847-5603-55eb-a002-092f086d89fa",
         "name": "SelectedTotal"
       }
     ]

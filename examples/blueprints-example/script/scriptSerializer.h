@@ -51,12 +51,14 @@ struct SerializationResult
 // Version 5 stores generic type properties and explicit bindings on node instances.
 // Version 6 adds persisted comment boxes.
 // Version 7 adds Map<K, V> declarations and ordered map values.
+// Version 8 uses UUID durable identities, symbolic references, semantic ports and links,
+// and input-owned values without persisting transient runtime integer IDs.
 // Loading remains backward-compatible with version 1 and is transactional: outputScript and
 // idGenerator are only replaced after the complete document has been checked.
 class ScriptSerializer
 {
 public:
-    static constexpr int FormatVersion = 7;
+    static constexpr int FormatVersion = 8;
 
     static SerializationResult Save(const Script& script, const std::string& path);
     static SerializationResult Load(const std::string& path, const NodeRegistry& registry,
@@ -66,6 +68,10 @@ public:
                                                       const NodeRegistry& registry,
                                                       Script& outputScript,
                                                       IDGenerator& idGenerator);
+    // Registry-independent structural preview. Legacy nodes cannot be emitted as clean v8
+    // until their definitions and ports have been resolved through a registry.
+    static SerializationResult MigrateToCurrentFormat(const std::string& data, std::string& output);
+    static SerializationResult MigrateToCurrentFormat(const std::string& data, const NodeRegistry& registry, std::string& output);
 
     // Fragment import helpers used by copy/paste. All persisted IDs owned by
     // the fragment are regenerated; references within that fragment are patched.

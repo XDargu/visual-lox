@@ -14,6 +14,8 @@
 #include <string_view>
 #include <filesystem>
 #include <iostream>
+#include <iomanip>
+#include <sstream>
 #include <thread>
 #include <chrono>
 #include <cctype>
@@ -1629,6 +1631,8 @@ void ApplyStablePortKeys(BasicFunctionDef& definition)
     }
 }
 
+std::string ComputeDefinitionCompatibilityFingerprintImpl(const BasicFunctionDef& definition);
+
 void ApplyStableDefinitionSchema(BasicFunctionDef& definition, std::string_view kind)
 {
     if (definition.id.empty())
@@ -1636,6 +1640,33 @@ void ApplyStableDefinitionSchema(BasicFunctionDef& definition, std::string_view 
     if (definition.id.empty() || definition.revision == 0)
         throw std::invalid_argument(definition.name + " has an invalid stable definition schema");
     ApplyStablePortKeys(definition);
+    definition.compatibilityFingerprint = ComputeDefinitionCompatibilityFingerprintImpl(definition);
+}
+
+std::string ComputeDefinitionCompatibilityFingerprintImpl(const BasicFunctionDef& definition)
+{
+    std::vector<std::string> components{ "id=" + definition.id, "flags=" + std::to_string(static_cast<int>(definition.flags)) };
+    for (const BasicFunctionDef::Input& input : definition.inputs) components.push_back("input:" + input.key + ":" + input.type.ToString());
+    for (const BasicFunctionDef::Input& output : definition.outputs) components.push_back("output:" + output.key + ":" + output.type.ToString());
+    for (const GenericTypeProperty& generic : definition.genericTypeProperties) components.push_back("generic:" + generic.key);
+    if (HasFlag(definition.flags, NodeDefinitionFlags::DynamicInputs))
+    {
+        const DynamicInputProps& dynamic = definition.dynamicInputProps;
+        components.push_back("dynamic:" + dynamic.familyKey + ":" + dynamic.memberKey + ":" + dynamic.orderingMemberKey + ":" + dynamic.type.ToString() + ":" +
+            std::to_string(dynamic.minInputs) + ":" + std::to_string(dynamic.maxInputs));
+    }
+    std::sort(components.begin() + 2, components.end());
+
+    uint64_t hash = 1469598103934665603ull;
+    for (const std::string& component : components)
+        for (const unsigned char byte : component)
+        {
+            hash ^= byte;
+            hash *= 1099511628211ull;
+        }
+    std::ostringstream text;
+    text << std::hex << std::setfill('0') << std::setw(16) << hash;
+    return text.str();
 }
 
 std::string DisplayDefinitionName(const std::string& name)
@@ -1722,6 +1753,11 @@ void ValidateDynamicInputProperties(const BasicFunctionDef& definition)
     if (definition.dynamicInputProps.maxInputs < definition.dynamicInputProps.minInputs)
         throw std::invalid_argument(definition.name + " declares a maximum input count below its minimum");
 }
+}
+
+std::string ComputeDefinitionCompatibilityFingerprint(const BasicFunctionDef& definition)
+{
+    return ComputeDefinitionCompatibilityFingerprintImpl(definition);
 }
 
 void NodeRegistry::RegisterNativeFunc(const char* name,
@@ -1953,4 +1989,18 @@ void NodeRegistry::RegisterCompiledAlias(std::string alias, std::string definiti
 {
     if (alias.empty() || definitionId.empty() || !FindCompiled(definitionId)) throw std::invalid_argument("Invalid compiled definition alias.");
     if (!compiledAliases.emplace(std::move(alias), std::move(definitionId)).second) throw std::invalid_argument("Duplicate compiled definition alias.");
+}
+
+void NodeRegistry::RegisterPortAlias(const std::string& definitionId, PinKind direction, std::string alias, std::string portKey)
+{
+    BasicFunctionDefPtr definition;
+    if (const NativeFunctionDef* native = FindNative(definitionId)) definition = native->functionDef;
+    else if (const CompiledNodeDefPtr compiled = FindCompiled(definitionId)) definition = compiled->functionDef;
+    if (!definition || alias.empty() || portKey.empty()) throw std::invalid_argument("Invalid port alias.");
+
+    const std::vector<BasicFunctionDef::Input>& ports = direction == PinKind::Input ? definition->inputs : definition->outputs;
+    if (std::none_of(ports.begin(), ports.end(), [&](const BasicFunctionDef::Input& port) { return port.key == portKey; }))
+        throw std::invalid_argument("Port alias target does not exist.");
+    std::map<std::string, std::string>& aliases = direction == PinKind::Input ? definition->inputAliases : definition->outputAliases;
+    if (!aliases.emplace(std::move(alias), std::move(portKey)).second) throw std::invalid_argument("Duplicate port alias.");
 }

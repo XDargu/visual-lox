@@ -164,7 +164,7 @@ struct FunctionNode : public Node
         for (size_t index = 0; index < UnresolvedInputs.size(); ++index)
             savedInputs.emplace_back(UnresolvedInputs[index], UnresolvedInputValues[index]);
 
-        std::vector<Pin> refreshedInputs;
+        std::vector<InputPin> refreshedInputs;
         std::vector<Value> refreshedValues;
         if (!expressionOnly)
         {
@@ -251,13 +251,18 @@ struct FunctionNode : public Node
 
     void RefreshDefinition(const Script& script)
     {
-        const bool isNative = !refId.IsValid();
+        const bool isNative = !refId.IsValid() && !refPersistentId.IsValid();
 
         if (!isNative)
         {
-            if (ScriptFunctionPtr pFun = ScriptUtils::FindFunctionById(script, refId))
+            ScriptFunctionPtr function = refPersistentId.IsValid()
+                ? ScriptUtils::FindFunctionByPersistentId(script, refPersistentId)
+                : ScriptUtils::FindFunctionById(script, refId);
+            if (function)
             {
-                pFunctionDef = pFun->functionDef;
+                refId = function->ID;
+                refPersistentId = function->PersistentId;
+                pFunctionDef = function->functionDef;
             }
             else
             {
@@ -325,6 +330,7 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
         ? "vlox.script.function.call"
         : pFunctionDef ? pFunctionDef->id : std::string();
     node->DefinitionRevision = pFunctionDef ? pFunctionDef->revision : 1;
+    if (funcID.IsValid() && pFunctionDef) node->refPersistentId = pFunctionDef->scriptId;
 
     // The serialized pins are restored after construction for a dangling reference.
     if (!pFunctionDef)

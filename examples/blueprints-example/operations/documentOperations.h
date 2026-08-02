@@ -140,6 +140,8 @@ private:
         std::string document;
         int ownerId = 0;
         std::vector<int> elementIds;
+        std::string ownerPersistentId;
+        std::vector<std::string> persistentIds;
     };
     struct Transaction
     {

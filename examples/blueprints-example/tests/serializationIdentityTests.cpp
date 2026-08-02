@@ -1,6 +1,7 @@
 #include "serializationIdentityTests.h"
 
 #include "../graphs/uuid.h"
+#include "../graphs/idgeneration.h"
 #include "../graphs/nodeRegistry.h"
 #include "../runtime/standardLibrary.h"
 #include "../script/scriptSerializer.h"
@@ -59,24 +60,35 @@ void RegisteredDefinitionsHaveStableSchemas()
         for (const BasicFunctionDef::Input& port : ports)
             Require(!port.key.empty() && keys.insert(port.key).second, "A registered definition has an empty or duplicate stable port key.");
     };
+    const auto validateNodePorts = [](const NodePtr& node)
+    {
+        Require(node != nullptr, "A registered definition did not create a node.");
+        for (const Pin& input : node->Inputs)
+            Require(input.Identity.kind != PortIdentityKind::None, "A registered definition created an input without a semantic identity.");
+        for (const Pin& output : node->Outputs)
+            Require(output.Identity.kind != PortIdentityKind::None, "A registered definition created an output without a semantic identity.");
+    };
+    IDGenerator ids;
 
     for (const NativeFunctionDef& native : registry.nativeDefinitions)
     {
-        Require(native.functionDef && native.functionDef->id.rfind("vlox.std.native.", 0) == 0 && native.functionDef->revision > 0,
+        Require(native.functionDef && native.functionDef->id.rfind("vlox.std.native.", 0) == 0 && native.functionDef->revision > 0 && !native.functionDef->compatibilityFingerprint.empty(),
             "A native definition has no stable schema.");
         Require(definitionIds.insert(native.functionDef->id).second, "Native definition IDs are not unique.");
         validatePorts(*native.functionDef, native.functionDef->inputs);
         validatePorts(*native.functionDef, native.functionDef->outputs);
+        validateNodePorts(native.functionDef->MakeNode(ids, ScriptElementID::Invalid));
     }
 
     definitionIds.clear();
     for (const CompiledNodeDefPtr& compiled : registry.compiledDefinitions)
     {
-        Require(compiled && compiled->functionDef && compiled->id.rfind("vlox.std.compiled.", 0) == 0 && compiled->revision > 0,
+        Require(compiled && compiled->functionDef && compiled->id.rfind("vlox.std.compiled.", 0) == 0 && compiled->revision > 0 && !compiled->functionDef->compatibilityFingerprint.empty(),
             "A compiled definition has no stable schema.");
         Require(definitionIds.insert(compiled->id).second, "Compiled definition IDs are not unique.");
         validatePorts(*compiled->functionDef, compiled->functionDef->inputs);
         validatePorts(*compiled->functionDef, compiled->functionDef->outputs);
+        validateNodePorts(compiled->MakeNode(ids));
     }
 }
 
@@ -88,6 +100,40 @@ void DefinitionAliasesResolveToStableIds()
     registry.RegisterCompiledAlias("legacy.math.add", "vlox.std.compiled.math.add");
     Require(registry.FindNative("legacy.math.square") == registry.FindNative("vlox.std.native.math.square"), "Native definition alias did not resolve.");
     Require(registry.FindCompiled("legacy.math.add") == registry.FindCompiled("vlox.std.compiled.math.add"), "Compiled definition alias did not resolve.");
+}
+
+void LiteralValuesAreOwnedByInputs()
+{
+    NodeRegistry registry;
+    RegisterStandardLibrary(registry);
+    IDGenerator ids;
+    NodePtr node = registry.FindCompiled("vlox.std.compiled.math.add")->MakeNode(ids);
+    Require(node && node->Inputs.size() == node->InputValues.size() && &node->Inputs[0].LiteralValue == &node->InputValues[0],
+        "The compatibility value view does not address the input-owned literal value.");
+    node->AddInput(ids);
+    Require(node->Inputs.size() == node->InputValues.size() && &node->Inputs.back().LiteralValue == &node->InputValues[node->Inputs.size() - 1],
+        "Adding a dynamic input created separate or misaligned literal-value storage.");
+    node->RemoveInput(node->Inputs.back().ID);
+    Require(node->Inputs.size() == node->InputValues.size(), "Removing an input misaligned literal-value storage.");
+}
+
+void DefinitionFingerprintsIgnorePresentation()
+{
+    NodeRegistry registry;
+    RegisterStandardLibrary(registry);
+    BasicFunctionDef original = *registry.FindNative("vlox.std.native.math.square")->functionDef;
+    BasicFunctionDef presentationChange = original;
+    presentationChange.name = "Renamed Square";
+    presentationChange.description = "Changed documentation";
+    presentationChange.inputs[0].name = "Renamed Value";
+    presentationChange.inputs[0].description = "Changed input documentation";
+    Require(ComputeDefinitionCompatibilityFingerprint(original) == ComputeDefinitionCompatibilityFingerprint(presentationChange),
+        "Presentation-only changes altered the compatibility fingerprint.");
+
+    BasicFunctionDef schemaChange = original;
+    schemaChange.inputs[0].key = "different_key";
+    Require(ComputeDefinitionCompatibilityFingerprint(original) != ComputeDefinitionCompatibilityFingerprint(schemaChange),
+        "A stable port-key change did not alter the compatibility fingerprint.");
 }
 }
 
@@ -101,5 +147,7 @@ void AddSerializationIdentityTests(Tests::Runner& runner)
         runner.Test("failures include structured diagnostics", SerializationFailuresHaveStructuredDiagnostics);
         runner.Test("registered definitions have stable schemas", RegisteredDefinitionsHaveStableSchemas);
         runner.Test("definition aliases resolve to stable IDs", DefinitionAliasesResolveToStableIds);
+        runner.Test("literal values are owned by inputs", LiteralValuesAreOwnedByInputs);
+        runner.Test("definition fingerprints ignore presentation", DefinitionFingerprintsIgnorePresentation);
     });
 }

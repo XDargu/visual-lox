@@ -1287,8 +1287,8 @@ void ClassesRangesAndMatchingRoundTripAndExecute()
     RuntimeFixture fixture;
     Script source = BuildClassRangeMatchScript(fixture.ids, fixture.registry);
     std::string document;
-    Require(static_cast<bool>(ScriptSerializer::SerializeToString(source, document)),
-            "Classes and object nodes should serialize.");
+    const SerializationResult serialized = ScriptSerializer::SerializeToString(source, document);
+    Require(static_cast<bool>(serialized), serialized.error.c_str());
     Script restored;
     IDGenerator restoredIds;
     Require(static_cast<bool>(ScriptSerializer::DeserializeFromString(
@@ -1368,9 +1368,8 @@ void RuntimeListMutationDoesNotChangeDocumentDefaults()
         construct->Outputs[1].ID, push->Inputs[2].ID));
 
     std::string before;
-    Require(static_cast<bool>(
-                ScriptSerializer::SerializeToString(script, before)),
-            "The source document should serialize before execution.");
+    const SerializationResult serializedBefore = ScriptSerializer::SerializeToString(script, before);
+    Require(static_cast<bool>(serializedBefore), serializedBefore.error.c_str());
 
     const ScriptCompileResult compiled =
         ScriptRuntime::Compile(fixture.vm, script);

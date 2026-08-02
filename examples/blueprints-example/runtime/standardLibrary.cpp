@@ -1,4 +1,5 @@
 #include "standardLibrary.h"
+#include "extendedStandardLibrary.h"
 
 #include "../graphs/nodeRegistry.h"
 #include "../native/nodes/append.h"
@@ -348,4 +349,6 @@ void MarkNodeRegistryRoots(NodeRegistry& registry, VM& vm)
         if (HasFlag(definition->functionDef->flags, NodeDefinitionFlags::DynamicInputs))
             vm.markValue(definition->functionDef->dynamicInputProps.defaultValue);
     }
+
+    MarkStandardLibraryTimerRoots(vm);
 }

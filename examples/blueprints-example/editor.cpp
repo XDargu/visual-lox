@@ -2762,21 +2762,39 @@ void Example::StartScriptExecution(ObjFunction* function)
             Utils::CaptureSynchronizedStdout captureExecution(m_consoleMutex, m_runOutput);
             try
             {
-                result = ScriptRuntime::Execute(VM::getInstance(), function);
+                VM& vm = VM::getInstance();
+                result = ScriptRuntime::Execute(vm, function);
+                if (result == InterpretResult::INTERPRET_OK && (!m_visualApplicationContext || !m_visualApplicationContext->HasUpdateFunction()))
+                {
+                    bool stopRequested = false;
+                    if (!RunStandardLibraryTimers(vm, [this, &stopRequested]()
+                    {
+                        std::lock_guard<std::mutex> lock(m_consoleMutex);
+                        stopRequested = m_scriptExecutionCancelled;
+                        return stopRequested;
+                    }))
+                        result = InterpretResult::INTERPRET_RUNTIME_ERROR;
+                    cancelled = stopRequested;
+                }
+                if (result != InterpretResult::INTERPRET_OK)
+                    ClearStandardLibraryTimers(vm);
             }
             catch (const ConsoleInputCancelled&)
             {
                 VM::getInstance().resetStack();
+                ClearStandardLibraryTimers(VM::getInstance());
                 cancelled = true;
             }
             catch (const std::exception& exception)
             {
                 VM::getInstance().resetStack();
+                ClearStandardLibraryTimers(VM::getInstance());
                 std::cerr << "Program stopped: " << exception.what() << '\n';
             }
             catch (...)
             {
                 VM::getInstance().resetStack();
+                ClearStandardLibraryTimers(VM::getInstance());
                 std::cerr << "Program stopped by an unexpected runtime error.\n";
             }
         }
@@ -2903,6 +2921,7 @@ bool Example::IsScriptWaitingForInput() const
 
 void Example::StopVisualApplication()
 {
+    ClearStandardLibraryTimers(VM::getInstance());
     m_visualApplicationPreviewOpen = false;
     m_visualApplicationContext.reset();
 }
@@ -2927,7 +2946,13 @@ void Example::DrawVisualApplicationPreview(float deltaTime)
     {
         Utils::CaptureStdout captureExecution;
         m_visualApplicationContext->BeginFrame();
-        result = ScriptRuntime::Call(VM::getInstance(), m_visualApplicationContext->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+        VM& vm = VM::getInstance();
+        if (!PumpStandardLibraryTimers(vm))
+            result = InterpretResult::INTERPRET_RUNTIME_ERROR;
+        if (result == InterpretResult::INTERPRET_OK)
+            result = ScriptRuntime::Call(vm, m_visualApplicationContext->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+        if (result == InterpretResult::INTERPRET_OK && !PumpStandardLibraryTimers(vm))
+            result = InterpretResult::INTERPRET_RUNTIME_ERROR;
         m_visualApplicationContext->EndFrame();
         frameOutput = captureExecution.Restore();
     }

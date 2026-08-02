@@ -80,6 +80,7 @@ public:
 
     void OnStop() override
     {
+        ClearStandardLibraryTimers(vm);
         context.reset();
         vm.setExternalMarkingFunc([]() {});
     }
@@ -93,7 +94,11 @@ public:
         }
 
         context->BeginFrame();
-        const InterpretResult result = ScriptRuntime::Call(vm, context->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+        InterpretResult result = PumpStandardLibraryTimers(vm) ? InterpretResult::INTERPRET_OK : InterpretResult::INTERPRET_RUNTIME_ERROR;
+        if (result == InterpretResult::INTERPRET_OK)
+            result = ScriptRuntime::Call(vm, context->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+        if (result == InterpretResult::INTERPRET_OK && !PumpStandardLibraryTimers(vm))
+            result = InterpretResult::INTERPRET_RUNTIME_ERROR;
         context->EndFrame();
         if (result != InterpretResult::INTERPRET_OK)
             Fail("The UI update function stopped with a runtime error.");

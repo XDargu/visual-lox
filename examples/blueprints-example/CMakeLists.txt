@@ -75,6 +75,8 @@ set(_VisualLoxCoreSources
     runtime/standardLibrary.cpp
     runtime/standardLibraryFunctions.h
     runtime/standardLibraryFunctions.cpp
+    runtime/extendedStandardLibrary.h
+    runtime/extendedStandardLibrary.cpp
     runtime/constantFolder.h
     runtime/constantFolder.cpp
     runtime/scriptRuntime.h

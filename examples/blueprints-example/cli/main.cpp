@@ -211,7 +211,9 @@ int main(int argc, char** argv)
         return 3;
     }
 
-    const InterpretResult result = ScriptRuntime::Execute(vm, compileResult.function);
+    InterpretResult result = ScriptRuntime::Execute(vm, compileResult.function);
+    if (result == InterpretResult::INTERPRET_OK && !RunStandardLibraryTimers(vm))
+        result = InterpretResult::INTERPRET_RUNTIME_ERROR;
     if (result == InterpretResult::INTERPRET_RUNTIME_ERROR)
         return 4;
     if (result != InterpretResult::INTERPRET_OK)

@@ -19,10 +19,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace
@@ -67,6 +69,7 @@ struct RuntimeFixture
 
     ~RuntimeFixture()
     {
+        ClearStandardLibraryTimers(vm);
         vm.setExternalMarkingFunc([]() {});
         vm.allowGarbageCollection(wasGcAllowed);
     }
@@ -102,6 +105,24 @@ struct RuntimeFixture
 Value StringValue(const std::string& text)
 {
     return Value(copyString(text.c_str(), static_cast<int>(text.size())));
+}
+
+Value IsEvenTestNative(int, Value* args, VM*)
+{
+    return Value(isNumber(args[0]) && static_cast<int>(asNumber(args[0])) % 2 == 0);
+}
+
+Value ParityTestNative(int, Value* args, VM*)
+{
+    return StringValue(isNumber(args[0]) && static_cast<int>(asNumber(args[0])) % 2 == 0 ? "even" : "odd");
+}
+
+int timerCallbackCount = 0;
+
+Value TimerCallbackTestNative(int, Value*, VM*)
+{
+    ++timerCallbackCount;
+    return Value();
 }
 
 Value ReadGlobal(VM& vm, const char* name)
@@ -157,6 +178,13 @@ void StandardLibraryDeclaresCapabilities()
     const CompiledNodeDefPtr print = fixture.registry.FindCompiled("Debug::Print");
     Require(add && HasFlag(add->functionDef->flags, NodeDefinitionFlags::Pure),
             "Math::Add should be declared pure.");
+    const NativeFunctionDef* timerAfter = fixture.registry.FindNative("Timer::After");
+    const NativeFunctionDef* timerEvery = fixture.registry.FindNative("Timer::Every");
+    Require(timerAfter && timerEvery && !fixture.registry.FindNative("Timer::Start") && !fixture.registry.FindNative("Timer::Poll"),
+            "Callback timers should replace the polling timer API.");
+    const NodePtr timerAfterNode = timerAfter->functionDef->MakeNode(fixture.ids, ScriptElementID::Invalid);
+    Require(timerAfterNode->Inputs.size() == 3 && timerAfterNode->Inputs.back().Name == "Callback" && timerAfterNode->Inputs.back().Type == TypeRef::Function({}, {}),
+            "Timer::After should expose an explicit zero-argument callback pin.");
     for (const char* name : {
             "String::Append", "Math::Add", "Math::Subtract", "Math::Multiply",
             "Math::Min", "Math::Max", "Logic::And", "Logic::Or" })
@@ -2301,6 +2329,233 @@ void FilePathAndConsoleNodesOperate()
     Require(!error, "Expected to clean up the standard-library test directory.");
 }
 
+void JsonTextMathAndCollectionNodesOperate()
+{
+    RuntimeFixture fixture;
+    const Value parsed = fixture.CallNative("JSON::Parse", { StringValue(R"({"name":"Ada","scores":[3,5],"active":true})") });
+    Require(isList(parsed) && asList(parsed)->items.size() == 3 && asBoolean(asList(parsed)->items[1]) && isMap(asList(parsed)->items[0]),
+            "JSON::Parse should return a native value, success, and error.");
+    Value name;
+    Value scores;
+    ObjMap* object = asMap(asList(parsed)->items[0]);
+    Require(object->get(StringValue("name"), &name) && asString(name)->chars == "Ada" && object->get(StringValue("scores"), &scores) &&
+            isList(scores) && asNumber(asList(scores)->items[1]) == 5.0,
+            "JSON objects and arrays should map to native maps and lists.");
+
+    const Value compact = fixture.CallNative("JSON::Stringify", { asList(parsed)->items[0] });
+    const Value pretty = fixture.CallNative("JSON::Pretty Print", { asList(parsed)->items[0], Value(2.0) });
+    Require(asBoolean(asList(compact)->items[1]) && asString(asList(compact)->items[0])->chars.find("\"Ada\"") != std::string::npos &&
+            asBoolean(asList(pretty)->items[1]) && asString(asList(pretty)->items[0])->chars.find('\n') != std::string::npos,
+            "JSON stringify nodes should support compact and pretty output.");
+    const Value entries = fixture.CallNative("JSON::Object To Entries", { asList(parsed)->items[0] });
+    const Value remapped = fixture.CallNative("JSON::Entries To Object", { entries });
+    Require(isList(entries) && asList(entries)->items.size() == 3 && asBoolean(asList(remapped)->items[1]) && isMap(asList(remapped)->items[0]),
+            "JSON object/list mapping should round-trip entries.");
+
+    const Value regexSearch = fixture.CallNative("Regex::Search", { StringValue("item-42"), StringValue(R"((\w+)-(\d+))") });
+    Require(asBoolean(asList(regexSearch)->items[0]) && asString(asList(regexSearch)->items[1])->chars == "item-42" &&
+            asNumber(asList(regexSearch)->items[2]) == 0.0 && asList(asList(regexSearch)->items[3])->items.size() == 2,
+            "Regex::Search should report the match, byte index, and capture groups.");
+    const Value regexReplace = fixture.CallNative("Regex::Replace", { StringValue("a1 b2"), StringValue(R"(\d)"), StringValue("#") });
+    Require(asString(asList(regexReplace)->items[0])->chars == "a# b#" && asBoolean(asList(regexReplace)->items[1]),
+            "Regex::Replace should replace every match.");
+
+    const std::string unicode = "A\xF0\x9F\x98\x80\xC3\xA9";
+    Require(asNumber(fixture.CallNative("String::Unicode Length", { StringValue(unicode) })) == 3.0 &&
+            asString(fixture.CallNative("String::Unicode Substring", { StringValue(unicode), Value(1.0), Value(1.0) }))->chars == "\xF0\x9F\x98\x80",
+            "Unicode string nodes should count and slice code points rather than UTF-8 bytes.");
+    Require(asString(fixture.CallNative("String::Pad Left", { StringValue("7"), Value(3.0), StringValue("0") }))->chars == "007" &&
+            asString(fixture.CallNative("String::Repeat", { StringValue("ab"), Value(3.0) }))->chars == "ababab" &&
+            asNumber(fixture.CallNative("String::Count", { StringValue("aaaa"), StringValue("aa") })) == 2.0,
+            "Padding, repeat, and count should expose common text operations.");
+    const Value lines = fixture.CallNative("String::Lines", { StringValue("a\r\nb\nc") });
+    const Value base64 = fixture.CallNative("Encoding::Base64 Encode", { StringValue("hello") });
+    const Value decoded = fixture.CallNative("Encoding::Base64 Decode", { base64 });
+    Require(asList(lines)->items.size() == 3 && asString(asList(lines)->items[1])->chars == "b" && asString(base64)->chars == "aGVsbG8=" &&
+            asBoolean(asList(decoded)->items[1]) && asString(asList(decoded)->items[0])->chars == "hello",
+            "Line and base64 nodes should preserve text content.");
+
+    fixture.CallNative("Math::Random Seed", { Value(123.0) });
+    const Value randomFirst = fixture.CallNative("Math::Random Integer", { Value(1.0), Value(1000.0) });
+    fixture.CallNative("Math::Random Seed", { Value(123.0) });
+    const Value randomSecond = fixture.CallNative("Math::Random Integer", { Value(1.0), Value(1000.0) });
+    const double pi = asNumber(fixture.CallNative("Math::Pi", {}));
+    Require(randomFirst == randomSecond && std::fabs(asNumber(fixture.CallNative("Math::Sin", { Value(pi / 2.0) })) - 1.0) < 1e-12 &&
+            std::fabs(asNumber(fixture.CallNative("Math::Log", { Value(std::exp(2.0)) })) - 2.0) < 1e-12,
+            "Seeded random, trigonometric, and logarithm nodes should be deterministic and accurate.");
+
+    ObjList* source = MakeList({ Value(1.0), Value(2.0), Value(3.0), Value(4.0), Value(2.0) });
+    const Value count = fixture.CallNative("List::Count Value", { Value(source), Value(2.0) });
+    const Value removed = fixture.CallNative("List::Remove Value", { Value(source), Value(2.0) });
+    const Value chunks = fixture.CallNative("List::Chunk", { Value(source), Value(2.0) });
+    const Value taken = fixture.CallNative("List::Take", { Value(source), Value(2.0) });
+    const Value skipped = fixture.CallNative("List::Skip", { Value(source), Value(3.0) });
+    Require(asNumber(count) == 2.0 && asNumber(asList(removed)->items[1]) == 2.0 && asList(asList(removed)->items[0])->items.size() == 3 &&
+            asList(chunks)->items.size() == 3 && asList(taken)->items.size() == 2 && asList(skipped)->items.size() == 2,
+            "Count, remove, chunk, take, and skip should operate on list copies.");
+    ObjList* nested = MakeList({ Value(MakeList({ Value(1.0), Value(2.0) })), Value(MakeList({ Value(3.0) })) });
+    Require(asList(fixture.CallNative("List::Flatten", { Value(nested) }))->items.size() == 3,
+            "List::Flatten should flatten one nesting level.");
+
+    const Value isEven(newNative(1, &IsEvenTestNative, false));
+    const Value parity(newNative(1, &ParityTestNative, false));
+    const Value any = fixture.CallNative("Functional::Any", { Value(source), isEven });
+    const Value all = fixture.CallNative("Functional::All", { Value(source), isEven });
+    const Value matching = fixture.CallNative("Functional::Count", { Value(source), isEven });
+    const Value found = fixture.CallNative("Functional::Find", { Value(source), isEven });
+    const Value groups = fixture.CallNative("Functional::Group By", { Value(source), parity });
+    Value evenGroup;
+    Require(asBoolean(any) && !asBoolean(all) && asNumber(matching) == 3.0 && asBoolean(asList(found)->items[1]) &&
+            asNumber(asList(found)->items[0]) == 2.0 && isMap(groups) && asMap(groups)->get(StringValue("even"), &evenGroup) && asList(evenGroup)->items.size() == 3,
+            "Any, All, Count, Find, and Group By should invoke typed callbacks.");
+}
+
+void ExtendedFileProcessAndTimeNodesOperate()
+{
+    RuntimeFixture fixture;
+    const auto unique = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    const std::filesystem::path root = std::filesystem::temp_directory_path() / ("visual-lox-extended-" + std::to_string(unique));
+    const std::filesystem::path source = root / "source.bin";
+    const std::filesystem::path copied = root / "copied.bin";
+    const std::filesystem::path moved = root / "moved.bin";
+    const std::filesystem::path jsonFile = root / "config.json";
+    const std::filesystem::path textFile = root / "encoded.txt";
+    std::error_code cleanupError;
+
+    const Value created = fixture.CallNative("Directory::Create", { StringValue(root.string()), Value(true) });
+    ObjList* bytes = MakeList({ Value(0.0), Value(127.0), Value(255.0) });
+    const Value written = fixture.CallNative("File::Write Bytes", { StringValue(source.string()), Value(bytes), Value(false) });
+    const Value read = fixture.CallNative("File::Read Bytes", { StringValue(source.string()) });
+    const Value metadata = fixture.CallNative("File::Metadata", { StringValue(source.string()) });
+    Require(asBoolean(asList(created)->items[0]) && asBoolean(asList(written)->items[0]) && asBoolean(asList(read)->items[1]) &&
+            asList(asList(read)->items[0])->items.size() == 3 && asNumber(asList(asList(read)->items[0])->items[2]) == 255.0 &&
+            asBoolean(asList(metadata)->items[0]) && asBoolean(asList(metadata)->items[1]) && asNumber(asList(metadata)->items[3]) == 3.0,
+            "Directory, binary file, and metadata nodes should preserve bytes and report file size.");
+    ObjMap* configuration = newMap();
+    configuration->set(StringValue("enabled"), Value(true));
+    const Value jsonWritten = fixture.CallNative("JSON::Write File",
+        { StringValue(jsonFile.string()), Value(configuration), Value(true), Value(2.0), Value(false) });
+    const Value jsonRead = fixture.CallNative("JSON::Read File", { StringValue(jsonFile.string()) });
+    Value enabled;
+    Require(asBoolean(asList(jsonWritten)->items[0]) && asBoolean(asList(jsonRead)->items[1]) && isMap(asList(jsonRead)->items[0]) &&
+            asMap(asList(jsonRead)->items[0])->get(StringValue("enabled"), &enabled) && asBoolean(enabled),
+            "JSON file helpers should serialize and parse structured files directly.");
+    const Value textWritten = fixture.CallNative("File::Write Text Encoded",
+        { StringValue(textFile.string()), StringValue("plain-ascii"), StringValue("ascii"), Value(false) });
+    const Value overwriteRejected = fixture.CallNative("File::Write Text Encoded",
+        { StringValue(textFile.string()), StringValue("replacement"), StringValue("ascii"), Value(false) });
+    const Value textRead = fixture.CallNative("File::Read Text Encoded", { StringValue(textFile.string()), StringValue("ascii") });
+    Require(asBoolean(asList(textWritten)->items[0]) && !asBoolean(asList(overwriteRejected)->items[0]) && asBoolean(asList(textRead)->items[1]) &&
+            asString(asList(textRead)->items[0])->chars == "plain-ascii",
+            "Encoded text helpers should validate encodings and reject implicit overwrites.");
+    Require(asBoolean(asList(fixture.CallNative("File::Copy", { StringValue(source.string()), StringValue(copied.string()), Value(false) }))->items[0]) &&
+            asBoolean(asList(fixture.CallNative("File::Move", { StringValue(copied.string()), StringValue(moved.string()), Value(false) }))->items[0]) &&
+            std::filesystem::exists(moved) && !std::filesystem::exists(copied),
+            "Copy and move nodes should honor destination paths.");
+    const Value absolute = fixture.CallNative("Path::Absolute", { StringValue(source.string()) });
+    const Value canonical = fixture.CallNative("Path::Canonical", { StringValue(source.string()) });
+    const Value relative = fixture.CallNative("Path::Relative", { StringValue(source.string()), StringValue(root.string()) });
+    Require(asBoolean(asList(absolute)->items[1]) && asBoolean(asList(canonical)->items[1]) && asString(asList(relative)->items[0])->chars == "source.bin" &&
+            asString(fixture.CallNative("Path::Stem", { StringValue(source.string()) }))->chars == "source",
+            "Absolute, canonical, relative, and stem path nodes should resolve expected paths.");
+
+    ObjList* arguments = newList();
+#ifdef _WIN32
+    const std::string executable = "cmd.exe";
+    arguments->append(StringValue("/d"));
+    arguments->append(StringValue("/c"));
+    arguments->append(StringValue("echo captured-output"));
+#else
+    const std::string executable = "/bin/sh";
+    arguments->append(StringValue("-c"));
+    arguments->append(StringValue("printf captured-output"));
+#endif
+    const Value process = fixture.CallNative("Process::Run",
+        { StringValue(executable), Value(arguments), StringValue(root.string()), Value(newMap()), Value(5.0) });
+    Require(asBoolean(asList(process)->items[5]) && asNumber(asList(process)->items[0]) == 0.0 &&
+            asString(asList(process)->items[1])->chars.find("captured-output") != std::string::npos,
+            "Process::Run should capture stdout and return the executable exit code.");
+    const NativeFunctionDef* runCommand = fixture.registry.FindNative("System::RunCommand");
+    Require(runCommand && runCommand->functionDef->revision == 2 && runCommand->functionDef->inputs.size() == 5 && runCommand->functionDef->outputs.size() == 7,
+            "System::RunCommand should use the structured process schema instead of a shell command string.");
+
+    const Value started = fixture.CallNative("Process::Start",
+        { StringValue(executable), Value(arguments), StringValue(root.string()), Value(newMap()), Value(5.0) });
+    Require(asBoolean(asList(started)->items[1]), "Process::Start should return an asynchronous handle.");
+    Value polled;
+    for (int attempt = 0; attempt < 100; ++attempt)
+    {
+        polled = fixture.CallNative("Process::Poll", { asList(started)->items[0] });
+        if (asBoolean(asList(polled)->items[0]))
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    Require(isList(polled) && asBoolean(asList(polled)->items[0]) && asString(asList(polled)->items[2])->chars.find("captured-output") != std::string::npos,
+            "Process::Poll should complete without blocking and retain captured output.");
+
+    ObjList* slowArguments = newList();
+#ifdef _WIN32
+    slowArguments->append(StringValue("/d"));
+    slowArguments->append(StringValue("/c"));
+    slowArguments->append(StringValue("ping -n 3 127.0.0.1 >nul"));
+#else
+    slowArguments->append(StringValue("-c"));
+    slowArguments->append(StringValue("sleep 1"));
+#endif
+    const Value timedOut = fixture.CallNative("Process::Run",
+        { StringValue(executable), Value(slowArguments), StringValue(root.string()), Value(newMap()), Value(0.05) });
+    Require(asBoolean(asList(timedOut)->items[3]) && !asBoolean(asList(timedOut)->items[5]),
+            "Process::Run should terminate and report processes that exceed their timeout.");
+    const Value cancellable = fixture.CallNative("Process::Start",
+        { StringValue(executable), Value(slowArguments), StringValue(root.string()), Value(newMap()), Value(5.0) });
+    const Value cancelled = fixture.CallNative("Process::Cancel", { asList(cancellable)->items[0] });
+    Require(asBoolean(asList(cancelled)->items[0]), "Process::Cancel should accept an active asynchronous handle.");
+    Value cancelledPoll;
+    for (int attempt = 0; attempt < 100; ++attempt)
+    {
+        cancelledPoll = fixture.CallNative("Process::Poll", { asList(cancellable)->items[0] });
+        if (asBoolean(asList(cancelledPoll)->items[0]))
+            break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    Require(asBoolean(asList(cancelledPoll)->items[0]) && asBoolean(asList(cancelledPoll)->items[5]),
+            "Cancelled asynchronous processes should finish with explicit cancellation status.");
+
+    const Value parsed = fixture.CallNative("Time::Parse", { StringValue("2024-01-02 03:04:05"), StringValue("%Y-%m-%d %H:%M:%S"), Value(true) });
+    const Value formatted = fixture.CallNative("Time::Format", { asList(parsed)->items[0], StringValue("%Y-%m-%d %H:%M:%S"), Value(true) });
+    Require(asBoolean(asList(parsed)->items[1]) && asBoolean(asList(formatted)->items[1]) && asString(asList(formatted)->items[0])->chars == "2024-01-02 03:04:05" &&
+            asNumber(fixture.CallNative("Duration::From Milliseconds", { Value(1500.0) })) == 1.5,
+            "Date/time parsing, formatting, and duration conversion should round-trip UTC values.");
+    timerCallbackCount = 0;
+    const Value timerCallback(newNative(0, &TimerCallbackTestNative, false));
+    const Value afterTimer = fixture.CallNative("Timer::After", { Value(0.0), timerCallback });
+    Require(isNumber(afterTimer) && HasPendingStandardLibraryTimers(fixture.vm),
+            "Timer::After should return a handle and retain its callback until it fires.");
+    fixture.vm.setExternalMarkingFunc([&fixture]() { MarkNodeRegistryRoots(fixture.registry, fixture.vm); });
+    fixture.vm.allowGarbageCollection(true);
+    fixture.vm.collectGarbage();
+    Require(PumpStandardLibraryTimers(fixture.vm) && timerCallbackCount == 1 && !HasPendingStandardLibraryTimers(fixture.vm),
+            "A due one-shot timer should invoke its callback exactly once, including after garbage collection.");
+    fixture.vm.allowGarbageCollection(false);
+
+    const Value repeatingTimer = fixture.CallNative("Timer::Every", { Value(0.001), timerCallback });
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    Require(PumpStandardLibraryTimers(fixture.vm) && timerCallbackCount == 2,
+            "Timer::Every should invoke its callback when its interval elapses.");
+    const Value cancelledTimer = fixture.CallNative("Timer::Cancel", { repeatingTimer });
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    Require(asBoolean(asList(cancelledTimer)->items[0]) && PumpStandardLibraryTimers(fixture.vm) && timerCallbackCount == 2,
+            "Timer::Cancel should prevent future repeating callbacks.");
+
+    fixture.CallNative("Timer::After", { Value(0.001), timerCallback });
+    Require(RunStandardLibraryTimers(fixture.vm) && timerCallbackCount == 3 && !HasPendingStandardLibraryTimers(fixture.vm),
+            "The synchronous host loop should wait for one-shot timers without blocking timer creation.");
+
+    fixture.CallNative("File::Delete", { StringValue(root.string()), Value(true) });
+    std::filesystem::remove_all(root, cleanupError);
+    Require(!std::filesystem::exists(root), "Extended filesystem tests should clean up their temporary directory.");
+}
+
 void NewLinksReplaceOccupiedConnections()
 {
     RuntimeFixture fixture;
@@ -2760,6 +3015,8 @@ void AddRuntimeTests(Tests::Runner& runner)
 {
     runner.Group("Runtime / standard library", [&]()
     {
+        runner.Test("JSON, text, math, and collection nodes operate", JsonTextMathAndCollectionNodesOperate);
+        runner.Test("extended file, process, and time nodes operate", ExtendedFileProcessAndTimeNodesOperate);
         runner.Test("file, path, and console nodes operate",
             FilePathAndConsoleNodesOperate);
         runner.Test("node definitions declare their capabilities", StandardLibraryDeclaresCapabilities);

@@ -1,4 +1,5 @@
 #include "standardLibraryFunctions.h"
+#include "extendedStandardLibrary.h"
 
 #include <Object.h>
 #include <Vm.h>
@@ -145,8 +146,7 @@ Value MathRandom(int, Value* args, VM*)
     double maximum = asNumber(args[1]);
     if (minimum > maximum)
         std::swap(minimum, maximum);
-    static thread_local std::mt19937 generator(std::random_device{}());
-    return Value(std::uniform_real_distribution<double>(minimum, maximum)(generator));
+    return Value(StandardLibraryRandomReal(minimum, maximum));
 }
 
 Value StringTrim(int, Value* args, VM*)

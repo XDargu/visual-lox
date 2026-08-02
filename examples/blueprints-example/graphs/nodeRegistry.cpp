@@ -6,6 +6,7 @@
 #include "graphCompiler.h"
 #include "../utilities/utils.h"
 #include "../runtime/standardLibraryFunctions.h"
+#include "../runtime/extendedStandardLibrary.h"
 
 #include <Natives.h>
 #include <VMUtils.h>
@@ -1238,30 +1239,6 @@ void NodeRegistry::RegisterDefinitions()
         }
     );
 
-    RegisterNativeFunc("System::RunCommand",
-        { { "Command", Value(copyString("", 0)) } },
-        { },
-        [](int argCount, Value* args, VM* vm)
-        {
-            if (!isString(args[0]))
-                return Value();
-
-            ObjString* str = asString(args[0]);
-
-#ifdef _WIN32
-            system(("start " + str->chars).c_str());
-#endif
-
-            return Value();
-        },
-        NodeDefinitionFlags::None,
-        NodeDocumentation{
-            "Starts a command through the operating system",
-            { "The command line to run" },
-            {  }
-        }
-    );
-
     RegisterNativeFunc("System::Sleep",
         { { "Seconds", Value(0.0) } },
         { },
@@ -1544,6 +1521,8 @@ void NodeRegistry::RegisterDefinitions()
             { "The value returned by the function" }
         }
     );
+
+    RegisterExtendedStandardLibrary(*this);
 }
 
 namespace

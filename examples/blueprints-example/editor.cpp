@@ -1159,6 +1159,7 @@ void Example::ShowDebugPanel(float paneWidth)
 
     if (paused)
     {
+        const std::shared_ptr<const ScriptDebugInfo> debugInfo = m_scriptDebugger.GetDebugInfo();
         const ScriptDebugPause pause = m_scriptDebugger.GetPause();
         ImGui::Spacing();
         ImGui::TextDisabled("CURRENT EXECUTION NODE");
@@ -1176,43 +1177,6 @@ void Example::ShowDebugPanel(float paneWidth)
         ImGui::Spacing();
         ImGui::TextDisabled("CALL STACK");
 
-        const auto findFrameFunction = [&](const VmDebugCallFrame& frame, size_t frameIndex) -> ScriptFunctionPtr
-        {
-            const auto matchesFrame = [&](const ScriptFunctionPtr& function)
-            {
-                return function && !frame.functionIdentity.empty() && function->PersistentId.ToString() == frame.functionIdentity;
-            };
-
-            if (matchesFrame(m_script.main))
-                return m_script.main;
-
-            for (const ScriptFunctionPtr& function : m_script.functions)
-            {
-                if (matchesFrame(function))
-                    return function;
-            }
-
-            for (const ScriptClassPtr& scriptClass : m_script.classes)
-            {
-                if (matchesFrame(scriptClass->constructor))
-                    return scriptClass->constructor;
-
-                for (const ScriptFunctionPtr& method : scriptClass->methods)
-                {
-                    if (matchesFrame(method))
-                        return method;
-                }
-            }
-
-            if (frameIndex == 0 && frame.functionIdentity.empty())
-            {
-                return m_script.main && m_script.main->PersistentId == pause.probe.functionId
-                    ? m_script.main : ScriptUtils::FindFunctionByPersistentId(m_script, pause.probe.functionId);
-            }
-
-            return nullptr;
-        };
-
         if (ImGui::BeginTable("##debugCallStack", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp))
         {
             ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 28.0f);
@@ -1223,7 +1187,10 @@ void Example::ShowDebugPanel(float paneWidth)
             for (size_t index = 0; index < pause.callStack.size(); ++index)
             {
                 const VmDebugCallFrame& frame = pause.callStack[index];
-                const ScriptFunctionPtr function = findFrameFunction(frame, index);
+                const FunctionDebugInfo* pFunctionDebugInfo = debugInfo->FindFunction(frame.function);
+                const ScriptFunctionPtr function = pFunctionDebugInfo ? pFunctionDebugInfo->pScriptFunction : nullptr;
+                const std::string displayName = pFunctionDebugInfo ? pFunctionDebugInfo->displayName : "<script>";
+
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextDisabled("%zu", index);
@@ -1231,7 +1198,7 @@ void Example::ShowDebugPanel(float paneWidth)
 
                 const bool displayedFunction = function && m_graphView.m_pScriptFunction && function->PersistentId == m_graphView.m_pScriptFunction->PersistentId;
 
-                if (ImGui::Selectable((frame.qualifiedName + "##frame-" + std::to_string(index)).c_str(), displayedFunction, ImGuiSelectableFlags_SpanAllColumns) && function)
+                if (ImGui::Selectable((displayName + "##frame-" + std::to_string(index)).c_str(), displayedFunction, ImGuiSelectableFlags_SpanAllColumns) && function)
                 {
                     SelectScriptItem(function->ID);
                     ChangeGraph(function);

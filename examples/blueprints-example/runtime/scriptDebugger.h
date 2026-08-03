@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../graphs/node.h"
+#include "../script/function.h"
 
 #include <Vm.h>
 
@@ -11,6 +12,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 enum class ScriptDebugProbeKind
 {
@@ -44,6 +46,13 @@ struct ScriptDebugProbe
     bool flowNode = false;
 };
 
+struct FunctionDebugInfo
+{
+    std::string displayName;
+    ScriptElementUuid persistentId;
+    ScriptFunctionPtr pScriptFunction;
+};
+
 class ScriptDebugInfo
 {
 public:
@@ -55,8 +64,12 @@ public:
     static std::string PortKey(ModuleId moduleId, ScriptElementUuid functionId, GraphNodeId nodeId, const PortIdentity& port, PinKind kind);
     static std::string VariableKey(ModuleId moduleId, ScriptElementUuid functionId, ScriptElementUuid variableId);
 
+    void AddFunction(const ObjFunction* pFunction, const std::string& displayName, const ScriptElementUuid& persistentId, const ScriptFunctionPtr& pScriptFunction);
+    const FunctionDebugInfo* FindFunction(const ObjFunction* pFunction) const;
+
 private:
     std::vector<ScriptDebugProbe> m_probes;
+    std::unordered_map<const ObjFunction*, FunctionDebugInfo> m_functions;
 };
 
 struct ScriptDebugValue

@@ -102,8 +102,7 @@ void ScriptRuntime::CompileGraph(const Script& script, const ScriptFunction& fun
         });
 }
 
-ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
-                                           const ScriptCompileOptions& options)
+ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script, const ScriptCompileOptions& options)
 {
     ValidationReport validation = ScriptValidator::Validate(script);
     if (validation.HasErrors())
@@ -156,8 +155,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     compiler.parser.hadError = false;
     compiler.parser.panicMode = false;
 
-    auto compileClosure = [&](const ScriptFunctionPtr& scriptFunction, FunctionType type,
-                              const ScriptClassPtr& classOwner = nullptr)
+    auto compileClosure = [&](const ScriptFunctionPtr& scriptFunction, FunctionType type, const ScriptClassPtr& classOwner = nullptr)
     {
         Token functionToken(TokenType::IDENTIFIER, scriptFunction->functionDef->name.c_str(),
                             scriptFunction->functionDef->name.length(), 0);
@@ -172,6 +170,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
             ++compiler.current->function->arity;
             if (compiler.current->function->arity > 255)
                 compiler.errorAtCurrent("Can't have more than 255 parameters.");
+
             compiler.defineVariable(compiler.parseVariableDirectly(false, inputToken));
         }
 
@@ -179,19 +178,22 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
             EmitLocalInitializer(debugContext, *variable);
 
         if (type == FunctionType::INITIALIZER && classOwner)
+        {
             for (const ScriptPropertyPtr& property : classOwner->properties)
                 EmitPropertyInitializer(debugContext, *property);
+        }
 
         CompileGraph(script, *scriptFunction, compiler, folding.values, folding.nodeIds, debugInfo.get());
+
         ObjFunction* function = compiler.endCompiler();
         if (debugInfo)
         {
-            function->debugName = classOwner ? classOwner->Name + "." + scriptFunction->functionDef->name : scriptFunction->functionDef->name;
-            if (scriptFunction->PersistentId.IsValid())
-                function->debugIdentity = scriptFunction->PersistentId.ToString();
+            debugInfo->AddFunction(function, classOwner ? classOwner->Name + "." + scriptFunction->functionDef->name : scriptFunction->functionDef->name, scriptFunction->PersistentId, scriptFunction);
         }
+
         const uint32_t constant = compiler.makeConstant(Value(function));
         compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
+
         for (int i = 0; i < function->upvalueCount; ++i)
         {
             compiler.emitByte(functionScope.upvalues[i].isLocal ? 1 : 0);
@@ -253,24 +255,24 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     }
 
     compiler.beginScope();
-    const Token argumentsToken(
-        TokenType::IDENTIFIER, "Arguments", 9, 0);
+    const Token argumentsToken(TokenType::IDENTIFIER, "Arguments", 9, 0);
     GraphCompiler::CompileLiteral(compiler, programArgumentsValue);
     compiler.addLocal(argumentsToken, true);
     compiler.emitVariable(argumentsToken, true, true);
+
     for (const ScriptPropertyPtr& variable : script.main->variables)
     {
         CompilerContext mainDebugContext(compiler, &script, script.main->ID, script.main->PersistentId, debugInfo.get());
         EmitLocalInitializer(mainDebugContext, *variable);
     }
+
     CompileGraph(script, *script.main, compiler, folding.values, folding.nodeIds, debugInfo.get());
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();
+
     if (debugInfo)
     {
-        function->debugName = script.main->functionDef->name;
-        if (script.main->PersistentId.IsValid())
-            function->debugIdentity = script.main->PersistentId.ToString();
+        debugInfo->AddFunction(function, script.main->functionDef->name, script.main->PersistentId, script.main);
     }
 
     if (compiler.parser.hadError)
@@ -279,11 +281,12 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
         return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation),
                  std::move(folding.values), std::move(folding.nodeIds), std::move(debugInfo) };
     }
+
     if (options.disassemble)
         disassembleChunk(function->chunk, function->name ? function->name->chars.c_str() : "<script>");
     vm.resetStack();
-    return { function, InterpretResult::INTERPRET_OK, std::move(validation),
-             std::move(folding.values), std::move(folding.nodeIds), std::move(debugInfo) };
+
+    return { function, InterpretResult::INTERPRET_OK, std::move(validation), std::move(folding.values), std::move(folding.nodeIds), std::move(debugInfo) };
 }
 
 InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)

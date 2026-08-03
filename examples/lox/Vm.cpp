@@ -1235,11 +1235,12 @@ std::vector<VmDebugCallFrame> VM::getDebugCallStack() const
         const CallFrame& frame = frames[index - 1];
         const ObjFunction* function = frame.closure ? frame.closure->function : nullptr;
         VmDebugCallFrame snapshot;
-        snapshot.functionName = function && function->name ? function->name->chars : "<script>";
-        snapshot.qualifiedName = function && !function->debugName.empty() ? function->debugName : snapshot.functionName;
-        snapshot.functionIdentity = function ? function->debugIdentity : std::string();
+
+        snapshot.function = function;
+
         if (function && !function->chunk.code.empty() && frame.ip)
             snapshot.instructionOffset = static_cast<size_t>(frame.ip - function->chunk.code.data());
+
         result.push_back(std::move(snapshot));
     }
     return result;

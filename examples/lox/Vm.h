@@ -27,9 +27,7 @@ enum class InterpretResult
 
 struct VmDebugCallFrame
 {
-    std::string functionName;
-    std::string qualifiedName;
-    std::string functionIdentity;
+    const ObjFunction* function;
     size_t instructionOffset = 0;
 };
 

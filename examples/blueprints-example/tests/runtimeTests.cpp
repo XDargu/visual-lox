@@ -2297,9 +2297,12 @@ void CompiledMethodsCarryQualifiedDebugIdentity()
     {
         if (!isFunction(constant))
             continue;
+
         const ObjFunction* function = asFunction(constant);
-        foundA |= function->debugName == "ClassA.Update" && function->debugIdentity == updateA->PersistentId.ToString();
-        foundB |= function->debugName == "ClassB.Update" && function->debugIdentity == updateB->PersistentId.ToString();
+        const FunctionDebugInfo* pFuncDebugInfo = compiled.debugInfo->FindFunction(function);
+
+        foundA |= pFuncDebugInfo && pFuncDebugInfo->displayName == "ClassA.Update" && pFuncDebugInfo->persistentId == updateA->PersistentId;
+        foundB |= pFuncDebugInfo && pFuncDebugInfo->displayName == "ClassB.Update" && pFuncDebugInfo->persistentId == updateB->PersistentId;
     }
     Require(foundA && foundB, "Same-named methods should retain distinct qualified names and persistent identities for call-stack navigation.");
 }
@@ -2398,9 +2401,13 @@ void DebuggerStepsAcrossFunctionCalls()
     Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_PAUSED, "Step Into should enter the called graph.");
     Require(debugger.GetPause().probe.functionId == worker->PersistentId && debugger.GetPause().callStack.size() > callerDepth,
         "Step Into should pause in the deeper Worker call frame.");
+
     const ScriptDebugPause workerPause = debugger.GetPause();
     const VmDebugCallFrame& workerFrame = workerPause.callStack.front();
-    Require(workerFrame.qualifiedName == "Worker" && workerFrame.functionIdentity == worker->PersistentId.ToString(),
+
+    const FunctionDebugInfo* pFuncDebugInfo = compiled.debugInfo->FindFunction(workerFrame.function);
+
+    Require(pFuncDebugInfo && pFuncDebugInfo->displayName == "Worker" && pFuncDebugInfo->persistentId == worker->PersistentId,
         "Call-stack frames should expose a durable graph identity as well as their display name.");
 
     debugger.Resume(ScriptDebugResumeMode::StepOut);

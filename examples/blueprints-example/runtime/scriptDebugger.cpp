@@ -48,6 +48,17 @@ std::string ScriptDebugInfo::VariableKey(ModuleId moduleId, ScriptElementUuid fu
     return "variable:" + moduleId.ToString() + ":" + variableId.ToString();
 }
 
+void ScriptDebugInfo::AddFunction(const ObjFunction* pFunction, const std::string& displayName, const ScriptElementUuid& persistentId, const ScriptFunctionPtr& pScriptFunction)
+{
+    m_functions[pFunction] = { displayName, persistentId, pScriptFunction };
+}
+
+const FunctionDebugInfo* ScriptDebugInfo::FindFunction(const ObjFunction* pFunction) const
+{
+    auto result = m_functions.find(pFunction);
+    return result == m_functions.end() ? nullptr : &result->second;
+}
+
 void ScriptDebugger::SetDebugInfo(std::shared_ptr<const ScriptDebugInfo> debugInfo)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

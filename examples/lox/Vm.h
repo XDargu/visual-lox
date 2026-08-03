@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include <array>
+#include <atomic>
 #include <string>
 #include <functional>
 
@@ -20,7 +21,36 @@ enum class InterpretResult
 {
     INTERPRET_OK,
     INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR
+    INTERPRET_RUNTIME_ERROR,
+    INTERPRET_PAUSED
+};
+
+struct VmDebugCallFrame
+{
+    std::string functionName;
+    std::string qualifiedName;
+    std::string functionIdentity;
+    size_t instructionOffset = 0;
+};
+
+class VM;
+
+class VmDebugHandler
+{
+public:
+    virtual ~VmDebugHandler() = default;
+    bool WantsBreakpoints() const { return wantsBreakpoints.load(std::memory_order_relaxed); }
+    bool WantsValues() const { return wantsValues.load(std::memory_order_relaxed); }
+    virtual bool OnBreakpoint(uint32_t probeId, const VM& vm) = 0;
+    virtual void OnValue(uint32_t probeId, const Value& value) = 0;
+
+protected:
+    void SetWantsBreakpoints(bool enabled) { wantsBreakpoints.store(enabled, std::memory_order_relaxed); }
+    void SetWantsValues(bool enabled) { wantsValues.store(enabled, std::memory_order_relaxed); }
+
+private:
+    std::atomic<bool> wantsBreakpoints{ false };
+    std::atomic<bool> wantsValues{ false };
 };
 
 using InstructonPointer = uint8_t*;
@@ -89,11 +119,16 @@ public:
 
     bool callValue(const Value& callee, uint8_t argCount);
 
-    InterpretResult run(int depth);
+    InterpretResult run(int depth, bool allowPause = true);
 
     size_t getFrameCount() const { return frameCount; }
     size_t getStackSize() const { return static_cast<size_t>(stackTop - stack.data()); }
     size_t getAllocatedBytes() const { return bytesAllocated; }
+    std::vector<VmDebugCallFrame> getDebugCallStack() const;
+    void setDebugHandler(VmDebugHandler* handler) { debugHandler = handler; }
+    VmDebugHandler* getDebugHandler() const { return debugHandler; }
+    void requestStop() { stopRequested.store(true, std::memory_order_relaxed); }
+    void clearStopRequest() { stopRequested.store(false, std::memory_order_relaxed); }
 
     void defineNative(const char* name, uint8_t arity, NativeFn function);
     void defineNativeClass(const char* name, std::vector<NativeMethodDef>&& methods);
@@ -137,6 +172,9 @@ private:
     Compiler compiler;
     bool nativesDefined = false;
     bool canCollectGarbage = true;
+    VmDebugHandler* debugHandler = nullptr;
+    bool debugPausePending = false;
+    std::atomic<bool> stopRequested{ false };
 
     ExternalMarkingFunc externalMarkingFunc;
     std::vector<Obj*> grayNodes;

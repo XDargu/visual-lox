@@ -94,7 +94,7 @@ inline Value callFunction(VM* vm, const Value& callable, const Args&... values)
     const int argCount = pushArgs(vm, values...);
     vm->callValue(callable, argCount);
     if (!isNative(callable))
-        vm->run(static_cast<int>(vm->getFrameCount() - 1));
+        vm->run(static_cast<int>(vm->getFrameCount() - 1), false);
     return vm->pop();
 }
 

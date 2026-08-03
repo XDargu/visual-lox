@@ -26,6 +26,7 @@
 
 class NodeRegistry;
 class DocumentOperations;
+class ScriptDebugger;
 struct OperationResult;
 struct Value;
 struct Script;
@@ -66,6 +67,7 @@ struct GraphView
     void setIDGenerator(IDGenerator& generator);
     void setNodeRegistry(NodeRegistry& nodeRegistry);
     void setDocumentOperations(DocumentOperations& operations);
+    void setDebugger(ScriptDebugger& debugger);
     void setNavigationHandlers(std::function<void(int)> goToOrigin,
                                std::function<void(const NodePtr&)> findReferences);
     void SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
@@ -118,6 +120,7 @@ struct GraphView
     NodeRegistry* m_pNodeRegistry = nullptr;
     IDGenerator* m_pIDGenerator = nullptr;
     DocumentOperations* m_pOperations = nullptr;
+    ScriptDebugger* m_pDebugger = nullptr;
     std::string operationError;
     float operationErrorTime = 0.0f;
     bool recordNodeStateHistory = true;
@@ -142,6 +145,8 @@ struct GraphView
     float focusNodeZoom = -1.0f;
     int focusNodeDelayFrames = 0;
     int editingCommentBoxId = -1;
+    uint64_t animatedDebugPause = 0;
+    double lastDebugFlowAnimation = 0.0;
     std::string commentBoxEditText;
     bool focusCommentBoxEditor = false;
     std::function<void(int)> onGoToOrigin;

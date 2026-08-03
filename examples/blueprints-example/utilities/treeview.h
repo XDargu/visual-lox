@@ -47,6 +47,7 @@ namespace Editor
         std::function<void(std::string)> onRename;
         std::function<void()> contextMenu;
         std::function<void()> afterLabel;
+        std::function<void()> tooltip;
         ImTextureID icon = nullptr;
         std::string iconText;
         TreeNodeKind kind = TreeNodeKind::None;

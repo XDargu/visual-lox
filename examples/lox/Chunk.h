@@ -72,6 +72,8 @@ enum class OpCode : uint8_t
     OP_CLASS_LONG,
     OP_METHOD,
     OP_METHOD_LONG,
+    OP_DEBUG_BREAK,
+    OP_DEBUG_VALUE,
 
     COUNT
 };

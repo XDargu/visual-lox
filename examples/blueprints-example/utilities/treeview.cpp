@@ -226,6 +226,8 @@ namespace Editor
         }
         if (node.afterLabel)
             node.afterLabel();
+        if (rowHovered && node.tooltip)
+            node.tooltip();
 
         ImGui::PopID();
 

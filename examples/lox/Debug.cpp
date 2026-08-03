@@ -30,7 +30,7 @@ size_t dwordInstruction(const char* name, const Chunk& chunk, size_t offset)
     const uint32_t slot = longConstant(chunk, offset);
 
     std::cout << name << " " << +slot << std::endl;
-    return offset + 2;
+    return offset + 5;
 }
 
 size_t jumpInstruction(const char* name, int sign, const Chunk& chunk, size_t offset)
@@ -291,10 +291,14 @@ size_t disassembleInstruction(const Chunk& chunk, size_t offset)
         return constantInstruction("OP_METHOD", chunk, offset);
     case OpCode::OP_METHOD_LONG:
         return constantLongInstruction("OP_METHOD_LONG", chunk, offset);
+    case OpCode::OP_DEBUG_BREAK:
+        return dwordInstruction("OP_DEBUG_BREAK", chunk, offset);
+    case OpCode::OP_DEBUG_VALUE:
+        return dwordInstruction("OP_DEBUG_VALUE", chunk, offset);
     default:
         std::cout << "Unknown opcode " << static_cast<uint8_t>(instruction) << std::endl;
         return offset + 1;
     }
 
-    static_assert(static_cast<int>(OpCode::COUNT) == 64, "Missing operations in the Debug");
+    static_assert(static_cast<int>(OpCode::COUNT) == 66, "Missing operations in the Debug");
 }

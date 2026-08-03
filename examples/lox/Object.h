@@ -112,6 +112,8 @@ struct ObjFunction : Obj
     int upvalueCount;
     Chunk chunk;
     ObjString* name;
+    std::string debugName;
+    std::string debugIdentity;
 };
 
 struct ObjUpvalue : Obj

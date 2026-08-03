@@ -532,11 +532,13 @@ void Example::OnStart()
     m_graphView.setIDGenerator(m_IDGenerator);
     m_graphView.Init(LargeNodeFont());
     m_graphView.setNodeRegistry(m_NodeRegistry);
+    m_graphView.setDebugger(m_scriptDebugger);
     m_graphView.setNavigationHandlers(
         [this](int elementId) { m_pendingOriginId = elementId; },
         [this](const NodePtr& node) { m_pendingReferenceNode = node; });
 
     VM& vm = VM::getInstance();
+    vm.setDebugHandler(&m_scriptDebugger);
     vm.setExternalMarkingFunc([&]()
     {
         MarkNodeRegistryRoots(m_NodeRegistry, vm);
@@ -547,6 +549,8 @@ void Example::OnStart()
         }
 
         ScriptUtils::MarkScriptRoots(m_script);
+
+        m_scriptDebugger.MarkRoots(vm);
 
         if (m_visualApplicationContext)
             m_visualApplicationContext->MarkRoots(vm);
@@ -619,6 +623,7 @@ void Example::OnStop()
     DestroyPendingVisualApplicationTextures();
     SaveLayoutSettings();
     m_graphView.Destroy();
+    VM::getInstance().setDebugHandler(nullptr);
     auto releaseTexture = [this](ImTextureID& id)
     {
         if (id)
@@ -1149,7 +1154,266 @@ void Example::ShowCompilerInfo(float paneWidth)
 void Example::ShowDebugPanel(float paneWidth)
 {
     (void)paneWidth;
-    ShowDeveloperPanel();
+    const bool paused = m_scriptDebugger.IsPaused();
+    ImGui::TextColored(paused ? ImVec4(1.0f, 0.8f, 0.25f, 1.0f) : ImVec4(0.55f, 0.62f, 0.72f, 1.0f), paused ? "Paused at breakpoint" : "Debugger idle");
+
+    if (paused)
+    {
+        const ScriptDebugPause pause = m_scriptDebugger.GetPause();
+        ImGui::Spacing();
+        ImGui::TextDisabled("CURRENT EXECUTION NODE");
+
+        if (ImGui::Selectable(pause.probe.label.c_str()))
+        {
+            ScriptFunctionPtr function = m_script.main && m_script.main->PersistentId == pause.probe.functionId ? m_script.main : ScriptUtils::FindFunctionByPersistentId(m_script, pause.probe.functionId);
+            
+            if (function)
+                ChangeGraph(function);
+
+            m_graphView.FocusNodeOnNextFrame(pause.probe.nodeRuntimeId);
+        }
+
+        ImGui::Spacing();
+        ImGui::TextDisabled("CALL STACK");
+
+        const auto findFrameFunction = [&](const VmDebugCallFrame& frame, size_t frameIndex) -> ScriptFunctionPtr
+        {
+            const auto matchesFrame = [&](const ScriptFunctionPtr& function)
+            {
+                return function && !frame.functionIdentity.empty() && function->PersistentId.ToString() == frame.functionIdentity;
+            };
+
+            if (matchesFrame(m_script.main))
+                return m_script.main;
+
+            for (const ScriptFunctionPtr& function : m_script.functions)
+            {
+                if (matchesFrame(function))
+                    return function;
+            }
+
+            for (const ScriptClassPtr& scriptClass : m_script.classes)
+            {
+                if (matchesFrame(scriptClass->constructor))
+                    return scriptClass->constructor;
+
+                for (const ScriptFunctionPtr& method : scriptClass->methods)
+                {
+                    if (matchesFrame(method))
+                        return method;
+                }
+            }
+
+            if (frameIndex == 0 && frame.functionIdentity.empty())
+            {
+                return m_script.main && m_script.main->PersistentId == pause.probe.functionId
+                    ? m_script.main : ScriptUtils::FindFunctionByPersistentId(m_script, pause.probe.functionId);
+            }
+
+            return nullptr;
+        };
+
+        if (ImGui::BeginTable("##debugCallStack", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 28.0f);
+            ImGui::TableSetupColumn("Function");
+            ImGui::TableSetupColumn("Instruction", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+            ImGui::TableHeadersRow();
+
+            for (size_t index = 0; index < pause.callStack.size(); ++index)
+            {
+                const VmDebugCallFrame& frame = pause.callStack[index];
+                const ScriptFunctionPtr function = findFrameFunction(frame, index);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextDisabled("%zu", index);
+                ImGui::TableSetColumnIndex(1);
+
+                const bool displayedFunction = function && m_graphView.m_pScriptFunction && function->PersistentId == m_graphView.m_pScriptFunction->PersistentId;
+
+                if (ImGui::Selectable((frame.qualifiedName + "##frame-" + std::to_string(index)).c_str(), displayedFunction, ImGuiSelectableFlags_SpanAllColumns) && function)
+                {
+                    SelectScriptItem(function->ID);
+                    ChangeGraph(function);
+
+                    if (index == 0)
+                    {
+                        m_graphView.FocusNodeOnNextFrame(pause.probe.nodeRuntimeId);
+                    }
+                    else
+                    {
+                        GraphNodeId nodeId;
+                        if (m_scriptDebugger.TryGetLastFlowNode(function->PersistentId, nodeId))
+                        {
+                            const NodePtr node = function->Graph.FindNodeIf([&](const NodePtr& candidate)
+                            {
+                                return candidate && candidate->PersistentId == nodeId;
+                            });
+                            if (node)
+                            {
+                                m_graphView.FocusNodeOnNextFrame(static_cast<int>(node->ID.Get()));
+                            }
+                        }
+                    }
+                }
+
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextDisabled("+%zu", frame.instructionOffset);
+            }
+            ImGui::EndTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Watched values", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const std::vector<ScriptDebugValue> values = m_scriptDebugger.GetWatchedValues();
+
+        if (values.empty())
+            ImGui::TextDisabled("Right-click a data pin and choose Watch Value.");
+
+        for (const ScriptDebugValue& value : values)
+        {
+            ImGui::TextUnformatted(value.probe.label.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("= %s", value.value.c_str());
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Breakpoints"))
+    {
+        const std::shared_ptr<const ScriptDebugInfo> debugInfo = m_scriptDebugger.GetDebugInfo();
+        std::set<std::string> displayed;
+
+        if (debugInfo)
+        {
+            for (const ScriptDebugProbe& probe : debugInfo->Probes())
+            {
+                if (probe.kind != ScriptDebugProbeKind::Node || !m_scriptDebugger.HasBreakpoint(probe.key) || !displayed.insert(probe.key).second)
+                    continue;
+
+                bool enabled = true;
+
+                if (ImGui::Checkbox((probe.label + "##breakpoint-" + probe.key).c_str(), &enabled))
+                    m_scriptDebugger.SetBreakpoint(probe.key, enabled);
+            }
+        }
+
+        if (displayed.empty())
+            ImGui::TextDisabled("Right-click a node and choose Add Breakpoint.");
+    }
+
+    if (ImGui::CollapsingHeader("Variables"))
+    {
+        const auto drawVariable = [&](const ScriptPropertyPtr& variable)
+        {
+            if (!variable)
+                return;
+
+            const std::string key = ScriptDebugInfo::VariableKey(m_script.ModuleIdentity, {}, variable->PersistentId);
+            bool watched = m_scriptDebugger.IsWatching(key);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+
+            if (ImGui::Checkbox(("##watch-variable-" + variable->PersistentId.ToString()).c_str(), &watched))
+                m_scriptDebugger.SetWatching(key, watched);
+
+            ImGui::TableSetColumnIndex(1);
+            if (ImGui::Selectable((variable->Name + "##select-variable-" + variable->PersistentId.ToString()).c_str(), watched))
+            {
+                watched = !watched;
+                m_scriptDebugger.SetWatching(key, watched);
+            }
+
+            ImGui::TableSetColumnIndex(2);
+            std::string value;
+
+            if (m_scriptDebugger.TryGetValue(key, value))
+                ImGui::TextUnformatted(value.c_str());
+            else
+                ImGui::TextDisabled("Not observed yet");
+        };
+
+        if (ImGui::BeginTable("##debugVariables", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp))
+        {
+            ImGui::TableSetupColumn("Watch", ImGuiTableColumnFlags_WidthFixed, 52.0f);
+            ImGui::TableSetupColumn("Variable");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            for (const ScriptPropertyPtr& variable : m_script.variables)
+            {
+                drawVariable(variable);
+            }
+
+            if (m_script.main)
+            {
+                for (const ScriptPropertyPtr& variable : m_script.main->variables)
+                {
+                    drawVariable(variable);
+                }
+            }
+            for (const ScriptFunctionPtr& function : m_script.functions)
+            {
+                for (const ScriptPropertyPtr& variable : function->variables)
+                {
+                    drawVariable(variable);
+                }
+            }
+
+            for (const ScriptClassPtr& scriptClass : m_script.classes)
+            {
+                for (const ScriptPropertyPtr& property : scriptClass->properties)
+                {
+                    drawVariable(property);
+                }
+
+                for (const ScriptFunctionPtr& method : scriptClass->methods)
+                {
+                    for (const ScriptPropertyPtr& variable : method->variables)
+                    {
+                        drawVariable(variable);
+                    }
+                }
+
+                if (scriptClass->constructor)
+                {
+                    for (const ScriptPropertyPtr& variable : scriptClass->constructor->variables)
+                    {
+                        drawVariable(variable);
+                    }
+                }
+            }
+            ImGui::EndTable();
+        }
+    }
+
+}
+
+void Example::DrawBreakpointControls()
+{
+    if (ImGui::Button(ICON_FA_PLAY " Continue"))
+        ContinueScriptExecution(ScriptDebugResumeMode::Continue);
+
+    Tooltip("Continue execution (F5)");
+    ImGui::SameLine();
+
+    if (ImGui::Button(ICON_FA_ARROW_DOWN " Step Into"))
+        ContinueScriptExecution(ScriptDebugResumeMode::StepInto);
+
+    Tooltip("Pause at the next executed node, including inside called functions (F11)");
+    ImGui::SameLine();
+
+    if (ImGui::Button(ICON_FA_FORWARD_STEP " Step Over"))
+        ContinueScriptExecution(ScriptDebugResumeMode::StepOver);
+
+    Tooltip("Pause at the next node in this call frame (F10)");
+    ImGui::SameLine();
+
+    if (ImGui::Button(ICON_FA_TURN_UP " Step Out"))
+        ContinueScriptExecution(ScriptDebugResumeMode::StepOut);
+
+    Tooltip("Continue until the current function returns (Shift+F11)");
 }
 
 void Example::ContextMenu()
@@ -1341,6 +1605,30 @@ void Example::ShowScriptExplorer()
     ImGui::Spacing();
     RenderTreeNode(m_scriptTreeView, m_selectedItemId, m_editingItemId,
                    m_scriptFilter.c_str(), &m_scrollToScriptItemId);
+}
+
+void Example::DrawVariableRuntimeTooltip(const ScriptPropertyPtr& variable)
+{
+    if (!variable)
+        return;
+
+    ImGui::BeginTooltip();
+    ImGui::TextUnformatted(variable->Name.c_str());
+    ImGui::TextDisabled("Type: %s", variable->type.ToString().c_str());
+    ImGui::Separator();
+    std::string runtimeValue;
+    const std::string key = ScriptDebugInfo::VariableKey(m_script.ModuleIdentity, {}, variable->PersistentId);
+    if (m_scriptDebugger.TryGetValue(key, runtimeValue))
+    {
+        ImGui::TextDisabled(m_scriptDebugger.IsPaused() ? "Value at breakpoint" : "Last runtime value");
+        ImGui::TextColored(ImVec4(1.0f, 0.78f, 0.3f, 1.0f), "%s", runtimeValue.c_str());
+    }
+    else
+    {
+        ImGui::TextDisabled("Default value");
+        ImGui::TextUnformatted(valueAsStr(variable->defaultValue).c_str());
+    }
+    ImGui::EndTooltip();
 }
 
 void Example::ShowInspector()
@@ -2005,8 +2293,10 @@ void Example::ShowInspector()
                 const BasicFunctionDef::Input& input = function->functionDef->inputs[inputIndex];
                 ImGui::PushID(input.id);
                 
-                const std::string inputLabel = std::to_string(inputIndex + 1) + ". " + (input.name.empty() ? "Unnamed input" : input.name) + "  [" + InspectorTypeName(input.type) + "]###input";
-                const bool inputExpanded = ImGui::TreeNodeEx(inputLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
+                const std::string inputLabel = std::to_string(inputIndex + 1) + ". " + (input.name.empty() ? "Unnamed input" : input.name) + "  [" +
+                    InspectorTypeName(input.type) + "]###input";
+                const bool inputExpanded = ImGui::TreeNodeEx(inputLabel.c_str(),
+                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
 
                 if (!inputExpanded)
                 {
@@ -2100,8 +2390,10 @@ void Example::ShowInspector()
             {
                 const BasicFunctionDef::Input& output = function->functionDef->outputs[outputIndex];
                 ImGui::PushID(output.id);
-                const std::string outputLabel = std::to_string(outputIndex + 1) + ". " + (output.name.empty() ? "Unnamed output" : output.name) + "  [" + InspectorTypeName(output.type) + "]###output";
-                const bool outputExpanded = ImGui::TreeNodeEx(outputLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
+                const std::string outputLabel = std::to_string(outputIndex + 1) + ". " + (output.name.empty() ? "Unnamed output" : output.name) + "  [" +
+                    InspectorTypeName(output.type) + "]###output";
+                const bool outputExpanded = ImGui::TreeNodeEx(outputLabel.c_str(),
+                    ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth);
 
                 if (!outputExpanded)
                 {
@@ -2527,10 +2819,7 @@ void Example::ShowOutputPanel()
     {
         if (ImGui::Button(ICON_FA_STOP " Stop"))
         {
-            if (executionRunning)
-                StopScriptExecution();
-            else
-                StopVisualApplication();
+            StopScriptExecution();
             m_fileStatus = "Program stopped";
             m_fileStatusIsError = false;
         }
@@ -2657,12 +2946,23 @@ void Example::ShowBottomPanel()
             ImGui::EndTabItem();
         }
 
+        ImGuiTabItemFlags debugFlags = selectionPending && requestedTab == BottomPanelTab::Debug
+            ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+        if (ImGui::BeginTabItem(ICON_FA_BUG " Debug", nullptr, debugFlags))
+        {
+            if (!selectionPending || requestedTab == BottomPanelTab::Debug)
+                m_bottomPanelTab = BottomPanelTab::Debug;
+            if (selectionPending && requestedTab == BottomPanelTab::Debug)
+                m_selectBottomPanelTab = false;
+            ShowDebugPanel(m_bottomPaneHeight);
+            ImGui::EndTabItem();
+        }
+
         if (m_showDeveloperTools)
         {
-            ImGuiTabItemFlags developerFlags =
-                selectionPending && requestedTab == BottomPanelTab::Developer
-                    ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
-            if (ImGui::BeginTabItem(ICON_FA_BUG " Developer", nullptr, developerFlags))
+            ImGuiTabItemFlags developerFlags = selectionPending && requestedTab == BottomPanelTab::Developer
+                ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+            if (ImGui::BeginTabItem(ICON_FA_CODE " Developer", nullptr, developerFlags))
             {
                 if (!selectionPending || requestedTab == BottomPanelTab::Developer)
                     m_bottomPanelTab = BottomPanelTab::Developer;
@@ -2696,6 +2996,7 @@ void Example::CompileScript(bool runAfterCompile)
 
     ScriptCompileOptions compileOptions;
     compileOptions.enableConstantFolding = m_isConstFoldingEnabled;
+    compileOptions.enableDebugging = runAfterCompile;
     compileOptions.disassemble = m_showDeveloperTools;
     compileOptions.programArguments = GetArguments();
     const ScriptCompileResult compileResult =
@@ -2705,6 +3006,7 @@ void Example::CompileScript(bool runAfterCompile)
     m_constFoldingValues = compileResult.foldedValues;
     m_constFoldingIDs = compileResult.foldedNodeIds;
     m_compileOutput = captureCompilation.Restore();
+    m_scriptDebugger.SetDebugInfo(compileResult.debugInfo);
 
     if (!compileResult.function || m_validationReport.HasErrors())
     {
@@ -2773,10 +3075,10 @@ void Example::StartScriptExecution(ObjFunction* function)
                         stopRequested = m_scriptExecutionCancelled;
                         return stopRequested;
                     }))
-                        result = InterpretResult::INTERPRET_RUNTIME_ERROR;
+                        result = ScriptRuntime::HasPausedExecution(vm) ? InterpretResult::INTERPRET_PAUSED : InterpretResult::INTERPRET_RUNTIME_ERROR;
                     cancelled = stopRequested;
                 }
-                if (result != InterpretResult::INTERPRET_OK)
+                if (result != InterpretResult::INTERPRET_OK && result != InterpretResult::INTERPRET_PAUSED)
                     ClearStandardLibraryTimers(vm);
             }
             catch (const ConsoleInputCancelled&)
@@ -2808,6 +3110,80 @@ void Example::StartScriptExecution(ObjFunction* function)
     });
 }
 
+void Example::ContinueScriptExecution(ScriptDebugResumeMode mode)
+{
+    VM& vm = VM::getInstance();
+    if (!ScriptRuntime::HasPausedExecution(vm))
+        return;
+
+    if (m_visualApplicationContext && m_visualApplicationPreviewOpen)
+    {
+        m_scriptDebugger.Resume(mode);
+        m_resumeVisualApplication = true;
+        return;
+    }
+
+    if (m_scriptExecutionThread.joinable())
+        m_scriptExecutionThread.join();
+    m_scriptDebugger.Resume(mode);
+    {
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        m_scriptExecutionRunning = true;
+        m_scriptExecutionFinished = false;
+        m_scriptExecutionCancelled = false;
+    }
+
+    m_scriptExecutionThread = std::thread([this]()
+    {
+        InterpretResult result = InterpretResult::INTERPRET_RUNTIME_ERROR;
+        bool cancelled = false;
+        {
+            Utils::CaptureSynchronizedStdout captureExecution(m_consoleMutex, m_runOutput);
+            VM& vm = VM::getInstance();
+            result = ScriptRuntime::Resume(vm);
+            if (result == InterpretResult::INTERPRET_OK && (!m_visualApplicationContext || !m_visualApplicationContext->HasUpdateFunction()))
+            {
+                bool stopRequested = false;
+                if (!RunStandardLibraryTimers(vm, [this, &stopRequested]()
+                {
+                    std::lock_guard<std::mutex> lock(m_consoleMutex);
+                    stopRequested = m_scriptExecutionCancelled;
+                    return stopRequested;
+                }))
+                    result = ScriptRuntime::HasPausedExecution(vm) ? InterpretResult::INTERPRET_PAUSED : InterpretResult::INTERPRET_RUNTIME_ERROR;
+                cancelled = stopRequested;
+            }
+            if (result != InterpretResult::INTERPRET_OK && result != InterpretResult::INTERPRET_PAUSED)
+                ClearStandardLibraryTimers(vm);
+        }
+
+        std::lock_guard<std::mutex> lock(m_consoleMutex);
+        m_scriptExecutionResult = result;
+        m_scriptExecutionCancelled = cancelled;
+        m_scriptExecutionRunning = false;
+        m_scriptExecutionFinished = true;
+    });
+}
+
+void Example::SyncDebuggerPauseView()
+{
+    if (!m_scriptDebugger.IsPaused())
+        return;
+
+    const ScriptDebugPause pause = m_scriptDebugger.GetPause();
+    if (pause.sequence == 0 || pause.sequence == m_lastFocusedDebugPause)
+        return;
+
+    ScriptFunctionPtr function = m_script.main && m_script.main->PersistentId == pause.probe.functionId
+        ? m_script.main : ScriptUtils::FindFunctionByPersistentId(m_script, pause.probe.functionId);
+    if (function && (!m_graphView.m_pScriptFunction || m_graphView.m_pScriptFunction->PersistentId != function->PersistentId))
+        ChangeGraph(function);
+    m_graphView.FocusNodeOnNextFrame(pause.probe.nodeRuntimeId, 0.5f, -1.0f, 1);
+    m_showBottomPanel = true;
+    SetBottomPanel(BottomPanelTab::Debug);
+    m_lastFocusedDebugPause = pause.sequence;
+}
+
 void Example::PollScriptExecution()
 {
     InterpretResult result = InterpretResult::INTERPRET_OK;
@@ -2830,6 +3206,14 @@ void Example::PollScriptExecution()
         m_visualApplicationContext.reset();
         m_fileStatus = "Program stopped";
         m_fileStatusIsError = false;
+        return;
+    }
+
+    if (result == InterpretResult::INTERPRET_PAUSED)
+    {
+        m_fileStatus = "Paused at breakpoint";
+        m_fileStatusIsError = false;
+        SetBottomPanel(BottomPanelTab::Debug);
         return;
     }
 
@@ -2870,15 +3254,22 @@ void Example::PollScriptExecution()
 
 void Example::StopScriptExecution()
 {
+    VM& vm = VM::getInstance();
+    vm.requestStop();
     {
         std::lock_guard<std::mutex> lock(m_consoleMutex);
-        if (!m_scriptExecutionThread.joinable())
-            return;
         m_scriptExecutionCancelled = true;
         m_consoleWaitingForInput = false;
     }
     m_consoleInputReady.notify_all();
-    m_scriptExecutionThread.join();
+    if (m_scriptExecutionThread.joinable())
+        m_scriptExecutionThread.join();
+    if (ScriptRuntime::HasPausedExecution(vm))
+        ScriptRuntime::AbandonPausedExecution(vm);
+    else
+        vm.resetStack();
+    m_scriptDebugger.ClearRuntimeState();
+    ClearStandardLibraryTimers(vm);
 
     {
         std::lock_guard<std::mutex> lock(m_consoleMutex);
@@ -2887,7 +3278,9 @@ void Example::StopScriptExecution()
         m_consoleWaitingForInput = false;
         m_consoleInputQueue.clear();
     }
+    m_visualApplicationPreviewOpen = false;
     m_visualApplicationContext.reset();
+    m_resumeVisualApplication = false;
 }
 
 void Example::SubmitConsoleInput()
@@ -2921,9 +3314,13 @@ bool Example::IsScriptWaitingForInput() const
 
 void Example::StopVisualApplication()
 {
+    if (ScriptRuntime::HasPausedExecution(VM::getInstance()))
+        ScriptRuntime::AbandonPausedExecution(VM::getInstance());
+    m_scriptDebugger.ClearRuntimeState();
     ClearStandardLibraryTimers(VM::getInstance());
     m_visualApplicationPreviewOpen = false;
     m_visualApplicationContext.reset();
+    m_resumeVisualApplication = false;
 }
 
 void Example::DestroyPendingVisualApplicationTextures()
@@ -2938,23 +3335,40 @@ void Example::DrawVisualApplicationPreview(float deltaTime)
     if (!m_visualApplicationContext || IsScriptExecutionRunning())
         return;
 
+    // Every run starts with a provisional visual-application context so the script can register an update function.
+    // The worker may finish after PollScriptExecution() but before this function in the same frame. Wait until polling
+    // explicitly opens the preview; otherwise the provisional false flag is mistaken for the user closing the window.
+    if (!m_visualApplicationPreviewOpen)
+        return;
+
     ImGui::SetNextWindowSize(ImVec2(640.0f, 720.0f), ImGuiCond_FirstUseEver);
     const bool visible = ImGui::Begin("Vlox Application Preview", &m_visualApplicationPreviewOpen);
     InterpretResult result = InterpretResult::INTERPRET_OK;
     std::string frameOutput;
     if (visible)
     {
-        Utils::CaptureStdout captureExecution;
-        m_visualApplicationContext->BeginFrame();
         VM& vm = VM::getInstance();
-        if (!PumpStandardLibraryTimers(vm))
-            result = InterpretResult::INTERPRET_RUNTIME_ERROR;
-        if (result == InterpretResult::INTERPRET_OK)
-            result = ScriptRuntime::Call(vm, m_visualApplicationContext->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
-        if (result == InterpretResult::INTERPRET_OK && !PumpStandardLibraryTimers(vm))
-            result = InterpretResult::INTERPRET_RUNTIME_ERROR;
-        m_visualApplicationContext->EndFrame();
-        frameOutput = captureExecution.Restore();
+        if (!m_scriptDebugger.IsPaused() || m_resumeVisualApplication)
+        {
+            Utils::CaptureStdout captureExecution;
+            m_visualApplicationContext->BeginFrame();
+            if (m_resumeVisualApplication)
+            {
+                m_resumeVisualApplication = false;
+                result = ScriptRuntime::Resume(vm);
+            }
+            else
+            {
+                if (!PumpStandardLibraryTimers(vm))
+                    result = ScriptRuntime::HasPausedExecution(vm) ? InterpretResult::INTERPRET_PAUSED : InterpretResult::INTERPRET_RUNTIME_ERROR;
+                if (result == InterpretResult::INTERPRET_OK)
+                    result = ScriptRuntime::Call(vm, m_visualApplicationContext->GetUpdateFunction(), { Value(static_cast<double>(deltaTime)) });
+                if (result == InterpretResult::INTERPRET_OK && !PumpStandardLibraryTimers(vm))
+                    result = ScriptRuntime::HasPausedExecution(vm) ? InterpretResult::INTERPRET_PAUSED : InterpretResult::INTERPRET_RUNTIME_ERROR;
+            }
+            m_visualApplicationContext->EndFrame();
+            frameOutput = captureExecution.Restore();
+        }
     }
     ImGui::End();
 
@@ -2970,6 +3384,12 @@ void Example::DrawVisualApplicationPreview(float deltaTime)
         StopVisualApplication();
         m_fileStatus = "Application stopped";
         m_fileStatusIsError = false;
+    }
+    else if (result == InterpretResult::INTERPRET_PAUSED)
+    {
+        m_fileStatus = "Paused at breakpoint";
+        m_fileStatusIsError = false;
+        SetBottomPanel(BottomPanelTab::Debug);
     }
     else if (result != InterpretResult::INTERPRET_OK)
     {
@@ -3086,10 +3506,7 @@ void Example::DrawMenuBar()
         {
             if (ImGui::MenuItem(ICON_FA_STOP "  Stop", "F5"))
             {
-                if (executionRunning)
-                    StopScriptExecution();
-                else
-                    StopVisualApplication();
+                StopScriptExecution();
                 m_fileStatus = "Program stopped";
                 m_fileStatusIsError = false;
             }
@@ -3262,7 +3679,8 @@ void Example::DrawToolbar()
         ImGui::CalcTextSize(ICON_FA_CODE " Compile").x +
         ImGui::GetStyle().FramePadding.x * 2.0f;
     const bool executionRunning = IsScriptExecutionRunning();
-    const bool programActive = executionRunning || m_visualApplicationContext;
+    const bool debuggerPaused = m_scriptDebugger.IsPaused();
+    const bool programActive = executionRunning || m_visualApplicationContext || debuggerPaused || ScriptRuntime::HasPausedExecution(VM::getInstance());
     const char* runLabel = programActive ? ICON_FA_STOP " Stop" : ICON_FA_PLAY " Run";
     const float runWidth =
         ImGui::CalcTextSize(runLabel).x +
@@ -3271,40 +3689,43 @@ void Example::DrawToolbar()
     const float rightX = ImGui::GetWindowWidth() - actionsWidth -
                          ImGui::GetStyle().WindowPadding.x;
 
-    const float searchButtonWidth =
-        ImGui::CalcTextSize(ICON_FA_MAGNIFYING_GLASS).x +
-        ImGui::GetStyle().FramePadding.x * 2.0f;
-    const float searchStart = ImGui::GetCursorPosX() +
-                              ImGui::GetStyle().ItemSpacing.x;
-    const float searchSpace = rightX - searchStart -
-                              ImGui::GetStyle().ItemSpacing.x * 2.0f;
-    if (searchSpace >= 160.0f)
+    if (debuggerPaused)
     {
-        const float searchWidth = ImClamp(
-            searchSpace - searchButtonWidth -
-                ImGui::GetStyle().ItemSpacing.x,
-            120.0f, 340.0f);
+        const char* debugLabels[] = {
+            ICON_FA_PLAY " Continue", ICON_FA_ARROW_DOWN " Step Into", ICON_FA_FORWARD_STEP " Step Over",
+            ICON_FA_TURN_UP " Step Out", ICON_FA_STOP " Stop"
+        };
+        float debugControlsWidth = ImGui::GetStyle().ItemSpacing.x * 4.0f;
+        for (const char* label : debugLabels)
+            debugControlsWidth += ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+
         ImGui::SameLine();
-        ImGui::SetCursorPosX(ImMax(
-            searchStart,
-            rightX - searchWidth - searchButtonWidth -
-                ImGui::GetStyle().ItemSpacing.x * 2.0f));
-        if (m_focusSearchBox)
+        ImGui::SetCursorPosX(ImMax(ImGui::GetCursorPosX(), (ImGui::GetWindowWidth() - debugControlsWidth) * 0.5f));
+        DrawBreakpointControls();
+    }
+    else
+    {
+        const float searchButtonWidth = ImGui::CalcTextSize(ICON_FA_MAGNIFYING_GLASS).x + ImGui::GetStyle().FramePadding.x * 2.0f;
+        const float searchStart = ImGui::GetCursorPosX() + ImGui::GetStyle().ItemSpacing.x;
+        const float searchSpace = rightX - searchStart - ImGui::GetStyle().ItemSpacing.x * 2.0f;
+        if (searchSpace >= 160.0f)
         {
-            ImGui::SetKeyboardFocusHere();
-            m_focusSearchBox = false;
+            const float searchWidth = ImClamp(searchSpace - searchButtonWidth - ImGui::GetStyle().ItemSpacing.x, 120.0f, 340.0f);
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(ImMax(searchStart, rightX - searchWidth - searchButtonWidth - ImGui::GetStyle().ItemSpacing.x * 2.0f));
+            if (m_focusSearchBox)
+            {
+                ImGui::SetKeyboardFocusHere();
+                m_focusSearchBox = false;
+            }
+            ImGui::SetNextItemWidth(searchWidth);
+            if (ImGui::InputTextWithHint("##globalSearch", "Search nodes, pins, and values...", &m_searchQuery, ImGuiInputTextFlags_EnterReturnsTrue))
+                RunTextSearch();
+            ImGui::SameLine();
+            if (ImGui::Button(ICON_FA_MAGNIFYING_GLASS "##runSearch"))
+                RunTextSearch();
+            Tooltip("Search the entire script (Enter or click, Ctrl+F to focus)");
         }
-        ImGui::SetNextItemWidth(searchWidth);
-        if (ImGui::InputTextWithHint(
-                "##globalSearch",
-                "Search nodes, pins, and values...",
-                &m_searchQuery,
-                ImGuiInputTextFlags_EnterReturnsTrue))
-            RunTextSearch();
-        ImGui::SameLine();
-        if (ImGui::Button(ICON_FA_MAGNIFYING_GLASS "##runSearch"))
-            RunTextSearch();
-        Tooltip("Search the entire script (Enter or click, Ctrl+F to focus)");
     }
 
     if (rightX > ImGui::GetCursorPosX())
@@ -3312,7 +3733,7 @@ void Example::DrawToolbar()
         ImGui::SameLine();
         ImGui::SetCursorPosX(rightX);
     }
-    ImGuiUtils::BeginDisabled(executionRunning);
+    ImGuiUtils::BeginDisabled(executionRunning || debuggerPaused);
     if (ImGui::Button(ICON_FA_CODE " Compile"))
         CompileScript(false);
     ImGuiUtils::EndDisabled();
@@ -3326,23 +3747,17 @@ void Example::DrawToolbar()
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, runActiveColor);
     if (ImGui::Button(runLabel))
     {
-        if (executionRunning)
+        if (programActive)
         {
             StopScriptExecution();
             m_fileStatus = "Program stopped";
-            m_fileStatusIsError = false;
-        }
-        else if (m_visualApplicationContext)
-        {
-            StopVisualApplication();
-            m_fileStatus = "Application stopped";
             m_fileStatusIsError = false;
         }
         else
             CompileScript(true);
     }
     ImGui::PopStyleColor(3);
-    Tooltip("Compile and run (F5)");
+    Tooltip(programActive ? "Stop execution" : "Compile and run (F5)");
 
     ImGui::EndChild();
 }
@@ -3390,10 +3805,21 @@ void Example::HandleShortcuts()
         GImGui->InputTextState.ID == activeId;
     const bool popupOpen = ImGui::IsPopupOpen(
         nullptr, ImGuiPopupFlags_AnyPopup);
+    const bool debuggerPaused = m_scriptDebugger.IsPaused();
+
+    if (!popupOpen && debuggerPaused)
+    {
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
+            ContinueScriptExecution(ScriptDebugResumeMode::Continue);
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F10), false))
+            ContinueScriptExecution(ScriptDebugResumeMode::StepOver);
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F11), false))
+            ContinueScriptExecution(io.KeyShift ? ScriptDebugResumeMode::StepOut : ScriptDebugResumeMode::StepInto);
+    }
 
     // Function keys are application commands and remain available regardless
     // of which editor panel owns keyboard focus.
-    if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
+    if (!popupOpen && !debuggerPaused && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F5), false))
     {
         if (IsScriptExecutionRunning())
         {
@@ -3403,8 +3829,8 @@ void Example::HandleShortcuts()
         }
         else if (m_visualApplicationContext)
         {
-            StopVisualApplication();
-            m_fileStatus = "Application stopped";
+            StopScriptExecution();
+            m_fileStatus = "Program stopped";
             m_fileStatusIsError = false;
         }
         else
@@ -3412,6 +3838,9 @@ void Example::HandleShortcuts()
     }
     if (!popupOpen && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_F1), false))
         m_showHelp = true;
+
+    if (debuggerPaused)
+        return;
 
     // Text fields retain their native copy/paste and undo behavior. The old
     // implementation only checked whether InputTextState had ever been used,
@@ -3488,6 +3917,7 @@ void Example::HandleShortcuts()
 void Example::OnFrame(float deltaTime)
 {
     PollScriptExecution();
+    SyncDebuggerPauseView();
     if (IsScriptWaitingForInput())
     {
         m_fileStatus = "Waiting for input";
@@ -3594,6 +4024,7 @@ void Example::OnFrame(float deltaTime)
     const float remainingWidth = ImGui::GetContentRegionAvail().x;
     const float centerWidth = ImMax(minimumCanvasWidth,
         remainingWidth - (m_showInspector ? m_rightPaneWidth + 5.0f : 0.0f));
+    const bool breakpointMode = m_scriptDebugger.IsPaused();
     ImGui::BeginChild("Graph Canvas Panel", ImVec2(centerWidth, mainHeight), true,
                       ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGuiUtils::BeginDisabled(m_graphBackHistory.empty());
@@ -3658,6 +4089,13 @@ void Example::OnFrame(float deltaTime)
 
     auto editorMin = ImGui::GetItemRectMin();
     auto editorMax = ImGui::GetItemRectMax();
+
+    if (breakpointMode)
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        drawList->AddRect(editorMin, editorMax, IM_COL32(255, 62, 42, 255), 2.0f, ImDrawFlags_RoundCornersAll, 4.0f);
+        drawList->AddRect(editorMin + ImVec2(4.0f, 4.0f), editorMax - ImVec2(4.0f, 4.0f), IM_COL32(255, 154, 48, 190), 1.0f, ImDrawFlags_RoundCornersAll, 1.5f);
+    }
 
     if (m_graphView.m_pGraph && m_graphView.m_pGraph->GetNodes().size() <= 1)
     {
@@ -3859,6 +4297,12 @@ TreeNode Example::MakeVariableNode(int varId, const std::string& name, int owner
             ImGui::SameLine();
             ImGui::TextDisabled("%s", variable->type.ToString().c_str());
         }
+    };
+    varNode.tooltip = [this, varId, ownerFunctionId]()
+    {
+        DrawVariableRuntimeTooltip(ownerFunctionId >= 0
+            ? ScriptUtils::FindFunctionVariableById(m_script, ownerFunctionId, varId)
+            : ScriptUtils::FindVariableById(m_script, varId));
     };
     ScriptPropertyPtr variable = ownerFunctionId >= 0
         ? ScriptUtils::FindFunctionVariableById(m_script, ownerFunctionId, varId)
@@ -4761,6 +5205,10 @@ TreeNode Example::MakeClassPropertyNode(int classId, const ScriptPropertyPtr& pr
         if (!current) return;
         ImGui::SameLine();
         ImGui::TextDisabled("%s", current->type.ToString().c_str());
+    };
+    node.tooltip = [this, id = property->ID.id]()
+    {
+        DrawVariableRuntimeTooltip(ScriptUtils::FindClassPropertyById(m_script, id));
     };
     return node;
 }

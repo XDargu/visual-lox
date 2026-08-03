@@ -81,6 +81,8 @@ set(_VisualLoxCoreSources
     runtime/constantFolder.cpp
     runtime/scriptRuntime.h
     runtime/scriptRuntime.cpp
+    runtime/scriptDebugger.h
+    runtime/scriptDebugger.cpp
     validation/scriptValidator.h
     validation/scriptValidator.cpp
     operations/documentOperations.h

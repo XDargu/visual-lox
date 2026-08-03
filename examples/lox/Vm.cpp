@@ -345,9 +345,10 @@ void VM::blackenObject(Obj* object)
     static_assert(static_cast<int>(ObjType::COUNT) == 11, "Missing enum value");
 }
 
-InterpretResult VM::run(int depth)
+InterpretResult VM::run(int depth, bool allowPause)
 {
     CallFrame* frame = &frames[frameCount - 1];
+    uint32_t stopCheckCountdown = 256;
 
     auto readByte = [&]() -> uint8_t { return *frame->ip++; };
     auto readShort = [&]() -> uint16_t
@@ -370,6 +371,12 @@ InterpretResult VM::run(int depth)
 
     for (;;)
     {
+        if (--stopCheckCountdown == 0)
+        {
+            stopCheckCountdown = 256;
+            if (stopRequested.load(std::memory_order_relaxed))
+                return InterpretResult::INTERPRET_RUNTIME_ERROR;
+        }
 #ifdef DEBUG_TRACE_EXECUTION
         std::cout << "          ";
         for (Value* slot = &stack[0]; slot < stackTop; slot++)
@@ -1191,15 +1198,58 @@ InterpretResult VM::run(int depth)
             case OpCode::OP_METHOD_LONG:
                 defineMethod(readStringLong());
                 break;
+            case OpCode::OP_DEBUG_BREAK:
+            {
+                const uint32_t probeId = readDWord();
+                if (debugHandler && debugHandler->WantsBreakpoints() && debugHandler->OnBreakpoint(probeId, *this))
+                {
+                    if (allowPause)
+                        return InterpretResult::INTERPRET_PAUSED;
+                    debugPausePending = true;
+                }
+                break;
+            }
+            case OpCode::OP_DEBUG_VALUE:
+            {
+                const uint32_t probeId = readDWord();
+                if (debugHandler && debugHandler->WantsValues())
+                    debugHandler->OnValue(probeId, peek(0));
+                break;
+            }
         }
-        static_assert(static_cast<int>(OpCode::COUNT) == 64, "Missing operations in the VM");
+        if (allowPause && debugPausePending)
+        {
+            debugPausePending = false;
+            return InterpretResult::INTERPRET_PAUSED;
+        }
+        static_assert(static_cast<int>(OpCode::COUNT) == 66, "Missing operations in the VM");
     }
+}
+
+std::vector<VmDebugCallFrame> VM::getDebugCallStack() const
+{
+    std::vector<VmDebugCallFrame> result;
+    result.reserve(frameCount);
+    for (size_t index = frameCount; index > 0; --index)
+    {
+        const CallFrame& frame = frames[index - 1];
+        const ObjFunction* function = frame.closure ? frame.closure->function : nullptr;
+        VmDebugCallFrame snapshot;
+        snapshot.functionName = function && function->name ? function->name->chars : "<script>";
+        snapshot.qualifiedName = function && !function->debugName.empty() ? function->debugName : snapshot.functionName;
+        snapshot.functionIdentity = function ? function->debugIdentity : std::string();
+        if (function && !function->chunk.code.empty() && frame.ip)
+            snapshot.instructionOffset = static_cast<size_t>(frame.ip - function->chunk.code.data());
+        result.push_back(std::move(snapshot));
+    }
+    return result;
 }
 
 void VM::resetStack()
 {
     stackTop = &stack[0];
     frameCount = 0;
+    debugPausePending = false;
 }
 
 inline void VM::runtimeError(const char* format, ...) 

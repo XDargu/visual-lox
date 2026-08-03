@@ -2,6 +2,7 @@
 # pragma once
 
 #include "node.h"
+#include "../runtime/scriptDebugger.h"
 
 #include <Scanner.h>
 
@@ -18,11 +19,13 @@ struct Value;
 
 struct CompilerContext
 {
-    CompilerContext(Compiler& compiler, const Script* script = nullptr,
-                    ScriptElementID functionId = ScriptElementID::Invalid)
+    CompilerContext(Compiler& compiler, const Script* script = nullptr, ScriptElementID functionId = ScriptElementID::Invalid,
+                    ScriptElementUuid functionPersistentId = {}, ScriptDebugInfo* debugInfo = nullptr)
         : compiler(compiler)
         , script(script)
         , functionId(functionId)
+        , functionPersistentId(functionPersistentId)
+        , debugInfo(debugInfo)
     {}
 
     constexpr static const char* tempVarPrefix = "__lv__";
@@ -34,6 +37,8 @@ struct CompilerContext
     Compiler& compiler;
     const Script* script = nullptr;
     ScriptElementID functionId;
+    ScriptElementUuid functionPersistentId;
+    ScriptDebugInfo* debugInfo = nullptr;
 
     Token StoreTempVariable(const std::string& name)
     {
@@ -56,9 +61,9 @@ struct CompilerContext
 
 struct GraphCompiler
 {
-    GraphCompiler(Compiler& compiler, const Script* script = nullptr,
-                  ScriptElementID functionId = ScriptElementID::Invalid)
-        : context(compiler, script, functionId)
+    GraphCompiler(Compiler& compiler, const Script* script = nullptr, ScriptElementID functionId = ScriptElementID::Invalid,
+                  ScriptElementUuid functionPersistentId = {}, ScriptDebugInfo* debugInfo = nullptr)
+        : context(compiler, script, functionId, functionPersistentId, debugInfo)
     {}
 
     using Callback = std::function<void(const NodePtr& node, const Graph& graph, CompilationStage stage, int portIdx)>;
@@ -81,4 +86,7 @@ struct GraphCompiler
     static void CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output);
     static void CompileCallResult(CompilerContext& compilerCtx, const Graph& graph,
                                   const std::vector<Pin>& outputs, size_t dataOutputStart);
+    static void EmitNodeProbe(CompilerContext& compilerCtx, const Node& node);
+    static void EmitPortProbe(CompilerContext& compilerCtx, const Node& node, const Pin& pin);
+    static void EmitVariableProbe(CompilerContext& compilerCtx, const Node* node, ScriptElementUuid variableId, const std::string& label);
 };

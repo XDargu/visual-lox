@@ -2474,9 +2474,6 @@ bool PumpStandardLibraryTimers(VM& vm)
     });
 
     for (const DueTimer& timer : due)
-        vm.push(timer.state->callback);
-
-    for (const DueTimer& timer : due)
     {
         bool active = false;
         {
@@ -2489,7 +2486,8 @@ bool PumpStandardLibraryTimers(VM& vm)
         if (!active)
             continue;
 
-        if (ScriptRuntime::Call(vm, timer.state->callback) != InterpretResult::INTERPRET_OK)
+        const InterpretResult result = ScriptRuntime::Call(vm, timer.state->callback);
+        if (result != InterpretResult::INTERPRET_OK)
         {
             std::lock_guard<std::mutex> lock(TimerMutex());
             const auto current = Timers().find(timer.handle);
@@ -2498,9 +2496,6 @@ bool PumpStandardLibraryTimers(VM& vm)
             return false;
         }
     }
-
-    for (size_t i = 0; i < due.size(); ++i)
-        vm.pop();
     return true;
 }
 

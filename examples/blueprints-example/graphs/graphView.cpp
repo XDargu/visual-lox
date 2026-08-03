@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphView.h"
+#include "../runtime/scriptDebugger.h"
 #include "graphLayout.h"
 #include "IconsFontAwesome6.h"
 
@@ -227,12 +228,21 @@ bool DrawNodeDiagnosticBox(ed::NodeId nodeId,
     return hovered;
 }
 
-void DrawPinTooltip(const Pin& pin)
+void DrawPinTooltip(const Pin& pin, const std::string* debugValue = nullptr, bool paused = false)
 {
     ImGui::BeginTooltip();
     if (!pin.Name.empty())
         ImGui::TextUnformatted(pin.Name.c_str());
     ImGui::TextDisabled("Type: %s", pin.Type.ToString().c_str());
+    if (paused)
+    {
+        ImGui::Separator();
+        ImGui::TextDisabled("Value at breakpoint");
+        if (debugValue)
+            ImGui::TextColored(ImVec4(1.0f, 0.78f, 0.3f, 1.0f), "%s", debugValue->c_str());
+        else
+            ImGui::TextDisabled("Not evaluated on this execution path");
+    }
     ImGui::Separator();
     ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
     ImGui::TextUnformatted(pin.Description.empty()
@@ -261,6 +271,11 @@ void DrawNodeTooltip(const Node& node)
 void GraphView::setDocumentOperations(DocumentOperations& operations)
 {
     m_pOperations = &operations;
+}
+
+void GraphView::setDebugger(ScriptDebugger& debugger)
+{
+    m_pDebugger = &debugger;
 }
 
 void GraphView::SetGraph(Script* pTargetScript, const ScriptFunctionPtr& pScriptFunction,
@@ -459,6 +474,7 @@ void GraphView::OnFrame(float deltaTime)
 void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, int headerHeight)
 {
     BeginAutoLayout();
+    const bool debugPaused = m_pDebugger && m_pDebugger->IsPaused();
 
     if (!operationError.empty())
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s", operationError.c_str());
@@ -489,6 +505,11 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                 {
                     return diagnostic->severity == DiagnosticSeverity::Error;
                 });
+            const std::string debugNodeKey = m_pDebugger && m_pScript && m_pScriptFunction
+                ? ScriptDebugInfo::NodeKey(m_pScript->ModuleIdentity, m_pScriptFunction->PersistentId, node->PersistentId) : std::string();
+            const bool hasBreakpoint = m_pDebugger && m_pDebugger->HasBreakpoint(debugNodeKey);
+            const ScriptDebugPause pause = m_pDebugger ? m_pDebugger->GetPause() : ScriptDebugPause{};
+            const bool isPausedNode = m_pDebugger && m_pDebugger->IsPaused() && pause.probe.functionId == m_pScriptFunction->PersistentId && pause.probe.nodeId == node->PersistentId;
 
             const bool isDisconnected = nodeDiagnostics.empty() &&
                 std::find_if(processedNodes.begin(), processedNodes.end(),
@@ -496,8 +517,13 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             const float alpha = ImGui::GetStyle().Alpha;
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha * (isDisconnected ? 0.4f : 1.0f));
-            if (hasDiagnosticError)
-                ed::PushStyleColor(ed::StyleColor_NodeBorder, ImColor(255, 55, 55, 255));
+            const bool hasDebugBorder = isPausedNode || hasBreakpoint;
+            if (hasDebugBorder || hasDiagnosticError)
+                ed::PushStyleColor(ed::StyleColor_NodeBorder, isPausedNode ? ImColor(255, 205, 64, 255) : hasBreakpoint ? ImColor(235, 70, 70, 255) : ImColor(255, 55, 55, 255));
+            if (isPausedNode)
+                ed::PushStyleColor(ed::StyleColor_NodeBg, ImColor(82, 42, 18, 255));
+            if (hasDebugBorder)
+                ed::PushStyleVar(ed::StyleVar_NodeBorderWidth, isPausedNode ? 5.0f : 3.0f);
 
             builder.Begin(node->ID);
             if (!(isSimpleGet || isSimpleLarge))
@@ -648,8 +674,12 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
 
             builder.End();
 
-            if (hasDiagnosticError)
+            if (hasDebugBorder || hasDiagnosticError)
                 ed::PopStyleColor();
+            if (isPausedNode)
+                ed::PopStyleColor();
+            if (hasDebugBorder)
+                ed::PopStyleVar();
 
             ImGui::PopStyleVar();
         }
@@ -749,11 +779,37 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             ed::EndGroupHint();
         }
 
+        const bool debugFlowPaused = m_pDebugger && m_pDebugger->IsPaused();
+        const ScriptDebugPause debugPause = debugFlowPaused ? m_pDebugger->GetPause() : ScriptDebugPause{};
+        const double debugFlowTime = ImGui::GetTime();
+        const bool restartDebugFlow = debugFlowPaused &&
+            (debugPause.sequence != animatedDebugPause || debugFlowTime - lastDebugFlowAnimation >= 0.75);
+
         // Links
         for (const Link& link : m_pGraph->GetLinks())
-            ed::Link(link.ID, link.StartPinID, link.EndPinID, link.Color, 2.0f);
+        {
+            const Pin* start = m_pGraph->FindPin(link.StartPinID);
+            const Pin* end = m_pGraph->FindPin(link.EndPinID);
+            const bool activeFlow = debugFlowPaused && m_pScriptFunction && start && end && start->Node && end->Node && start->Type == PinType::Flow &&
+                m_pDebugger->IsFlowEdgeActive(m_pScriptFunction->PersistentId, start->Node->PersistentId, end->Node->PersistentId);
+            const bool activeData = debugFlowPaused && m_pScript && m_pScriptFunction && start && end && start->Node && end->Node &&
+                start->Type != PinType::Flow && end->Kind == PinKind::Input &&
+                m_pDebugger->HasValue(ScriptDebugInfo::PortKey(m_pScript->ModuleIdentity, m_pScriptFunction->PersistentId,
+                    end->Node->PersistentId, end->Identity, end->Kind));
+            const bool activeLink = activeFlow || activeData;
+            ed::Link(link.ID, link.StartPinID, link.EndPinID, link.Color, activeLink ? 5.0f : 2.0f);
+            if (activeLink && restartDebugFlow)
+                ed::Flow(link.ID);
+        }
+        if (restartDebugFlow)
+        {
+            animatedDebugPause = debugPause.sequence;
+            lastDebugFlowAnimation = debugFlowTime;
+        }
+        else if (!debugFlowPaused)
+            animatedDebugPause = 0;
 
-        if (!createNewNode)
+        if (!createNewNode && !debugPaused)
         {
             if (ed::BeginCreate(ImColor(255, 255, 255), 2.0f))
             {
@@ -959,13 +1015,21 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
         ImGui::EndTooltip();
     }
     else if (!newLinkPin && hoveredPin)
-        DrawPinTooltip(*hoveredPin);
+    {
+        std::string debugValue;
+        const bool paused = m_pDebugger && m_pDebugger->IsPaused();
+        const bool hasValue = paused && m_pScript && m_pScriptFunction && hoveredPin->Node &&
+            m_pDebugger->TryGetValue(ScriptDebugInfo::PortKey(m_pScript->ModuleIdentity, m_pScriptFunction->PersistentId,
+                hoveredPin->Node->PersistentId, hoveredPin->Identity, hoveredPin->Kind), debugValue);
+        DrawPinTooltip(*hoveredPin, hasValue ? &debugValue : nullptr, paused);
+    }
     else if (!newLinkPin && hoveredNode)
         DrawNodeTooltip(*hoveredNode);
 }
 
 void GraphView::DrawContextMenu()
 {
+    const bool debugPaused = m_pDebugger && m_pDebugger->IsPaused();
     static std::string searchFilter = "";
     static std::string searchFilterLower = "";
 
@@ -1032,6 +1096,15 @@ void GraphView::DrawContextMenu()
         const bool canFindReferences = node && node->Type != NodeType::CommentBox &&
             (hasOrigin || !node->SerializationType.empty());
 
+        if (node && m_pDebugger && m_pScript && m_pScriptFunction && node->Type != NodeType::CommentBox)
+        {
+            const std::string key = ScriptDebugInfo::NodeKey(m_pScript->ModuleIdentity, m_pScriptFunction->PersistentId, node->PersistentId);
+            const bool enabled = m_pDebugger->HasBreakpoint(key);
+            if (ImGui::MenuItem(enabled ? ICON_FA_CIRCLE_XMARK "  Remove Breakpoint" : ICON_FA_CIRCLE "  Add Breakpoint"))
+                m_pDebugger->SetBreakpoint(key, !enabled);
+            ImGui::Separator();
+        }
+
         if (ImGui::MenuItem( ICON_FA_ARROW_UP_RIGHT_FROM_SQUARE "  Go to Origin", nullptr, false, hasOrigin) && onGoToOrigin)
             onGoToOrigin(node->refId.id);
 
@@ -1072,7 +1145,7 @@ void GraphView::DrawContextMenu()
                 append = true;
             }
         }
-        const bool canDelete = node &&
+        const bool canDelete = node && !(m_pDebugger && m_pDebugger->IsPaused()) &&
             !HasFlag(node->DefinitionFlags, NodeDefinitionFlags::Protected);
         if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Delete", "Delete", false, canDelete))
             ed::DeleteNode(contextNodeId);
@@ -1083,30 +1156,42 @@ void GraphView::DrawContextMenu()
     {
         Pin* pin = m_pGraph->FindPin(contextPinId);
 
+        if (pin && pin->Type != PinType::Flow && pin->Node && m_pDebugger && m_pScript && m_pScriptFunction)
+        {
+            const std::string key = ScriptDebugInfo::PortKey(m_pScript->ModuleIdentity, m_pScriptFunction->PersistentId, pin->Node->PersistentId, pin->Identity, pin->Kind);
+            const bool enabled = m_pDebugger->IsWatching(key);
+            if (ImGui::MenuItem(enabled ? ICON_FA_EYE_SLASH "  Stop Watching" : ICON_FA_EYE "  Watch Value"))
+                m_pDebugger->SetWatching(key, !enabled);
+            ImGui::Separator();
+        }
+
         if (pin && pin->Type == PinType::Any)
         {
             ImGui::TextDisabled(ICON_FA_WAND_MAGIC_SPARKLES "  Convert type");
             const int inputIdx = GraphUtils::FindNodeInputIdx(*pin);
             Value inputValue = pin->Node->Inputs[inputIdx].LiteralValue;
 
-            GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
-            {
-                switch (newType)
+            if (debugPaused)
+                ImGui::TextDisabled("Unavailable while paused");
+            else
+                GraphViewUtils::DrawTypeSelection(inputValue, [&](PinType newType)
                 {
-                case PinType::Bool: inputValue = Value(false); break;
-                case PinType::Float: inputValue = Value(0.0); break;
-                case PinType::String: inputValue = Value(takeString("", 0)); break;
-                case PinType::List: inputValue = Value(newList()); break;
-                case PinType::Map: inputValue = Value(newMap()); break;
-                case PinType::Range: inputValue = Value(newRange(0.0, 1.0)); break;
-                case PinType::Object: inputValue = Value(); break;
-                case PinType::Function: inputValue = Value(newFunction()); break;
-                case PinType::Any: inputValue = Value(); break;
-                }
-                OperationResult operation = m_pOperations->ChangeNodeInputValue(
-                    m_pScriptFunction->ID.id, pin->Node->ID, inputIdx, inputValue);
-                ReportOperation(operation);
-            });
+                    switch (newType)
+                    {
+                    case PinType::Bool: inputValue = Value(false); break;
+                    case PinType::Float: inputValue = Value(0.0); break;
+                    case PinType::String: inputValue = Value(takeString("", 0)); break;
+                    case PinType::List: inputValue = Value(newList()); break;
+                    case PinType::Map: inputValue = Value(newMap()); break;
+                    case PinType::Range: inputValue = Value(newRange(0.0, 1.0)); break;
+                    case PinType::Object: inputValue = Value(); break;
+                    case PinType::Function: inputValue = Value(newFunction()); break;
+                    case PinType::Any: inputValue = Value(); break;
+                    }
+                    OperationResult operation = m_pOperations->ChangeNodeInputValue(
+                        m_pScriptFunction->ID.id, pin->Node->ID, inputIdx, inputValue);
+                    ReportOperation(operation);
+                });
         }
 
         bool hasConnections = false;
@@ -1121,7 +1206,7 @@ void GraphView::DrawContextMenu()
                 }
             }
         }
-        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", nullptr, false, hasConnections))
+        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", nullptr, false, hasConnections && !(m_pDebugger && m_pDebugger->IsPaused())))
         {
             std::vector<ed::LinkId> links;
             for (const Link& link : m_pGraph->GetLinks())
@@ -1137,7 +1222,7 @@ void GraphView::DrawContextMenu()
         {
             if (pin->Node->CanRemoveInput(pin->ID))
             {
-                if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove pin"))
+                if (ImGui::MenuItem(ICON_FA_TRASH_CAN "  Remove pin", nullptr, false, !debugPaused))
                 {
                     OperationResult operation = m_pOperations->RemoveDynamicInput(
                         m_pScriptFunction->ID.id, pin->Node->ID, pin->ID);
@@ -1153,7 +1238,7 @@ void GraphView::DrawContextMenu()
     {
         Link* link = m_pGraph->FindLink(contextLinkId);
 
-        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", "Delete", false, link != nullptr))
+        if (ImGui::MenuItem(ICON_FA_LINK_SLASH "  Disconnect", "Delete", false, link != nullptr && !debugPaused))
             ed::DeleteLink(contextLinkId);
         ImGui::EndPopup();
     }

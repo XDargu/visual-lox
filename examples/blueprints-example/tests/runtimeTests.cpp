@@ -10,6 +10,7 @@
 #include "../operations/documentOperations.h"
 #include "../runtime/scriptRuntime.h"
 #include "../runtime/standardLibrary.h"
+#include "../shared/functionShared.h"
 #include "../script/script.h"
 #include "../script/scriptSerializer.h"
 #include "../validation/scriptValidator.h"
@@ -2155,6 +2156,269 @@ void ExpandedListAndRangeNodesOperate()
             "Advanced ranges should honor step and endpoint inclusion.");
 }
 
+void DebuggerPausesResumesAndWatchesValues()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    ScriptPropertyPtr observed = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Observed");
+    observed->type = PinType::Float;
+    observed->defaultValue = Value(0.0);
+    script.variables.push_back(observed);
+    ScriptPropertyPtr stepped = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "Stepped");
+    stepped->type = PinType::Float;
+    stepped->defaultValue = Value(0.0);
+    script.variables.push_back(stepped);
+
+    NodePtr begin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr setObserved = BuildSetVariableNode(fixture.ids, observed);
+    NodePtr setStepped = BuildSetVariableNode(fixture.ids, stepped);
+    setStepped->Inputs[1].LiteralValue = Value(99.0);
+    NodePtr add = fixture.registry.FindCompiled("Math::Add")->MakeNode(fixture.ids);
+    add->Inputs[0].LiteralValue = Value(19.0);
+    add->Inputs[1].LiteralValue = Value(23.0);
+    AttachNode(script.main->Graph, begin);
+    AttachNode(script.main->Graph, add);
+    AttachNode(script.main->Graph, setObserved);
+    AttachNode(script.main->Graph, setStepped);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, setObserved->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), add->Outputs[0].ID, setObserved->Inputs[1].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), setObserved->Outputs[0].ID, setStepped->Inputs[0].ID));
+
+    ScriptCompileOptions options;
+    options.enableDebugging = true;
+    options.disassemble = true;
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(compiled && compiled.debugInfo && !compiled.debugInfo->Probes().empty(), "A debug compilation should produce probe metadata.");
+
+    ScriptDebugger debugger;
+    debugger.SetDebugInfo(compiled.debugInfo);
+    fixture.vm.setDebugHandler(&debugger);
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_OK,
+        "Instrumented bytecode should run normally while debugger callbacks are inactive.");
+    std::string inactiveValue;
+    Require(!debugger.TryGetValue(ScriptDebugInfo::PortKey(script.ModuleIdentity, script.main->PersistentId, setObserved->PersistentId,
+        setObserved->Inputs[1].Identity, PinKind::Input), inactiveValue), "Inactive value probes should not collect values.");
+
+    debugger.SetBreakpoint(ScriptDebugInfo::NodeKey(script.ModuleIdentity, script.main->PersistentId, setObserved->PersistentId), true);
+    debugger.SetWatching(ScriptDebugInfo::PortKey(script.ModuleIdentity, script.main->PersistentId, setObserved->PersistentId,
+        setObserved->Inputs[1].Identity, PinKind::Input), true);
+    debugger.SetWatching(ScriptDebugInfo::PortKey(script.ModuleIdentity, script.main->PersistentId, add->PersistentId, add->Outputs[0].Identity, PinKind::Output), true);
+    debugger.SetWatching(ScriptDebugInfo::VariableKey(script.ModuleIdentity, {}, observed->PersistentId), true);
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_PAUSED, "Execution should pause before a node carrying a breakpoint.");
+    Require(ScriptRuntime::HasPausedExecution(fixture.vm) && debugger.IsPaused(), "The runtime and debugger should retain a resumable paused state.");
+    const ScriptDebugPause pause = debugger.GetPause();
+    Require(pause.probe.nodeId == setObserved->PersistentId && !pause.callStack.empty(), "The pause should identify the durable node and capture the VM call stack.");
+    const std::vector<ScriptDebugValue> pausedValues = debugger.GetWatchedValues();
+    Require(std::any_of(pausedValues.begin(), pausedValues.end(), [](const ScriptDebugValue& value)
+    {
+        return value.probe.kind == ScriptDebugProbeKind::PortInput && value.value == "42.000000";
+    }),
+        "Watched node inputs should already be inspectable when the breakpoint is reached.");
+    Require(std::any_of(pausedValues.begin(), pausedValues.end(), [](const ScriptDebugValue& value)
+    {
+        return value.probe.kind == ScriptDebugProbeKind::PortOutput && value.value == "42.000000";
+    }),
+        "Watched node outputs should already be inspectable when the breakpoint is reached.");
+
+    debugger.Resume(ScriptDebugResumeMode::StepInto);
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_PAUSED, "Step Into should pause at the next executed node.");
+    Require(debugger.GetPause().probe.nodeId == setStepped->PersistentId, "Step Into should identify the next graph node.");
+    Require(debugger.IsFlowEdgeActive(script.main->PersistentId, setObserved->PersistentId, setStepped->PersistentId),
+        "The debugger should retain the executed flow edge leading to the stepped node.");
+    std::string retainedInputValue;
+    Require(debugger.TryGetValue(ScriptDebugInfo::PortKey(script.ModuleIdentity, script.main->PersistentId, setObserved->PersistentId,
+        setObserved->Inputs[1].Identity, PinKind::Input), retainedInputValue) && retainedInputValue == "42.000000",
+        "Stepping should preserve previously evaluated data-link values for the accumulated graph path.");
+    GraphNodeId lastFlowNode;
+    Require(debugger.TryGetLastFlowNode(script.main->PersistentId, lastFlowNode) && lastFlowNode == setStepped->PersistentId,
+        "The debugger should retain the latest executed node for call-stack navigation.");
+    debugger.LeavePause();
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_OK, "Continuing after a step should finish the suspended execution.");
+    Require(!ScriptRuntime::HasPausedExecution(fixture.vm) && fixture.vm.getStackSize() == 0, "Continuing should restore the VM stack boundary.");
+    const std::vector<ScriptDebugValue> values = debugger.GetWatchedValues();
+    Require(std::any_of(values.begin(), values.end(), [](const ScriptDebugValue& value) { return value.probe.kind == ScriptDebugProbeKind::Variable && value.value == "42.000000"; }),
+        "The debugger should capture the value assigned to a watched variable.");
+    Require(isNumber(ReadGlobal(fixture.vm, "Observed")) && asNumber(ReadGlobal(fixture.vm, "Observed")) == 42.0, "Resuming should preserve normal program behavior.");
+    fixture.vm.setDebugHandler(nullptr);
+}
+
+void ReleaseCompilationOmitsDebuggerMetadata()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script);
+    Require(compiled && !compiled.debugInfo, "A normal compilation should not allocate debugger metadata or emit graph probes.");
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_OK, "Release-compiled scripts should execute normally.");
+
+    ScriptDebugger debugger;
+    Require(!debugger.WantsBreakpoints() && !debugger.WantsValues(), "An unused debugger should keep runtime callbacks disabled.");
+    debugger.SetBreakpoint("node:test", true);
+    Require(debugger.WantsBreakpoints() && debugger.WantsValues(), "A configured breakpoint should enable breakpoint and hover-value callbacks.");
+    debugger.SetBreakpoint("node:test", false);
+    debugger.SetWatching("port:test", true);
+    Require(!debugger.WantsBreakpoints() && debugger.WantsValues(), "A watch should enable only value callbacks.");
+}
+
+void CompiledMethodsCarryQualifiedDebugIdentity()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    const auto addClassWithUpdate = [&](const std::string& className)
+    {
+        ScriptClassPtr scriptClass = std::make_shared<ScriptClass>(fixture.ids.GetNextId(), className.c_str());
+        ScriptFunctionPtr update = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Update");
+        AttachNode(update->Graph, BuildBeginNode(fixture.ids, update));
+        scriptClass->methods.push_back(update);
+        script.classes.push_back(scriptClass);
+        return update;
+    };
+    const ScriptFunctionPtr updateA = addClassWithUpdate("ClassA");
+    const ScriptFunctionPtr updateB = addClassWithUpdate("ClassB");
+
+    ScriptCompileOptions options;
+    options.enableDebugging = true;
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(static_cast<bool>(compiled), "Classes with same-named methods should compile.");
+
+    bool foundA = false;
+    bool foundB = false;
+    for (const Value& constant : compiled.function->chunk.constants.values)
+    {
+        if (!isFunction(constant))
+            continue;
+        const ObjFunction* function = asFunction(constant);
+        foundA |= function->debugName == "ClassA.Update" && function->debugIdentity == updateA->PersistentId.ToString();
+        foundB |= function->debugName == "ClassB.Update" && function->debugIdentity == updateB->PersistentId.ToString();
+    }
+    Require(foundA && foundB, "Same-named methods should retain distinct qualified names and persistent identities for call-stack navigation.");
+}
+
+void TimersPreservePausedDebuggerExecutions()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+    AttachNode(script.main->Graph, BuildBeginNode(fixture.ids, script.main));
+
+    ScriptPropertyPtr observed = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "TimerObserved");
+    observed->type = PinType::Float;
+    observed->defaultValue = Value(0.0);
+    script.variables.push_back(observed);
+
+    ScriptFunctionPtr callback = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "OnTimer");
+    NodePtr begin = BuildBeginNode(fixture.ids, callback);
+    NodePtr setObserved = BuildSetVariableNode(fixture.ids, observed);
+    setObserved->Inputs[1].LiteralValue = Value(7.0);
+    AttachNode(callback->Graph, begin);
+    AttachNode(callback->Graph, setObserved);
+    callback->Graph.AddLink(Link(fixture.ids.GetNextId(), begin->Outputs[0].ID, setObserved->Inputs[0].ID));
+    script.functions.push_back(callback);
+
+    ScriptCompileOptions options;
+    options.enableDebugging = true;
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(compiled && compiled.debugInfo, "The timer debugger fixture should compile with metadata.");
+
+    ScriptDebugger debugger;
+    debugger.SetDebugInfo(compiled.debugInfo);
+    debugger.SetBreakpoint(ScriptDebugInfo::NodeKey(script.ModuleIdentity, callback->PersistentId, setObserved->PersistentId), true);
+    fixture.vm.setDebugHandler(&debugger);
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_OK, "The script should initialize before scheduling its callback.");
+
+    const Value timer = fixture.CallNative("Timer::After", { Value(0.0), ReadGlobal(fixture.vm, "OnTimer") });
+    Require(isNumber(timer) && !PumpStandardLibraryTimers(fixture.vm), "A due timer should report its suspended callback to the host loop.");
+    Require(debugger.IsPaused() && ScriptRuntime::HasPausedExecution(fixture.vm), "A breakpoint inside a timer must retain the callback VM state.");
+
+    debugger.LeavePause();
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_OK, "A paused timer callback should resume normally.");
+    Require(isNumber(ReadGlobal(fixture.vm, "TimerObserved")) && asNumber(ReadGlobal(fixture.vm, "TimerObserved")) == 7.0,
+        "Resuming the timer callback should complete its graph execution.");
+    fixture.vm.setDebugHandler(nullptr);
+}
+
+void DebuggerStepsAcrossFunctionCalls()
+{
+    RuntimeFixture fixture;
+    Script script;
+    script.ID = fixture.ids.GetNextId();
+    script.main = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Main");
+
+    ScriptPropertyPtr workerValue = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "WorkerValue");
+    workerValue->type = PinType::Float;
+    workerValue->defaultValue = Value(0.0);
+    ScriptPropertyPtr mainValue = std::make_shared<ScriptProperty>(fixture.ids.GetNextId(), "MainValue");
+    mainValue->type = PinType::Float;
+    mainValue->defaultValue = Value(0.0);
+    script.variables = { workerValue, mainValue };
+
+    ScriptFunctionPtr worker = std::make_shared<ScriptFunction>(fixture.ids.GetNextId(), "Worker");
+    NodePtr workerBegin = BuildBeginNode(fixture.ids, worker);
+    NodePtr workerSet = BuildSetVariableNode(fixture.ids, workerValue);
+    workerSet->Inputs[1].LiteralValue = Value(1.0);
+    AttachNode(worker->Graph, workerBegin);
+    AttachNode(worker->Graph, workerSet);
+    worker->Graph.AddLink(Link(fixture.ids.GetNextId(), workerBegin->Outputs[0].ID, workerSet->Inputs[0].ID));
+    script.functions.push_back(worker);
+
+    NodePtr mainBegin = BuildBeginNode(fixture.ids, script.main);
+    NodePtr callWorker = BuildFunctionNode(fixture.ids, worker->functionDef, worker->ID);
+    NodePtr mainSet = BuildSetVariableNode(fixture.ids, mainValue);
+    mainSet->Inputs[1].LiteralValue = Value(2.0);
+    AttachNode(script.main->Graph, mainBegin);
+    AttachNode(script.main->Graph, callWorker);
+    AttachNode(script.main->Graph, mainSet);
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), mainBegin->Outputs[0].ID, callWorker->Inputs[0].ID));
+    script.main->Graph.AddLink(Link(fixture.ids.GetNextId(), callWorker->Outputs[0].ID, mainSet->Inputs[0].ID));
+
+    ScriptCompileOptions options;
+    options.enableDebugging = true;
+    const ScriptCompileResult compiled = ScriptRuntime::Compile(fixture.vm, script, options);
+    Require(compiled && compiled.debugInfo, "The stepping fixture should compile with debugger metadata.");
+
+    ScriptDebugger debugger;
+    debugger.SetDebugInfo(compiled.debugInfo);
+    debugger.SetBreakpoint(ScriptDebugInfo::NodeKey(script.ModuleIdentity, script.main->PersistentId, callWorker->PersistentId), true);
+    fixture.vm.setDebugHandler(&debugger);
+
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_PAUSED, "The caller breakpoint should pause execution.");
+    const size_t callerDepth = debugger.GetPause().callStack.size();
+    debugger.Resume(ScriptDebugResumeMode::StepInto);
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_PAUSED, "Step Into should enter the called graph.");
+    Require(debugger.GetPause().probe.functionId == worker->PersistentId && debugger.GetPause().callStack.size() > callerDepth,
+        "Step Into should pause in the deeper Worker call frame.");
+    const ScriptDebugPause workerPause = debugger.GetPause();
+    const VmDebugCallFrame& workerFrame = workerPause.callStack.front();
+    Require(workerFrame.qualifiedName == "Worker" && workerFrame.functionIdentity == worker->PersistentId.ToString(),
+        "Call-stack frames should expose a durable graph identity as well as their display name.");
+
+    debugger.Resume(ScriptDebugResumeMode::StepOut);
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_PAUSED, "Step Out should return to the caller graph.");
+    Require(debugger.GetPause().probe.nodeId == mainSet->PersistentId, "Step Out should pause at the next caller node.");
+    debugger.LeavePause();
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_OK, "Continuing after Step Out should complete execution.");
+
+    debugger.SetDebugInfo(compiled.debugInfo);
+    Require(ScriptRuntime::Execute(fixture.vm, compiled.function) == InterpretResult::INTERPRET_PAUSED, "The caller breakpoint should be reusable.");
+    debugger.Resume(ScriptDebugResumeMode::StepOver);
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_PAUSED, "Step Over should complete the called graph and pause in the caller.");
+    Require(debugger.GetPause().probe.nodeId == mainSet->PersistentId, "Step Over should not stop at nodes in the deeper Worker frame.");
+    debugger.LeavePause();
+    Require(ScriptRuntime::Resume(fixture.vm) == InterpretResult::INTERPRET_OK, "Continuing after Step Over should complete execution.");
+    fixture.vm.setDebugHandler(nullptr);
+}
+
 void MapForEachIteratesKeysAndValues()
 {
     RuntimeFixture fixture;
@@ -3085,6 +3349,11 @@ void AddRuntimeTests(Tests::Runner& runner)
             FunctionsAndMethodsSupportMultipleOutputs);
         runner.Test("function locals are fresh per invocation",
             FunctionLocalsAreFreshPerInvocation);
+        runner.Test("debugger pauses, resumes, and watches values", DebuggerPausesResumesAndWatchesValues);
+        runner.Test("release compilation omits debugger metadata", ReleaseCompilationOmitsDebuggerMetadata);
+        runner.Test("compiled methods carry qualified debug identity", CompiledMethodsCarryQualifiedDebugIdentity);
+        runner.Test("timers preserve paused debugger executions", TimersPreservePausedDebuggerExecutions);
+        runner.Test("debugger steps across function calls", DebuggerStepsAcrossFunctionCalls);
     });
     runner.Group("Runtime / validation and compilation", [&]()
     {

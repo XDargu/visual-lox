@@ -7,23 +7,47 @@
 #include <VMUtils.h>
 
 #include <utility>
+#include <map>
+#include <mutex>
 
 namespace
 {
-void EmitPropertyInitializer(Compiler& compiler, const ScriptProperty& property)
+struct PendingExecution
 {
+    size_t initialStackSize = 0;
+    size_t initialFrameCount = 0;
+};
+
+std::mutex& PendingExecutionMutex()
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::map<VM*, PendingExecution>& PendingExecutions()
+{
+    static std::map<VM*, PendingExecution> executions;
+    return executions;
+}
+
+void EmitPropertyInitializer(CompilerContext& context, const ScriptProperty& property)
+{
+    Compiler& compiler = context.compiler;
     static constexpr char thisName[] = "this";
     compiler.namedVariable(Token(TokenType::THIS, thisName, 4, 0), false);
     GraphCompiler::CompileLiteral(compiler, property.defaultValue);
     const Token propertyToken(TokenType::IDENTIFIER, property.Name.c_str(), property.Name.length(), 0);
     compiler.emitOpWithValue(OpCode::OP_SET_PROPERTY, OpCode::OP_SET_PROPERTY_LONG,
                              compiler.identifierConstant(propertyToken));
+    GraphCompiler::EmitVariableProbe(context, nullptr, property.PersistentId, property.Name);
     compiler.emitByte(OpByte(OpCode::OP_POP));
 }
 
-void EmitLocalInitializer(Compiler& compiler, const ScriptProperty& variable)
+void EmitLocalInitializer(CompilerContext& context, const ScriptProperty& variable)
 {
+    Compiler& compiler = context.compiler;
     GraphCompiler::CompileLiteral(compiler, variable.defaultValue);
+    GraphCompiler::EmitVariableProbe(context, nullptr, variable.PersistentId, variable.Name);
     const Token token(TokenType::VAR, variable.Name.c_str(), variable.Name.length(), 0);
     compiler.defineVariable(compiler.parseVariableDirectly(false, token));
 }
@@ -32,7 +56,8 @@ void EmitLocalInitializer(Compiler& compiler, const ScriptProperty& variable)
 void ScriptRuntime::CompileGraph(const Script& script, const ScriptFunction& function,
                                  Compiler& compiler,
                                  const std::vector<Value>& foldedValues,
-                                 const std::vector<ed::NodeId>& foldedNodeIds)
+                                 const std::vector<ed::NodeId>& foldedNodeIds,
+                                 ScriptDebugInfo* debugInfo)
 {
     const Graph& graph = function.Graph;
     const NodePtr begin = graph.FindNodeIf([](const NodePtr& node)
@@ -42,13 +67,29 @@ void ScriptRuntime::CompileGraph(const Script& script, const ScriptFunction& fun
     if (!begin)
         return;
 
-    GraphCompiler graphCompiler(compiler, &script, function.ID);
+    GraphCompiler graphCompiler(compiler, &script, function.ID, function.PersistentId, debugInfo);
     graphCompiler.context.constFoldingValues = foldedValues;
     graphCompiler.context.constFoldingIDs = foldedNodeIds;
 
     graphCompiler.CompileGraph(graph, begin, 0,
         [&](const NodePtr& node, const Graph& currentGraph, CompilationStage stage, int portIdx)
         {
+            if (stage == CompilationStage::BeginInputs || (stage == CompilationStage::PullOutput && GraphUtils::IsNodeImplicit(node)))
+            {
+                for (int inputIndex = 0; inputIndex < static_cast<int>(node->Inputs.size()); ++inputIndex)
+                {
+                    const InputPin& input = node->Inputs[inputIndex];
+                    const bool implicitReceiver = inputIndex == node->GetReceiverInputIndex() && !currentGraph.IsPinLinked(input.ID) && GraphUtils::UsesImplicitReceiver(script, function.ID, currentGraph, *node);
+
+                    if (input.Type == PinType::Flow || node->IsInputDeferred(inputIndex) || implicitReceiver)
+                        continue;
+
+                    GraphCompiler::CompileInput(graphCompiler.context, currentGraph, input, input.LiteralValue);
+                    compiler.emitByte(OpByte(OpCode::OP_POP));
+                }
+                GraphCompiler::EmitNodeProbe(graphCompiler.context, *node);
+            }
+
             if (stage == CompilationStage::ConstFoldedInputs)
             {
                 compiler.emitConstant(foldedValues[portIdx]);
@@ -66,10 +107,10 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
 {
     ValidationReport validation = ScriptValidator::Validate(script);
     if (validation.HasErrors())
-        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {}, {} };
 
     ConstantFoldingResult folding;
-    if (options.enableConstantFolding)
+    if (options.enableConstantFolding && !options.enableDebugging)
     {
         const bool wasGcAllowed = vm.isGarbageCollectionAllowed();
         vm.allowGarbageCollection(false);
@@ -91,14 +132,14 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     }
 
     if (!script.main)
-        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {}, {} };
 
     const NodePtr mainBegin = script.main->Graph.FindNodeIf([](const NodePtr& node)
     {
         return node->Category == NodeCategory::Begin;
     });
     if (!mainBegin)
-        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {} };
+        return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation), {}, {}, {} };
 
     vm.resetStack();
     ObjList* programArguments = newList();
@@ -110,18 +151,20 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     for (Value& value : folding.values)
         vm.push(value);
     Compiler& compiler = vm.getCompiler();
+    std::shared_ptr<ScriptDebugInfo> debugInfo = options.enableDebugging ? std::make_shared<ScriptDebugInfo>() : nullptr;
     compiler.beginCompile();
     compiler.parser.hadError = false;
     compiler.parser.panicMode = false;
 
     auto compileClosure = [&](const ScriptFunctionPtr& scriptFunction, FunctionType type,
-                              const ScriptClassPtr& propertyOwner = nullptr)
+                              const ScriptClassPtr& classOwner = nullptr)
     {
         Token functionToken(TokenType::IDENTIFIER, scriptFunction->functionDef->name.c_str(),
                             scriptFunction->functionDef->name.length(), 0);
         CompilerScope functionScope(type, compiler.current, &functionToken);
         compiler.current = &functionScope;
         compiler.beginScope();
+        CompilerContext debugContext(compiler, &script, scriptFunction->ID, scriptFunction->PersistentId, debugInfo.get());
 
         for (const BasicFunctionDef::Input& input : scriptFunction->functionDef->inputs)
         {
@@ -133,14 +176,20 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
         }
 
         for (const ScriptPropertyPtr& variable : scriptFunction->variables)
-            EmitLocalInitializer(compiler, *variable);
+            EmitLocalInitializer(debugContext, *variable);
 
-        if (propertyOwner)
-            for (const ScriptPropertyPtr& property : propertyOwner->properties)
-                EmitPropertyInitializer(compiler, *property);
+        if (type == FunctionType::INITIALIZER && classOwner)
+            for (const ScriptPropertyPtr& property : classOwner->properties)
+                EmitPropertyInitializer(debugContext, *property);
 
-        CompileGraph(script, *scriptFunction, compiler, folding.values, folding.nodeIds);
+        CompileGraph(script, *scriptFunction, compiler, folding.values, folding.nodeIds, debugInfo.get());
         ObjFunction* function = compiler.endCompiler();
+        if (debugInfo)
+        {
+            function->debugName = classOwner ? classOwner->Name + "." + scriptFunction->functionDef->name : scriptFunction->functionDef->name;
+            if (scriptFunction->PersistentId.IsValid())
+                function->debugIdentity = scriptFunction->PersistentId.ToString();
+        }
         const uint32_t constant = compiler.makeConstant(Value(function));
         compiler.emitOpWithValue(OpCode::OP_CLOSURE, OpCode::OP_CLOSURE_LONG, constant);
         for (int i = 0; i < function->upvalueCount; ++i)
@@ -151,9 +200,11 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
         return function;
     };
 
+    CompilerContext globalDebugContext(compiler, &script, ScriptElementID::Invalid, {}, debugInfo.get());
     for (const ScriptPropertyPtr& property : script.variables)
     {
         GraphCompiler::CompileLiteral(compiler, property->defaultValue);
+        GraphCompiler::EmitVariableProbe(globalDebugContext, nullptr, property->PersistentId, property->Name);
         const Token token(TokenType::VAR, property->Name.c_str(), property->Name.length(), 0);
         compiler.defineVariable(compiler.identifierConstant(token));
     }
@@ -181,7 +232,7 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
 
         for (const ScriptFunctionPtr& method : scriptClass->methods)
         {
-            compileClosure(method, FunctionType::METHOD);
+            compileClosure(method, FunctionType::METHOD, scriptClass);
             const Token methodToken(TokenType::IDENTIFIER, method->functionDef->name.c_str(),
                                     method->functionDef->name.length(), 0);
             compiler.emitOpWithValue(OpCode::OP_METHOD, OpCode::OP_METHOD_LONG,
@@ -208,22 +259,31 @@ ScriptCompileResult ScriptRuntime::Compile(VM& vm, const Script& script,
     compiler.addLocal(argumentsToken, true);
     compiler.emitVariable(argumentsToken, true, true);
     for (const ScriptPropertyPtr& variable : script.main->variables)
-        EmitLocalInitializer(compiler, *variable);
-    CompileGraph(script, *script.main, compiler, folding.values, folding.nodeIds);
+    {
+        CompilerContext mainDebugContext(compiler, &script, script.main->ID, script.main->PersistentId, debugInfo.get());
+        EmitLocalInitializer(mainDebugContext, *variable);
+    }
+    CompileGraph(script, *script.main, compiler, folding.values, folding.nodeIds, debugInfo.get());
     compiler.endScope();
     ObjFunction* function = compiler.endCompiler();
+    if (debugInfo)
+    {
+        function->debugName = script.main->functionDef->name;
+        if (script.main->PersistentId.IsValid())
+            function->debugIdentity = script.main->PersistentId.ToString();
+    }
 
     if (compiler.parser.hadError)
     {
         vm.resetStack();
         return { nullptr, InterpretResult::INTERPRET_COMPILE_ERROR, std::move(validation),
-                 std::move(folding.values), std::move(folding.nodeIds) };
+                 std::move(folding.values), std::move(folding.nodeIds), std::move(debugInfo) };
     }
     if (options.disassemble)
         disassembleChunk(function->chunk, function->name ? function->name->chars.c_str() : "<script>");
     vm.resetStack();
     return { function, InterpretResult::INTERPRET_OK, std::move(validation),
-             std::move(folding.values), std::move(folding.nodeIds) };
+             std::move(folding.values), std::move(folding.nodeIds), std::move(debugInfo) };
 }
 
 InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)
@@ -231,6 +291,7 @@ InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)
     if (!function)
         return InterpretResult::INTERPRET_COMPILE_ERROR;
 
+    vm.clearStopRequest();
     vm.resetStack();
     vm.push(Value(function));
     ObjClosure* closure = newClosure(function);
@@ -240,6 +301,12 @@ InterpretResult ScriptRuntime::Execute(VM& vm, ObjFunction* function)
         return InterpretResult::INTERPRET_RUNTIME_ERROR;
 
     const InterpretResult result = vm.run(0);
+    if (result == InterpretResult::INTERPRET_PAUSED)
+    {
+        std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+        PendingExecutions()[&vm] = { 0, 0 };
+        return result;
+    }
     if (result == InterpretResult::INTERPRET_OK)
         vm.pop();
     return result;
@@ -264,6 +331,13 @@ InterpretResult ScriptRuntime::Call(VM& vm, const Value& callable,
     if (vm.getFrameCount() > initialFrameCount)
         result = vm.run(static_cast<int>(initialFrameCount));
 
+    if (result == InterpretResult::INTERPRET_PAUSED)
+    {
+        std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+        PendingExecutions()[&vm] = { initialStackSize, initialFrameCount };
+        return result;
+    }
+
     if (result == InterpretResult::INTERPRET_OK)
         while (vm.getStackSize() > initialStackSize)
             vm.pop();
@@ -285,4 +359,43 @@ InterpretResult ScriptRuntime::Run(VM& vm, const Script& script,
 {
     const ScriptCompileResult compiled = Compile(vm, script, options);
     return compiled ? Execute(vm, compiled.function) : InterpretResult::INTERPRET_COMPILE_ERROR;
+}
+
+bool ScriptRuntime::HasPausedExecution(VM& vm)
+{
+    std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+    return PendingExecutions().count(&vm) != 0;
+}
+
+InterpretResult ScriptRuntime::Resume(VM& vm)
+{
+    PendingExecution pending;
+    {
+        std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+        const auto found = PendingExecutions().find(&vm);
+        if (found == PendingExecutions().end())
+            return InterpretResult::INTERPRET_RUNTIME_ERROR;
+        pending = found->second;
+        PendingExecutions().erase(found);
+    }
+
+    const InterpretResult result = vm.run(static_cast<int>(pending.initialFrameCount));
+    if (result == InterpretResult::INTERPRET_PAUSED)
+    {
+        std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+        PendingExecutions()[&vm] = pending;
+        return result;
+    }
+
+    if (result == InterpretResult::INTERPRET_OK)
+        while (vm.getStackSize() > pending.initialStackSize)
+            vm.pop();
+    return result;
+}
+
+void ScriptRuntime::AbandonPausedExecution(VM& vm)
+{
+    std::lock_guard<std::mutex> lock(PendingExecutionMutex());
+    PendingExecutions().erase(&vm);
+    vm.resetStack();
 }

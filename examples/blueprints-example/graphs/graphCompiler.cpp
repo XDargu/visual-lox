@@ -196,6 +196,13 @@ void GraphCompiler::CompileLiteral(Compiler& compiler, const Value& value)
 void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& graph, const Pin& input, const Value& value)
 {
     Compiler& compiler = compilerCtx.compiler;
+    const auto emitInputValue = [&](const Pin* source)
+    {
+        if (source && source->Node)
+            EmitPortProbe(compilerCtx, *source->Node, *source);
+        if (input.Node)
+            EmitPortProbe(compilerCtx, *input.Node, input);
+    };
 
     if (graph.IsPinLinked(input.ID))
     {
@@ -204,6 +211,7 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
             if (HasFlag(pOutput->Node->InstanceFlags, NodeInstanceFlags::Error))
             {
                 CompileLiteral(compiler, value);
+                emitInputValue(nullptr);
                 return;
             }
 
@@ -213,6 +221,7 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
                 
                 const Token outputToken = compilerCtx.StoreTempVariable(pOutput->Name);
                 compiler.emitVariable(outputToken, false);
+                emitInputValue(pOutput);
                 return;
             }
 
@@ -226,6 +235,8 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
                 {
                     Token varToken(TokenType::VAR, pGetVar->pPropertyDef->Name.c_str(), pGetVar->pPropertyDef->Name.length(), 0);
                     compiler.emitVariable(varToken, false);
+                    EmitVariableProbe(compilerCtx, pOutput->Node.get(), pGetVar->pPropertyDef->PersistentId, pGetVar->pPropertyDef->Name);
+                    emitInputValue(pOutput);
                     return;
                 }
             }
@@ -233,11 +244,13 @@ void GraphCompiler::CompileInput(CompilerContext& compilerCtx, const Graph& grap
             const std::string outputName = CompilerContext::tempVarPrefix + std::to_string(pOutput->ID.Get());
             const Token outputToken = compilerCtx.StoreTempVariable(outputName);
             compiler.emitVariable(outputToken, false);
+            emitInputValue(pOutput);
             return;
         }
     }
 
     CompileLiteral(compiler, value);
+    emitInputValue(nullptr);
 }
 
 void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& graph, const Pin& output)
@@ -249,10 +262,76 @@ void GraphCompiler::CompileOutput(CompilerContext& compilerCtx, const Graph& gra
 
     compiler.addLocal(outputToken, true);
     compiler.emitVariable(outputToken, true, true);
+    if (output.Node)
+        EmitPortProbe(compilerCtx, *output.Node, output);
 
     // Swap the local variable for this to use globals instead. Much nicer for debugging!
     //const uint32_t constant = compiler.identifierConstant(outputToken);
     //compiler.defineVariable(constant);
+}
+
+void GraphCompiler::EmitNodeProbe(CompilerContext& compilerCtx, const Node& node)
+{
+    if (!compilerCtx.debugInfo || !compilerCtx.script)
+        return;
+
+    ScriptDebugProbe probe;
+    probe.kind = ScriptDebugProbeKind::Node;
+    probe.moduleId = compilerCtx.script->ModuleIdentity;
+    probe.functionId = compilerCtx.functionPersistentId;
+    probe.nodeId = node.PersistentId;
+    probe.functionRuntimeId = compilerCtx.functionId.id;
+    probe.nodeRuntimeId = static_cast<int>(node.ID.Get());
+    probe.label = node.Name.empty() ? node.SerializationType : node.Name;
+    probe.flowNode = !GraphUtils::IsNodeImplicit(&node);
+    probe.key = ScriptDebugInfo::NodeKey(probe.moduleId, probe.functionId, probe.nodeId);
+    const uint32_t probeId = compilerCtx.debugInfo->AddProbe(std::move(probe));
+    compilerCtx.compiler.emitByte(OpByte(OpCode::OP_DEBUG_BREAK));
+    compilerCtx.compiler.emitDWord(probeId);
+}
+
+void GraphCompiler::EmitPortProbe(CompilerContext& compilerCtx, const Node& node, const Pin& pin)
+{
+    if (!compilerCtx.debugInfo || !compilerCtx.script || pin.Type == PinType::Flow)
+        return;
+
+    ScriptDebugProbe probe;
+    probe.kind = pin.Kind == PinKind::Input ? ScriptDebugProbeKind::PortInput : ScriptDebugProbeKind::PortOutput;
+    probe.moduleId = compilerCtx.script->ModuleIdentity;
+    probe.functionId = compilerCtx.functionPersistentId;
+    probe.nodeId = node.PersistentId;
+    probe.port = pin.Identity;
+    probe.functionRuntimeId = compilerCtx.functionId.id;
+    probe.nodeRuntimeId = static_cast<int>(node.ID.Get());
+    probe.pinRuntimeId = static_cast<int>(pin.ID.Get());
+    probe.label = (node.Name.empty() ? node.SerializationType : node.Name) + " / " + (pin.Name.empty() ? "value" : pin.Name);
+    probe.key = ScriptDebugInfo::PortKey(probe.moduleId, probe.functionId, probe.nodeId, probe.port, pin.Kind);
+    const uint32_t probeId = compilerCtx.debugInfo->AddProbe(std::move(probe));
+    compilerCtx.compiler.emitByte(OpByte(OpCode::OP_DEBUG_VALUE));
+    compilerCtx.compiler.emitDWord(probeId);
+}
+
+void GraphCompiler::EmitVariableProbe(CompilerContext& compilerCtx, const Node* node, ScriptElementUuid variableId, const std::string& label)
+{
+    if (!compilerCtx.debugInfo || !compilerCtx.script || !variableId.IsValid())
+        return;
+
+    ScriptDebugProbe probe;
+    probe.kind = ScriptDebugProbeKind::Variable;
+    probe.moduleId = compilerCtx.script->ModuleIdentity;
+    probe.functionId = compilerCtx.functionPersistentId;
+    probe.variableId = variableId;
+    probe.functionRuntimeId = compilerCtx.functionId.id;
+    probe.label = label;
+    if (node)
+    {
+        probe.nodeId = node->PersistentId;
+        probe.nodeRuntimeId = static_cast<int>(node->ID.Get());
+    }
+    probe.key = ScriptDebugInfo::VariableKey(probe.moduleId, probe.functionId, probe.variableId);
+    const uint32_t probeId = compilerCtx.debugInfo->AddProbe(std::move(probe));
+    compilerCtx.compiler.emitByte(OpByte(OpCode::OP_DEBUG_VALUE));
+    compilerCtx.compiler.emitDWord(probeId);
 }
 
 void GraphCompiler::CompileCallResult(CompilerContext& compilerCtx, const Graph& graph, const std::vector<Pin>& outputs, size_t dataOutputStart)

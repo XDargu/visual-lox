@@ -3117,7 +3117,9 @@ void ed::FlowAnimation::Draw(ImDrawList* drawList)
     const auto progress    = GetProgress();
 
     const auto flowAlpha = 1.0f - progress * progress;
-    const auto flowColor = Editor->GetColor(StyleColor_Flow, flowAlpha);
+    auto flowColorValue = ImGui::ColorConvertU32ToFloat4(m_Link->m_Color);
+    flowColorValue.w *= flowAlpha;
+    const auto flowColor = ImGui::ColorConvertFloat4ToU32(flowColorValue);
     //const auto flowPath  = Link->GetCurve();
 
     m_Link->Draw(drawList, flowColor, 2.0f);
@@ -3128,7 +3130,9 @@ void ed::FlowAnimation::Draw(ImDrawList* drawList)
 
         const auto markerAlpha  = powf(1.0f - progress, 0.35f);
         const auto markerRadius = 4.0f * (1.0f - progress) + 2.0f;
-        const auto markerColor  = Editor->GetColor(StyleColor_FlowMarker, markerAlpha);
+        auto markerColorValue = ImGui::ColorConvertU32ToFloat4(m_Link->m_Color);
+        markerColorValue.w *= markerAlpha;
+        const auto markerColor = ImGui::ColorConvertFloat4ToU32(markerColorValue);
 
         for (float d = m_Offset; d < m_PathLength; d += m_MarkerDistance)
             drawList->AddCircleFilled(SamplePath(d), markerRadius, markerColor);

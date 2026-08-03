@@ -137,6 +137,7 @@ struct SetVariableNode : public Node
 
             Token varToken(TokenType::VAR, pPropertyDef->Name.c_str(), pPropertyDef->Name.length(), 0);
             compiler.emitVariable(varToken, true);
+            GraphCompiler::EmitVariableProbe(compilerCtx, this, pPropertyDef->PersistentId, pPropertyDef->Name);
             compiler.emitByte(OpByte(OpCode::OP_POP));
         }
     }

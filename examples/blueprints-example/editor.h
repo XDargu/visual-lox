@@ -61,6 +61,7 @@ enum class BottomPanelTab
     Problems,
     Search,
     Output,
+    Debug,
     Developer,
 };
 
@@ -88,6 +89,7 @@ struct Example :
 
     void ShowLeftPane(float paneWidth);
     void ShowScriptExplorer();
+    void DrawVariableRuntimeTooltip(const ScriptPropertyPtr& variable);
     void ShowInspector();
     void ShowBottomPanel();
     void ShowProblemsPanel();
@@ -100,6 +102,9 @@ struct Example :
     void HandleShortcuts();
     void CompileScript(bool runAfterCompile);
     void StartScriptExecution(ObjFunction* function);
+    void ContinueScriptExecution(ScriptDebugResumeMode mode = ScriptDebugResumeMode::Continue);
+    void SyncDebuggerPauseView();
+    void DrawBreakpointControls();
     void PollScriptExecution();
     void StopScriptExecution();
     void SubmitConsoleInput();
@@ -195,6 +200,7 @@ struct Example :
 
     Script               m_script;
     GraphView            m_graphView;
+    ScriptDebugger       m_scriptDebugger;
 
     ImTextureID          m_HeaderBackground = nullptr;
     ImTextureID          m_SaveIcon = nullptr;
@@ -273,6 +279,8 @@ struct Example :
     std::unique_ptr<VisualApplicationContext> m_visualApplicationContext;
     std::vector<ImTextureID> m_visualApplicationTexturesPendingDestroy;
     bool m_visualApplicationPreviewOpen = false;
+    bool m_resumeVisualApplication = false;
+    uint64_t m_lastFocusedDebugPause = 0;
     bool m_showScriptExplorer = true;
     bool m_showInspector = true;
     bool m_showBottomPanel = true;

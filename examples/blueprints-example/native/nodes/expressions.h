@@ -172,17 +172,16 @@ inline NodePtr BuildUnaryExpressionNode(IDGenerator& ids, const char* name,
                                         OpCode operation, const Value& defaultValue)
 {
     NodePtr node;
+
     if (operation == OpCode::OP_NEGATE)
-        node = std::make_shared<UnaryExpressionNode<OpCode::OP_NEGATE>>(
-            ids.GetNextId(), name);
+        node = std::make_shared<UnaryExpressionNode<OpCode::OP_NEGATE>>(ids.GetNextId(), name);
     else if (operation == OpCode::OP_IS_NIL)
-        node = std::make_shared<UnaryExpressionNode<OpCode::OP_IS_NIL>>(
-            ids.GetNextId(), name);
+        node = std::make_shared<UnaryExpressionNode<OpCode::OP_IS_NIL>>(ids.GetNextId(), name);
     else if (operation == OpCode::OP_TO_STRING)
         node = std::make_shared<UnaryExpressionNode<OpCode::OP_TO_STRING>>(ids.GetNextId(), name);
     else
-        node = std::make_shared<UnaryExpressionNode<OpCode::OP_NOT>>(
-            ids.GetNextId(), name);
+        node = std::make_shared<UnaryExpressionNode<OpCode::OP_NOT>>(ids.GetNextId(), name);
+
     node->Inputs.emplace_back(ids.GetNextId(), "Value", inputType);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", outputType);
     node->Inputs.back().LiteralValue = defaultValue;
@@ -191,20 +190,17 @@ inline NodePtr BuildUnaryExpressionNode(IDGenerator& ids, const char* name,
 
 inline NodePtr BuildNotNode(IDGenerator& ids)
 {
-    return BuildUnaryExpressionNode(
-        ids, "Not", PinType::Bool, PinType::Bool, OpCode::OP_NOT, Value(false));
+    return BuildUnaryExpressionNode(ids, "Not", PinType::Bool, PinType::Bool, OpCode::OP_NOT, Value(false));
 }
 
 inline NodePtr BuildNegateNode(IDGenerator& ids)
 {
-    return BuildUnaryExpressionNode(
-        ids, "Negate", PinType::Float, PinType::Float, OpCode::OP_NEGATE, Value(0.0));
+    return BuildUnaryExpressionNode(ids, "Negate", PinType::Float, PinType::Float, OpCode::OP_NEGATE, Value(0.0));
 }
 
 inline NodePtr BuildIsNilNode(IDGenerator& ids)
 {
-    return BuildUnaryExpressionNode(
-        ids, "Is Nil", PinType::Any, PinType::Bool, OpCode::OP_IS_NIL, Value());
+    return BuildUnaryExpressionNode(ids, "Is Nil", PinType::Any, PinType::Bool, OpCode::OP_IS_NIL, Value());
 }
 
 inline NodePtr BuildToStringNode(IDGenerator& ids)
@@ -214,39 +210,39 @@ inline NodePtr BuildToStringNode(IDGenerator& ids)
 
 inline NodePtr BuildNotEqualsNode(IDGenerator& ids)
 {
-    NodePtr node =
-        std::make_shared<TwoOperationExpressionNode<OpCode::OP_EQUAL, OpCode::OP_NOT>>(
-            ids.GetNextId(), "!=");
+    NodePtr node = std::make_shared<TwoOperationExpressionNode<OpCode::OP_EQUAL, OpCode::OP_NOT>>(ids.GetNextId(), "!=");
+
     const TypeRef comparable = TypeRef::Variable("T");
     node->Inputs.emplace_back(ids.GetNextId(), "A", comparable);
     node->Inputs.emplace_back(ids.GetNextId(), "B", comparable);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
+
     return node;
 }
 
 inline NodePtr BuildGreaterOrEqualNode(IDGenerator& ids)
 {
-    NodePtr node =
-        std::make_shared<TwoOperationExpressionNode<OpCode::OP_LESS, OpCode::OP_NOT>>(
-            ids.GetNextId(), ">=");
+    NodePtr node = std::make_shared<TwoOperationExpressionNode<OpCode::OP_LESS, OpCode::OP_NOT>>(ids.GetNextId(), ">=");
+
     node->Inputs.emplace_back(ids.GetNextId(), "A", PinType::Float);
     node->Inputs.emplace_back(ids.GetNextId(), "B", PinType::Float);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
     node->Inputs[0].LiteralValue = Value(0.0);
     node->Inputs[1].LiteralValue = Value(0.0);
+
     return node;
 }
 
 inline NodePtr BuildLessOrEqualNode(IDGenerator& ids)
 {
-    NodePtr node =
-        std::make_shared<TwoOperationExpressionNode<OpCode::OP_GREATER, OpCode::OP_NOT>>(
-            ids.GetNextId(), "<=");
+    NodePtr node = std::make_shared<TwoOperationExpressionNode<OpCode::OP_GREATER, OpCode::OP_NOT>>(ids.GetNextId(), "<=");
+
     node->Inputs.emplace_back(ids.GetNextId(), "A", PinType::Float);
     node->Inputs.emplace_back(ids.GetNextId(), "B", PinType::Float);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", PinType::Bool);
     node->Inputs[0].LiteralValue = Value(0.0);
     node->Inputs[1].LiteralValue = Value(0.0);
+
     return node;
 }
 
@@ -254,41 +250,45 @@ inline NodePtr BuildShortCircuitNode(IDGenerator& ids, const char* name,
                                      ShortCircuitMode mode, PinType type,
                                      const Value& defaultValue)
 {
-    NodePtr node = std::make_shared<ShortCircuitExpressionNode>(
-        ids.GetNextId(), name, mode);
+    NodePtr node = std::make_shared<ShortCircuitExpressionNode>(ids.GetNextId(), name, mode);
+
     node->Inputs.emplace_back(ids.GetNextId(), "A", type);
     node->Inputs.emplace_back(ids.GetNextId(), "B", type);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", type);
     node->Inputs[0].LiteralValue = defaultValue;
     node->Inputs[1].LiteralValue = defaultValue;
+
     return node;
 }
 
 inline NodePtr BuildAndNode(IDGenerator& ids)
 {
-    NodePtr node = BuildShortCircuitNode(
-        ids, "And", ShortCircuitMode::And, PinType::Bool, Value(false));
+    NodePtr node = BuildShortCircuitNode(ids, "And", ShortCircuitMode::And, PinType::Bool, Value(false));
+
     node->ShowInputPinNames = false;
     node->ShowOutputPinNames = false;
+
     return node;
 }
 
 inline NodePtr BuildOrNode(IDGenerator& ids)
 {
-    NodePtr node = BuildShortCircuitNode(
-        ids, "Or", ShortCircuitMode::Or, PinType::Bool, Value(false));
+    NodePtr node = BuildShortCircuitNode(ids, "Or", ShortCircuitMode::Or, PinType::Bool, Value(false));
+
     node->ShowInputPinNames = false;
     node->ShowOutputPinNames = false;
+
     return node;
 }
 
 inline NodePtr BuildCoalesceNode(IDGenerator& ids)
 {
-    NodePtr node = std::make_shared<ShortCircuitExpressionNode>(
-        ids.GetNextId(), "Coalesce", ShortCircuitMode::Coalesce);
+    NodePtr node = std::make_shared<ShortCircuitExpressionNode>(ids.GetNextId(), "Coalesce", ShortCircuitMode::Coalesce);
+
     const TypeRef valueType = TypeRef::Variable("T");
     node->Inputs.emplace_back(ids.GetNextId(), "Value", valueType);
     node->Inputs.emplace_back(ids.GetNextId(), "Fallback", valueType);
     node->Outputs.emplace_back(ids.GetNextId(), "Result", valueType);
+
     return node;
 }

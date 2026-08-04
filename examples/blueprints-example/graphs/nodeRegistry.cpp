@@ -790,7 +790,7 @@ void NodeRegistry::RegisterDefinitions()
         });
     RegisterNativeFunc("File::List Directory",
         { { "Directory", Value(copyString("", 0)) } },
-        { { "Entries", Value(newList()) }, { "Success", Value(false) },
+        { { "Entries", Value(newList()), -1, TypeRef::List(PinType::String) }, { "Success", Value(false) },
           { "Error", Value(copyString("", 0)) } },
         &FileListDirectory, NodeDefinitionFlags::None,
         NodeDocumentation{

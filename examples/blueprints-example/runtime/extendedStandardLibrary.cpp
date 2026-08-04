@@ -41,6 +41,7 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
+#include <shlobj.h>
 #else
 #include <csignal>
 #include <fcntl.h>
@@ -112,6 +113,86 @@ bool StringList(const Value& value, std::vector<std::string>& result, std::strin
     }
     return true;
 }
+
+enum class SpecialPath
+{
+    RoamingAppData,
+    LocalAppData,
+    ProgramData,
+    Documents,
+    Pictures,
+    Videos,
+    Music,
+    Home,
+    Desktop,
+    Downloads,
+    SavedGames
+};
+
+struct PathResult
+{
+    std::filesystem::path path;
+    bool success;
+    std::string error;
+};
+
+#ifdef _WIN32
+
+struct CoTaskMemDeleter
+{
+    void operator()(wchar_t* pointer) const noexcept
+    {
+        CoTaskMemFree(pointer);
+    }
+};
+
+REFKNOWNFOLDERID GetKnownFolderId(SpecialPath path)
+{
+    switch (path)
+    {
+    case SpecialPath::RoamingAppData: return FOLDERID_RoamingAppData;
+    case SpecialPath::LocalAppData: return FOLDERID_LocalAppData;
+    case SpecialPath::ProgramData: return FOLDERID_ProgramData;
+    case SpecialPath::Documents: return FOLDERID_Documents;
+    case SpecialPath::Pictures: return FOLDERID_Pictures;
+    case SpecialPath::Videos: return FOLDERID_Videos;
+    case SpecialPath::Music: return FOLDERID_Music;
+    case SpecialPath::Home: return FOLDERID_Profile;
+    case SpecialPath::Desktop: return FOLDERID_Desktop;
+    case SpecialPath::Downloads: return FOLDERID_Downloads;
+    case SpecialPath::SavedGames: return FOLDERID_SavedGames;
+    }
+
+    // All enum values are handled above.
+    std::terminate();
+}
+
+PathResult ResolveSpecialPath(SpecialPath path)
+{
+    PWSTR rawPath = nullptr;
+
+    const HRESULT result = SHGetKnownFolderPath(GetKnownFolderId(path), 0, nullptr, &rawPath);
+
+    if (FAILED(result))
+    {
+        CoTaskMemFree(rawPath);
+        return { {}, false, "Error fetching the path" };
+    }
+
+    std::filesystem::path resolvedPath(rawPath);
+    CoTaskMemFree(rawPath);
+
+    return { std::move(resolvedPath), true, {} };
+}
+
+#else
+
+PathResult ResolveSpecialPath(SpecialPath)
+{
+    return { {}, false, "Invalid platform" };
+}
+
+#endif
 
 std::mt19937_64& RandomGenerator()
 {
@@ -963,6 +1044,19 @@ Value PathRelative(int, Value* args, VM* vm)
     result->append(StringValue(std::move(path)));
     result->append(Value(!error));
     result->append(StringValue(error ? ((!isString(args[0]) || !isString(args[1])) ? "Path and base must be strings." : error.message()) : ""));
+    return EndList(vm, result);
+}
+
+template<SpecialPath Path>
+Value GetSpecialPath(int, Value*, VM* vm)
+{
+    const PathResult pathResult = ResolveSpecialPath(Path);
+
+    ObjList* result = BeginList(vm);
+    result->append(StringValue(pathResult.path.string()));
+    result->append(Value(pathResult.success));
+    result->append(StringValue(pathResult.error));
+
     return EndList(vm, result);
 }
 
@@ -2639,6 +2733,39 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
         &PathReplaceFilename, pure, "Replaces the filename portion of a path");
     RegisterNode(registry, "Path::Relative", { { "Path", emptyString }, { "Base", emptyString } },
         { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } }, &PathRelative, effect, "Computes a path relative to a base directory");
+
+    RegisterNode(registry, "Path::RoamingAppData", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        &GetSpecialPath<SpecialPath::RoamingAppData>, effect, "Returns the AppData/Roaming location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::LocalAppData", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        &GetSpecialPath<SpecialPath::LocalAppData>, effect, "Returns the AppData/Local location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::ProgramData", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        &GetSpecialPath<SpecialPath::ProgramData>, effect, "Returns the Program Data location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Documents", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        &GetSpecialPath<SpecialPath::Documents>, effect, "Returns the Documents location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Pictures", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        &GetSpecialPath<SpecialPath::Pictures>, effect, "Returns the Pictures location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Videos", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::Videos>, effect, "Returns the Videos location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Music", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::Music>, effect, "Returns the Music location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Home", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::Home>, effect, "Returns the Home location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Desktop", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::Desktop>, effect, "Returns the Desktop location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::Downloads", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::Downloads>, effect, "Returns the Downloads location in Windows, empty path on other platforms");
+
+    RegisterNode(registry, "Path::SavedGames", {}, { { "Path", emptyString }, { "Success", Value(false) }, { "Error", emptyString } },
+        & GetSpecialPath<SpecialPath::SavedGames>, effect, "Returns the SavedGames location in Windows, empty path on other platforms");
 
     RegisterNode(registry, "Environment::Get", { { "Name", emptyString } }, { { "Value", emptyString }, { "Found", Value(false) } },
         &EnvironmentGet, effect, "Reads an environment variable without changing the process");

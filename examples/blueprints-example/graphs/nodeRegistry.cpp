@@ -272,24 +272,6 @@ void NodeRegistry::RegisterDefinitions()
             { "The number whose absolute value is needed" },
             { "The non-negative absolute value" }
         });
-    RegisterNativeFunc("Math::Min",
-        { { "A", Value(0.0) }, { "B", Value(0.0) } },
-        { { "Result", Value(0.0) } },
-        &MathMin, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
-        NodeDocumentation{
-            "Returns the smaller of two numbers",
-            { "The first number to compare", "The second number to compare" },
-            { "The smaller number" }
-        });
-    RegisterNativeFunc("Math::Max",
-        { { "A", Value(0.0) }, { "B", Value(0.0) } },
-        { { "Result", Value(0.0) } },
-        &MathMax, NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
-        NodeDocumentation{
-            "Returns the larger of two numbers",
-            { "The first number to compare", "The second number to compare" },
-            { "The larger number" }
-        });
     RegisterNativeFunc("Math::Clamp",
         { { "Value", Value(0.0) }, { "Min", Value(0.0) },
           { "Max", Value(1.0) } },
@@ -341,7 +323,7 @@ void NodeRegistry::RegisterDefinitions()
             { "The number to round" },
             { "The nearest integer" }
         });
-    RegisterNativeFunc("Math::Random",
+    RegisterNativeFunc("Random::Number",
         { { "Min", Value(0.0) }, { "Max", Value(1.0) } },
         { { "Result", Value(0.0) } },
         &MathRandom, NodeDefinitionFlags::ReadOnly,
@@ -734,30 +716,6 @@ void NodeRegistry::RegisterDefinitions()
             { "A new map containing the same keys and values" }
         });
 
-    RegisterNativeFunc("File::ReadFile",
-        { { "File", Value(copyString("", 0)) } },
-        { { "Content", Value(copyString("", 0)) } },
-        &readFile,
-        NodeDefinitionFlags::None,
-        NodeDocumentation{
-            "Reads all text from a file",
-            { "The path of the file to read" },
-            { "The file contents" }
-        }
-    );
-
-    RegisterNativeFunc("File::WriteFile",
-        { { "File", Value(copyString("", 0)) }, { "Content", Value(copyString("", 0)) } },
-        { },
-        &writeFile,
-        NodeDefinitionFlags::None,
-        NodeDocumentation{
-            "Replaces a file with the supplied text",
-            { "The path of the file to write", "The text to write" },
-            {  }
-        }
-    );
-
     RegisterNativeFunc("File::Read Text",
         { { "File", Value(copyString("", 0)) } },
         { { "Content", Value(copyString("", 0)) }, { "Success", Value(false) },
@@ -1032,37 +990,6 @@ void NodeRegistry::RegisterDefinitions()
             "Extracts a section of text",
             { "The source text", "The first character index", "The maximum character count" },
             { "The requested section of text" }
-        }
-    );
-
-    RegisterNativeFunc("String::Find",
-        { { "Text", Value(copyString("", 0)) }, { "Search", Value(copyString("", 0)) } },
-        { { "Index", Value(-1.0) } },
-        [](int argCount, Value* args, VM* vm)
-        {
-            if (!isString(args[0]))
-                return Value();
-
-            if (!isString(args[1]))
-                return Value();
-
-            ObjString* str = asString(args[0]);
-            ObjString* substr = asString(args[1]);
-
-            const size_t result = str->chars.find(substr->chars);
-
-            if (result == std::string::npos)
-            {
-                return Value(-1.0);
-            }
-
-            return Value((double)result);
-        },
-        NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure,
-        NodeDocumentation{
-            "Finds the first character index of a substring",
-            { "The text to search", "The substring to find" },
-            { "The first matching index, or -1 when absent" }
         }
     );
 
@@ -1369,28 +1296,28 @@ void NodeRegistry::RegisterDefinitions()
         Input.type = INPUT_MOUSE;
 
         Input.mi.dx = (LONG)(sx * XSCALEFACTOR);
-        Input.mi.dy = (LONG)(sy * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(sy * YSCALEFACTOR);
 
         Input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
 
         SendInput(1, &Input, sizeof(INPUT));
 
         Input.mi.dx = (LONG)(sx * XSCALEFACTOR);
-        Input.mi.dy = (LONG)(sy * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(sy * YSCALEFACTOR);
 
         Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN;
 
         SendInput(1, &Input, sizeof(INPUT));
 
         Input.mi.dx = (LONG)(tx * XSCALEFACTOR);
-        Input.mi.dy = (LONG)(ty * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(ty * YSCALEFACTOR);
 
         Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 
         SendInput(1, &Input, sizeof(INPUT));
 
         Input.mi.dx = (LONG)(tx * XSCALEFACTOR);
-        Input.mi.dy = (LONG)(ty * XSCALEFACTOR);
+        Input.mi.dy = (LONG)(ty * YSCALEFACTOR);
 
         Input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTUP;
 
@@ -1804,6 +1731,44 @@ void NodeRegistry::RegisterNativeFunc(const char* name,
     nativeFunc->outputs = outputs;
     nativeFunc->flags = flags;
     nativeFunc->dynamicInputProps = dynamicProps;
+
+    ApplyDocumentation(*nativeFunc, documentation);
+    ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));
+    ApplyStableDefinitionSchema(*nativeFunc, "native");
+
+    if (std::any_of(nativeDefinitions.begin(), nativeDefinitions.end(), [&](const NativeFunctionDef& existing) { return existing.functionDef && existing.functionDef->id == nativeFunc->id; }))
+        throw std::invalid_argument("Duplicate native definition ID '" + nativeFunc->id + "'");
+
+    nativeDefinitions.push_back({ nativeFunc, fun });
+}
+
+void NodeRegistry::RegisterNativeFunc(const char* name,
+    const char* displayName,
+    std::vector<BasicFunctionDef::Input>&& inputs,
+    std::vector<BasicFunctionDef::Input>&& outputs,
+    NativeFn fun,
+    NodeDefinitionFlags flags,
+    NodeDocumentation documentation,
+    bool showInputs,
+    bool showOutputs,
+    std::vector<GenericTypeProperty> genericTypeProperties)
+{
+    BasicFunctionDefPtr nativeFunc = std::make_shared<BasicFunctionDef>();
+    nativeFunc->name = name;
+    nativeFunc->displayName = displayName;
+
+    // The VM receives all dynamic values packed in this single list argument.
+    nativeFunc->inputs = {
+        { "Values", Value(2.0), -1, TypeRef(PinType::Any),
+          "The values to include in the list" }
+    };
+
+    nativeFunc->inputs = inputs;
+    nativeFunc->outputs = outputs;
+    nativeFunc->flags = flags;
+
+    nativeFunc->ShowInputNames = showInputs;
+    nativeFunc->ShowOutputNames = showOutputs;
 
     ApplyDocumentation(*nativeFunc, documentation);
     ApplyGenericTypeProperties(*nativeFunc, std::move(genericTypeProperties));

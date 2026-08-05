@@ -62,6 +62,16 @@ public:
         BasicFunctionDef::DynamicInputProps&& dynamicProps,
         NodeDocumentation documentation,
         std::vector<GenericTypeProperty> genericTypeProperties = {});
+    void RegisterNativeFunc(const char* name,
+        const char* displayName,
+        std::vector<BasicFunctionDef::Input>&& inputs,
+        std::vector<BasicFunctionDef::Input>&& outputs,
+        NativeFn fun,
+        NodeDefinitionFlags flags,
+        NodeDocumentation documentation,
+        bool showInputs,
+        bool showOutputs,
+        std::vector<GenericTypeProperty> genericTypeProperties = {});
     void RegisterNativeClass(const char* name, std::vector<NativeMethodDef> methods);
     void RegisterNatives(VM& vm);
     void RegisterCompiledNode(const char* name, NodeCreationFun creationFunc,

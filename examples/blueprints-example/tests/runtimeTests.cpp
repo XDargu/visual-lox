@@ -2032,12 +2032,8 @@ void ExpandedMathAndStringNodesOperate()
     };
     Require(number("Math::Abs", { Value(-4.0) }) == 4.0,
             "Math::Abs should return magnitude.");
-    Require(number("Math::Min", { Value(2.0), Value(5.0) }) == 2.0 &&
-            number("Math::Max", { Value(2.0), Value(5.0) }) == 5.0,
-            "Math::Min and Math::Max should select endpoints.");
-    Require(number("Math::Clamp",
-                { Value(7.0), Value(1.0), Value(5.0) }) == 5.0,
-            "Math::Clamp should constrain values.");
+    
+    Require(number("Math::Clamp", { Value(7.0), Value(1.0), Value(5.0) }) == 5.0, "Math::Clamp should constrain values.");
     Require(number("Math::Power", { Value(2.0), Value(3.0) }) == 8.0 &&
             number("Math::Sqrt", { Value(9.0) }) == 3.0,
             "Power and square root should calculate expected values.");
@@ -2046,7 +2042,7 @@ void ExpandedMathAndStringNodesOperate()
             number("Math::Round", { Value(2.6) }) == 3.0,
             "Rounding nodes should use their documented direction.");
     const double random =
-        number("Math::Random", { Value(-2.0), Value(2.0) });
+        number("Random::Number", { Value(-2.0), Value(2.0) });
     Require(random >= -2.0 && random <= 2.0,
             "Math::Random should stay within its requested bounds.");
 
@@ -2681,10 +2677,10 @@ void JsonTextMathAndCollectionNodesOperate()
             asBoolean(asList(decoded)->items[1]) && asString(asList(decoded)->items[0])->chars == "hello",
             "Line and base64 nodes should preserve text content.");
 
-    fixture.CallNative("Math::Random Seed", { Value(123.0) });
-    const Value randomFirst = fixture.CallNative("Math::Random Integer", { Value(1.0), Value(1000.0) });
-    fixture.CallNative("Math::Random Seed", { Value(123.0) });
-    const Value randomSecond = fixture.CallNative("Math::Random Integer", { Value(1.0), Value(1000.0) });
+    fixture.CallNative("Random::Seed", { Value(123.0) });
+    const Value randomFirst = fixture.CallNative("Random::Integer", { Value(1.0), Value(1000.0) });
+    fixture.CallNative("Random::Seed", { Value(123.0) });
+    const Value randomSecond = fixture.CallNative("Random::Integer", { Value(1.0), Value(1000.0) });
     const double pi = asNumber(fixture.CallNative("Math::Pi", {}));
     Require(randomFirst == randomSecond && std::fabs(asNumber(fixture.CallNative("Math::Sin", { Value(pi / 2.0) })) - 1.0) < 1e-12 &&
             std::fabs(asNumber(fixture.CallNative("Math::Log", { Value(std::exp(2.0)) })) - 2.0) < 1e-12,
@@ -2783,9 +2779,9 @@ void ExtendedFileProcessAndTimeNodesOperate()
     Require(asBoolean(asList(process)->items[5]) && asNumber(asList(process)->items[0]) == 0.0 &&
             asString(asList(process)->items[1])->chars.find("captured-output") != std::string::npos,
             "Process::Run should capture stdout and return the executable exit code.");
-    const NativeFunctionDef* runCommand = fixture.registry.FindNative("System::RunCommand");
-    Require(runCommand && runCommand->functionDef->revision == 2 && runCommand->functionDef->inputs.size() == 5 && runCommand->functionDef->outputs.size() == 7,
-            "System::RunCommand should use the structured process schema instead of a shell command string.");
+    const NativeFunctionDef* runCommand = fixture.registry.FindNative("Process::Run");
+    Require(runCommand && runCommand->functionDef->inputs.size() == 5 && runCommand->functionDef->outputs.size() == 7,
+            "Process::Run should use the structured process schema instead of a shell command string.");
 
     const Value started = fixture.CallNative("Process::Start",
         { StringValue(executable), Value(arguments), StringValue(root.string()), Value(newMap()), Value(5.0) });

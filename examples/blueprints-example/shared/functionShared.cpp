@@ -304,8 +304,8 @@ struct FunctionNode : public Node
 NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& pFunctionDef,
                           ScriptElementID funcID)
 {
-    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(),
-        pFunctionDef ? pFunctionDef->name.c_str() : "", pFunctionDef, funcID);
+    NodePtr node = std::make_shared<FunctionNode>(IDGenerator.GetNextId(), pFunctionDef ? pFunctionDef->name.c_str() : "", pFunctionDef, funcID);
+
     node->SerializationType = "function.call";
     node->DefinitionId = funcID.IsValid()
         ? "vlox.script.function.call"
@@ -317,20 +317,22 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
     if (!pFunctionDef)
         return node;
 
+    node->DisplayName = pFunctionDef->displayName;
     node->Description = pFunctionDef->description;
     node->GenericTypeProperties = pFunctionDef->genericTypeProperties;
+    node->ShowInputPinNames = pFunctionDef->ShowInputNames;
+    node->ShowOutputPinNames = pFunctionDef->ShowOutputNames;
 
     const bool expressionOnly =
         HasFlag(pFunctionDef->flags, NodeDefinitionFlags::ReadOnly) ||
         HasFlag(pFunctionDef->flags, NodeDefinitionFlags::Pure);
+
     if (!expressionOnly)
     {
-        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
-            "Executes this function.");
+        node->Inputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow, "Executes this function.");
         node->Inputs.back().Identity = PortIdentity::Fixed("execute");
 
-        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow,
-            "Continues after the function returns.");
+        node->Outputs.emplace_back(IDGenerator.GetNextId(), "", PinType::Flow, "Continues after the function returns.");
         node->Outputs.back().Identity = PortIdentity::Fixed("then");
     }
 
@@ -338,8 +340,7 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
     {
         for (const BasicFunctionDef::Input& input : pFunctionDef->inputs)
         {
-            node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type,
-                input.description);
+            node->Inputs.emplace_back(IDGenerator.GetNextId(), input.name.c_str(), input.type, input.description);
             node->Inputs.back().Identity = funcID.IsValid() ? PortIdentity::Script(input.persistentId) : PortIdentity::Fixed(input.key);
             node->Inputs.back().LiteralValue = input.value;
         }
@@ -353,6 +354,11 @@ NodePtr BuildFunctionNode(IDGenerator& IDGenerator, const BasicFunctionDefPtr& p
     }
 
     node->DefinitionFlags = pFunctionDef->flags;
+
+    if (HasFlag(pFunctionDef->flags, NodeDefinitionFlags::SimpleBody))
+    {
+        node->Type = NodeType::SimpleLargeBody;
+    }
 
     return node;
 }

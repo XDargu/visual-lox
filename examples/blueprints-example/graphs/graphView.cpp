@@ -530,7 +530,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
             {
                 builder.Header(node->Color);
                 ImGui::Spring(0);
-                ImGui::TextUnformatted(node->Name.c_str());
+                ImGui::TextUnformatted(node->DisplayName.empty() ? node->Name.c_str() : node->DisplayName.c_str());
                 if (!nodeDiagnostics.empty())
                     ImGui::TextColored(hasDiagnosticError ? ImVec4(1.0f, 0.25f, 0.25f, 1.0f)
                                                            : ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "!");
@@ -602,7 +602,7 @@ void GraphView::DrawNodeEditor(ImTextureID& headerBackground, int headerWidth, i
                     ImGui::PushFont(m_largeNodeFont);
 
                 ImGui::Spring(1, 0);
-                ImGui::TextUnformatted(node->Name.c_str());
+                ImGui::TextUnformatted(node->DisplayName.empty() ? node->Name.c_str() : node->DisplayName.c_str());
                 ImGui::Spring(1, 0);
 
                 if (isSimpleLarge)

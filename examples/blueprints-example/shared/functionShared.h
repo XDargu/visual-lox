@@ -25,6 +25,7 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
         TypeRef type;
         std::string description;
         ScriptPortId persistentId{ Uuid::NewV4() };
+
         Input() = default;
         Input(std::string portName, Value defaultValue, int portId = -1,
               std::string portDescription = {})
@@ -32,7 +33,8 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
               type(TypeOfValue(defaultValue)),
               description(std::move(portDescription))
         {
-            if (type == PinType::Nil) type = PinType::Any;
+            if (type == PinType::Nil)
+                type = PinType::Any;
         }
         Input(std::string portName, Value defaultValue, int portId, TypeRef declaredType,
               std::string portDescription = {})
@@ -58,6 +60,10 @@ struct BasicFunctionDef : public std::enable_shared_from_this<BasicFunctionDef>
     ScriptElementUuid scriptId;
     std::string name;
     std::string description;
+    std::string displayName;
+
+    bool ShowInputNames = true;
+    bool ShowOutputNames = true;
 
     NodePtr MakeNode(IDGenerator& IDGenerator, ScriptElementID funcID);
 

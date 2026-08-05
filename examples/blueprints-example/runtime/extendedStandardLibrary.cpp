@@ -1,4 +1,4 @@
-#include "extendedStandardLibrary.h"
+﻿#include "extendedStandardLibrary.h"
 #include "standardLibrary.h"
 
 #include "../graphs/nodeRegistry.h"
@@ -2494,18 +2494,55 @@ void RegisterNode(NodeRegistry& registry, const char* name, std::vector<BasicFun
 {
     std::vector<std::string> inputDescriptions;
     std::vector<std::string> outputDescriptions;
+
     inputDescriptions.reserve(inputs.size());
     outputDescriptions.reserve(outputs.size());
+
     for (const BasicFunctionDef::Input& input : inputs)
         inputDescriptions.push_back("The " + input.name + " input");
+
     for (const BasicFunctionDef::Input& output : outputs)
         outputDescriptions.push_back("The " + output.name + " result");
+
     std::vector<const char*> inputPointers;
     std::vector<const char*> outputPointers;
-    for (const std::string& input : inputDescriptions) inputPointers.push_back(input.c_str());
-    for (const std::string& output : outputDescriptions) outputPointers.push_back(output.c_str());
+
+    for (const std::string& input : inputDescriptions)
+        inputPointers.push_back(input.c_str());
+
+    for (const std::string& output : outputDescriptions)
+        outputPointers.push_back(output.c_str());
+
     registry.RegisterNativeFunc(name, std::move(inputs), std::move(outputs), function, flags, { description, std::move(inputPointers), std::move(outputPointers) });
 }
+
+void RegisterCompactNode(NodeRegistry& registry, const char* name, const char* displayName, std::vector<BasicFunctionDef::Input> inputs, std::vector<BasicFunctionDef::Input> outputs,
+    NativeFn function, NodeDefinitionFlags flags, const char* description, bool showInputs = false, bool showOutputs = false)
+{
+    std::vector<std::string> inputDescriptions;
+    std::vector<std::string> outputDescriptions;
+
+    inputDescriptions.reserve(inputs.size());
+    outputDescriptions.reserve(outputs.size());
+
+    for (const BasicFunctionDef::Input& input : inputs)
+        inputDescriptions.push_back("The " + input.name + " input");
+
+    for (const BasicFunctionDef::Input& output : outputs)
+        outputDescriptions.push_back("The " + output.name + " result");
+
+    std::vector<const char*> inputPointers;
+    std::vector<const char*> outputPointers;
+
+    for (const std::string& input : inputDescriptions)
+        inputPointers.push_back(input.c_str());
+
+    for (const std::string& output : outputDescriptions)
+        outputPointers.push_back(output.c_str());
+
+    registry.RegisterNativeFunc(name, displayName, std::move(inputs), std::move(outputs), function, flags, { description, std::move(inputPointers), std::move(outputPointers) }, showInputs, showOutputs);
+}
+
 }
 
 void MarkStandardLibraryTimerRoots(VM& vm)
@@ -2635,6 +2672,7 @@ double StandardLibraryRandomReal(double minimum, double maximum)
 void RegisterExtendedStandardLibrary(NodeRegistry& registry)
 {
     const NodeDefinitionFlags pure = NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure;
+    const NodeDefinitionFlags pureCompact = NodeDefinitionFlags::ReadOnly | NodeDefinitionFlags::Pure | NodeDefinitionFlags::SimpleBody;
     const NodeDefinitionFlags query = NodeDefinitionFlags::ReadOnly;
     const NodeDefinitionFlags effect = NodeDefinitionFlags::None;
     const Value emptyString(copyString("", 0));
@@ -2710,8 +2748,6 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
         { { "Success", Value(false) }, { "Error", emptyString } }, &FileCopy, effect, "Copies a file or directory to another path");
     RegisterNode(registry, "File::Move", { { "Source", emptyString }, { "Destination", emptyString }, { "Overwrite", Value(false) } },
         { { "Success", Value(false) }, { "Error", emptyString } }, &FileMove, effect, "Moves a file or directory to another path");
-    RegisterNode(registry, "File::Rename", { { "Source", emptyString }, { "Destination", emptyString }, { "Overwrite", Value(false) } },
-        { { "Success", Value(false) }, { "Error", emptyString } }, &FileMove, effect, "Renames a file or directory with explicit overwrite behavior");
     RegisterNode(registry, "File::Delete", { { "Path", emptyString }, { "Recursive", Value(false) } },
         { { "Success", Value(false) }, { "Error", emptyString } }, &FileDelete, effect, "Deletes a file or optionally a directory tree");
     RegisterNode(registry, "Directory::Create", { { "Path", emptyString }, { "Recursive", Value(true) } },
@@ -2785,8 +2821,6 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
         { "Cancelled", Value(false) }, { "Success", Value(false) }, { "Error", emptyString }
     };
     RegisterNode(registry, "Process::Run", processInputs, processOutputs, &ProcessRun, effect, "Runs an executable synchronously with captured output and a timeout");
-    RegisterNode(registry, "System::RunCommand", processInputs, processOutputs, &ProcessRun, effect, "Runs an executable with explicit arguments, environment, output capture, and timeout");
-    registry.nativeDefinitions.back().functionDef->revision = 2;
     RegisterNode(registry, "Process::Start", processInputs,
         { { "Handle", Value(0.0) }, { "Success", Value(false) }, { "Error", emptyString } }, &ProcessStart, effect, "Starts an executable asynchronously and returns a process handle");
     RegisterNode(registry, "Process::Poll", { { "Handle", Value(0.0) } },
@@ -2854,22 +2888,24 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
     RegisterNode(registry, "Timer::Cancel", { { "Handle", Value(0.0) } }, { { "Success", Value(false) }, { "Error", emptyString } },
         &TimerCancel, effect, "Cancels a pending or repeating callback timer");
 
-    RegisterNode(registry, "Math::Pi", {}, { { "Value", Value(0.0) } }, &MathPi, pure, "Returns the mathematical constant pi");
-    RegisterNode(registry, "Math::E", {}, { { "Value", Value(0.0) } }, &MathE, pure, "Returns Euler's mathematical constant");
-    RegisterNode(registry, "Math::Tau", {}, { { "Value", Value(0.0) } }, &MathTau, pure, "Returns the circle constant equal to two pi");
-    RegisterNode(registry, "Math::Sin", { { "Radians", Value(0.0) } }, { { "Value", Value(0.0) } }, &MathSin, pure, "Returns the sine of an angle in radians");
-    RegisterNode(registry, "Math::Cos", { { "Radians", Value(0.0) } }, { { "Value", Value(0.0) } }, &MathCos, pure, "Returns the cosine of an angle in radians");
-    RegisterNode(registry, "Math::Tan", { { "Radians", Value(0.0) } }, { { "Value", Value(0.0) } }, &MathTan, pure, "Returns the tangent of an angle in radians");
-    RegisterNode(registry, "Math::Asin", { { "Value", Value(0.0) } }, { { "Radians", Value(0.0) } }, &MathAsin, pure, "Returns the inverse sine in radians");
-    RegisterNode(registry, "Math::Acos", { { "Value", Value(0.0) } }, { { "Radians", Value(0.0) } }, &MathAcos, pure, "Returns the inverse cosine in radians");
-    RegisterNode(registry, "Math::Atan", { { "Value", Value(0.0) } }, { { "Radians", Value(0.0) } }, &MathAtan, pure, "Returns the inverse tangent in radians");
-    RegisterNode(registry, "Math::Atan2", { { "Y", Value(0.0) }, { "X", Value(0.0) } }, { { "Radians", Value(0.0) } },
+    RegisterCompactNode(registry, "Math::Pi", "Pi", {}, {{"Value", Value(0.0)}}, & MathPi, pureCompact, "Returns the mathematical constant pi");
+    RegisterCompactNode(registry, "Math::E", "e", {}, {{"Value", Value(0.0)}}, & MathE, pureCompact, "Returns Euler's mathematical constant");
+    RegisterCompactNode(registry, "Math::Tau", "Tau", {}, {{"Value", Value(0.0)}}, & MathTau, pureCompact, "Returns the circle constant equal to two pi");
+    RegisterCompactNode(registry, "Math::Sin", "sin", { { "Radians", Value(0.0) } }, {{"Value", Value(0.0)}}, & MathSin, pureCompact, "Returns the sine of an angle in radians");
+    RegisterCompactNode(registry, "Math::Cos", "Cos", { { "Radians", Value(0.0) } }, {{"Value", Value(0.0)}}, & MathCos, pureCompact, "Returns the cosine of an angle in radians");
+    RegisterCompactNode(registry, "Math::Tan", "Tan", { { "Radians", Value(0.0) } }, {{"Value", Value(0.0)}}, & MathTan, pureCompact, "Returns the tangent of an angle in radians");
+    RegisterCompactNode(registry, "Math::Asin", "Asin", { { "Value", Value(0.0) } }, {{"Radians", Value(0.0)}}, & MathAsin, pureCompact, "Returns the inverse sine in radians");
+    RegisterCompactNode(registry, "Math::Acos", "Acos", { { "Value", Value(0.0) } }, {{"Radians", Value(0.0)}}, & MathAcos, pureCompact, "Returns the inverse cosine in radians");
+    RegisterCompactNode(registry, "Math::Atan", "Atan", { { "Value", Value(0.0) } }, {{"Radians", Value(0.0)}}, & MathAtan, pureCompact, "Returns the inverse tangent in radians");
+    RegisterCompactNode(registry, "Math::Atan2", "Atan2", { { "Y", Value(0.0) }, {"X", Value(0.0)} }, {{"Radians", Value(0.0)}},
         &MathAtan2, pure, "Returns the quadrant-aware inverse tangent in radians");
-    RegisterNode(registry, "Math::Log", { { "Value", Value(1.0) } }, { { "Result", Value(0.0) } }, &MathLog, pure, "Returns the natural logarithm of a positive number");
-    RegisterNode(registry, "Math::Log10", { { "Value", Value(1.0) } }, { { "Result", Value(0.0) } }, &MathLog10, pure, "Returns the base-ten logarithm of a positive number");
-    RegisterNode(registry, "Math::Exp", { { "Value", Value(0.0) } }, { { "Result", Value(1.0) } }, &MathExp, pure, "Raises Euler's constant to a power");
-    RegisterNode(registry, "Math::Random Seed", { { "Seed", Value(0.0) } }, { { "Success", Value(false) } }, &RandomSeed, effect, "Seeds the standard-library pseudo-random generator");
-    RegisterNode(registry, "Math::Random Integer", { { "Min", Value(0.0) }, { "Max", Value(1.0) } }, { { "Value", Value(0.0) } },
+    RegisterCompactNode(registry, "Math::Log", "Log", { { "Value", Value(1.0) } }, {{"Result", Value(0.0)}}, & MathLog, pureCompact, "Returns the natural logarithm of a positive number");
+    RegisterCompactNode(registry, "Math::Log10", "Log10", { { "Value", Value(1.0) } }, {{"Result", Value(0.0)}}, & MathLog10, pureCompact, "Returns the base-ten logarithm of a positive number");
+    RegisterCompactNode(registry, "Math::Exp", "Exp", { { "Value", Value(0.0) }}, {{"Result", Value(1.0)}}, & MathExp, pureCompact, "Raises Euler's constant to a power");
+
+    RegisterNode(registry, "Random::Seed", { { "Seed", Value(0.0) } }, { { "Success", Value(false) } }, &RandomSeed, effect, "Seeds the standard-library pseudo-random generator");
+    RegisterNode(registry, "Random::Integer", { { "Min", Value(0.0) }, { "Max", Value(1.0) } }, { { "Value", Value(0.0) } },
+
         &RandomInteger, effect, "Returns a uniformly distributed integer within inclusive bounds");
     RegisterNode(registry, "List::Random Choice", { { "List", Value(newList()), -1, anyList } }, { { "Value", Value() } },
         &RandomChoice, effect, "Returns one uniformly selected list value");

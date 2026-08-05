@@ -187,7 +187,7 @@ Script MakeRockPaperScissors(const NodeRegistry& registry)
 
     Graph& roundGraph = playRound->Graph;
     NodePtr roundBegin = BuildBeginNode(builder.ids, playRound);
-    NodePtr random = builder.Native("Math::Random");
+    NodePtr random = builder.Native("Random::Number");
     builder.Default(random, "Min", Value(0.0));
     builder.Default(random, "Max", Value(2.999999));
     NodePtr floor = builder.Native("Math::Floor");
@@ -344,7 +344,7 @@ Script MakeGameOfLife(const NodeRegistry& registry)
     NodePtr getResetWidth = builder.Get(gridSize);
     NodePtr getResetHeight = builder.Get(gridSize);
     NodePtr resetCount = builder.Compiled("Math::Multiply");
-    NodePtr randomCell = builder.Native("Math::Random");
+    NodePtr randomCell = builder.Native("Random::Number");
     builder.Default(randomCell, "Min", Value(0.0));
     builder.Default(randomCell, "Max", Value(1.0));
     NodePtr isAlive = NumberOperation(builder, "Math::Less Than", 0.28);

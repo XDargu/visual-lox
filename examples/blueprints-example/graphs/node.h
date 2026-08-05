@@ -29,6 +29,7 @@ enum class NodeDefinitionFlags
     DynamicInputs = 1 << 1,
     Pure = 1 << 2,
     Protected = 1 << 3,
+    SimpleBody = 1 << 4,
 };
 
 // Mutable state belonging to one node instance in one graph.
@@ -274,6 +275,7 @@ struct Node
     ed::NodeId       ID;
     GraphNodeId      PersistentId{ Uuid::NewV4() };
     std::string      Name;
+    std::string      DisplayName;
     std::string      Description;
     std::vector<InputPin> Inputs;
     std::vector<Pin> Outputs;

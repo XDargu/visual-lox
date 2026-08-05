@@ -2676,7 +2676,6 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
     const NodeDefinitionFlags query = NodeDefinitionFlags::ReadOnly;
     const NodeDefinitionFlags effect = NodeDefinitionFlags::None;
     const Value emptyString(copyString("", 0));
-    const TypeRef anyList = TypeRef::List(PinType::Any);
     const TypeRef stringList = TypeRef::List(PinType::String);
     const TypeRef byteList = TypeRef::List(PinType::Int);
     const TypeRef timerCallback = TypeRef::Function({}, {});
@@ -2905,11 +2904,11 @@ void RegisterExtendedStandardLibrary(NodeRegistry& registry)
 
     RegisterNode(registry, "Random::Seed", { { "Seed", Value(0.0) } }, { { "Success", Value(false) } }, &RandomSeed, effect, "Seeds the standard-library pseudo-random generator");
     RegisterNode(registry, "Random::Integer", { { "Min", Value(0.0) }, { "Max", Value(1.0) } }, { { "Value", Value(0.0) } },
-
         &RandomInteger, effect, "Returns a uniformly distributed integer within inclusive bounds");
-    RegisterNode(registry, "List::Random Choice", { { "List", Value(newList()), -1, anyList } }, { { "Value", Value() } },
+
+    RegisterNode(registry, "Random::Random Choice", { { "List", Value(newList()), -1, TypeRef::List(TypeRef::Variable("T")) } }, {{"Value", Value(), -1, TypeRef::Variable("T")}},
         &RandomChoice, effect, "Returns one uniformly selected list value");
-    RegisterNode(registry, "List::Shuffle", { { "List", Value(newList()), -1, anyList } }, { { "List", Value(newList()), -1, anyList } },
+    RegisterNode(registry, "Random::Shuffle", { { "List", Value(newList()), -1, TypeRef::List(TypeRef::Variable("T")) } }, { { "List", Value(newList()), -1, TypeRef::List(TypeRef::Variable("T")) } },
         &RandomShuffle, effect, "Returns a shuffled copy of a list");
 
     const TypeRef predicate = TypeRef::Function({ TypeRef::Variable("T") }, { PinType::Bool });
